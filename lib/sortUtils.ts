@@ -1,4 +1,5 @@
 import type { TabItem } from "~types/tab"
+import { getDomainLabel } from "~lib/domainNames"
 
 export function parseTime(t: string) {
   const [h, m] = t.split(":").map(Number)
@@ -9,7 +10,7 @@ export function sortTabs(tabs: TabItem[], mode: string): TabItem[] {
   const s = [...tabs]
   if (mode === "domain") {
     return s.sort((a, b) => {
-      const d = a.domain.localeCompare(b.domain)
+      const d = a.domain.toLowerCase().localeCompare(b.domain.toLowerCase())
       return d !== 0 ? d : parseTime(b.openedAt) - parseTime(a.openedAt)
     })
   }
@@ -21,10 +22,14 @@ export function sortTabs(tabs: TabItem[], mode: string): TabItem[] {
 export function groupByDomain(tabs: TabItem[]) {
   const map: Record<string, TabItem[]> = {}
   tabs.forEach(t => {
-    if (!map[t.domain]) map[t.domain] = []
-    map[t.domain].push(t)
+    const key = t.domain.toLowerCase()
+    if (!map[key]) map[key] = []
+    map[key].push(t)
   })
   return Object.entries(map)
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([domain, items]) => ({ domain, items }))
+    .map(([domain, items]) => {
+      const name = getDomainLabel(domain)
+      return { domain, displayName: name ? `${name} · ${domain}` : domain, items }
+    })
 }

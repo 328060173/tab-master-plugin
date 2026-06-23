@@ -1,0 +1,1207 @@
+[
+  {
+    "domain": "163.com",
+    "name": "网易",
+    "comment": "综合门户网站"
+  },
+  {
+    "domain": "360.cn",
+    "name": "360",
+    "comment": "奇虎360"
+  },
+  {
+    "domain": "ai.wps.cn",
+    "name": "WPS AI",
+    "comment": "金山办公AI"
+  },
+  {
+    "domain": "alibabacloud.com",
+    "name": "阿里云国际",
+    "comment": "阿里云国际站"
+  },
+  {
+    "domain": "aliexpress.com",
+    "name": "速卖通",
+    "comment": "跨境电商"
+  },
+  {
+    "domain": "alipay.com",
+    "name": "支付宝",
+    "comment": "支付平台"
+  },
+  {
+    "domain": "aliyun.com",
+    "name": "阿里云",
+    "comment": "云计算服务"
+  },
+  {
+    "domain": "amazon.com",
+    "name": "亚马逊",
+    "comment": "国际电商"
+  },
+  {
+    "domain": "anthropic.com",
+    "name": "Anthropic",
+    "comment": "AI公司"
+  },
+  {
+    "domain": "app.diagrams.net",
+    "name": "Draw.io",
+    "comment": "绘图工具"
+  },
+  {
+    "domain": "app.netlify.com",
+    "name": "Netlify",
+    "comment": "Netlify控制台"
+  },
+  {
+    "domain": "app.vercel.com",
+    "name": "Vercel",
+    "comment": "Vercel控制台"
+  },
+  {
+    "domain": "apple.com",
+    "name": "苹果",
+    "comment": "Apple官网"
+  },
+  {
+    "domain": "atlassian.com",
+    "name": "Atlassian",
+    "comment": "Jira/Confluence"
+  },
+  {
+    "domain": "aws.amazon.com",
+    "name": "AWS",
+    "comment": "亚马逊云"
+  },
+  {
+    "domain": "azure.microsoft.com",
+    "name": "Azure",
+    "comment": "微软云"
+  },
+  {
+    "domain": "baidu.com",
+    "name": "百度",
+    "comment": "中文搜索引擎"
+  },
+  {
+    "domain": "bilibili.com",
+    "name": "哔哩哔哩",
+    "comment": "弹幕视频"
+  },
+  {
+    "domain": "bing.com",
+    "name": "必应",
+    "comment": "微软搜索引擎"
+  },
+  {
+    "domain": "booking.com",
+    "name": "Booking",
+    "comment": "酒店预订"
+  },
+  {
+    "domain": "brand.xiaohongshu.com",
+    "name": "小红书商家平台",
+    "comment": "小红书商家后台"
+  },
+  {
+    "domain": "canva.cn",
+    "name": "Canva可画",
+    "comment": "设计工具"
+  },
+  {
+    "domain": "capcut.cn",
+    "name": "剪映",
+    "comment": "视频编辑"
+  },
+  {
+    "domain": "cctv.com",
+    "name": "央视网",
+    "comment": "中央电视台官网"
+  },
+  {
+    "domain": "chat.baichuan-ai.com",
+    "name": "百小应",
+    "comment": "百川智能AI"
+  },
+  {
+    "domain": "chat.deepseek.com",
+    "name": "DeepSeek",
+    "comment": "AI助手"
+  },
+  {
+    "domain": "chat.openai.com",
+    "name": "ChatGPT",
+    "comment": "AI聊天"
+  },
+  {
+    "domain": "chat.sensetime.com",
+    "name": "商量",
+    "comment": "商汤科技AI"
+  },
+  {
+    "domain": "chatglm.cn",
+    "name": "智谱清言",
+    "comment": "智谱AI"
+  },
+  {
+    "domain": "chatgpt.com",
+    "name": "ChatGPT",
+    "comment": "OpenAI AI"
+  },
+  {
+    "domain": "claude.ai",
+    "name": "Claude",
+    "comment": "AI助手"
+  },
+  {
+    "domain": "cloud.baidu.com",
+    "name": "百度智能云",
+    "comment": "百度云服务"
+  },
+  {
+    "domain": "cloud.google.com",
+    "name": "Google Cloud",
+    "comment": "谷歌云"
+  },
+  {
+    "domain": "cloud.tencent.com",
+    "name": "腾讯云",
+    "comment": "腾讯云服务"
+  },
+  {
+    "domain": "cnnic.cn",
+    "name": "中国互联网络信息中心",
+    "comment": "CNNIC官方"
+  },
+  {
+    "domain": "console.aws.amazon.com",
+    "name": "AWS",
+    "comment": "AWS控制台"
+  },
+  {
+    "domain": "console.cloud.google.com",
+    "name": "Google Cloud",
+    "comment": "谷歌云控制台"
+  },
+  {
+    "domain": "copilot.tencent.com",
+    "name": "CodeBuddy",
+    "comment": "腾讯AI编程"
+  },
+  {
+    "domain": "csdn.net",
+    "name": "CSDN",
+    "comment": "技术社区"
+  },
+  {
+    "domain": "d.design",
+    "name": "堆友",
+    "comment": "阿里AI设计"
+  },
+  {
+    "domain": "deepseek.com",
+    "name": "DeepSeek",
+    "comment": "深度求索AI"
+  },
+  {
+    "domain": "dianping.com",
+    "name": "大众点评",
+    "comment": "本地生活"
+  },
+  {
+    "domain": "dingtalk.com",
+    "name": "钉钉",
+    "comment": "协作办公"
+  },
+  {
+    "domain": "docs.qq.com",
+    "name": "腾讯文档",
+    "comment": "在线文档"
+  },
+  {
+    "domain": "doubao.com",
+    "name": "豆包",
+    "comment": "字节跳动AI"
+  },
+  {
+    "domain": "douyin.com",
+    "name": "抖音",
+    "comment": "短视频平台"
+  },
+  {
+    "domain": "douyinec.com",
+    "name": "抖音电商",
+    "comment": "抖音电商"
+  },
+  {
+    "domain": "draw.io",
+    "name": "Draw.io",
+    "comment": "绘图工具"
+  },
+  {
+    "domain": "ebay.com",
+    "name": "eBay",
+    "comment": "拍卖平台"
+  },
+  {
+    "domain": "ele.me",
+    "name": "饿了么",
+    "comment": "外卖平台"
+  },
+  {
+    "domain": "facebook.com",
+    "name": "脸书",
+    "comment": "社交网络"
+  },
+  {
+    "domain": "fanyi.baidu.com",
+    "name": "百度翻译AI",
+    "comment": "AI翻译"
+  },
+  {
+    "domain": "feishu.cn",
+    "name": "飞书",
+    "comment": "协作办公"
+  },
+  {
+    "domain": "figma.com",
+    "name": "Figma",
+    "comment": "设计工具"
+  },
+  {
+    "domain": "flux-art.cn",
+    "name": "Flux Art",
+    "comment": "AI绘画"
+  },
+  {
+    "domain": "fxg.jinritemai.com",
+    "name": "抖店",
+    "comment": "抖音商家平台"
+  },
+  {
+    "domain": "gemini.google.com",
+    "name": "Gemini",
+    "comment": "Google AI"
+  },
+  {
+    "domain": "gitee.com",
+    "name": "Gitee",
+    "comment": "码云"
+  },
+  {
+    "domain": "github.com",
+    "name": "GitHub",
+    "comment": "代码托管"
+  },
+  {
+    "domain": "github.com/features/copilot",
+    "name": "GitHub Copilot",
+    "comment": "AI编程助手"
+  },
+  {
+    "domain": "gitmind.com",
+    "name": "GitMind",
+    "comment": "思维导图"
+  },
+  {
+    "domain": "google.com",
+    "name": "Google",
+    "comment": "国际搜索引擎"
+  },
+  {
+    "domain": "hailuoai.com",
+    "name": "海螺AI",
+    "comment": "MiniMax AI"
+  },
+  {
+    "domain": "huaweicloud.com",
+    "name": "华为云",
+    "comment": "华为云服务"
+  },
+  {
+    "domain": "instagram.com",
+    "name": "Instagram",
+    "comment": "图片社交"
+  },
+  {
+    "domain": "jd.com",
+    "name": "京东",
+    "comment": "电商平台"
+  },
+  {
+    "domain": "jiandaoyun.com",
+    "name": "简道云",
+    "comment": "低代码平台"
+  },
+  {
+    "domain": "jiemian.com",
+    "name": "界面新闻",
+    "comment": "财经新闻"
+  },
+  {
+    "domain": "jimeng.jianying.com",
+    "name": "即梦AI",
+    "comment": "字节AI绘画"
+  },
+  {
+    "domain": "js.design",
+    "name": "即时设计",
+    "comment": "设计工具"
+  },
+  {
+    "domain": "juejin.cn",
+    "name": "掘金",
+    "comment": "技术社区"
+  },
+  {
+    "domain": "kdocs.cn",
+    "name": "金山文档",
+    "comment": "在线文档"
+  },
+  {
+    "domain": "kimi.moonshot.cn",
+    "name": "Kimi",
+    "comment": "月之暗面AI"
+  },
+  {
+    "domain": "klingai.kuaishou.com",
+    "name": "可灵AI",
+    "comment": "快手AI视频"
+  },
+  {
+    "domain": "kuaishou.com",
+    "name": "快手",
+    "comment": "短视频平台"
+  },
+  {
+    "domain": "lanhuapp.com",
+    "name": "蓝湖",
+    "comment": "设计协作"
+  },
+  {
+    "domain": "liblib.art",
+    "name": "LiblibAI",
+    "comment": "AI绘画"
+  },
+  {
+    "domain": "linkedin.com",
+    "name": "LinkedIn",
+    "comment": "职业社交"
+  },
+  {
+    "domain": "m.baidu.com",
+    "name": "百度",
+    "comment": "百度移动端"
+  },
+  {
+    "domain": "mail.163.com",
+    "name": "网易邮箱",
+    "comment": "网易邮箱服务"
+  },
+  {
+    "domain": "mail.qq.com",
+    "name": "QQ邮箱",
+    "comment": "QQ邮箱服务"
+  },
+  {
+    "domain": "mastergo.com",
+    "name": "MasterGo",
+    "comment": "设计工具"
+  },
+  {
+    "domain": "meeting.tencent.com",
+    "name": "腾讯会议",
+    "comment": "视频会议"
+  },
+  {
+    "domain": "meituan.com",
+    "name": "美团",
+    "comment": "本地生活"
+  },
+  {
+    "domain": "microsoft.com",
+    "name": "微软",
+    "comment": "Microsoft官网"
+  },
+  {
+    "domain": "midjourney.com",
+    "name": "Midjourney",
+    "comment": "AI绘画"
+  },
+  {
+    "domain": "modao.cc",
+    "name": "墨刀",
+    "comment": "原型工具"
+  },
+  {
+    "domain": "muji-app.com",
+    "name": "幕布",
+    "comment": "思维导图"
+  },
+  {
+    "domain": "netlify.com",
+    "name": "Netlify",
+    "comment": "部署平台"
+  },
+  {
+    "domain": "note.youdao.com",
+    "name": "有道云笔记",
+    "comment": "有道笔记"
+  },
+  {
+    "domain": "notebooklm.google",
+    "name": "NotebookLM",
+    "comment": "Google AI笔记"
+  },
+  {
+    "domain": "notion.so",
+    "name": "Notion",
+    "comment": "笔记工具"
+  },
+  {
+    "domain": "npmjs.com",
+    "name": "npm",
+    "comment": "包管理器"
+  },
+  {
+    "domain": "office.com",
+    "name": "Microsoft 365",
+    "comment": "Office在线"
+  },
+  {
+    "domain": "openai.com",
+    "name": "OpenAI",
+    "comment": "AI公司"
+  },
+  {
+    "domain": "openai.com/dall-e-3",
+    "name": "DALL-E 3",
+    "comment": "OpenAI绘画"
+  },
+  {
+    "domain": "people.com.cn",
+    "name": "人民网",
+    "comment": "人民日报旗下网站"
+  },
+  {
+    "domain": "pinduoduo.com",
+    "name": "拼多多",
+    "comment": "电商平台"
+  },
+  {
+    "domain": "pingcode.com",
+    "name": "PingCode",
+    "comment": "研发管理"
+  },
+  {
+    "domain": "portal.azure.com",
+    "name": "Azure",
+    "comment": "Azure控制台"
+  },
+  {
+    "domain": "processon.com",
+    "name": "ProcessOn",
+    "comment": "思维导图"
+  },
+  {
+    "domain": "qianfan.cloud.baidu.com",
+    "name": "千帆",
+    "comment": "百度大模型平台"
+  },
+  {
+    "domain": "qq.com",
+    "name": "腾讯QQ",
+    "comment": "腾讯官方"
+  },
+  {
+    "domain": "quark.cn",
+    "name": "夸克",
+    "comment": "阿里AI搜索"
+  },
+  {
+    "domain": "reddit.com",
+    "name": "Reddit",
+    "comment": "社区论坛"
+  },
+  {
+    "domain": "segmentfault.com",
+    "name": "SegmentFault",
+    "comment": "技术社区"
+  },
+  {
+    "domain": "shimo.im",
+    "name": "石墨文档",
+    "comment": "在线文档"
+  },
+  {
+    "domain": "sina.com.cn",
+    "name": "新浪",
+    "comment": "综合门户网站"
+  },
+  {
+    "domain": "slack.com",
+    "name": "Slack",
+    "comment": "团队协作"
+  },
+  {
+    "domain": "sogou.com",
+    "name": "搜狗",
+    "comment": "搜索引擎"
+  },
+  {
+    "domain": "sohu.com",
+    "name": "搜狐",
+    "comment": "综合门户网站"
+  },
+  {
+    "domain": "stability.ai",
+    "name": "Stable Diffusion",
+    "comment": "AI绘画"
+  },
+  {
+    "domain": "stackoverflow.com",
+    "name": "Stack Overflow",
+    "comment": "技术问答"
+  },
+  {
+    "domain": "suning.com",
+    "name": "苏宁易购",
+    "comment": "电商平台"
+  },
+  {
+    "domain": "taobao.com",
+    "name": "淘宝",
+    "comment": "电商平台"
+  },
+  {
+    "domain": "tapd.cn",
+    "name": "TAPD",
+    "comment": "腾讯研发管理"
+  },
+  {
+    "domain": "teambition.com",
+    "name": "Teambition",
+    "comment": "团队协作"
+  },
+  {
+    "domain": "temu.com",
+    "name": "Temu",
+    "comment": "跨境电商"
+  },
+  {
+    "domain": "thepaper.cn",
+    "name": "澎湃新闻",
+    "comment": "新闻媒体"
+  },
+  {
+    "domain": "tiangong.cn",
+    "name": "天工AI",
+    "comment": "昆仑万维AI"
+  },
+  {
+    "domain": "tiktok.com",
+    "name": "TikTok",
+    "comment": "短视频平台"
+  },
+  {
+    "domain": "tmall.com",
+    "name": "天猫",
+    "comment": "品牌商城"
+  },
+  {
+    "domain": "tongyi.aliyun.com",
+    "name": "通义千问",
+    "comment": "阿里巴巴AI"
+  },
+  {
+    "domain": "tongyi.aliyun.com/lingma",
+    "name": "通义灵码",
+    "comment": "阿里AI编程"
+  },
+  {
+    "domain": "tongyi.aliyun.com/wanxiang",
+    "name": "通义万相",
+    "comment": "阿里AI绘画"
+  },
+  {
+    "domain": "toutiao.com",
+    "name": "今日头条",
+    "comment": "新闻资讯"
+  },
+  {
+    "domain": "tower.im",
+    "name": "Tower",
+    "comment": "项目管理"
+  },
+  {
+    "domain": "trae.cn",
+    "name": "Trae",
+    "comment": "字节AI编程"
+  },
+  {
+    "domain": "twitter.com",
+    "name": "X",
+    "comment": "原Twitter"
+  },
+  {
+    "domain": "v2ex.com",
+    "name": "V2EX",
+    "comment": "技术论坛"
+  },
+  {
+    "domain": "vercel.com",
+    "name": "Vercel",
+    "comment": "部署平台"
+  },
+  {
+    "domain": "vip.com",
+    "name": "唯品会",
+    "comment": "电商平台"
+  },
+  {
+    "domain": "volcengine.com",
+    "name": "火山引擎",
+    "comment": "字节跳动云"
+  },
+  {
+    "domain": "weibo.cn",
+    "name": "新浪微博",
+    "comment": "微博移动端"
+  },
+  {
+    "domain": "weibo.com",
+    "name": "新浪微博",
+    "comment": "中文社交媒体"
+  },
+  {
+    "domain": "weixin.qq.com",
+    "name": "微信",
+    "comment": "微信官方"
+  },
+  {
+    "domain": "wikipedia.org",
+    "name": "维基百科",
+    "comment": "百科全书"
+  },
+  {
+    "domain": "work.weixin.qq.com",
+    "name": "企业微信",
+    "comment": "企业微信"
+  },
+  {
+    "domain": "worktile.com",
+    "name": "Worktile",
+    "comment": "项目管理"
+  },
+  {
+    "domain": "www.163.com",
+    "name": "网易",
+    "comment": "网易主页"
+  },
+  {
+    "domain": "www.360.cn",
+    "name": "360",
+    "comment": "360主页"
+  },
+  {
+    "domain": "www.aliexpress.com",
+    "name": "速卖通",
+    "comment": "速卖通主页"
+  },
+  {
+    "domain": "www.alipay.com",
+    "name": "支付宝",
+    "comment": "支付宝主页"
+  },
+  {
+    "domain": "www.amazon.com",
+    "name": "亚马逊",
+    "comment": "亚马逊主页"
+  },
+  {
+    "domain": "www.anthropic.com",
+    "name": "Anthropic",
+    "comment": "Anthropic主页"
+  },
+  {
+    "domain": "www.apple.com",
+    "name": "苹果",
+    "comment": "Apple主页"
+  },
+  {
+    "domain": "www.atlassian.com",
+    "name": "Atlassian",
+    "comment": "Atlassian主页"
+  },
+  {
+    "domain": "www.baidu.com",
+    "name": "百度",
+    "comment": "百度主页"
+  },
+  {
+    "domain": "www.bilibili.com",
+    "name": "哔哩哔哩",
+    "comment": "B站主页"
+  },
+  {
+    "domain": "www.bing.com",
+    "name": "必应",
+    "comment": "必应主页"
+  },
+  {
+    "domain": "www.booking.com",
+    "name": "Booking",
+    "comment": "Booking主页"
+  },
+  {
+    "domain": "www.canva.cn",
+    "name": "Canva可画",
+    "comment": "Canva主页"
+  },
+  {
+    "domain": "www.cctv.com",
+    "name": "央视网",
+    "comment": "央视网主页"
+  },
+  {
+    "domain": "www.cnnic.cn",
+    "name": "中国互联网络信息中心",
+    "comment": "CNNIC主页"
+  },
+  {
+    "domain": "www.csdn.net",
+    "name": "CSDN",
+    "comment": "CSDN主页"
+  },
+  {
+    "domain": "www.dingtalk.com",
+    "name": "钉钉",
+    "comment": "钉钉主页"
+  },
+  {
+    "domain": "www.doubao.com",
+    "name": "豆包",
+    "comment": "字节跳动AI"
+  },
+  {
+    "domain": "www.douyin.com",
+    "name": "抖音",
+    "comment": "抖音主页"
+  },
+  {
+    "domain": "www.ebay.com",
+    "name": "eBay",
+    "comment": "eBay主页"
+  },
+  {
+    "domain": "www.facebook.com",
+    "name": "脸书",
+    "comment": "脸书主页"
+  },
+  {
+    "domain": "www.feishu.cn",
+    "name": "飞书",
+    "comment": "飞书主页"
+  },
+  {
+    "domain": "www.figma.com",
+    "name": "Figma",
+    "comment": "Figma主页"
+  },
+  {
+    "domain": "www.gitee.com",
+    "name": "Gitee",
+    "comment": "Gitee主页"
+  },
+  {
+    "domain": "www.github.com",
+    "name": "GitHub",
+    "comment": "GitHub主页"
+  },
+  {
+    "domain": "www.gitmind.com",
+    "name": "GitMind",
+    "comment": "GitMind主页"
+  },
+  {
+    "domain": "www.google.com",
+    "name": "Google",
+    "comment": "Google主页"
+  },
+  {
+    "domain": "www.huaweicloud.com",
+    "name": "华为云",
+    "comment": "华为云主页"
+  },
+  {
+    "domain": "www.instagram.com",
+    "name": "Instagram",
+    "comment": "Instagram主页"
+  },
+  {
+    "domain": "www.jd.com",
+    "name": "京东",
+    "comment": "京东主页"
+  },
+  {
+    "domain": "www.jiandaoyun.com",
+    "name": "简道云",
+    "comment": "简道云主页"
+  },
+  {
+    "domain": "www.juejin.cn",
+    "name": "掘金",
+    "comment": "掘金主页"
+  },
+  {
+    "domain": "www.kdocs.cn",
+    "name": "金山文档",
+    "comment": "金山文档主页"
+  },
+  {
+    "domain": "www.kuaishou.com",
+    "name": "快手",
+    "comment": "快手主页"
+  },
+  {
+    "domain": "www.lanhuapp.com",
+    "name": "蓝湖",
+    "comment": "蓝湖主页"
+  },
+  {
+    "domain": "www.linkedin.com",
+    "name": "LinkedIn",
+    "comment": "LinkedIn主页"
+  },
+  {
+    "domain": "www.mastergo.com",
+    "name": "MasterGo",
+    "comment": "MasterGo主页"
+  },
+  {
+    "domain": "www.meituan.com",
+    "name": "美团",
+    "comment": "美团主页"
+  },
+  {
+    "domain": "www.microsoft.com",
+    "name": "微软",
+    "comment": "Microsoft主页"
+  },
+  {
+    "domain": "www.modao.cc",
+    "name": "墨刀",
+    "comment": "墨刀主页"
+  },
+  {
+    "domain": "www.muji-app.com",
+    "name": "幕布",
+    "comment": "幕布主页"
+  },
+  {
+    "domain": "www.netlify.com",
+    "name": "Netlify",
+    "comment": "Netlify主页"
+  },
+  {
+    "domain": "www.notion.so",
+    "name": "Notion",
+    "comment": "Notion主页"
+  },
+  {
+    "domain": "www.npmjs.com",
+    "name": "npm",
+    "comment": "npm主页"
+  },
+  {
+    "domain": "www.office.com",
+    "name": "Microsoft 365",
+    "comment": "Office主页"
+  },
+  {
+    "domain": "www.openai.com",
+    "name": "OpenAI",
+    "comment": "OpenAI主页"
+  },
+  {
+    "domain": "www.people.com.cn",
+    "name": "人民网",
+    "comment": "人民网主页"
+  },
+  {
+    "domain": "www.pinduoduo.com",
+    "name": "拼多多",
+    "comment": "拼多多主页"
+  },
+  {
+    "domain": "www.pingcode.com",
+    "name": "PingCode",
+    "comment": "PingCode主页"
+  },
+  {
+    "domain": "www.processon.com",
+    "name": "ProcessOn",
+    "comment": "ProcessOn主页"
+  },
+  {
+    "domain": "www.qq.com",
+    "name": "腾讯QQ",
+    "comment": "腾讯主页"
+  },
+  {
+    "domain": "www.segmentfault.com",
+    "name": "SegmentFault",
+    "comment": "SegmentFault主页"
+  },
+  {
+    "domain": "www.shimo.im",
+    "name": "石墨文档",
+    "comment": "石墨主页"
+  },
+  {
+    "domain": "www.sina.com.cn",
+    "name": "新浪",
+    "comment": "新浪主页"
+  },
+  {
+    "domain": "www.slack.com",
+    "name": "Slack",
+    "comment": "Slack主页"
+  },
+  {
+    "domain": "www.sohu.com",
+    "name": "搜狐",
+    "comment": "搜狐主页"
+  },
+  {
+    "domain": "www.stackoverflow.com",
+    "name": "Stack Overflow",
+    "comment": "Stack Overflow主页"
+  },
+  {
+    "domain": "www.taobao.com",
+    "name": "淘宝",
+    "comment": "淘宝主页"
+  },
+  {
+    "domain": "www.tapd.cn",
+    "name": "TAPD",
+    "comment": "TAPD主页"
+  },
+  {
+    "domain": "www.teambition.com",
+    "name": "Teambition",
+    "comment": "Teambition主页"
+  },
+  {
+    "domain": "www.temu.com",
+    "name": "Temu",
+    "comment": "Temu主页"
+  },
+  {
+    "domain": "www.tiktok.com",
+    "name": "TikTok",
+    "comment": "TikTok主页"
+  },
+  {
+    "domain": "www.tmall.com",
+    "name": "天猫",
+    "comment": "天猫主页"
+  },
+  {
+    "domain": "www.toutiao.com",
+    "name": "今日头条",
+    "comment": "今日头条主页"
+  },
+  {
+    "domain": "www.tower.im",
+    "name": "Tower",
+    "comment": "Tower主页"
+  },
+  {
+    "domain": "www.twitter.com",
+    "name": "X",
+    "comment": "原Twitter"
+  },
+  {
+    "domain": "www.v2ex.com",
+    "name": "V2EX",
+    "comment": "V2EX主页"
+  },
+  {
+    "domain": "www.vercel.com",
+    "name": "Vercel",
+    "comment": "Vercel主页"
+  },
+  {
+    "domain": "www.weibo.com",
+    "name": "新浪微博",
+    "comment": "微博主页"
+  },
+  {
+    "domain": "www.wikipedia.org",
+    "name": "维基百科",
+    "comment": "维基百科主页"
+  },
+  {
+    "domain": "www.worktile.com",
+    "name": "Worktile",
+    "comment": "Worktile主页"
+  },
+  {
+    "domain": "www.xiaomi.com",
+    "name": "小米",
+    "comment": "小米主页"
+  },
+  {
+    "domain": "www.ximalaya.com",
+    "name": "喜马拉雅",
+    "comment": "喜马拉雅主页"
+  },
+  {
+    "domain": "www.xinnet.com",
+    "name": "新网",
+    "comment": "新网主页"
+  },
+  {
+    "domain": "www.yahoo.com",
+    "name": "雅虎",
+    "comment": "雅虎主页"
+  },
+  {
+    "domain": "www.yinxiang.com",
+    "name": "印象笔记",
+    "comment": "印象笔记主页"
+  },
+  {
+    "domain": "www.youdao.com",
+    "name": "有道云笔记",
+    "comment": "有道主页"
+  },
+  {
+    "domain": "www.youtube.com",
+    "name": "YouTube",
+    "comment": "YouTube主页"
+  },
+  {
+    "domain": "www.yuque.com",
+    "name": "语雀",
+    "comment": "语雀主页"
+  },
+  {
+    "domain": "www.zhihu.com",
+    "name": "知乎",
+    "comment": "知乎主页"
+  },
+  {
+    "domain": "www.zoom.us",
+    "name": "Zoom",
+    "comment": "Zoom主页"
+  },
+  {
+    "domain": "x.com",
+    "name": "X",
+    "comment": "原Twitter"
+  },
+  {
+    "domain": "xiaohongshu.com",
+    "name": "小红书",
+    "comment": "社交电商"
+  },
+  {
+    "domain": "xiaomi.com",
+    "name": "小米",
+    "comment": "科技公司"
+  },
+  {
+    "domain": "xiezuocat.com",
+    "name": "秘塔写作猫",
+    "comment": "AI写作"
+  },
+  {
+    "domain": "ximalaya.com",
+    "name": "喜马拉雅",
+    "comment": "音频平台"
+  },
+  {
+    "domain": "xinghuo.xfyun.cn",
+    "name": "讯飞星火",
+    "comment": "科大讯飞AI"
+  },
+  {
+    "domain": "xinhuanet.com",
+    "name": "新华网",
+    "comment": "新华社官网"
+  },
+  {
+    "domain": "xinnet.com",
+    "name": "新网",
+    "comment": "域名注册服务商"
+  },
+  {
+    "domain": "yahoo.com",
+    "name": "雅虎",
+    "comment": "综合门户网站"
+  },
+  {
+    "domain": "yige.baidu.com",
+    "name": "文心一格",
+    "comment": "百度AI绘画"
+  },
+  {
+    "domain": "yinxiang.com",
+    "name": "印象笔记",
+    "comment": "笔记工具"
+  },
+  {
+    "domain": "yiyan.baidu.com",
+    "name": "文心一言",
+    "comment": "百度AI"
+  },
+  {
+    "domain": "youdao.com",
+    "name": "有道云笔记",
+    "comment": "笔记工具"
+  },
+  {
+    "domain": "youdao.com/note",
+    "name": "有道云笔记",
+    "comment": "笔记工具"
+  },
+  {
+    "domain": "youtube.com",
+    "name": "YouTube",
+    "comment": "视频平台"
+  },
+  {
+    "domain": "yuanbao.tencent.com",
+    "name": "腾讯元宝",
+    "comment": "腾讯AI"
+  },
+  {
+    "domain": "yuewen.cn",
+    "name": "跃问",
+    "comment": "阶跃星辰AI"
+  },
+  {
+    "domain": "yuque.com",
+    "name": "语雀",
+    "comment": "文档协作"
+  },
+  {
+    "domain": "zh.wikipedia.org",
+    "name": "维基百科",
+    "comment": "中文维基"
+  },
+  {
+    "domain": "zhihu.com",
+    "name": "知乎",
+    "comment": "问答社区"
+  },
+  {
+    "domain": "zoom.us",
+    "name": "Zoom",
+    "comment": "视频会议"
+  }
+]
