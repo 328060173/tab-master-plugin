@@ -140,6 +140,27 @@ export function useTabManager() {
     await chrome.storage.local.set({ customTags: customTags.value, tabTagsMap: newTagsMap })
   }
 
+  const refreshTab = (id: number) => chrome.tabs.reload(id)
+  const duplicateTab = (id: number) => chrome.tabs.duplicate(id)
+  const pinTab = async (id: number, pinned: boolean) => {
+    await chrome.tabs.update(id, { pinned })
+    const idx = tabs.value.findIndex(t => t.id === id)
+    if (idx !== -1) tabs.value[idx] = { ...tabs.value[idx], pinned }
+  }
+  const muteTab = async (id: number, muted: boolean) => {
+    await chrome.tabs.update(id, { muted })
+    const idx = tabs.value.findIndex(t => t.id === id)
+    if (idx !== -1) tabs.value[idx] = { ...tabs.value[idx], muted }
+  }
+  const closeTabsExcept = async (id: number) => {
+    const ids = tabs.value.filter(t => t.id !== id).map(t => t.id)
+    if (ids.length) await chrome.tabs.remove(ids)
+    tabs.value = tabs.value.filter(t => t.id === id)
+  }
+  const groupTab = async (id: number) => {
+    try { await (chrome.tabs as any).group({ tabIds: [id] }) } catch {}
+  }
+
   const closeUnpinned = async () => { for (const id of tabs.value.filter(t => !t.pinned).map(t => t.id)) await closeTab(id) }
   const closeOthers = async () => { for (const id of tabs.value.filter(t => !t.active).map(t => t.id)) await closeTab(id) }
   const closeFrozenDiscarded = async () => { for (const id of tabs.value.filter(t => t.frozen || t.discarded).map(t => t.id)) await closeTab(id) }
@@ -210,5 +231,6 @@ export function useTabManager() {
     closeTab, activateTab, restoreTab, moveToLater, removeLater,
     updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag,
     closeUnpinned, closeOthers, closeFrozenDiscarded,
+    refreshTab, duplicateTab, pinTab, muteTab, closeTabsExcept, groupTab,
   }
 }

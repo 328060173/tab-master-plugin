@@ -77,6 +77,16 @@
       @closeUnpinned="closeUnpinned" @closeOthers="closeOthers" @closeFrozenDiscarded="closeFrozenDiscarded"
       @detectDuplicates="showToast('检测重复标签（开发中）')" @detectUnused="showToast('检测长时间未使用标签（开发中）')"
       @goBack="goBack" @goForward="goForward"
+      @newTab="chrome.tabs.create({})"
+    />
+
+    <!-- 固定标签置顶栏 -->
+    <PinnedBar
+      v-if="!search.trim() && (activeNav === 'home' || isFocusMode)"
+      :items="pinnedItems"
+      @activate="activateTab" @close="closeTab"
+      @later="openLater" @copy="copyUrl"
+      @ctx="onContextMenu"
     />
 
     <!-- 搜索结果 -->
@@ -91,7 +101,7 @@
     />
 
     <!-- 正常内容区 -->
-    <div v-else ref="contentRef" class="flex-1 overflow-y-auto min-h-0 px-3 py-2">
+    <div v-else ref="contentRef" class="flex-1 overflow-y-auto min-h-0 px-3 py-2" @scroll="onContentScroll">
       <LaterList v-if="activeNav === 'later'" :items="laterTabs" @remove="removeLater" @open="restoreTab($event)" />
       <div v-else-if="activeNav === 'groups'" class="text-center text-gray-400 text-xs py-12">
         <p class="mb-1 font-medium">分组标签</p><p>需要 chrome.tabGroups API，开发中...</p>
@@ -110,19 +120,7 @@
           />
         </template>
         <template v-else>
-          <template v-if="pinnedItems.length">
-            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">已固定</p>
-            <div :class="gridClass" class="mb-3">
-              <component :is="itemComponent" v-for="item in pinnedItems" :key="item.id"
-                :data-tabid="item.id"
-                :item="item" :isBatch="isBatchMode" :isChecked="selectedIds.includes(item.id)" :customTags="customTags"
-                @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
-                @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
-                @updateTags="updateTabTags(item.id, $event)" @addTag="addCustomTag($event)"
-                @updateNumber="updateTabNumber(item.id, $event)" />
-            </div>
-          </template>
-          <div v-if="!normalItems.length && !pinnedItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
+          <div v-if="!normalItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
           <template v-if="sortMode === 'domain' && viewMode !== 'icon'">
             <div v-for="group in domainGroups" :key="group.domain" class="mb-3">
               <p class="text-[10px] font-bold text-gray-400 tracking-wider mb-1">{{ group.displayName }}</p>
@@ -133,7 +131,8 @@
                   @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
                   @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
                   @updateTags="updateTabTags(item.id, $event)" @addTag="addCustomTag($event)"
-                  @updateNumber="updateTabNumber(item.id, $event)" />
+                  @updateNumber="updateTabNumber(item.id, $event)"
+                  @contextmenu.prevent="onContextMenu($event, item)" />
               </div>
             </div>
           </template>
@@ -145,7 +144,8 @@
                 @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
                 @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
                 @updateTags="updateTabTags(item.id, $event)" @addTag="addCustomTag($event)"
-                @updateNumber="updateTabNumber(item.id, $event)" />
+                @updateNumber="updateTabNumber(item.id, $event)"
+                @contextmenu.prevent="onContextMenu($event, item)" />
             </div>
           </template>
         </template>
@@ -154,12 +154,34 @@
 
     <FooterStats :stats="stats" :activeFilter="activeFilter" @filter="activeFilter = $event" />
     <LaterDialog :open="laterDialogOpen" @close="laterDialogOpen = false" @confirm="confirmLater" />
+
+    <!-- 右键菜单 -->
+    <TabContextMenu :tab="ctxMenu?.tab ?? null" :x="ctxMenu?.x ?? 0" :y="ctxMenu?.y ?? 0"
+      @action="handleCtxAction" @close="ctxMenu = null" />
+
+    <!-- 标记浮层（右键→添加标记） -->
+    <div v-if="tagPickerTab" class="fixed z-[9990] bg-white border border-gray-200 rounded-lg shadow-xl w-48 pb-1"
+      :style="{ left: `${tagPickerPos.x}px`, top: `${tagPickerPos.y}px` }"
+      v-click-outside="() => tagPickerTabId = null" @click.stop>
+      <p class="px-2.5 py-1.5 border-b border-gray-100 text-[11px] font-medium text-gray-500">添加标记</p>
+      <div class="grid grid-cols-3 gap-1 p-2 max-h-36 overflow-y-auto">
+        <button v-for="tag in customTags" :key="tag"
+          :class="['px-1 py-0.5 text-[10px] rounded border text-center truncate transition-colors', tagPickerTab.tags.includes(tag) ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-600 hover:border-blue-400']"
+          :title="tag"
+          @click="updateTabTags(tagPickerTab.id, tagPickerTab.tags.includes(tag) ? tagPickerTab.tags.filter(t=>t!==tag) : [...tagPickerTab.tags, tag])">{{ tag }}</button>
+        <p v-if="!customTags.length" class="col-span-3 text-[11px] text-gray-400 text-center py-2">暂无标记</p>
+      </div>
+    </div>
+    <!-- 回到顶部 -->
+    <button v-if="scrolled" class="fixed bottom-10 right-3 z-30 p-1.5 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all" @click="scrollToTop" title="回到顶部">
+      <ChevronUp :size="14" />
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue"
-import { Settings, LogIn, Palette, Type, Layout, Cloud, Camera, Tag, HardDrive, Globe as Globe2 } from "@lucide/vue"
+import { Settings, LogIn, Palette, Type, Layout, Cloud, Camera, Tag, HardDrive, Globe as Globe2, ChevronUp } from "@lucide/vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabStats } from "~composables/useTabStats"
 import { useTabTree } from "~composables/useTabTree"
@@ -176,6 +198,10 @@ import TagFilterPanel from "~components/TagFilterPanel.vue"
 import SearchResults from "~components/SearchResults.vue"
 import SearchBox from "~components/SearchBox.vue"
 import StoragePanel from "~components/StoragePanel.vue"
+import TabContextMenu from "~components/TabContextMenu.vue"
+import PinnedBar from "~components/PinnedBar.vue"
+import type { TabItem } from "~types/tab"
+import { modKey } from "~lib/platform"
 
 const {
   tabs, laterTabs, customTags, recentlyClosed,
@@ -183,6 +209,7 @@ const {
   closeTab, activateTab, restoreTab, moveToLater, removeLater,
   updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag,
   closeUnpinned, closeOthers, closeFrozenDiscarded,
+  refreshTab, duplicateTab, pinTab, muteTab, closeTabsExcept, groupTab,
 } = useTabManager()
 const stats = computed(() => useTabStats(tabs).value)
 const treeNodes = useTabTree(tabs)
@@ -204,6 +231,10 @@ const showStorage = ref(false)
 const contentRef = ref<HTMLElement | null>(null)
 const toastMsg = ref("")
 let toastTimer: ReturnType<typeof setTimeout> | null = null
+const ctxMenu = ref<{ tab: TabItem; x: number; y: number } | null>(null)
+const tagPickerTabId = ref<number | null>(null)
+const tagPickerPos = ref({ x: 0, y: 0 })
+const tagPickerTab = computed(() => tagPickerTabId.value !== null ? (tabs.value.find(t => t.id === tagPickerTabId.value) ?? null) : null)
 
 const navItems = [
   { key: "home", label: "首页" },
@@ -219,12 +250,17 @@ const showToast = (msg: string) => {
 }
 const setViewMode = (v: string) => { viewMode.value = v; localStorage.setItem("viewMode", v) }
 
+const scrolled = ref(false)
+const onContentScroll = (e: Event) => { scrolled.value = (e.target as HTMLElement).scrollTop > 80 }
+const scrollToTop = () => contentRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
+
 const onKeydown = (e: KeyboardEvent) => {
-  if (!e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return
+  if (!e.altKey || e.ctrlKey || e.shiftKey || e.metaKey) return
   const n = parseInt(e.key)
   if (n >= 1 && n <= 9) {
     const tab = tabs.value.find(t => t.number === n)
-    if (tab) { e.preventDefault(); activateTab(tab.id) }
+    if (tab) { e.preventDefault(); activateTab(tab.id); showToast(`${modKey}${n} → ${tab.title.slice(0, 20)}`) }
+    else showToast(`${modKey}${n} — 暂无对应编号的标签`)
   }
 }
 onMounted(() => document.addEventListener("keydown", onKeydown))
@@ -245,7 +281,7 @@ const itemComponent = computed(() => {
   return TabListItem
 })
 const gridClass = computed(() => {
-  if (viewMode.value === "tile") return "grid grid-cols-1 gap-2"
+  if (viewMode.value === "tile") return "grid grid-cols-3 gap-1.5"
   if (viewMode.value === "icon") return "grid grid-cols-4 gap-2"
   return "flex flex-col gap-1"
 })
@@ -297,6 +333,28 @@ const confirmLater = async (note: string) => {
   pendingLaterTabId.value = null; laterDialogOpen.value = false
 }
 const copyUrl = (url: string) => { navigator.clipboard.writeText(url); showToast("已复制URL") }
+
+const onContextMenu = (e: MouseEvent, item: TabItem) => {
+  e.preventDefault(); ctxMenu.value = { tab: item, x: e.clientX, y: e.clientY }
+}
+const handleCtxAction = (action: string) => {
+  const tab = ctxMenu.value?.tab; if (!tab) return
+  const { x, y } = ctxMenu.value!
+  ctxMenu.value = null
+  const acts: Record<string, () => void> = {
+    refresh: () => refreshTab(tab.id),
+    duplicate: () => duplicateTab(tab.id),
+    pin: () => pinTab(tab.id, !tab.pinned),
+    mute: () => muteTab(tab.id, !tab.muted),
+    group: () => groupTab(tab.id),
+    tag: () => { tagPickerTabId.value = tab.id; tagPickerPos.value = { x, y } },
+    later: () => openLater(tab.id),
+    copyUrl: () => copyUrl(tab.url),
+    close: () => closeTab(tab.id),
+    closeOthers: () => closeTabsExcept(tab.id),
+  }
+  acts[action]?.()
+}
 
 const vClickOutside = {
   mounted(el: any, b: any) { el._o = (e: MouseEvent) => { if (!el.contains(e.target)) b.value() }; document.addEventListener("click", el._o) },

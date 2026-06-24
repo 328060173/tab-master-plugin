@@ -5,7 +5,7 @@
       v-if="!editing"
       :class="['w-6 h-5 text-[10px] font-mono rounded flex items-center justify-center transition-colors',
         isActive ? 'text-blue-400' : 'text-gray-300 group-hover/num:text-gray-500 group-hover/num:bg-gray-100']"
-      :title="`编号 ${num || '-'}：按 Ctrl+${num} 快速切换此标签`"
+      :title="`编号 ${num || '-'}：按 ${modKey}${num} 快速切换此标签`"
       @click="startEdit"
     >{{ num || '-' }}</button>
     <!-- 编辑态 -->
@@ -20,7 +20,7 @@
     />
     <!-- tooltip -->
     <div v-if="!editing && num" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-[10px] bg-gray-800 text-white rounded whitespace-nowrap pointer-events-none opacity-0 group-hover/num:opacity-100 z-50 transition-opacity">
-      Ctrl+{{ num }} 切换
+      {{ modKey }}{{ num }} 切换
     </div>
   </div>
 </template>

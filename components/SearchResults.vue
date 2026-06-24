@@ -65,7 +65,7 @@ const props = defineProps<{
   query: string
   customTags: string[]
 }>()
-defineEmits<{
+const emit = defineEmits<{
   activate: [id: number]; restore: [url: string]
   later: [id: number]; close: [id: number]; copy: [url: string]
   updateTags: [id: number, tags: string[]]; addTag: [tag: string]
@@ -77,6 +77,6 @@ function hl(text: string) {
   const q = props.query.toLowerCase()
   const idx = text.toLowerCase().indexOf(q)
   if (idx === -1) return escHtml(text)
-  return escHtml(text.slice(0, idx)) + `<mark class="bg-yellow-200 text-gray-900 rounded-sm not-italic">${escHtml(text.slice(idx, idx + props.query.length))}</mark>` + escHtml(text.slice(idx + props.query.length))
+  return escHtml(text.slice(0, idx)) + `<mark style="background:#fef08a;color:#111;border-radius:2px;font-style:normal;">${escHtml(text.slice(idx, idx + props.query.length))}</mark>` + escHtml(text.slice(idx + props.query.length))
 }
 </script>
