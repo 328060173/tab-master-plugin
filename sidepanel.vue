@@ -77,7 +77,7 @@
       @closeUnpinned="closeUnpinned" @closeOthers="closeOthers" @closeFrozenDiscarded="closeFrozenDiscarded"
       @detectDuplicates="showToast('检测重复标签（开发中）')" @detectUnused="showToast('检测长时间未使用标签（开发中）')"
       @goBack="goBack" @goForward="goForward"
-      @newTab="chrome.tabs.create({})"
+      @newTab="openNewTab"
     />
 
     <!-- 固定标签置顶栏 -->
@@ -86,6 +86,8 @@
       :items="pinnedItems"
       @activate="activateTab" @close="closeTab"
       @later="openLater" @copy="copyUrl"
+      @refresh="handleRefresh" @pin="handlePin"
+      @updateNumber="(id, n) => { updateTabNumber(id, n); showToast(n > 0 ? `编号已设置 ${modKey}${n}` : '编号已清除') }"
       @ctx="onContextMenu"
     />
 
@@ -114,9 +116,7 @@
           <TabTreeItem v-for="node in treeNodes" :key="node.item.id"
             :item="node.item" :children="node.children" :depth="0"
             @activate="activateTab(node.item.id)" @activate-child="activateTab($event)"
-            @later="openLater(node.item.id)" @later-child="openLater($event)"
             @close="closeTab(node.item.id)" @close-child="closeTab($event)"
-            @copy="copyUrl(node.item.url)" @copy-child="copyUrl($event)"
           />
         </template>
         <template v-else>
@@ -127,11 +127,12 @@
               <div :class="gridClass">
                 <component :is="itemComponent" v-for="item in group.items" :key="item.id"
                   :data-tabid="item.id"
-                  :item="item" :isBatch="isBatchMode" :isChecked="selectedIds.includes(item.id)" :customTags="customTags"
+                  :item="item" :isBatch="isBatchMode" :isChecked="selectedIds.includes(item.id)" :customTags="customTags" :isPrev="item.id === prevActiveTabId"
                   @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
                   @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
                   @updateTags="updateTabTags(item.id, $event)" @addTag="addCustomTag($event)"
-                  @updateNumber="updateTabNumber(item.id, $event)"
+                  @updateNumber="(n: number) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号已设置 ${modKey}${n}` : '编号已清除') }"
+                  @refresh="handleRefresh(item.id)" @pin="handlePin(item.id)"
                   @contextmenu.prevent="onContextMenu($event, item)" />
               </div>
             </div>
@@ -140,11 +141,12 @@
             <div :class="gridClass">
               <component :is="itemComponent" v-for="item in sortedNormalItems" :key="item.id"
                 :data-tabid="item.id"
-                :item="item" :isBatch="isBatchMode" :isChecked="selectedIds.includes(item.id)" :customTags="customTags"
+                :item="item" :isBatch="isBatchMode" :isChecked="selectedIds.includes(item.id)" :customTags="customTags" :isPrev="item.id === prevActiveTabId"
                 @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
                 @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
                 @updateTags="updateTabTags(item.id, $event)" @addTag="addCustomTag($event)"
-                @updateNumber="updateTabNumber(item.id, $event)"
+                @updateNumber="(n: number) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号已设置 ${modKey}${n}` : '编号已清除') }"
+                @refresh="handleRefresh(item.id)" @pin="handlePin(item.id)"
                 @contextmenu.prevent="onContextMenu($event, item)" />
             </div>
           </template>
@@ -172,7 +174,19 @@
         <p v-if="!customTags.length" class="col-span-3 text-[11px] text-gray-400 text-center py-2">暂无标记</p>
       </div>
     </div>
-    <!-- 回到顶部 -->
+    <!-- 编号选择浮层（右键→设置编号） -->
+    <div v-if="numberPickerTab" class="fixed z-[9990] bg-white border border-gray-200 rounded-lg shadow-xl w-44 p-2.5"
+      :style="{ left: `${numberPickerPos.x}px`, top: `${numberPickerPos.y}px` }"
+      v-click-outside="() => numberPickerTabId = null" @click.stop>
+      <p class="text-[11px] font-medium text-gray-600 mb-2">设置快捷键编号 (1-9)</p>
+      <div class="flex gap-1.5">
+        <input v-model="numberPickerDraft" type="number" min="1" max="9" placeholder="1-9"
+          class="flex-1 border border-gray-200 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-400"
+          @keyup.enter="confirmNumberPicker" @keyup.escape="numberPickerTabId = null" />
+        <button class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700" @click="confirmNumberPicker">确定</button>
+      </div>
+      <button class="mt-1.5 text-[10px] text-gray-400 hover:text-red-500 w-full text-left" @click="() => { updateTabNumber(numberPickerTab!.id, 0); showToast('编号已清除'); numberPickerTabId = null }">清除编号</button>
+    </div>
     <button v-if="scrolled" class="fixed bottom-10 right-3 z-30 p-1.5 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all" @click="scrollToTop" title="回到顶部">
       <ChevronUp :size="14" />
     </button>
@@ -180,7 +194,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue"
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide } from "vue"
 import { Settings, LogIn, Palette, Type, Layout, Cloud, Camera, Tag, HardDrive, Globe as Globe2, ChevronUp } from "@lucide/vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabStats } from "~composables/useTabStats"
@@ -204,15 +218,31 @@ import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
 
 const {
-  tabs, laterTabs, customTags, recentlyClosed,
+  tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId,
   canGoBack, canGoForward, goBack, goForward,
   closeTab, activateTab, restoreTab, moveToLater, removeLater,
   updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag,
   closeUnpinned, closeOthers, closeFrozenDiscarded,
   refreshTab, duplicateTab, pinTab, muteTab, closeTabsExcept, groupTab,
+  updateTreeParent, moveTabToIndex,
 } = useTabManager()
 const stats = computed(() => useTabStats(tabs).value)
-const treeNodes = useTabTree(tabs)
+const treeNodes = useTabTree(tabs, treeParentMap)
+
+// 树形拖拽 handler：provide 给 TabTreeItem
+provide('treeDrag', (dragId: number, targetId: number, pos: 'before' | 'into' | 'after') => {
+  if (pos === 'into') {
+    updateTreeParent(dragId, targetId)
+  } else {
+    // 同级调整：通过 Chrome API 移动标签位置
+    const targetTab = tabs.value.find(t => t.id === targetId)
+    const targetIdx = targetTab ? tabs.value.indexOf(targetTab) : -1
+    if (targetIdx >= 0) moveTabToIndex(dragId, pos === 'before' ? targetIdx : targetIdx + 1)
+    // 同时清除拖动项的自定义 parent（还原到同级）
+    const targetParent = treeParentMap.value[String(targetId)] ?? null
+    updateTreeParent(dragId, targetParent ?? null)
+  }
+})
 
 const activeNav = ref("home")
 const viewMode = ref(localStorage.getItem("viewMode") || "list")
@@ -234,6 +264,18 @@ let toastTimer: ReturnType<typeof setTimeout> | null = null
 const ctxMenu = ref<{ tab: TabItem; x: number; y: number } | null>(null)
 const tagPickerTabId = ref<number | null>(null)
 const tagPickerPos = ref({ x: 0, y: 0 })
+const numberPickerTabId = ref<number | null>(null)
+const numberPickerPos = ref({ x: 0, y: 0 })
+const numberPickerDraft = ref("")
+const numberPickerTab = computed(() => numberPickerTabId.value !== null ? tabs.value.find(t => t.id === numberPickerTabId.value) ?? null : null)
+const confirmNumberPicker = () => {
+  if (numberPickerTabId.value === null) return
+  const n = parseInt(numberPickerDraft.value)
+  const val = !isNaN(n) && n >= 1 && n <= 9 ? n : 0
+  updateTabNumber(numberPickerTabId.value, val)
+  showToast(val > 0 ? `编号已设置 ${modKey}${val}` : '编号已清除')
+  numberPickerTabId.value = null
+}
 const tagPickerTab = computed(() => tagPickerTabId.value !== null ? (tabs.value.find(t => t.id === tagPickerTabId.value) ?? null) : null)
 
 const navItems = [
@@ -281,8 +323,8 @@ const itemComponent = computed(() => {
   return TabListItem
 })
 const gridClass = computed(() => {
-  if (viewMode.value === "tile") return "grid grid-cols-3 gap-1.5"
-  if (viewMode.value === "icon") return "grid grid-cols-4 gap-2"
+  if (viewMode.value === "tile") return "grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-1.5"
+  if (viewMode.value === "icon") return "grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2"
   return "flex flex-col gap-1"
 })
 
@@ -333,6 +375,9 @@ const confirmLater = async (note: string) => {
   pendingLaterTabId.value = null; laterDialogOpen.value = false
 }
 const copyUrl = (url: string) => { navigator.clipboard.writeText(url); showToast("已复制URL") }
+const openNewTab = () => chrome.tabs.create({})
+const handleRefresh = (id: number) => refreshTab(id)
+const handlePin = (id: number) => { const tab = tabs.value.find(t => t.id === id); if (tab) pinTab(id, !tab.pinned) }
 
 const onContextMenu = (e: MouseEvent, item: TabItem) => {
   e.preventDefault(); ctxMenu.value = { tab: item, x: e.clientX, y: e.clientY }
@@ -348,6 +393,7 @@ const handleCtxAction = (action: string) => {
     mute: () => muteTab(tab.id, !tab.muted),
     group: () => groupTab(tab.id),
     tag: () => { tagPickerTabId.value = tab.id; tagPickerPos.value = { x, y } },
+    setNumber: () => { numberPickerTabId.value = tab.id; numberPickerPos.value = { x, y }; numberPickerDraft.value = tab.number ? String(tab.number) : "" },
     later: () => openLater(tab.id),
     copyUrl: () => copyUrl(tab.url),
     close: () => closeTab(tab.id),

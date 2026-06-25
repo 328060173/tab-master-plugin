@@ -1,32 +1,37 @@
 <template>
-  <div class="relative group/num shrink-0" @click.stop>
-    <!-- 显示态 -->
-    <button
-      v-if="!editing"
-      :class="['w-6 h-5 text-[10px] font-mono rounded flex items-center justify-center transition-colors',
-        isActive ? 'text-blue-400' : 'text-gray-300 group-hover/num:text-gray-500 group-hover/num:bg-gray-100']"
-      :title="`编号 ${num || '-'}：按 ${modKey}${num} 快速切换此标签`"
-      @click="startEdit"
-    >{{ num || '-' }}</button>
+  <div class="relative group/num shrink-0 w-6" @click.stop>
     <!-- 编辑态 -->
     <input
-      v-else ref="inputRef"
-      v-model="draft"
-      type="number" min="1" max="99"
-      class="w-8 h-5 text-[10px] font-mono text-center border border-blue-400 rounded outline-none bg-white"
-      @keyup.enter="confirm"
-      @keyup.escape="editing = false"
-      @blur="confirm"
+      v-if="editing" ref="inputRef"
+      v-model="draft" type="number" min="1" max="9"
+      class="w-6 h-5 text-[10px] font-mono text-center border border-blue-400 rounded outline-none bg-white"
+      @keyup.enter="confirm" @keyup.escape="cancel" @blur="confirm"
     />
-    <!-- tooltip -->
-    <div v-if="!editing && num" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-[10px] bg-gray-800 text-white rounded whitespace-nowrap pointer-events-none opacity-0 group-hover/num:opacity-100 z-50 transition-opacity">
-      {{ modKey }}{{ num }} 切换
+    <!-- 有编号：显示数字 -->
+    <button v-else-if="num"
+      :class="['w-6 h-5 text-[10px] font-mono rounded flex items-center justify-center transition-colors',
+        isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-500']"
+      :title="`${modKey}${num} 快速切换，点击修改`"
+      @click="startEdit"
+    >{{ num }}</button>
+    <!-- 无编号：hover 时显示键盘图标 -->
+    <button v-else
+      class="w-6 h-5 rounded flex items-center justify-center opacity-0 group-hover/num:opacity-100 transition-opacity text-gray-300 hover:text-blue-400"
+      title="点击设置快捷键编号"
+      @click="startEdit"
+    ><Keyboard :size="10" /></button>
+    <!-- tooltip：有编号时显示快捷键提示 -->
+    <div v-if="!editing && num"
+      class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-[10px] bg-gray-800 text-white rounded whitespace-nowrap pointer-events-none opacity-0 group-hover/num:opacity-100 z-50 transition-opacity">
+      {{ modKey }}{{ num }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, nextTick } from "vue"
+import { Keyboard } from "@lucide/vue"
+import { modKey } from "~lib/platform"
 
 const props = defineProps<{ num: number; isActive: boolean }>()
 const emit = defineEmits<{ update: [n: number] }>()
@@ -43,7 +48,8 @@ const startEdit = () => {
 const confirm = () => {
   editing.value = false
   const n = parseInt(draft.value)
-  if (!isNaN(n) && n >= 1 && n <= 99) emit("update", n)
+  if (!isNaN(n) && n >= 1 && n <= 9) emit("update", n)
   else if (!draft.value.trim()) emit("update", 0)
 }
+const cancel = () => { editing.value = false }
 </script>

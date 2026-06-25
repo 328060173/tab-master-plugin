@@ -15,6 +15,7 @@
         <button :class="btn" @click="act('group')"><FolderPlus :size="12" />添加到新组</button>
         <hr class="my-1 border-gray-100" />
         <button :class="btn" @click="act('tag')"><Tag :size="12" />添加标记</button>
+        <button :class="btn" @click="act('setNumber')"><Hash :size="12" />设置快捷键编号</button>
         <button :class="btn" @click="act('later')"><Clock :size="12" />稍后处理</button>
         <hr class="my-1 border-gray-100" />
         <button :class="btn" @click="act('copyUrl')"><Link :size="12" />复制 URL</button>
@@ -28,7 +29,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from "vue"
-import { RefreshCw, Copy, Pin, Volume2, VolumeX, FolderPlus, Tag, Clock, Link, X } from "@lucide/vue"
+import { RefreshCw, Copy, Pin, Volume2, VolumeX, FolderPlus, Tag, Clock, Link, X, Hash } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 
 const props = defineProps<{ tab: TabItem | null; x: number; y: number }>()

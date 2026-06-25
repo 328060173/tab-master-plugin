@@ -20,10 +20,14 @@
         </div>
       </div>
       <div class="relative">
-        <button class="flex items-center gap-1 px-2 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50" @click.stop="sortOpen = !sortOpen">
+        <button
+          :disabled="viewMode === 'tree'"
+          :class="['flex items-center gap-1 px-2 py-1 text-xs border rounded', viewMode === 'tree' ? 'border-gray-100 text-gray-300 cursor-not-allowed bg-gray-50' : 'border-gray-200 hover:bg-gray-50']"
+          :title="viewMode === 'tree' ? '树形视图下排序不可用' : ''"
+          @click.stop="viewMode !== 'tree' && (sortOpen = !sortOpen)">
           <ArrowUpDown :size="11" />{{ SORT_OPTIONS.find(o => o.value === sortMode)?.label }}
         </button>
-        <div v-if="sortOpen" class="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-20 w-32 py-1" v-click-outside="() => sortOpen = false">
+        <div v-if="sortOpen && viewMode !== 'tree'" class="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-20 w-32 py-1" v-click-outside="() => sortOpen = false">
           <button v-for="o in SORT_OPTIONS" :key="o.value" :class="['flex w-full px-3 py-1.5 text-xs hover:bg-gray-50', sortMode === o.value ? 'text-blue-600 font-medium' : '']" @click="emit('sortChange', o.value); sortOpen=false">{{ o.label }}</button>
         </div>
       </div>

@@ -1,9 +1,14 @@
 import type { TabItem } from "~types/tab"
 import { getDomainLabel } from "~lib/domainNames"
 
-export function parseTime(t: string) {
+// ISO 字符串或遗留 HH:mm 字符串 → 可比较的时间戳
+export function parseTime(t: string): number {
+  if (!t) return 0
+  const ts = new Date(t).getTime()
+  if (!isNaN(ts)) return ts
+  // 兼容旧 HH:mm 格式
   const [h, m] = t.split(":").map(Number)
-  return h * 60 + m
+  return (h * 60 + m) * 60000
 }
 
 export function sortTabs(tabs: TabItem[], mode: string): TabItem[] {

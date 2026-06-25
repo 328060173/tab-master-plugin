@@ -1,37 +1,53 @@
 <template>
   <div
-    :class="['flex flex-col gap-1 p-2 rounded-lg border cursor-pointer transition-colors',
-      item.active ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50']"
+    :class="['relative flex flex-col p-2 rounded-lg border cursor-pointer transition-colors h-[90px] group',
+      item.active ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white hover:border-blue-200 hover:bg-blue-50/50']"
     @click="emit('activate')"
+    @mouseenter="onEnter"
+    @mouseleave="onLeave"
   >
-    <!-- 行1：编号 + 图标 + 标题 -->
-    <div class="flex items-center gap-1.5 min-w-0">
-      <span class="text-[10px] text-gray-400 shrink-0 w-4 text-right leading-none">{{ item.number || '' }}</span>
-      <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" />
-      <p :class="['flex-1 text-xs font-medium truncate leading-tight', item.active ? 'text-blue-900' : 'text-gray-800']">{{ item.title }}</p>
-      <input v-if="isBatch" type="checkbox" :checked="isChecked" @change.stop="emit('toggle')" class="shrink-0 cursor-pointer" />
-    </div>
-    <!-- 行2：状态 + 时间 + 标记 + 操作 -->
-    <div class="flex items-center gap-1 min-w-0">
-      <StatusBadge :item="item" />
-      <span class="text-[10px] text-gray-400 shrink-0">{{ item.openedAt }}</span>
-      <span v-if="item.tags.length" class="text-[10px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 truncate max-w-[40px] shrink-0">{{ item.tags[0] }}</span>
-      <span v-if="item.tags.length > 1" class="text-[10px] text-gray-400 shrink-0">···</span>
-      <div class="ml-auto flex items-center gap-0.5 shrink-0">
-        <button class="p-0.5 text-gray-400 hover:text-amber-500 rounded" @click.stop="emit('later')" title="稍后处理"><Clock :size="11" /></button>
-        <button class="p-0.5 text-gray-400 hover:text-blue-500 rounded" @click.stop="emit('copy')" title="复制URL"><Link :size="11" /></button>
-        <button class="p-0.5 text-gray-400 hover:text-red-500 rounded" @click.stop="emit('close')" title="关闭"><X :size="11" /></button>
+    <input v-if="isBatch" type="checkbox" :checked="isChecked" @change.stop="emit('toggle')" class="absolute top-1.5 left-1.5 cursor-pointer z-10" />
+    <!-- 上一个访问标记 -->
+    <span v-if="isPrev" class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-gray-400 opacity-60 z-10" title="上一个访问的标签"></span>
+    <!-- 顶部：图标（含状态角标）+ 标记 -->
+    <div class="flex items-start justify-between gap-1 mb-1">
+      <FavIcon :src="item.favIconUrl" :domain="item.domain" size="md" :badge="statusBadge" class="shrink-0" />
+      <div class="flex flex-wrap gap-0.5 justify-end min-w-0 flex-1 pt-0.5">
+        <span v-if="item.tags[0]" class="text-[9px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 truncate max-w-[60px] leading-none">{{ item.tags[0] }}</span>
+        <span v-if="item.tags.length > 1" class="text-[9px] text-gray-400 leading-none">···</span>
       </div>
     </div>
+    <!-- 中部：标题 2行截断 -->
+    <p :class="['flex-1 text-[11px] leading-tight line-clamp-2 overflow-hidden',
+      item.active ? 'text-blue-900 font-semibold' : 'text-gray-800']">{{ item.title }}</p>
+    <!-- 底部：打开时间 + 关闭 -->
+    <div class="flex items-center justify-between mt-1">
+      <span class="text-[9px] text-gray-400">{{ formatOpenedAt(item.openedAt) }}</span>
+      <button class="p-0.5 text-gray-300 hover:text-red-500 rounded opacity-0 group-hover:opacity-100 transition-opacity" @click.stop="emit('close')"><X :size="10" /></button>
+    </div>
   </div>
+
+  <TabHoverCard
+    :show="hovered" :item="item" :x="cardPos.x" :y="cardPos.y"
+    @stay="clearLeave" @leave="startLeave"
+    @refresh="emit('refresh')" @copy="emit('copy')"
+    @pin="emit('pin')" @addTag="emit('addTag')" @later="emit('later')" @close="emit('close')"
+  />
 </template>
 
 <script setup lang="ts">
-import { Clock, Link, X } from "@lucide/vue"
+import { computed } from "vue"
+import { X } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import FavIcon from "./FavIcon.vue"
-import StatusBadge from "./StatusBadge.vue"
+import TabHoverCard from "./TabHoverCard.vue"
+import { getHighestPriorityStatus } from "~lib/statusPriority"
+import { formatOpenedAt } from "~lib/timeFormat"
+import { useHoverCard } from "~composables/useHoverCard"
 
-defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[] }>()
-const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "updateTags", "addTag", "updateNumber"])
+const props = defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[]; isPrev?: boolean }>()
+const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "refresh", "pin", "addTag", "updateTags", "updateNumber"])
+
+const { hovered, cardPos, onEnter, onLeave, clearLeave, startLeave } = useHoverCard()
+const statusBadge = computed(() => getHighestPriorityStatus(props.item)?.icon)
 </script>
