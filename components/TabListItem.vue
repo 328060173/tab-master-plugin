@@ -14,7 +14,7 @@
     @updateNumber="emit('updateNumber', $event)"
   />
     <!-- 上一个访问标记 -->
-    <span v-if="isPrev" class="absolute top-0.5 left-0.5 w-1.5 h-1.5 rounded-full bg-blue-500" title="上一个访问的标签"></span>
+    <span v-if="isPrev" class="absolute -top-1 -left-1 text-[8px] font-semibold text-blue-600 bg-blue-100 border border-blue-200 px-1 py-px rounded leading-none z-10" title="上一个访问的标签">Prev</span>
     <input v-if="isBatch" type="checkbox" :checked="isChecked" @change.stop="emit('toggle')" class="cursor-pointer shrink-0" />
     <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" :badge="statusBadge" />
     <div class="flex-1 min-w-0 flex items-center gap-1.5">

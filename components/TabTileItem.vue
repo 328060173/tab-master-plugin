@@ -6,7 +6,7 @@
   >
     <input v-if="isBatch" type="checkbox" :checked="isChecked" @change.stop="emit('toggle')" class="absolute top-1.5 left-1.5 cursor-pointer z-10" />
     <!-- 上一个访问标记 -->
-    <span v-if="isPrev" class="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-blue-500 z-10" title="上一个访问的标签"></span>
+    <span v-if="isPrev" class="absolute top-0.5 left-0.5 text-[8px] font-semibold text-blue-600 bg-blue-100 border border-blue-200 px-1 py-px rounded leading-none z-10" title="上一个访问的标签">Prev</span>
     <!-- 顶部：图标（含状态角标）+ 标记 -->
     <div class="flex items-start justify-between gap-1 mb-1">
       <FavIcon :src="item.favIconUrl" :domain="item.domain" size="md" :badge="statusBadge" class="shrink-0" />

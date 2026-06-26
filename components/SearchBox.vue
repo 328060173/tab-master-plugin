@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue"
+import { ref, onMounted, onUnmounted } from "vue"
 import { X, Clock } from "@lucide/vue"
 
 const props = defineProps<{ modelValue: string }>()
@@ -70,7 +70,22 @@ const remove = (item: string) => {
 }
 const clearAll = () => { history.value = []; localStorage.removeItem(HISTORY_KEY); showHistory.value = false }
 
-onMounted(loadHistory)
+// 锁屏 / 睡眠 / 长时间挂起后，macOS 上 input 与系统 IME 的连接会失活，表现为「输入无反应」。
+// 解锁恢复可见时，对当前聚焦的 input 做一次 blur+focus，强制重建输入连接。
+const onVisibilityChange = () => {
+  if (document.visibilityState !== 'visible') return
+  const el = inputRef.value
+  if (!el || document.activeElement !== el) return
+  el.blur()
+  // 下一帧再 focus，给浏览器一次完成 IME 重置的机会
+  requestAnimationFrame(() => el.focus())
+}
+
+onMounted(() => {
+  loadHistory()
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+onUnmounted(() => document.removeEventListener('visibilitychange', onVisibilityChange))
 
 const vClickOutside = {
   mounted(el: any, b: any) { el._o = (e: MouseEvent) => { if (!el.contains(e.target)) b.value() }; document.addEventListener("click", el._o) },

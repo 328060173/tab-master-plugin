@@ -29,7 +29,7 @@
               <HardDrive :size="13" />存储空间
             </button>
             <div class="border-t border-gray-100 my-1"></div>
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-blue-50 text-blue-600" @click="window.location.reload()">
+            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-blue-50 text-blue-600" @click="reloadPanel">
               <RotateCcw :size="13" />重新打开
             </button>
           </div>
@@ -306,6 +306,9 @@ const showToast = (msg: string) => {
   toastTimer = setTimeout(() => { toastMsg.value = "" }, 2000)
 }
 const setViewMode = (v: string) => { viewMode.value = v; localStorage.setItem("viewMode", v) }
+// 模板里直接用 window.location.reload() 在 Vue 3 <script setup> 的求值上下文中找不到 window，
+// 包成方法暴露给模板才能正常触发。
+const reloadPanel = () => { settingsOpen.value = false; window.location.reload() }
 
 const scrolled = ref(false)
 const onContentScroll = (e: Event) => { scrolled.value = (e.target as HTMLElement).scrollTop > 80 }

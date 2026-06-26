@@ -11,7 +11,7 @@
     @updateNumber="emit('updateNumber', $event)"
   />
     <input v-if="isBatch" type="checkbox" :checked="isChecked" @change.stop="emit('toggle')" class="absolute top-1 left-1 cursor-pointer" />
-    <span v-if="isPrev" class="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-blue-500" title="上一个访问的标签"></span>
+    <span v-if="isPrev" class="absolute top-0.5 left-0.5 text-[8px] font-semibold text-blue-600 bg-blue-100 border border-blue-200 px-1 py-px rounded leading-none z-10" title="上一个访问的标签">Prev</span>
     <div class="absolute top-0.5 right-0.5 flex items-center gap-0.5">
       <button :class="['p-0.5 rounded', hovered ? 'bg-blue-100 text-blue-500' : 'text-gray-400 hover:text-blue-500']" @click.stop="toggle" title="更多操作"><MoreHorizontal :size="11" /></button>
       <button class="p-0.5 text-gray-300 hover:text-red-500 rounded" @click.stop="emit('close')"><X :size="10" /></button>

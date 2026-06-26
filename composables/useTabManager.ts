@@ -50,6 +50,20 @@ export function useTabManager() {
     try { chrome.storage.session.set({ tabSwitchHistory: switchHistory.value, tabSwitchIndex: switchIndex.value }) } catch {}
   }
 
+  // 父子关系工具：循环检测，防止 A 被设为自己后代的父节点（拖拽 / 回填都要用）
+  const wouldCreateCycle = (childId: number, parentId: number, map: Record<string, number>): boolean => {
+    if (childId === parentId) return true
+    const seen = new Set<number>()
+    let cur: number | undefined = parentId
+    while (cur !== undefined) {
+      if (cur === childId) return true
+      if (seen.has(cur)) return true
+      seen.add(cur)
+      cur = map[String(cur)]
+    }
+    return false
+  }
+
   const loadTabs = async () => {
     try {
       const raw = await chrome.tabs.query({ currentWindow: true })
@@ -65,6 +79,23 @@ export function useTabManager() {
         tabOpenedAtMap.value = { ...tabOpenedAtMap.value, ...newEntries }
         chrome.storage.local.set({ tabOpenedAtMap: tabOpenedAtMap.value })
       }
+
+      // 父子关系回填：扩展首次安装 / 数据被清空 / 跨会话后，treeParentMap 可能没记录
+      // 这些标签的 openerTabId 仍可能由 Chrome 返回（前提是 opener 还活着），借此补全树关系
+      const validIds = new Set(raw.map(t => t.id!))
+      const parentBackfill: Record<string, number> = {}
+      for (const t of raw) {
+        const sid = String(t.id!)
+        if (treeParentMap.value[sid] !== undefined) continue // 已有记录，尊重之
+        if (!t.openerTabId || !validIds.has(t.openerTabId)) continue
+        if (wouldCreateCycle(t.id!, t.openerTabId, { ...treeParentMap.value, ...parentBackfill })) continue
+        parentBackfill[sid] = t.openerTabId
+      }
+      if (Object.keys(parentBackfill).length) {
+        treeParentMap.value = { ...treeParentMap.value, ...parentBackfill }
+        chrome.storage.local.set({ treeParentMap: treeParentMap.value })
+      }
+
       tabs.value = raw.map((t) => chromeTabToItem(t, tabTagsMap.value, tabNumberMap.value, tabOpenedAtMap.value))
       const active = raw.find(t => t.active)
       if (active) activeTabId.value = active.id
@@ -185,11 +216,18 @@ export function useTabManager() {
     try { await (chrome.tabs as any).group({ tabIds: [id] }) } catch {}
   }
 
-  // 树形拖拽：更新父子关系
+  // 树形拖拽：更新父子关系（含循环检测，防止用户把节点拖到自己后代下）
   const updateTreeParent = async (tabId: number, parentId: number | null) => {
     const newMap = { ...treeParentMap.value }
-    if (parentId === null) delete newMap[String(tabId)]
-    else newMap[String(tabId)] = parentId
+    if (parentId === null) {
+      delete newMap[String(tabId)]
+    } else {
+      if (wouldCreateCycle(tabId, parentId, newMap)) {
+        // 静默拒绝；UI 层无需提示——拖拽手势会自然回弹
+        return
+      }
+      newMap[String(tabId)] = parentId
+    }
     treeParentMap.value = newMap
     await chrome.storage.local.set({ treeParentMap: newMap })
   }
@@ -247,11 +285,13 @@ export function useTabManager() {
     }
   }
   const onTabCreated = (t: chrome.tabs.Tab) => {
-    // 自动捕获 openerTabId，写入 treeParentMap 作为唯一数据源
+    // 父子关系：background.ts 是主写入方（永久监听），UI 这里是兜底（同窗口才挂亲子，含循环检测）
     if (t.openerTabId && tabs.value.some(tab => tab.id === t.openerTabId)) {
-      const newMap = { ...treeParentMap.value, [String(t.id!)]: t.openerTabId }
-      treeParentMap.value = newMap
-      chrome.storage.local.set({ treeParentMap: newMap })
+      if (!wouldCreateCycle(t.id!, t.openerTabId, treeParentMap.value)) {
+        const newMap = { ...treeParentMap.value, [String(t.id!)]: t.openerTabId }
+        treeParentMap.value = newMap
+        chrome.storage.local.set({ treeParentMap: newMap })
+      }
     }
     const sid = String(t.id!)
     const openedAt = nowTime()
