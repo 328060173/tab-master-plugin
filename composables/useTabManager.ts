@@ -10,7 +10,7 @@ function nowTime() {
 function isProtectedUrl(url: string) {
   return url.startsWith("chrome://") || url.startsWith("edge://") || url.startsWith("about:") || url.startsWith("chrome-extension://")
 }
-function chromeTabToItem(t: chrome.tabs.Tab, seqNum: number, savedTags: Record<string, string[]>, savedNumbers: Record<string, number>): TabItem {
+function chromeTabToItem(t: chrome.tabs.Tab, savedTags: Record<string, string[]>, savedNumbers: Record<string, number>, savedOpenedAt: Record<string, string>): TabItem {
   const url = t.url || ""
   const sid = String(t.id!)
   return {
@@ -18,8 +18,8 @@ function chromeTabToItem(t: chrome.tabs.Tab, seqNum: number, savedTags: Record<s
     pinned: t.pinned, active: t.active, audible: t.audible || false, muted: t.mutedInfo?.muted || false,
     discarded: t.discarded || false, frozen: (t as any).frozen || false, loading: t.status === "loading",
     recording: false, sharing: false, attention: false, hasUnsavedForm: false, hasConnectedDevice: false,
-    isProtected: isProtectedUrl(url), openedAt: nowTime(),
-    number: savedNumbers[sid] ?? seqNum,
+    isProtected: isProtectedUrl(url), openedAt: savedOpenedAt[sid] ?? nowTime(),
+    number: savedNumbers[sid] ?? 0,
     tags: savedTags[sid] || [], openerTabId: t.openerTabId,
   }
 }
@@ -30,6 +30,7 @@ export function useTabManager() {
   const customTags = ref<string[]>([])
   const tabTagsMap = ref<Record<string, string[]>>({})
   const tabNumberMap = ref<Record<string, number>>({})
+  const tabOpenedAtMap = ref<Record<string, string>>({})
   const recentlyClosed = ref<ClosedTabItem[]>([])
   const treeParentMap = ref<Record<string, number>>({})
 
@@ -38,8 +39,8 @@ export function useTabManager() {
   const isNavigating = ref(false)
   const canGoBack = ref(false)
   const canGoForward = ref(false)
-  // 上一个访问的标签 ID（切换时记录）
   const prevActiveTabId = ref<number | null>(null)
+  const activeTabId = ref<number | null>(null)
 
   const updateNavState = () => {
     canGoBack.value = switchIndex.value > 0
@@ -50,17 +51,36 @@ export function useTabManager() {
   }
 
   const loadTabs = async () => {
-    const raw = await chrome.tabs.query({ currentWindow: true })
-    tabs.value = raw.map((t, i) => chromeTabToItem(t, i + 1, tabTagsMap.value, tabNumberMap.value))
+    try {
+      const raw = await chrome.tabs.query({ currentWindow: true })
+      // 为首次见到的标签推算打开时间：按 tab.id 升序（id 越小越早打开）分配递增时间
+      const unseenTabs = raw.filter(t => !tabOpenedAtMap.value[String(t.id!)]).sort((a, b) => a.id! - b.id!)
+      const newEntries: Record<string, string> = {}
+      if (unseenTabs.length) {
+        const baseTime = Date.now()
+        unseenTabs.forEach((t, i) => {
+          // id 最小 → 最早，每个标签间隔 1 分钟，最新的标签取当前时间
+          newEntries[String(t.id!)] = new Date(baseTime - (unseenTabs.length - 1 - i) * 60000).toISOString()
+        })
+        tabOpenedAtMap.value = { ...tabOpenedAtMap.value, ...newEntries }
+        chrome.storage.local.set({ tabOpenedAtMap: tabOpenedAtMap.value })
+      }
+      tabs.value = raw.map((t) => chromeTabToItem(t, tabTagsMap.value, tabNumberMap.value, tabOpenedAtMap.value))
+      const active = raw.find(t => t.active)
+      if (active) activeTabId.value = active.id
+    } catch {
+      if (!chrome.runtime?.id) window.location.reload()
+    }
   }
   const loadLater = async () => {
-    const data = await chrome.storage.local.get(["laterTabs", "customTags", "tabTagsMap", "tabNumberMap", "recentlyClosed", "treeParentMap"])
+    const data = await chrome.storage.local.get(["laterTabs", "customTags", "tabTagsMap", "tabNumberMap", "recentlyClosed", "treeParentMap", "tabOpenedAtMap"])
     laterTabs.value = data.laterTabs || []
     customTags.value = data.customTags || []
     tabTagsMap.value = data.tabTagsMap || {}
     tabNumberMap.value = data.tabNumberMap || {}
     recentlyClosed.value = data.recentlyClosed || []
     treeParentMap.value = data.treeParentMap || {}
+    tabOpenedAtMap.value = data.tabOpenedAtMap || {}
   }
   const loadSwitchHistory = async () => {
     try {
@@ -73,7 +93,8 @@ export function useTabManager() {
     } catch {}
   }
 
-  const closeTab = async (id: number) => { await chrome.tabs.remove(id); tabs.value = tabs.value.filter(t => t.id !== id) }
+  // 只调 API，让 onTabRemoved 作为唯一数据源，避免双重 Vue 更新
+  const closeTab = async (id: number) => { await chrome.tabs.remove(id) }
   const activateTab = async (id: number) => { await chrome.tabs.update(id, { active: true }) }
   const restoreTab = async (url: string) => { await chrome.tabs.create({ url }) }
 
@@ -197,23 +218,28 @@ export function useTabManager() {
 
   const onTabRemoved = (id: number) => {
     const tab = tabs.value.find(t => t.id === id)
+    const storageUpdate: Record<string, any> = {}
     if (tab && tab.url && !isProtectedUrl(tab.url)) {
       recentlyClosed.value = [{ id, title: tab.title, url: tab.url, domain: tab.domain, favIconUrl: tab.favIconUrl, closedAt: nowTime() }, ...recentlyClosed.value].slice(0, 20)
-      chrome.storage.local.set({ recentlyClosed: recentlyClosed.value })
+      storageUpdate.recentlyClosed = recentlyClosed.value
     }
     tabs.value = tabs.value.filter(t => t.id !== id)
-    // 将被关闭标签的子标签迁移到其父节点（保持子树结构）
+    // 将被关闭标签的子标签迁移到其父节点
     const removedParent = treeParentMap.value[String(id)]
     const newMap = { ...treeParentMap.value }
     delete newMap[String(id)]
     for (const [k, v] of Object.entries(newMap)) {
-      if (v === id) {
-        if (removedParent) newMap[k] = removedParent
-        else delete newMap[k]
-      }
+      if (v === id) { if (removedParent) newMap[k] = removedParent; else delete newMap[k] }
     }
     treeParentMap.value = newMap
-    chrome.storage.local.set({ treeParentMap: newMap })
+    storageUpdate.treeParentMap = newMap
+    // 清理打开时间记录
+    const atMap = { ...tabOpenedAtMap.value }
+    delete atMap[String(id)]
+    tabOpenedAtMap.value = atMap
+    storageUpdate.tabOpenedAtMap = atMap
+    // 一次性写入，减少 I/O
+    chrome.storage.local.set(storageUpdate)
     const filtered = switchHistory.value.filter(h => h !== id)
     if (filtered.length !== switchHistory.value.length) {
       switchHistory.value = filtered; switchIndex.value = Math.min(switchIndex.value, filtered.length - 1)
@@ -227,7 +253,11 @@ export function useTabManager() {
       treeParentMap.value = newMap
       chrome.storage.local.set({ treeParentMap: newMap })
     }
-    tabs.value = [...tabs.value, chromeTabToItem(t, tabs.value.length + 1, tabTagsMap.value, tabNumberMap.value)]
+    const sid = String(t.id!)
+    const openedAt = nowTime()
+    tabOpenedAtMap.value = { ...tabOpenedAtMap.value, [sid]: openedAt }
+    chrome.storage.local.set({ tabOpenedAtMap: tabOpenedAtMap.value })
+    tabs.value = [...tabs.value, chromeTabToItem(t, tabTagsMap.value, tabNumberMap.value, tabOpenedAtMap.value)]
   }
   const onTabUpdated = (_: number, change: chrome.tabs.TabChangeInfo, t: chrome.tabs.Tab) => {
     const idx = tabs.value.findIndex(x => x.id === t.id)
@@ -235,10 +265,16 @@ export function useTabManager() {
     tabs.value[idx] = { ...tabs.value[idx], title: t.title || tabs.value[idx].title, favIconUrl: t.favIconUrl || tabs.value[idx].favIconUrl, audible: t.audible || false, muted: t.mutedInfo?.muted || false, discarded: t.discarded || false, loading: t.status === "loading", active: t.active, pinned: t.pinned }
   }
   const onTabActivated = (info: chrome.tabs.TabActiveInfo) => {
-    // 记录上一个激活的标签
-    const currentActive = tabs.value.find(t => t.active)
-    if (currentActive && currentActive.id !== info.tabId) prevActiveTabId.value = currentActive.id
-    tabs.value = tabs.value.map(t => ({ ...t, active: t.id === info.tabId }))
+    // 只更新两个变化的 tab，避免全量 map 重建数组
+    const prevIdx = tabs.value.findIndex(t => t.active)
+    if (prevIdx !== -1) {
+      if (tabs.value[prevIdx].id === info.tabId) return // 无变化
+      prevActiveTabId.value = tabs.value[prevIdx].id
+      tabs.value[prevIdx] = { ...tabs.value[prevIdx], active: false }
+    }
+    const nextIdx = tabs.value.findIndex(t => t.id === info.tabId)
+    if (nextIdx !== -1) tabs.value[nextIdx] = { ...tabs.value[nextIdx], active: true }
+    activeTabId.value = info.tabId
     if (!isNavigating.value) {
       const trimmed = switchHistory.value.slice(0, switchIndex.value + 1)
       if (trimmed[trimmed.length - 1] !== info.tabId) {
@@ -249,9 +285,11 @@ export function useTabManager() {
     }
   }
 
-  // 电脑睡眠唤醒、页面从后台切回前台时重新加载全部数据
+  // 睡眠唤醒/锁屏解锁时：优先检测扩展上下文是否仍有效，失效则整页重载（保证所有功能正常）
   const onVisibilityChange = () => {
-    if (document.visibilityState === 'visible') { loadTabs(); loadLater() }
+    if (document.visibilityState !== 'visible') return
+    if (!chrome.runtime?.id) { window.location.reload(); return }
+    loadTabs(); loadLater()
   }
 
   onMounted(async () => {
@@ -271,7 +309,7 @@ export function useTabManager() {
   })
 
   return {
-    tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId,
+    tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
     canGoBack, canGoForward, goBack, goForward,
     closeTab, activateTab, restoreTab, moveToLater, removeLater,
     updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag,

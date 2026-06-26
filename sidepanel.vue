@@ -28,6 +28,10 @@
             <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 text-gray-600" @click="showStorage = true; settingsOpen = false">
               <HardDrive :size="13" />存储空间
             </button>
+            <div class="border-t border-gray-100 my-1"></div>
+            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-blue-50 text-blue-600" @click="window.location.reload()">
+              <RotateCcw :size="13" />重新打开
+            </button>
           </div>
         </div>
       </div>
@@ -87,7 +91,7 @@
       @activate="activateTab" @close="closeTab"
       @later="openLater" @copy="copyUrl"
       @refresh="handleRefresh" @pin="handlePin"
-      @updateNumber="(id, n) => { updateTabNumber(id, n); showToast(n > 0 ? `编号已设置 ${modKey}${n}` : '编号已清除') }"
+      @updateNumber="(id, n) => { updateTabNumber(id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
       @ctx="onContextMenu"
     />
 
@@ -131,7 +135,7 @@
                   @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
                   @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
                   @updateTags="updateTabTags(item.id, $event)" @addTag="addCustomTag($event)"
-                  @updateNumber="(n: number) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号已设置 ${modKey}${n}` : '编号已清除') }"
+                  @updateNumber="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
                   @refresh="handleRefresh(item.id)" @pin="handlePin(item.id)"
                   @contextmenu.prevent="onContextMenu($event, item)" />
               </div>
@@ -145,7 +149,7 @@
                 @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
                 @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
                 @updateTags="updateTabTags(item.id, $event)" @addTag="addCustomTag($event)"
-                @updateNumber="(n: number) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号已设置 ${modKey}${n}` : '编号已清除') }"
+                @updateNumber="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
                 @refresh="handleRefresh(item.id)" @pin="handlePin(item.id)"
                 @contextmenu.prevent="onContextMenu($event, item)" />
             </div>
@@ -185,7 +189,7 @@
           @keyup.enter="confirmNumberPicker" @keyup.escape="numberPickerTabId = null" />
         <button class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700" @click="confirmNumberPicker">确定</button>
       </div>
-      <button class="mt-1.5 text-[10px] text-gray-400 hover:text-red-500 w-full text-left" @click="() => { updateTabNumber(numberPickerTab!.id, 0); showToast('编号已清除'); numberPickerTabId = null }">清除编号</button>
+      <button class="mt-1.5 text-[10px] text-gray-400 hover:text-red-500 w-full text-left" @click="() => { if (numberPickerTab) { updateTabNumber(numberPickerTab.id, 0); showToast('编号已清除') } numberPickerTabId = null }">清除编号</button>
     </div>
     <button v-if="scrolled" class="fixed bottom-10 right-3 z-30 p-1.5 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all" @click="scrollToTop" title="回到顶部">
       <ChevronUp :size="14" />
@@ -195,7 +199,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide } from "vue"
-import { Settings, LogIn, Palette, Type, Layout, Cloud, Camera, Tag, HardDrive, Globe as Globe2, ChevronUp } from "@lucide/vue"
+import { Settings, LogIn, Palette, Type, Layout, Cloud, Camera, Tag, HardDrive, Globe as Globe2, ChevronUp, RotateCcw } from "@lucide/vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabStats } from "~composables/useTabStats"
 import { useTabTree } from "~composables/useTabTree"
@@ -218,7 +222,7 @@ import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
 
 const {
-  tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId,
+  tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
   canGoBack, canGoForward, goBack, goForward,
   closeTab, activateTab, restoreTab, moveToLater, removeLater,
   updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag,
@@ -228,6 +232,17 @@ const {
 } = useTabManager()
 const stats = computed(() => useTabStats(tabs).value)
 const treeNodes = useTabTree(tabs, treeParentMap)
+
+// 树形操作 handler：provide 给 TabTreeItem（HoverCard 用）
+provide('treeAction', (action: string, item: TabItem, data?: any) => {
+  switch (action) {
+    case 'later': openLater(item.id); break
+    case 'copy': copyUrl(item.url); break
+    case 'refresh': handleRefresh(item.id); break
+    case 'pin': handlePin(item.id); break
+    case 'updateNumber': updateTabNumber(item.id, data); showToast(data > 0 ? `编号 ${modKey}${data} 已设置` : '编号已清除'); break
+  }
+})
 
 // 树形拖拽 handler：provide 给 TabTreeItem
 provide('treeDrag', (dragId: number, targetId: number, pos: 'before' | 'into' | 'after') => {
@@ -308,14 +323,16 @@ const onKeydown = (e: KeyboardEvent) => {
 onMounted(() => document.addEventListener("keydown", onKeydown))
 onUnmounted(() => document.removeEventListener("keydown", onKeydown))
 
-const scrollToActive = async () => {
-  await nextTick()
-  const activeId = tabs.value.find(t => t.active)?.id
-  if (!activeId || !contentRef.value) return
-  const el = contentRef.value.querySelector(`[data-tabid="${activeId}"]`) as HTMLElement | null
-  el?.scrollIntoView({ block: "center", behavior: "smooth" })
+const scrollToActive = (activeId: number | undefined) => {
+  if (!activeId) return
+  // 等 Vue 完成 computed 链 + DOM 渲染（两个 tick + 一次宏任务）
+  nextTick(() => setTimeout(() => {
+    if (!contentRef.value) return
+    const el = contentRef.value.querySelector(`[data-tabid="${activeId}"]`) as HTMLElement | null
+    el?.scrollIntoView({ block: "center", behavior: "smooth" })
+  }, 0))
 }
-watch(() => tabs.value.find(t => t.active)?.id, scrollToActive, { immediate: true })
+watch(activeTabId, scrollToActive, { immediate: true })
 
 const itemComponent = computed(() => {
   if (viewMode.value === "tile") return TabTileItem

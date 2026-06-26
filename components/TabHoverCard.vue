@@ -53,8 +53,6 @@
           <X :size="10" />关闭标签
         </button>
       </div>
-      <!-- 指向箭头 -->
-      <div class="absolute -left-2 top-4 w-2 h-2 bg-white border-l border-t border-gray-300 transform rotate-45"></div>
     </div>
   </Teleport>
 </template>

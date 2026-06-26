@@ -8,32 +8,31 @@
         :class="['flex items-center gap-1 px-1.5 py-1 rounded-lg border cursor-pointer transition-colors flex-1 min-w-[120px] max-w-[220px] select-none',
           item.active ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/60']"
         @click="emit('activate', item.id)"
-        @contextmenu.prevent="emit('ctx', $event, item)"
-        @mouseenter="onEnter($event, item)"
-        @mouseleave="onLeave">
+        @contextmenu.prevent="emit('ctx', $event, item)">
         <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" :badge="getHighestPriorityStatus(item)?.icon" />
         <span :class="['text-[11px] font-medium truncate flex-1 min-w-0', item.active ? 'text-blue-900' : 'text-gray-800']">{{ item.title }}</span>
+        <button class="shrink-0 p-0.5 text-gray-400 hover:text-blue-500 rounded" @click.stop="toggleMenu($event, item)"><MoreHorizontal :size="10" /></button>
         <button class="shrink-0 p-0.5 text-gray-300 hover:text-red-500 rounded" @click.stop="emit('close', item.id)"><X :size="10" /></button>
       </div>
     </div>
   </div>
 
   <Teleport to="body">
-    <TabHoverCard v-if="hovered" :show="true" :item="hovered" :x="pos.x" :y="pos.y"
-      @stay="clearLeave" @leave="() => { hovered = null }"
-      @refresh="emit('refresh', hovered!.id)"
-      @copy="emit('copy', hovered!.url)"
-      @pin="emit('pin', hovered!.id)"
-      @addTag="emit('ctx', {} as MouseEvent, hovered!)"
-      @later="emit('later', hovered!.id)"
-      @updateNumber="emit('updateNumber', hovered!.id, $event)"
+    <TabHoverCard v-if="menuItem" :show="true" :item="menuItem" :x="pos.x" :y="pos.y"
+      @stay="clearLeave" @leave="startLeave"
+      @refresh="onAction('refresh')"
+      @copy="onAction('copy')"
+      @pin="onAction('pin')"
+      @addTag="onAddTag"
+      @later="onAction('later')"
+      @updateNumber="onUpdateNumber($event)"
     />
   </Teleport>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue"
-import { Pin, X } from "@lucide/vue"
+import { Pin, X, MoreHorizontal } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import FavIcon from "./FavIcon.vue"
 import TabHoverCard from "./TabHoverCard.vue"
@@ -46,16 +45,30 @@ const emit = defineEmits<{
   updateNumber: [id: number, n: number]; ctx: [e: MouseEvent, item: TabItem]
 }>()
 
-const hovered = ref<TabItem | null>(null)
+const CARD_W = 256, CARD_H = 230, GAP = 6
+
+const menuItem = ref<TabItem | null>(null)
 const pos = ref({ x: 0, y: 0 })
 let leaveTimer: ReturnType<typeof setTimeout> | null = null
 
 const clearLeave = () => { if (leaveTimer) { clearTimeout(leaveTimer); leaveTimer = null } }
-const onEnter = (e: MouseEvent, item: TabItem) => {
+const startLeave = () => { leaveTimer = setTimeout(() => { menuItem.value = null }, 200) }
+
+const toggleMenu = (e: MouseEvent, item: TabItem) => {
+  e.stopPropagation()
+  if (menuItem.value?.id === item.id) { menuItem.value = null; return }
   clearLeave()
-  hovered.value = item
-  const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  pos.value = { x: Math.min(r.left, window.innerWidth - 272), y: r.bottom + 6 }
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const flipX = rect.right + CARD_W > window.innerWidth
+  pos.value = { x: flipX ? rect.right - CARD_W : rect.left, y: Math.min(rect.bottom + GAP, window.innerHeight - CARD_H - 4) }
+  menuItem.value = item
 }
-const onLeave = () => { leaveTimer = setTimeout(() => { hovered.value = null }, 150) }
+
+const onAction = (action: 'refresh' | 'copy' | 'pin' | 'later') => {
+  if (!menuItem.value) return
+  if (action === 'copy') emit('copy', menuItem.value.url)
+  else emit(action, menuItem.value.id)
+}
+const onAddTag = () => { if (menuItem.value) emit('ctx', new MouseEvent('contextmenu'), menuItem.value) }
+const onUpdateNumber = (n: number) => { if (menuItem.value) emit('updateNumber', menuItem.value.id, n) }
 </script>

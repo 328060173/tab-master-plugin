@@ -7,24 +7,43 @@
     </div>
     <div class="flex-1 overflow-y-auto px-4 py-3 space-y-2">
       <div class="text-xs text-gray-400 mb-3">数据存储在浏览器本地（chrome.storage.local），不上传至云端。</div>
-      <div v-for="item in items" :key="item.key" class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-100 bg-gray-50">
+
+      <!-- 用户数据 -->
+      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1">用户数据</p>
+      <div v-for="item in userItems" :key="item.key" class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-100 bg-gray-50">
         <span class="text-base shrink-0">{{ item.icon }}</span>
         <div class="flex-1 min-w-0">
           <p class="text-xs font-medium text-gray-800">{{ item.label }}</p>
           <p class="text-[11px] text-gray-400">{{ item.count }} 条  ·  {{ item.size }}</p>
         </div>
-        <button
-          class="text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-2 py-1 rounded transition-colors shrink-0"
-          @click="confirmClear(item)"
-        >清理</button>
+        <button class="text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-2 py-1 rounded transition-colors shrink-0" @click="confirmClear(item)">清理</button>
       </div>
+
+      <!-- 系统数据 -->
+      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 pt-1">系统数据</p>
+      <div v-for="item in sysItems" :key="item.key" class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-100 bg-gray-50">
+        <span class="text-base shrink-0">{{ item.icon }}</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-medium text-gray-800">{{ item.label }}</p>
+          <p class="text-[11px] text-gray-400">{{ item.count }} 条  ·  {{ item.size }}</p>
+        </div>
+        <button class="text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-2 py-1 rounded transition-colors shrink-0" @click="confirmClear(item)">清理</button>
+      </div>
+
       <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-blue-50 border border-blue-100">
         <span class="text-xs font-medium text-blue-700">合计使用</span>
         <span class="text-xs font-bold text-blue-700">{{ totalSize }}</span>
       </div>
     </div>
 
-    <!-- 清理确认弹框 -->
+    <!-- 底部：清空所有缓存 -->
+    <div class="px-4 py-3 border-t border-gray-100 shrink-0">
+      <button class="w-full py-2 text-xs text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5" @click="confirmClearAll = true">
+        <Trash2 :size="12" />清空所有缓存，重新打开
+      </button>
+    </div>
+
+    <!-- 单项清理确认 -->
     <div v-if="confirming" class="absolute inset-x-4 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 z-50">
       <p class="text-sm font-semibold text-gray-800 mb-2">⚠️ 确认清理「{{ confirming.label }}」</p>
       <p class="text-xs text-red-600 bg-red-50 rounded p-2 mb-4 leading-relaxed">{{ confirming.warning }}</p>
@@ -33,21 +52,33 @@
         <button class="px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600" @click="doClear">确认清理</button>
       </div>
     </div>
+
+    <!-- 清空所有确认 -->
+    <div v-if="confirmClearAll" class="absolute inset-x-4 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 z-50">
+      <p class="text-sm font-semibold text-gray-800 mb-2">⚠️ 清空所有缓存？</p>
+      <p class="text-xs text-red-600 bg-red-50 rounded p-2 mb-4 leading-relaxed">将清除全部本地数据（稍后列表、标记、编号、打开时间、搜索历史等），操作不可恢复，清空后自动重新打开插件。</p>
+      <div class="flex gap-2 justify-end">
+        <button class="px-3 py-1.5 text-xs border border-gray-200 rounded hover:bg-gray-50" @click="confirmClearAll = false">取消</button>
+        <button class="px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600" @click="doClearAll">清空并重新打开</button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
-import { X } from "@lucide/vue"
+import { X, Trash2 } from "@lucide/vue"
 
 const emit = defineEmits(["close", "cleared"])
 
 interface StorageItem {
   key: string; label: string; icon: string; count: number; size: string; warning: string
 }
-const items = ref<StorageItem[]>([])
+const userItems = ref<StorageItem[]>([])
+const sysItems = ref<StorageItem[]>([])
 const totalSize = ref("0 B")
 const confirming = ref<StorageItem | null>(null)
+const confirmClearAll = ref(false)
 
 function fmtBytes(b: number) {
   if (b < 1024) return `${b} B`
@@ -56,33 +87,42 @@ function fmtBytes(b: number) {
 }
 function sizeOf(val: unknown) { return new Blob([JSON.stringify(val)]).size }
 
-const DEFS = [
-  { key: "laterTabs",     label: "稍后处理列表",   icon: "🕐", warning: "会清空所有稍后处理的标签记录，操作不可恢复。" },
-  { key: "customTags",    label: "自定义标记",      icon: "🏷️", warning: "会清空所有自定义标记，同时清除所有标签页上绑定的标记，操作不可恢复。" },
-  { key: "tabTagsMap",    label: "标签标记数据",    icon: "🗂️", warning: "会清空所有标签页绑定的标记映射，但不会删除标记名称本身。" },
-  { key: "tabNumberMap",  label: "自定义编号",      icon: "🔢", warning: "会清空所有自定义编号，Ctrl+数字快捷键将全部失效。" },
-  { key: "recentlyClosed",label: "最近关闭记录",    icon: "📋", warning: "会清空所有最近关闭的标签页记录，搜索时将不再显示关闭历史。" },
+const USER_DEFS = [
+  { key: "laterTabs",      label: "稍后处理列表", icon: "🕐", warning: "会清空所有稍后处理的标签记录，操作不可恢复。" },
+  { key: "customTags",     label: "自定义标记",   icon: "🏷️", warning: "会清空所有自定义标记，同时清除所有标签页上绑定的标记，操作不可恢复。" },
+  { key: "tabTagsMap",     label: "标签标记数据", icon: "🗂️", warning: "会清空所有标签页绑定的标记映射，但不会删除标记名称本身。" },
+  { key: "recentlyClosed", label: "最近关闭记录", icon: "📋", warning: "会清空所有最近关闭的标签页记录。" },
+]
+const SYS_DEFS = [
+  { key: "tabNumberMap",   label: "快捷键编号",   icon: "🔢", warning: "会清空所有自定义编号，Alt+数字快捷键将全部失效。" },
+  { key: "tabOpenedAtMap", label: "标签打开时间", icon: "🕒", warning: "会清空记录的标签打开时间，时间排序将以重置后的加载时间为准。" },
+  { key: "treeParentMap",  label: "树形父子关系", icon: "🌲", warning: "会清空树形视图中手动设置的父子层级关系。" },
 ]
 
 const loadData = async () => {
-  const keys = DEFS.map(d => d.key)
+  const keys = [...USER_DEFS, ...SYS_DEFS].map(d => d.key)
   const data = await chrome.storage.local.get(keys)
 
-  // searchHistory from localStorage
   let shSize = 0; let shCount = 0
   try { const sh = JSON.parse(localStorage.getItem("tabmaster_search_history") || "[]"); shCount = sh.length; shSize = sizeOf(sh) } catch {}
 
-  let total = 0
-  items.value = DEFS.map(d => {
+  let vmSize = 0
+  const vmVal = localStorage.getItem("viewMode") || ""
+  vmSize = sizeOf(vmVal)
+
+  let total = shSize + vmSize
+  const makeItem = (d: typeof USER_DEFS[0]) => {
     const val = data[d.key] ?? []
     const sz = sizeOf(val); total += sz
     return { ...d, count: Array.isArray(val) ? val.length : Object.keys(val).length, size: fmtBytes(sz) }
-  })
-  items.value.push({
-    key: "__searchHistory__", label: "搜索历史", icon: "🔍", count: shCount, size: fmtBytes(shSize),
-    warning: "会清空所有搜索历史记录。"
-  })
-  total += shSize
+  }
+
+  userItems.value = USER_DEFS.map(makeItem)
+  userItems.value.push({ key: "__searchHistory__", label: "搜索历史", icon: "🔍", count: shCount, size: fmtBytes(shSize), warning: "会清空所有搜索历史记录。" })
+
+  sysItems.value = SYS_DEFS.map(makeItem)
+  sysItems.value.push({ key: "__viewMode__", label: "界面偏好（视图/排序）", icon: "⚙️", count: vmVal ? 1 : 0, size: fmtBytes(vmSize), warning: "会清空视图模式等界面偏好设置，下次打开将恢复默认列表视图。" })
+
   totalSize.value = fmtBytes(total)
 }
 
@@ -92,15 +132,23 @@ const doClear = async () => {
   const key = confirming.value.key
   if (key === "__searchHistory__") {
     localStorage.removeItem("tabmaster_search_history")
+  } else if (key === "__viewMode__") {
+    localStorage.removeItem("viewMode")
   } else if (key === "customTags") {
     await chrome.storage.local.set({ customTags: [], tabTagsMap: {} })
   } else {
-    const empty = key === "tabTagsMap" || key === "tabNumberMap" ? {} : []
+    const empty = (key === "tabTagsMap" || key === "tabNumberMap" || key === "tabOpenedAtMap" || key === "treeParentMap") ? {} : []
     await chrome.storage.local.set({ [key]: empty })
   }
   confirming.value = null
   emit("cleared")
   await loadData()
+}
+
+const doClearAll = async () => {
+  await chrome.storage.local.clear()
+  localStorage.clear()
+  window.location.reload()
 }
 
 onMounted(loadData)

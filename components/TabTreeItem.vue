@@ -16,7 +16,9 @@
       <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" :badge="statusBadge" />
       <p :class="['flex-1 text-xs truncate font-medium', item.active ? 'text-blue-700' : 'text-gray-800']">{{ item.title }}</p>
       <span class="text-[10px] text-gray-400 shrink-0">({{ totalCount }})</span>
-      <button class="p-0.5 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0"
+      <button :class="['p-0.5 rounded shrink-0', hovered ? 'bg-blue-100 text-blue-500' : 'text-gray-400 hover:text-blue-500']"
+        @click.stop="toggle" title="更多操作"><MoreHorizontal :size="11" /></button>
+      <button class="p-0.5 text-gray-300 hover:text-red-500 shrink-0"
         @click.stop="closeAll" title="关闭全组"><X :size="11" /></button>
     </div>
 
@@ -42,23 +44,42 @@
       @click="emit('activate')">
       <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" :badge="statusBadge" />
       <p :class="['flex-1 text-xs truncate', item.active ? 'text-blue-900 font-semibold' : 'text-gray-800']">{{ item.title }}</p>
-      <button class="p-0.5 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0"
+      <button :class="['p-0.5 rounded shrink-0', hovered ? 'bg-blue-100 text-blue-500' : 'text-gray-400 hover:text-blue-500']"
+        @click.stop="toggle" title="更多操作"><MoreHorizontal :size="11" /></button>
+      <button class="p-0.5 text-gray-300 hover:text-red-500 shrink-0"
         @click.stop="emit('close')"><X :size="11" /></button>
     </div>
+
+    <TabHoverCard
+      :show="hovered" :item="item" :x="cardPos.x" :y="cardPos.y"
+      @stay="clearLeave" @leave="startLeave"
+      @refresh="treeAction?.('refresh', item)"
+      @copy="treeAction?.('copy', item)"
+      @pin="treeAction?.('pin', item)"
+      @addTag="treeAction?.('addTag', item)"
+      @later="treeAction?.('later', item)"
+      @close="children.length ? closeAll() : emit('close')"
+      @updateNumber="treeAction?.('updateNumber', item, $event)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, inject } from "vue"
-import { ChevronRight, X } from "@lucide/vue"
+import { ChevronRight, X, MoreHorizontal } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import FavIcon from "./FavIcon.vue"
+import TabHoverCard from "./TabHoverCard.vue"
 import { getHighestPriorityStatus } from "~lib/statusPriority"
+import { useHoverCard } from "~composables/useHoverCard"
 
 export interface TreeNode { item: TabItem; children: TreeNode[] }
 
 const props = defineProps<{ item: TabItem; children: TreeNode[]; depth?: number }>()
 const emit = defineEmits(["activate", "activate-child", "close", "close-child"])
+
+const { hovered, cardPos, toggle, clearLeave, startLeave } = useHoverCard()
+const treeAction = inject<(action: string, item: TabItem, data?: any) => void>('treeAction')
 
 const expanded = ref(true)
 const dropPos = ref<'before' | 'into' | 'after' | null>(null)
