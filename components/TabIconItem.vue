@@ -13,7 +13,7 @@
     <input v-if="isBatch" type="checkbox" :checked="isChecked" @change.stop="emit('toggle')" class="absolute top-1 left-1 cursor-pointer" />
     <span v-if="isPrev" class="absolute top-0.5 left-0.5 text-[8px] font-semibold text-blue-600 bg-blue-100 border border-blue-200 px-1 py-px rounded leading-none z-10" title="上一个访问的标签">Prev</span>
     <div class="absolute top-0.5 right-0.5 flex items-center gap-0.5">
-      <button :class="['p-1 rounded', hovered ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100']" @click.stop="toggle" title="更多操作"><MoreVertical :size="14" :stroke-width="2.5" /></button>
+      <button :class="['p-1 rounded', hovered ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100']" @click.stop="toggle" title="更多操作"><Menu :size="14" :stroke-width="2.25" /></button>
       <button class="p-1 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded" @click.stop="emit('close')" title="关闭"><X :size="14" :stroke-width="2.5" /></button>
     </div>
     <FavIcon :src="item.favIconUrl" :domain="item.domain" size="lg" :badge="statusBadge" />
@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue"
-import { MoreVertical, X } from "@lucide/vue"
+import { Menu, X } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import FavIcon from "./FavIcon.vue"
 import StatusBadge from "./StatusBadge.vue"

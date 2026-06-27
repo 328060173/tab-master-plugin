@@ -18,12 +18,12 @@
     <!-- 中部：标题 2行截断 -->
     <p :class="['flex-1 text-[11px] leading-tight line-clamp-2 overflow-hidden',
       item.active ? 'text-blue-900 font-semibold' : 'text-gray-800']">{{ item.title }}</p>
-    <!-- 底部：打开时间 + 三点菜单 + 关闭 -->
+    <!-- 底部：域名 + 三点菜单 + 关闭 -->
     <div class="flex items-center justify-between mt-1">
-      <span class="text-[9px] text-gray-400">{{ formatOpenedAt(item.openedAt) }}</span>
-      <div class="flex items-center gap-0.5">
-        <button :class="['p-0.5 rounded', hovered ? 'bg-blue-100 text-blue-500' : 'text-gray-400 hover:text-blue-500']" @click.stop="toggle" title="更多操作"><MoreHorizontal :size="12" /></button>
-        <button class="p-0.5 text-gray-300 hover:text-red-500 rounded" @click.stop="emit('close')"><X :size="10" /></button>
+      <span class="text-[9px] text-gray-400 truncate flex-1 min-w-0">{{ item.domain.toLowerCase() }}</span>
+      <div class="flex items-center gap-0.5 shrink-0">
+        <button :class="['p-0.5 rounded', hovered ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100']" @click.stop="toggle" title="更多操作"><Menu :size="13" :stroke-width="2.25" /></button>
+        <button class="p-0.5 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded" @click.stop="emit('close')" title="关闭"><X :size="13" :stroke-width="2.5" /></button>
       </div>
     </div>
   </div>
@@ -39,12 +39,11 @@
 
 <script setup lang="ts">
 import { computed } from "vue"
-import { X, MoreHorizontal } from "@lucide/vue"
+import { X, Menu } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import FavIcon from "./FavIcon.vue"
 import TabHoverCard from "./TabHoverCard.vue"
 import { getHighestPriorityStatus } from "~lib/statusPriority"
-import { formatOpenedAt } from "~lib/timeFormat"
 import { useHoverCard } from "~composables/useHoverCard"
 
 const props = defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[]; isPrev?: boolean }>()

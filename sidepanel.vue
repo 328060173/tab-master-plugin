@@ -118,6 +118,8 @@
       </div>
       <template v-else>
         <template v-if="viewMode === 'tree'">
+          <!-- 树形视图常驻黄条引导 -->
+          <TreeGuideBanner @open="treeGuideOpen = true" />
           <TabTreeItem v-for="node in treeNodes" :key="node.item.id"
             :item="node.item" :children="node.children" :depth="0"
             @activate="activateTab(node.item.id)" @activate-child="activateTab($event)"
@@ -161,6 +163,7 @@
 
     <FooterStats :stats="stats" :activeFilter="activeFilter" @filter="activeFilter = $event" />
     <LaterDialog :open="laterDialogOpen" @close="laterDialogOpen = false" @confirm="confirmLater" />
+    <TreeGuideDialog :open="treeGuideOpen" @close="treeGuideOpen = false" />
 
     <!-- 右键菜单 -->
     <TabContextMenu :tab="ctxMenu?.tab ?? null" :x="ctxMenu?.x ?? 0" :y="ctxMenu?.y ?? 0"
@@ -219,6 +222,8 @@ import SearchBox from "~components/SearchBox.vue"
 import StoragePanel from "~components/StoragePanel.vue"
 import TabContextMenu from "~components/TabContextMenu.vue"
 import PinnedBar from "~components/PinnedBar.vue"
+import TreeGuideBanner from "~components/TreeGuideBanner.vue"
+import TreeGuideDialog from "~components/TreeGuideDialog.vue"
 import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
 import { vClickOutside } from "~lib/clickOutside"
@@ -307,7 +312,29 @@ const showToast = (msg: string) => {
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => { toastMsg.value = "" }, 2000)
 }
-const setViewMode = (v: string) => { viewMode.value = v; localStorage.setItem("viewMode", v) }
+const setViewMode = (v: string) => {
+  viewMode.value = v
+  localStorage.setItem("viewMode", v)
+  // 切到树形视图：若用户从未看过引导，自动打开 dialog（chrome.storage.local 持久化首次标志）
+  if (v === "tree" && !treeGuideShown.value) {
+    treeGuideOpen.value = true
+    treeGuideShown.value = true
+    chrome.storage.local.set({ treeGuideShown: true })
+  }
+}
+
+// 树形视图引导：黄条点击/首次切换自动打开
+const treeGuideOpen = ref(false)
+const treeGuideShown = ref(false)
+chrome.storage.local.get("treeGuideShown").then((d) => {
+  treeGuideShown.value = !!d.treeGuideShown
+  // 初始 viewMode 已经是 tree 且首次：异步加载完后再触发
+  if (viewMode.value === "tree" && !treeGuideShown.value) {
+    treeGuideOpen.value = true
+    treeGuideShown.value = true
+    chrome.storage.local.set({ treeGuideShown: true })
+  }
+})
 // 模板里直接用 window.location.reload() 在 Vue 3 <script setup> 的求值上下文中找不到 window，
 // 包成方法暴露给模板才能正常触发。
 const reloadPanel = () => { settingsOpen.value = false; window.location.reload() }

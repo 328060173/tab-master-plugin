@@ -24,29 +24,27 @@
         <span v-if="item.tags.length > 1" class="text-[10px] text-gray-400 shrink-0">+{{ item.tags.length - 1 }}</span>
       </template>
     </div>
-    <span class="text-xs text-gray-400 w-10 text-right shrink-0">{{ formatOpenedAt(item.openedAt) }}</span>
     <span class="text-xs text-gray-400 w-24 truncate shrink-0 hidden sm:block">{{ item.domain.toLowerCase() }}</span>
     <StatusBadge :item="item" />
     <div class="flex items-center gap-0.5 shrink-0">
-      <button class="p-1 text-gray-400 hover:text-blue-500 rounded" title="刷新" @click.stop="emit('refresh')"><RefreshCw :size="13" /></button>
-      <button class="p-1 text-gray-400 hover:text-blue-500 rounded" title="复制链接" @click.stop="emit('copy')"><Link :size="13" /></button>
-      <button class="p-1 text-gray-400 hover:text-blue-500 rounded" title="标记" @click.stop="emit('addTag')"><Tag :size="13" /></button>
-      <button class="p-1 text-gray-400 hover:text-blue-500 rounded" title="稍后处理" @click.stop="emit('later')"><Clock :size="13" /></button>
-      <button :class="['p-1 rounded', hovered ? 'bg-blue-100 text-blue-500' : 'text-gray-400 hover:text-blue-500']" title="更多操作" @click.stop="toggle"><MoreHorizontal :size="13" /></button>
-      <button class="p-1 text-gray-300 hover:text-red-500 rounded" @click.stop="emit('close')"><X :size="12" /></button>
+      <button class="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded" title="刷新" @click.stop="emit('refresh')"><RefreshCw :size="13" /></button>
+      <button class="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded" title="复制链接" @click.stop="emit('copy')"><Link :size="13" /></button>
+      <button class="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded" title="标记" @click.stop="emit('addTag')"><Tag :size="13" /></button>
+      <button class="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded" title="稍后处理" @click.stop="emit('later')"><Clock :size="13" /></button>
+      <button :class="['p-1 rounded', hovered ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100']" title="更多操作" @click.stop="toggle"><Menu :size="14" :stroke-width="2.25" /></button>
+      <button class="p-1 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded" @click.stop="emit('close')" title="关闭"><X :size="13" :stroke-width="2.5" /></button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue"
-import { MoreHorizontal, X, RefreshCw, Link, Tag, Clock } from "@lucide/vue"
+import { Menu, X, RefreshCw, Link, Tag, Clock } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import FavIcon from "./FavIcon.vue"
 import StatusBadge from "./StatusBadge.vue"
 import TabHoverCard from "./TabHoverCard.vue"
 import { useHoverCard } from "~composables/useHoverCard"
-import { formatOpenedAt } from "~lib/timeFormat"
 import { getHighestPriorityStatus } from "~lib/statusPriority"
 
 const props = defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[]; isPrev?: boolean }>()

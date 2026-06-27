@@ -11,8 +11,8 @@
         @contextmenu.prevent="emit('ctx', $event, item)">
         <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" :badge="getHighestPriorityStatus(item)?.icon" />
         <span :class="['text-[11px] font-medium truncate flex-1 min-w-0', item.active ? 'text-blue-900' : 'text-gray-800']">{{ item.title }}</span>
-        <button class="shrink-0 p-0.5 text-gray-400 hover:text-blue-500 rounded" @click.stop="toggleMenu($event, item)"><MoreHorizontal :size="10" /></button>
-        <button class="shrink-0 p-0.5 text-gray-300 hover:text-red-500 rounded" @click.stop="emit('close', item.id)"><X :size="10" /></button>
+        <button class="shrink-0 p-0.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded" @click.stop="toggleMenu($event, item)" title="更多操作"><Menu :size="12" :stroke-width="2.25" /></button>
+        <button class="shrink-0 p-0.5 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded" @click.stop="emit('close', item.id)" title="关闭"><X :size="12" :stroke-width="2.5" /></button>
       </div>
     </div>
   </div>
@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue"
-import { Pin, X, MoreHorizontal } from "@lucide/vue"
+import { Pin, X, Menu } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import FavIcon from "./FavIcon.vue"
 import TabHoverCard from "./TabHoverCard.vue"
