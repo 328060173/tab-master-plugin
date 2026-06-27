@@ -30,6 +30,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue"
+import { vClickOutside } from "~lib/clickOutside"
 
 const props = defineProps<{
   stats: Array<{ key: string; label: string; icon: string; desc: string; value: number }>
@@ -80,9 +81,4 @@ onMounted(() => {
   }
 })
 onUnmounted(() => ro?.disconnect())
-
-const vClickOutside = {
-  mounted(el: any, b: any) { el._o = (e: MouseEvent) => { if (!el.contains(e.target)) b.value() }; document.addEventListener("click", el._o) },
-  unmounted(el: any) { document.removeEventListener("click", el._o) },
-}
 </script>

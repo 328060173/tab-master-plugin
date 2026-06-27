@@ -1,13 +1,15 @@
 <template>
   <div class="flex items-center gap-1 px-3 py-1.5 border-b border-gray-100 flex-wrap">
     <template v-if="!isLaterPage">
-      <button class="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800" title="新建标签" @click="emit('newTab')">
-        <Plus :size="14" />
+      <button class="p-1 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900" title="新建标签" @click="emit('newTab')">
+        <Plus :size="15" :stroke-width="2.5" />
       </button>
-      <button class="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 disabled:opacity-30" :disabled="!canGoBack" @click="emit('goBack')" title="上一个标签"><ChevronLeft :size="14" /></button>
-      <button class="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 disabled:opacity-30" :disabled="!canGoForward" @click="emit('goForward')" title="下一个标签"><ChevronRight :size="14" /></button>
-      <div class="w-px h-4 bg-gray-200 mx-0.5 shrink-0" />
-      <div class="relative">
+      <button class="p-1 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900" title="刷新当前标签" @click="emit('refreshCurrent')">
+        <RotateCw :size="14" :stroke-width="2.25" />
+      </button>
+      <button class="p-1 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900 disabled:opacity-30" :disabled="!canGoBack" @click="emit('goBack')" title="上一个标签"><ChevronLeft :size="15" :stroke-width="2.5" /></button>
+      <button class="p-1 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900 disabled:opacity-30" :disabled="!canGoForward" @click="emit('goForward')" title="下一个标签"><ChevronRight :size="15" :stroke-width="2.5" /></button>
+      <div class="relative ml-auto">
         <button class="flex items-center gap-1 px-2 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50" @click.stop="viewOpen = !viewOpen">
           <component :is="currentView.icon" :size="12" />{{ currentView.label }}<ChevronDown :size="10" class="text-gray-400" />
         </button>
@@ -58,13 +60,14 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue"
-import { Plus, Trash2, LayoutGrid, List, Grid2X2, GitFork, ArrowUpDown, CheckSquare, XSquare, X, Search, ChevronLeft, ChevronRight, ChevronDown } from "@lucide/vue"
+import { Plus, Trash2, LayoutGrid, List, Grid2X2, GitFork, ArrowUpDown, CheckSquare, XSquare, X, Search, ChevronLeft, ChevronRight, ChevronDown, RotateCw } from "@lucide/vue"
+import { vClickOutside } from "~lib/clickOutside"
 
 const props = defineProps<{
   isLaterPage: boolean; isBatchMode: boolean; selectedCount: number
   viewMode: string; sortMode: string; canGoBack: boolean; canGoForward: boolean
 }>()
-const emit = defineEmits(["newTab", "viewChange", "sortChange", "toggleBatch", "batchClose", "closeUnpinned", "closeOthers", "closeFrozenDiscarded", "detectDuplicates", "detectUnused", "goBack", "goForward"])
+const emit = defineEmits(["newTab", "viewChange", "sortChange", "toggleBatch", "batchClose", "closeUnpinned", "closeOthers", "closeFrozenDiscarded", "detectDuplicates", "detectUnused", "goBack", "goForward", "refreshCurrent"])
 
 const cleanOpen = ref(false)
 const viewOpen = ref(false)
@@ -82,9 +85,4 @@ const SORT_OPTIONS = [
   { value: "timeDesc", label: "时间倒序" },
 ]
 const currentView = computed(() => VIEW_OPTIONS.find(o => o.value === props.viewMode) || VIEW_OPTIONS[1])
-
-const vClickOutside = {
-  mounted(el: any, b: any) { el._o = (e: MouseEvent) => { if (!el.contains(e.target)) b.value() }; document.addEventListener("click", el._o) },
-  unmounted(el: any) { document.removeEventListener("click", el._o) },
-}
 </script>

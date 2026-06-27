@@ -1,33 +1,43 @@
-This is a [Plasmo extension](https://docs.plasmo.com/) project bootstrapped with [`plasmo init`](https://www.npmjs.com/package/plasmo).
+# Tab Master · 浏览器标签大师
 
-## Getting Started
+一款面向重度浏览器用户的标签页管理扩展，提供平铺/列表/图标/树形四种视图、智能排序与分组、稍后处理、自定义标记、批量操作、状态感知（播放中/静音/未保存表单等）。
 
-First, run the development server:
+- 目标平台：Chrome 88+ / Edge 88+（Mac + Windows）
+- 技术栈：Plasmo 0.90 · Vue 3 · TypeScript · Tailwind CSS · Chrome MV3
+- 作者：xpd
 
-```bash
-pnpm dev
-# or
-npm run dev
-```
-
-Open your browser and load the appropriate development build. For example, if you are developing for the chrome browser, using manifest v3, use: `build/chrome-mv3-dev`.
-
-You can start editing the popup by modifying `popup.tsx`. It should auto-update as you make changes. To add an options page, simply add a `options.tsx` file to the root of the project, with a react component default exported. Likewise to add a content page, add a `content.ts` file to the root of the project, importing some module and do some logic, then reload the extension on your browser.
-
-For further guidance, [visit our Documentation](https://docs.plasmo.com/)
-
-## Making production build
-
-Run the following:
+## 开发
 
 ```bash
-pnpm build
-# or
-npm run build
+pnpm install
+pnpm dev      # 开发模式：产物在 build/chrome-mv3-dev/
+pnpm build    # 生产构建：产物在 build/chrome-mv3-prod/
+pnpm package  # 打包成 Chrome Web Store 上架 zip
 ```
 
-This should create a production bundle for your extension, ready to be zipped and published to the stores.
+加载扩展：浏览器 → 扩展程序 → 加载已解压 → 选 `build/chrome-mv3-dev/`。
 
-## Submit to the webstores
+## 目录约定
 
-The easiest way to deploy your Plasmo extension is to use the built-in [bpp](https://bpp.browser.market) GitHub action. Prior to using this action however, make sure to build your extension and upload the first version to the store to establish the basic credentials. Then, simply follow [this setup instruction](https://docs.plasmo.com/framework/workflows/submit) and you should be on your way for automated submission!
+| 路径 | 角色 |
+|---|---|
+| `sidepanel.vue` | 侧边栏主界面 |
+| `newtab.vue` | 新标签页 |
+| `popup.vue` | 浏览器工具栏点击弹窗（已简化，主入口为侧边栏） |
+| `background.ts` | Service Worker — 追踪 tab 父子关系、设置 sidePanel 行为 |
+| `components/` | UI 组件 |
+| `composables/` | Vue 组合式逻辑（tab 数据、统计、树、悬浮卡） |
+| `lib/` | 工具：排序、域名映射、时间格式化、平台检测、状态优先级 |
+| `types/` | 类型定义 |
+
+## 权限
+
+```json
+"permissions":      ["tabs", "storage", "sidePanel"],
+"host_permissions": ["https://*/*"]
+```
+严格遵循权限最小化原则；未使用 `<all_urls>` 或 `*://*/*`。
+
+## License
+
+Private. © xpd

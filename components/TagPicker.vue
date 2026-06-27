@@ -31,6 +31,7 @@
 <script setup lang="ts">
 import { ref } from "vue"
 import { Tag, Plus } from "@lucide/vue"
+import { vClickOutside } from "~lib/clickOutside"
 
 const props = defineProps<{ currentTags: string[]; allTags: string[] }>()
 const emit = defineEmits<{ update: [tags: string[]]; addTag: [tag: string] }>()
@@ -43,10 +44,5 @@ const toggle = (tag: string) => {
 const create = () => {
   const t = newTag.value.trim()
   if (t) { emit("addTag", t); newTag.value = "" }
-}
-
-const vClickOutside = {
-  mounted(el: any, b: any) { el._o = (e: MouseEvent) => { if (!el.contains(e.target)) b.value() }; document.addEventListener("click", el._o) },
-  unmounted(el: any) { document.removeEventListener("click", el._o) },
 }
 </script>

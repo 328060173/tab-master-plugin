@@ -1,6 +1,6 @@
 <template>
   <div
-    :class="['relative flex flex-col items-center gap-1 p-2 rounded-lg border-2 bg-white cursor-pointer transition-colors group', item.active ? 'border-blue-500 bg-blue-100' : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50/50']"
+    :class="['relative flex flex-col items-center gap-1 px-2 pt-2 pb-1.5 rounded-lg border-2 bg-white cursor-pointer transition-colors group', item.active ? 'border-blue-500 bg-blue-100' : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50/50']"
     @click="emit('activate')"
   >
   <TabHoverCard
@@ -13,18 +13,19 @@
     <input v-if="isBatch" type="checkbox" :checked="isChecked" @change.stop="emit('toggle')" class="absolute top-1 left-1 cursor-pointer" />
     <span v-if="isPrev" class="absolute top-0.5 left-0.5 text-[8px] font-semibold text-blue-600 bg-blue-100 border border-blue-200 px-1 py-px rounded leading-none z-10" title="上一个访问的标签">Prev</span>
     <div class="absolute top-0.5 right-0.5 flex items-center gap-0.5">
-      <button :class="['p-0.5 rounded', hovered ? 'bg-blue-100 text-blue-500' : 'text-gray-400 hover:text-blue-500']" @click.stop="toggle" title="更多操作"><MoreHorizontal :size="11" /></button>
-      <button class="p-0.5 text-gray-300 hover:text-red-500 rounded" @click.stop="emit('close')"><X :size="10" /></button>
+      <button :class="['p-1 rounded', hovered ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100']" @click.stop="toggle" title="更多操作"><MoreVertical :size="14" :stroke-width="2.5" /></button>
+      <button class="p-1 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded" @click.stop="emit('close')" title="关闭"><X :size="14" :stroke-width="2.5" /></button>
     </div>
     <FavIcon :src="item.favIconUrl" :domain="item.domain" size="lg" :badge="statusBadge" />
-    <p :class="['text-[10px] text-center line-clamp-2 leading-tight w-full', item.active ? 'text-blue-700 font-medium' : 'text-gray-600']">{{ item.domain.toLowerCase() }}</p>
+    <p :class="['text-[11px] text-center leading-tight w-full truncate px-0.5', item.active ? 'text-blue-700 font-semibold' : 'text-gray-800 font-medium']" :title="item.title">{{ item.title || item.domain }}</p>
+    <p :class="['text-[10px] text-center leading-tight w-full truncate px-0.5', item.active ? 'text-blue-600' : 'text-gray-500']" :title="item.domain">{{ item.domain.toLowerCase() }}</p>
     <StatusBadge :item="item" mini />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue"
-import { MoreHorizontal, X } from "@lucide/vue"
+import { MoreVertical, X } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import FavIcon from "./FavIcon.vue"
 import StatusBadge from "./StatusBadge.vue"

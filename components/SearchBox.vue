@@ -38,6 +38,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue"
 import { X, Clock } from "@lucide/vue"
+import { vClickOutside } from "~lib/clickOutside"
 
 const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits(["update:modelValue"])
@@ -86,9 +87,4 @@ onMounted(() => {
   document.addEventListener('visibilitychange', onVisibilityChange)
 })
 onUnmounted(() => document.removeEventListener('visibilitychange', onVisibilityChange))
-
-const vClickOutside = {
-  mounted(el: any, b: any) { el._o = (e: MouseEvent) => { if (!el.contains(e.target)) b.value() }; document.addEventListener("click", el._o) },
-  unmounted(el: any) { document.removeEventListener("click", el._o) },
-}
 </script>

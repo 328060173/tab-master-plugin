@@ -82,6 +82,7 @@
       @detectDuplicates="showToast('检测重复标签（开发中）')" @detectUnused="showToast('检测长时间未使用标签（开发中）')"
       @goBack="goBack" @goForward="goForward"
       @newTab="openNewTab"
+      @refreshCurrent="refreshCurrentTab"
     />
 
     <!-- 固定标签置顶栏 -->
@@ -220,6 +221,7 @@ import TabContextMenu from "~components/TabContextMenu.vue"
 import PinnedBar from "~components/PinnedBar.vue"
 import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
+import { vClickOutside } from "~lib/clickOutside"
 
 const {
   tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
@@ -397,6 +399,7 @@ const confirmLater = async (note: string) => {
 const copyUrl = (url: string) => { navigator.clipboard.writeText(url); showToast("已复制URL") }
 const openNewTab = () => chrome.tabs.create({})
 const handleRefresh = (id: number) => refreshTab(id)
+const refreshCurrentTab = () => { if (activeTabId.value) refreshTab(activeTabId.value) }
 const handlePin = (id: number) => { const tab = tabs.value.find(t => t.id === id); if (tab) pinTab(id, !tab.pinned) }
 
 const onContextMenu = (e: MouseEvent, item: TabItem) => {
@@ -422,10 +425,6 @@ const handleCtxAction = (action: string) => {
   acts[action]?.()
 }
 
-const vClickOutside = {
-  mounted(el: any, b: any) { el._o = (e: MouseEvent) => { if (!el.contains(e.target)) b.value() }; document.addEventListener("click", el._o) },
-  unmounted(el: any) { document.removeEventListener("click", el._o) },
-}
 </script>
 
 <style>

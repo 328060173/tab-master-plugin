@@ -213,7 +213,8 @@ export function useTabManager() {
     tabs.value = tabs.value.filter(t => t.id === id)
   }
   const groupTab = async (id: number) => {
-    try { await (chrome.tabs as any).group({ tabIds: [id] }) } catch {}
+    // chrome.tabs.group 仅在 Chrome 89+ / Edge 89+ 支持；包了 try 兜底，老版本静默忽略
+    try { await chrome.tabs.group({ tabIds: [id] }) } catch {}
   }
 
   // 树形拖拽：更新父子关系（含循环检测，防止用户把节点拖到自己后代下）
