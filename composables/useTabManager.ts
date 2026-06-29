@@ -10,17 +10,34 @@ function nowTime() {
 function isProtectedUrl(url: string) {
   return url.startsWith("chrome://") || url.startsWith("edge://") || url.startsWith("about:") || url.startsWith("chrome-extension://")
 }
+// 清洗 tabTagsMap：外层必须是普通 object，每个 value 必须是 string 数组；坏的都丢
+// 历史脏数据（旧版本 / 调试残留）会让 tab.tags 变 Object，导致 Vue render 函数对 .tags 做 spread/迭代时全局崩溃
+function sanitizeTabTagsMap(raw: unknown): Record<string, string[]> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {}
+  const out: Record<string, string[]> = {}
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (Array.isArray(v)) {
+      const cleaned = v.filter((x): x is string => typeof x === "string" && x.length > 0)
+      if (cleaned.length) out[k] = cleaned
+    }
+  }
+  return out
+}
 function chromeTabToItem(t: chrome.tabs.Tab, savedTags: Record<string, string[]>, savedNumbers: Record<string, number>, savedOpenedAt: Record<string, string>): TabItem {
   const url = t.url || ""
   const sid = String(t.id!)
+  // Chrome 121+ 原生提供 tab.lastAccessed（毫秒）；老版本是 undefined，由 useTabManager 用 SW 采集的 map 兜底
+  const nativeLastAccessed = (t as any).lastAccessed as number | undefined
   return {
     id: t.id!, title: t.title || "(无标题)", url, domain: getDomain(url), favIconUrl: t.favIconUrl || "",
     pinned: t.pinned, active: t.active, audible: t.audible || false, muted: t.mutedInfo?.muted || false,
     discarded: t.discarded || false, frozen: (t as any).frozen || false, loading: t.status === "loading",
     recording: false, sharing: false, attention: false, hasUnsavedForm: false, hasConnectedDevice: false,
     isProtected: isProtectedUrl(url), openedAt: savedOpenedAt[sid] ?? nowTime(),
+    lastAccessed: nativeLastAccessed,
     number: savedNumbers[sid] ?? 0,
-    tags: savedTags[sid] || [], openerTabId: t.openerTabId,
+    tags: Array.isArray(savedTags[sid]) ? savedTags[sid].filter((x): x is string => typeof x === "string") : [], openerTabId: t.openerTabId,
+    groupId: t.groupId ?? chrome.tabGroups.TAB_GROUP_ID_NONE,
   }
 }
 
@@ -31,6 +48,9 @@ export function useTabManager() {
   const tabTagsMap = ref<Record<string, string[]>>({})
   const tabNumberMap = ref<Record<string, number>>({})
   const tabOpenedAtMap = ref<Record<string, string>>({})
+  // SW 采集的 lastAccessed 兜底（Chrome <121 走这里；121+ 用 tab.lastAccessed 原生）
+  // 数据源：background.ts 监听 onActivated，写 chrome.storage.local.tabLastAccessedMap
+  const tabLastAccessedMap = ref<Record<string, number>>({})
   const recentlyClosed = ref<ClosedTabItem[]>([])
   const treeParentMap = ref<Record<string, number>>({})
 
@@ -96,22 +116,54 @@ export function useTabManager() {
         chrome.storage.local.set({ treeParentMap: treeParentMap.value })
       }
 
-      tabs.value = raw.map((t) => chromeTabToItem(t, tabTagsMap.value, tabNumberMap.value, tabOpenedAtMap.value))
+      tabs.value = raw.map((t) => {
+        const item = chromeTabToItem(t, tabTagsMap.value, tabNumberMap.value, tabOpenedAtMap.value)
+        // 原生 lastAccessed 缺失时（Chrome <121），用 SW 采集的兜底
+        if (item.lastAccessed === undefined) {
+          const v = tabLastAccessedMap.value[String(t.id!)]
+          if (typeof v === "number") item.lastAccessed = v
+        }
+        return item
+      })
       const active = raw.find(t => t.active)
       if (active) activeTabId.value = active.id
-    } catch {
+    } catch (e) {
+      console.error("[tab-master] loadTabs 异常", e)
       if (!chrome.runtime?.id) window.location.reload()
     }
   }
   const loadLater = async () => {
-    const data = await chrome.storage.local.get(["laterTabs", "customTags", "tabTagsMap", "tabNumberMap", "recentlyClosed", "treeParentMap", "tabOpenedAtMap"])
-    laterTabs.value = data.laterTabs || []
-    customTags.value = data.customTags || []
-    tabTagsMap.value = data.tabTagsMap || {}
-    tabNumberMap.value = data.tabNumberMap || {}
-    recentlyClosed.value = data.recentlyClosed || []
-    treeParentMap.value = data.treeParentMap || {}
-    tabOpenedAtMap.value = data.tabOpenedAtMap || {}
+    try {
+      const data = await chrome.storage.local.get(["laterTabs", "customTags", "tabTagsMap", "tabNumberMap", "recentlyClosed", "treeParentMap", "tabOpenedAtMap", "tabLastAccessedMap"])
+      laterTabs.value = Array.isArray(data.laterTabs) ? data.laterTabs : []
+      // customTags 防御性校验：旧版本数据 / 调试时人为塞过对象都会导致 prop 类型错（Vue 报 "Expected Array, got Object"）
+      // 这里强制只接受数组里的字符串，其他一律丢弃；并自动写回 storage 治愈污染（不影响主流程）
+      const rawTags = data.customTags
+      const cleanTags = Array.isArray(rawTags) ? rawTags.filter((t): t is string => typeof t === "string" && t.length > 0) : []
+      customTags.value = cleanTags
+      if (rawTags !== undefined && !Array.isArray(rawTags)) {
+        console.warn("[tab-master] customTags 在 storage 中被存成了非数组，已自动重置", rawTags)
+        // storage.set 失败不能阻塞主流程（否则 loadTabs 永远不会被调用，UI 上所有标签消失）
+        chrome.storage.local.set({ customTags: cleanTags }).catch(e => console.warn("[tab-master] auto-heal customTags failed:", e))
+      }
+      tabTagsMap.value = sanitizeTabTagsMap(data.tabTagsMap)
+      tabNumberMap.value = (data.tabNumberMap && typeof data.tabNumberMap === "object" && !Array.isArray(data.tabNumberMap)) ? data.tabNumberMap : {}
+      recentlyClosed.value = Array.isArray(data.recentlyClosed) ? data.recentlyClosed : []
+      treeParentMap.value = (data.treeParentMap && typeof data.treeParentMap === "object" && !Array.isArray(data.treeParentMap)) ? data.treeParentMap : {}
+      tabOpenedAtMap.value = (data.tabOpenedAtMap && typeof data.tabOpenedAtMap === "object" && !Array.isArray(data.tabOpenedAtMap)) ? data.tabOpenedAtMap : {}
+      tabLastAccessedMap.value = (data.tabLastAccessedMap && typeof data.tabLastAccessedMap === "object" && !Array.isArray(data.tabLastAccessedMap)) ? data.tabLastAccessedMap : {}
+    } catch (e) {
+      console.warn("[tab-master] loadLater 失败，使用默认空值；loadTabs 会继续执行不阻塞 UI：", e)
+      // 即使 storage 完全不可读，也给所有 ref 设为安全空值，不让 onMounted 主链断掉
+      laterTabs.value = []
+      customTags.value = []
+      tabTagsMap.value = {}
+      tabNumberMap.value = {}
+      recentlyClosed.value = []
+      treeParentMap.value = {}
+      tabOpenedAtMap.value = {}
+      tabLastAccessedMap.value = {}
+    }
   }
   const loadSwitchHistory = async () => {
     try {
@@ -303,7 +355,18 @@ export function useTabManager() {
   const onTabUpdated = (_: number, change: chrome.tabs.TabChangeInfo, t: chrome.tabs.Tab) => {
     const idx = tabs.value.findIndex(x => x.id === t.id)
     if (idx === -1) return
-    tabs.value[idx] = { ...tabs.value[idx], title: t.title || tabs.value[idx].title, favIconUrl: t.favIconUrl || tabs.value[idx].favIconUrl, audible: t.audible || false, muted: t.mutedInfo?.muted || false, discarded: t.discarded || false, loading: t.status === "loading", active: t.active, pinned: t.pinned }
+    tabs.value[idx] = {
+      ...tabs.value[idx],
+      title: t.title || tabs.value[idx].title,
+      favIconUrl: t.favIconUrl || tabs.value[idx].favIconUrl,
+      audible: t.audible || false,
+      muted: t.mutedInfo?.muted || false,
+      discarded: t.discarded || false,
+      loading: t.status === "loading",
+      active: t.active,
+      pinned: t.pinned,
+      groupId: t.groupId ?? tabs.value[idx].groupId,
+    }
   }
   const onTabActivated = (info: chrome.tabs.TabActiveInfo) => {
     // 只更新两个变化的 tab，避免全量 map 重建数组
@@ -314,7 +377,10 @@ export function useTabManager() {
       tabs.value[prevIdx] = { ...tabs.value[prevIdx], active: false }
     }
     const nextIdx = tabs.value.findIndex(t => t.id === info.tabId)
-    if (nextIdx !== -1) tabs.value[nextIdx] = { ...tabs.value[nextIdx], active: true }
+    if (nextIdx !== -1) {
+      // 立即更新 lastAccessed（不等 SW 写盘 → storage.onChanged 往返），让本会话内的「检测未用」立即生效
+      tabs.value[nextIdx] = { ...tabs.value[nextIdx], active: true, lastAccessed: Date.now() }
+    }
     activeTabId.value = info.tabId
     if (!isNavigating.value) {
       const trimmed = switchHistory.value.slice(0, switchIndex.value + 1)
@@ -333,12 +399,21 @@ export function useTabManager() {
     loadTabs(); loadLater()
   }
 
+  // SW 写入 tabLastAccessedMap 后，跨页同步到本 sidepanel 实例（保证多窗口/popup 之间数据一致）
+  const onStorageChanged = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
+    if (area !== "local" || !changes.tabLastAccessedMap) return
+    tabLastAccessedMap.value = changes.tabLastAccessedMap.newValue || {}
+  }
+
   onMounted(async () => {
-    await loadLater(); await Promise.all([loadTabs(), loadSwitchHistory()])
+    // loadLater 用 try-catch 单独抓 —— 即使它整个崩了也不阻塞 loadTabs，避免 UI 上所有标签消失
+    try { await loadLater() } catch (e) { console.error("[tab-master] loadLater fatal:", e) }
+    try { await Promise.all([loadTabs(), loadSwitchHistory()]) } catch (e) { console.error("[tab-master] loadTabs/loadSwitchHistory fatal:", e) }
     chrome.tabs.onRemoved.addListener(onTabRemoved)
     chrome.tabs.onCreated.addListener(onTabCreated)
     chrome.tabs.onUpdated.addListener(onTabUpdated)
     chrome.tabs.onActivated.addListener(onTabActivated)
+    chrome.storage.onChanged.addListener(onStorageChanged)
     document.addEventListener('visibilitychange', onVisibilityChange)
   })
   onUnmounted(() => {
@@ -346,6 +421,7 @@ export function useTabManager() {
     chrome.tabs.onCreated.removeListener(onTabCreated)
     chrome.tabs.onUpdated.removeListener(onTabUpdated)
     chrome.tabs.onActivated.removeListener(onTabActivated)
+    chrome.storage.onChanged.removeListener(onStorageChanged)
     document.removeEventListener('visibilitychange', onVisibilityChange)
   })
 

@@ -123,7 +123,15 @@ function renameDirs() {
 // 完整构建流程
 async function build() {
   console.log('🚀 开始构建...');
-  
+
+  // 先杀掉残留的 plasmo dev 进程，避免它在后台监听文件改动、偷偷重建 chrome-mv3-dev 目录
+  try {
+    require('child_process').execSync('pkill -f "plasmo dev"', { stdio: 'ignore' });
+    console.log('🧹 清理残留的 plasmo dev 进程');
+  } catch (e) {
+    // pkill 没找到匹配进程时退出码非 0，属正常情况，忽略
+  }
+
   // 清理旧构建
   console.log('🔄 清理旧构建...');
   if (fs.existsSync(buildDir)) {

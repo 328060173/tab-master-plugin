@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="show" class="fixed z-[9999] bg-white border border-gray-300 rounded-lg shadow-2xl w-64 text-xs"
+    <div v-if="show" class="fixed z-[70] bg-white border border-gray-300 rounded-lg shadow-2xl w-64 text-xs"
       :style="{ left: x + 'px', top: y + 'px' }"
       @mouseenter="emit('stay')" @mouseleave="emit('leave')">
       <!-- 完整标题 -->
@@ -43,7 +43,7 @@
         <button class="px-2 py-1 text-[10px] rounded border border-gray-200 hover:bg-gray-50 flex items-center justify-center gap-1" @click="emit('pin')">
           <Pin :size="10" />{{ item.pinned ? '取消固定' : '固定' }}
         </button>
-        <button class="px-2 py-1 text-[10px] rounded border border-gray-200 hover:bg-gray-50 flex items-center justify-center gap-1" @click="emit('addTag')">
+        <button class="px-2 py-1 text-[10px] rounded border border-gray-200 hover:bg-gray-50 flex items-center justify-center gap-1" @click="onClickTag">
           <Tag :size="10" />标记
         </button>
         <button class="px-2 py-1 text-[10px] rounded border border-gray-200 hover:bg-gray-50 flex items-center justify-center gap-1" @click="emit('later')">
@@ -64,7 +64,12 @@ import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
 
 const props = defineProps<{ show: boolean; item: TabItem; x: number; y: number }>()
-const emit = defineEmits<{ stay: []; leave: []; refresh: []; copy: []; pin: []; addTag: []; later: []; close: []; updateNumber: [n: number] }>()
+const emit = defineEmits<{ stay: []; leave: []; refresh: []; copy: []; pin: []; addTag: [anchor: HTMLElement]; later: []; close: []; updateNumber: [n: number] }>()
+
+// 标记按钮：把按钮 DOM 传给父组件，让它能用这个 DOM 做 anchor 打开 TagPicker
+const onClickTag = (e: MouseEvent) => {
+  emit('addTag', e.currentTarget as HTMLElement)
+}
 
 const editingNumber = ref(false)
 const numberDraft = ref("")

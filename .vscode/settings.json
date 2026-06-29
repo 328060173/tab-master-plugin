@@ -1,0 +1,18 @@
+{
+  // 关闭内置 CSS 验证器对未知 at-rule 的警告
+  // 原因：项目使用 Tailwind CSS，@tailwind / @apply / @screen 等指令不在标准 CSS 规范里
+  // 这些指令由 PostCSS + Tailwind 插件在构建时处理，运行时完全正常
+  "css.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+
+  // Tailwind CSS IntelliSense 在 Vue SFC 的 <style> 块里也生效
+  "tailwindCSS.includeLanguages": {
+    "vue": "html",
+    "vue-html": "html"
+  },
+
+  // 存盘自动用 Prettier 格式化（项目已有 .prettierrc.mjs）
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}

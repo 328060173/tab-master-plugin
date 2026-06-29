@@ -6,9 +6,11 @@
   "author": "xpd",
   "scripts": {
     "dev": "plasmo dev",
+    "dev:safe": "pkill -f 'plasmo dev' || true && plasmo dev",
     "build": "plasmo build",
     "package": "plasmo package",
     "clean": "rm -rf build",
+    "kill-dev": "pkill -f 'plasmo dev' || echo '✅ 无残留进程'",
     "build:all": "node scripts/build.js"
   },
   "dependencies": {
@@ -28,6 +30,6 @@
   },
   "manifest": {
     "host_permissions": ["https://*/*"],
-    "permissions": ["tabs", "storage", "sidePanel"]
+    "permissions": ["tabs", "tabGroups", "storage", "sidePanel"]
   }
 }

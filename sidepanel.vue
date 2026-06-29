@@ -1,48 +1,91 @@
 <template>
   <div class="h-screen flex flex-col bg-white text-gray-900 overflow-hidden text-sm">
-    <div v-if="toastMsg" class="fixed top-3 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-gray-800 text-white text-xs rounded-full shadow-lg pointer-events-none">{{ toastMsg }}</div>
+    <div v-if="toastMsg" class="fixed top-3 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 bg-gray-800 text-white text-xs rounded-full shadow-lg pointer-events-none">{{ toastMsg }}</div>
 
     <!-- Storage Panel -->
     <StoragePanel v-if="showStorage" @close="showStorage = false" @cleared="showToast('已清理')" />
 
-    <!-- Header -->
-    <div v-if="!isFocusMode" class="flex items-center justify-between px-3 py-2 border-b border-gray-200 shrink-0">
+    <!-- Header - 聚焦中 -->
+    <div v-if="focusMode === 'focusing'" class="flex items-center justify-between px-3 py-2 border-b border-gray-200 shrink-0">
+      <h1 class="text-sm font-bold">标签大师</h1>
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs text-gray-400">{{ focusingTabs.length }} 个标签</span>
+        <button
+          class="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
+          @click="exitFocusingWithToast">
+          聚焦模式 关闭
+        </button>
+        <button
+          :class="['p-1 rounded transition-colors',
+            popover.isOpen('focus-help')
+              ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-100'
+              : 'hover:bg-gray-100 text-gray-400 hover:text-gray-600 dark:hover:bg-gray-700']"
+          @click.stop="toggleFocusHelpFromEvent">
+          <HelpCircle :size="14" />
+        </button>
+        <HeaderMenu
+          @open-storage="showStorage = true"
+          @reload="reloadPanel"
+        />
+      </div>
+    </div>
+
+    <!-- Header - 普通/选择态 -->
+    <div v-else class="flex items-center justify-between px-3 py-2 border-b border-gray-200 shrink-0">
       <h1 class="text-sm font-bold">标签大师</h1>
       <div class="flex items-center gap-1.5">
         <span class="text-xs text-gray-400">{{ tabs.length }} 个标签</span>
-        <button :class="['px-2 py-1 text-xs rounded border transition-colors', isFocusMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50']" @click="isFocusMode = !isFocusMode">聚焦</button>
-        <div class="relative">
-          <button class="p-1 rounded hover:bg-gray-100 text-gray-500" @click.stop="settingsOpen = !settingsOpen"><Settings :size="14" /></button>
-          <div v-if="settingsOpen" class="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-30 w-44 py-1" v-click-outside="() => settingsOpen = false">
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 text-gray-600"><LogIn :size="13" />登录账号</button>
-            <div class="border-t border-gray-100 my-1"></div>
-            <p class="px-3 py-1 text-[10px] text-gray-400 uppercase tracking-wide">界面</p>
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 text-gray-600"><Palette :size="13" />界面主题</button>
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 text-gray-600"><Type :size="13" />字体设置</button>
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 text-gray-600"><Globe2 :size="13" />界面语言</button>
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 text-gray-600"><Layout :size="13" />显示位置</button>
-            <div class="border-t border-gray-100 my-1"></div>
-            <p class="px-3 py-1 text-[10px] text-gray-400 uppercase tracking-wide">数据</p>
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 text-gray-600"><Cloud :size="13" />云同步</button>
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 text-gray-600"><Camera :size="13" />快照</button>
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 text-gray-600" @click="showStorage = true; settingsOpen = false">
-              <HardDrive :size="13" />存储空间
-            </button>
-            <div class="border-t border-gray-100 my-1"></div>
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-blue-50 text-blue-600" @click="reloadPanel">
-              <RotateCcw :size="13" />重新打开
-            </button>
-          </div>
+        <div class="flex items-center gap-1">
+          <button v-if="focusMode === 'normal'"
+            :class="['px-2 py-1 text-xs rounded border transition-colors flex items-center gap-1',
+              !SUPPORTS_FOCUS_MODE ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-600 hover:bg-gray-50']"
+            :disabled="!SUPPORTS_FOCUS_MODE"
+            :title="!SUPPORTS_FOCUS_MODE ? '聚焦模式需要 Chrome 102+ 或 Edge 102+' : ''"
+            @click="enterFocusSelectMode">
+            聚焦模式 开启
+          </button>
+          <button v-else-if="focusMode === 'selecting'"
+            class="px-2 py-1 text-xs text-blue-600 hover:underline"
+            @click="exitFocusSelectMode">
+            取消
+          </button>
+          <button v-if="SUPPORTS_FOCUS_MODE"
+            :class="['p-1 rounded transition-colors',
+              popover.isOpen('focus-help')
+                ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-100'
+                : 'hover:bg-gray-100 text-gray-400 hover:text-gray-600 dark:hover:bg-gray-700']"
+            @click.stop="toggleFocusHelpFromEvent">
+            <HelpCircle :size="14" />
+          </button>
         </div>
+        <HeaderMenu
+          @open-storage="showStorage = true"
+          @reload="reloadPanel"
+        />
       </div>
     </div>
-    <div v-else class="flex items-center justify-between px-3 py-2 border-b border-gray-200 shrink-0">
-      <span class="text-xs text-gray-500 font-medium">聚焦模式 — {{ tabs.length }} 个标签</span>
-      <button class="text-xs text-blue-600 hover:underline" @click="isFocusMode = false">退出</button>
+
+    <!-- 选择态顶部提示 -->
+    <div v-if="focusMode === 'selecting'" class="bg-blue-50 border-b border-blue-200 px-4 py-2.5 flex items-center gap-2">
+      <Zap :size="14" class="text-blue-600" />
+      <div class="flex-1">
+        <p class="text-xs text-blue-800 font-medium">
+          选择要聚焦的标签 · 已选 {{ focusSelectedIds.length }}
+        </p>
+        <p v-if="isFirstFocusTime" class="text-[10px] text-blue-600 mt-0.5">
+          💡 用搜索、排序快速找到要聚焦的标签，勾选后点底部按钮
+        </p>
+      </div>
+      <span v-if="protectedTabCount > 0" class="text-[10px] text-blue-500">
+        已自动排除 {{ protectedTabCount }} 个系统页面
+      </span>
     </div>
 
-    <!-- Nav Tabs（现在在搜索框上方） -->
-    <div v-if="!isFocusMode" class="flex border-b border-gray-100 px-3 shrink-0">
+    <!-- 聚焦态顶部提示 -->
+    <FocusBanner v-if="focusMode === 'focusing'" :focused-count="focusingTabs.length" :hidden-count="hiddenGroupTabCount" />
+
+    <!-- Nav Tabs（仅普通态显示） -->
+    <div v-if="focusMode === 'normal'" class="flex border-b border-gray-100 px-3 shrink-0">
       <button v-for="nav in navItems" :key="nav.key"
         :class="['px-3 py-1.5 text-xs transition-colors border-b-2 -mb-px', activeNav === nav.key ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
         @click="activeNav = nav.key">
@@ -51,68 +94,88 @@
       </button>
     </div>
 
-    <!-- Search + Tag filter（现在在 Nav Tabs 下方） -->
-    <div v-if="!isFocusMode" class="flex gap-2 px-3 py-2 border-b border-gray-100 shrink-0">
+    <!-- Search + Tag filter（普通/选择态显示） -->
+    <div v-if="focusMode === 'normal' || focusMode === 'selecting'" class="flex gap-2 px-3 py-2 border-b border-gray-100 shrink-0">
       <SearchBox v-model="search" class="flex-1" />
-      <div class="relative shrink-0" v-click-outside="() => showTagPanel = false">
+      <div v-if="focusMode === 'normal'" class="shrink-0">
         <button
-          :class="['flex items-center gap-1 px-2.5 py-1.5 text-xs border rounded transition-colors', (activeTagFilters.length || showTagPanel) ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50']"
-          @click.stop="showTagPanel = !showTagPanel"
-        >
+          ref="tagFilterTriggerRef"
+          :class="['flex items-center gap-1 px-2.5 py-1.5 text-xs border rounded transition-colors',
+            (activeTagFilters.length || popover.isOpen('tag-filter')) ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50']"
+          @click.stop="onTagFilterClick">
           <Tag :size="12" />标记
           <span v-if="activeTagFilters.length" class="bg-blue-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] ml-0.5">{{ activeTagFilters.length }}</span>
         </button>
         <TagFilterPanel
-          v-if="showTagPanel"
-          :tags="customTags" :activeTags="activeTagFilters" :tabCountByTag="tabCountByTag"
-          @close="showTagPanel = false" @apply="activeTagFilters = $event"
-          @addTag="addCustomTag" @renameTag="renameCustomTag"
+          :tags="customTags" :active-tags="activeTagFilters" :tab-count-by-tag="tabCountByTag"
+          @apply="activeTagFilters = $event"
+          @add-tag="addCustomTag" @rename-tag="renameCustomTag"
         />
       </div>
     </div>
 
-    <!-- Toolbar -->
+    <!-- Toolbar（普通/选择态显示）。批量按钮只看 isBatchMode 本身，不被聚焦选择态污染 -->
     <AppToolbar
-      v-if="activeNav === 'home' || isFocusMode"
-      :isLaterPage="false" :isBatchMode="isBatchMode" :selectedCount="selectedIds.length"
-      :viewMode="viewMode" :sortMode="sortMode" :canGoBack="canGoBack" :canGoForward="canGoForward"
-      @viewChange="setViewMode" @sortChange="sortMode = $event"
-      @toggleBatch="toggleBatch" @batchClose="batchClose"
-      @closeUnpinned="closeUnpinned" @closeOthers="closeOthers" @closeFrozenDiscarded="closeFrozenDiscarded"
-      @detectDuplicates="showToast('检测重复标签（开发中）')" @detectUnused="showToast('检测长时间未使用标签（开发中）')"
-      @goBack="goBack" @goForward="goForward"
-      @newTab="openNewTab"
-      @refreshCurrent="refreshCurrentTab"
+      v-if="(activeNav === 'home' && focusMode === 'normal') || focusMode === 'selecting'"
+      :is-later-page="false" :is-batch-mode="isBatchMode" :selected-count="selectedIds.length"
+      :view-mode="viewMode" :sort-mode="sortMode" :can-go-back="canGoBack" :can-go-forward="canGoForward"
+      :can-batch="focusMode === 'normal'"
+      :groups="groups"
+      :all-tags="customTags"
+      @view-change="setViewMode" @sort-change="sortMode = $event"
+      @toggle-batch="toggleBatch" @exit-batch="exitBatch"
+      @select-all="selectAllVisible" @invert-selection="invertSelection"
+      @batch-close="batchClose" @batch-later="batchLater"
+      @pick-group="batchAddToExistingGroup" @create-new-group="onBatchCreateGroupClick"
+      @apply-tags="batchAddTags" @add-new-tag="addCustomTag"
+      @close-unpinned="openCleanupUnpinned" @close-others="openCleanupOthers" @close-frozen-discarded="openCleanupFrozenDiscarded"
+      @detect-duplicates="openDetectDuplicates" @detect-unused="openDetectUnused"
+      @go-back="goBack" @go-forward="goForward"
+      @new-tab="openNewTab"
+      @refresh-current="refreshCurrentTab"
     />
 
-    <!-- 固定标签置顶栏 -->
+    <!-- 固定标签置顶栏（普通/选择态显示搜索结果时不显示，聚焦态显示） -->
     <PinnedBar
-      v-if="!search.trim() && (activeNav === 'home' || isFocusMode)"
-      :items="pinnedItems"
-      @activate="activateTab" @close="closeTab"
-      @later="openLater" @copy="copyUrl"
-      @refresh="handleRefresh" @pin="handlePin"
-      @updateNumber="(id, n) => { updateTabNumber(id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
-      @ctx="onContextMenu"
+      v-if="focusMode === 'focusing' || (!search.trim() && activeNav === 'home')"
+      :items="focusMode === 'focusing' ? focusingPinnedItems : pinnedItems"
+      @activate="activateTab" @close="focusMode === 'focusing' ? handleFocusTabClosed : closeTab"
+      @later="focusMode === 'focusing' ? undefined : openLater" @copy="focusMode === 'focusing' ? undefined : copyUrl"
+      @refresh="focusMode === 'focusing' ? undefined : handleRefresh" @pin="focusMode === 'focusing' ? undefined : handlePin"
+      @update-number="focusMode === 'focusing' ? undefined : (id, n) => { updateTabNumber(id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
+      @ctx="focusMode === 'focusing' ? undefined : onContextMenu"
     />
 
-    <!-- 搜索结果 -->
+    <!-- 搜索结果（普通/选择态显示） -->
     <SearchResults
-      v-if="search.trim()"
+      v-if="(focusMode === 'normal' || focusMode === 'selecting') && search.trim()"
       :pinned="searchPinned" :open="searchOpen" :closed="searchClosed"
-      :query="search.trim()" :customTags="customTags"
+      :query="search.trim()" :custom-tags="customTags"
       @activate="activateTab($event); search = ''"
       @restore="restoreTab($event); search = ''"
       @later="openLater" @close="closeTab" @copy="copyUrl"
-      @updateTags="updateTabTags" @addTag="addCustomTag"
+      @update-tags="updateTabTags" @add-tag="addCustomTag"
     />
 
-    <!-- 正常内容区 -->
-    <div v-else ref="contentRef" class="flex-1 overflow-y-auto min-h-0 px-3 py-2" @scroll="onContentScroll">
+    <!-- 正常内容区（普通/选择态） -->
+    <div v-else-if="focusMode !== 'focusing'" ref="contentRef" class="flex-1 overflow-y-auto min-h-0 px-3 py-2" @scroll="onContentScroll">
       <LaterList v-if="activeNav === 'later'" :items="laterTabs" @remove="removeLater" @open="restoreTab($event)" />
-      <div v-else-if="activeNav === 'groups'" class="text-center text-gray-400 text-xs py-12">
-        <p class="mb-1 font-medium">分组标签</p><p>需要 chrome.tabGroups API，开发中...</p>
-      </div>
+      <GroupListPage
+        v-else-if="activeNav === 'groups'"
+        :groups="groups"
+        :ungrouped-tabs="ungroupedTabs"
+        :guide-shown="tabGroupsGuideShown"
+        @activate-tab="activateTab"
+        @close-tab="closeTab"
+        @create-group="createGroup"
+        @add-to-group="addToGroup"
+        @rename-group="(id, name) => updateGroup(id, { title: name })"
+        @change-group-color="(id, color) => updateGroup(id, { color })"
+        @toggle-group-collapse="(id, collapsed) => updateGroup(id, { collapsed })"
+        @ungroup="ungroupAll"
+        @close-group-tabs="closeGroupTabs"
+        @mark-guide-shown="markTabGroupsGuideShown"
+      />
       <div v-else-if="activeNav === 'history'" class="text-center text-gray-400 text-xs py-12">
         <p class="mb-1 font-medium">历史记录</p><p>需要 chrome.history API，开发中...</p>
       </div>
@@ -130,15 +193,15 @@
           <div v-if="!normalItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
           <template v-if="sortMode === 'domain' && viewMode !== 'icon'">
             <div v-for="group in domainGroups" :key="group.domain" class="mb-3">
-              <p class="text-[10px] font-bold text-gray-400 tracking-wider mb-1">{{ group.displayName }}</p>
+              <p class="text-[10px] font-bold text-gray-400 tracking-wide mb-1">{{ group.displayName }}</p>
               <div :class="gridClass">
                 <component :is="itemComponent" v-for="item in group.items" :key="item.id"
                   :data-tabid="item.id"
-                  :item="item" :isBatch="isBatchMode" :isChecked="selectedIds.includes(item.id)" :customTags="customTags" :isPrev="item.id === prevActiveTabId"
-                  @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
+                  :item="item" :is-batch="focusMode === 'selecting' ? true : isBatchMode" :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(item.id) : selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
+                  @activate="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
                   @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
-                  @updateTags="updateTabTags(item.id, $event)" @addTag="addCustomTag($event)"
-                  @updateNumber="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
+                  @update-tags="updateTabTags(item.id, $event)" @add-tag="addCustomTag($event)"
+                  @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
                   @refresh="handleRefresh(item.id)" @pin="handlePin(item.id)"
                   @contextmenu.prevent="onContextMenu($event, item)" />
               </div>
@@ -148,11 +211,11 @@
             <div :class="gridClass">
               <component :is="itemComponent" v-for="item in sortedNormalItems" :key="item.id"
                 :data-tabid="item.id"
-                :item="item" :isBatch="isBatchMode" :isChecked="selectedIds.includes(item.id)" :customTags="customTags" :isPrev="item.id === prevActiveTabId"
-                @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
+                :item="item" :is-batch="focusMode === 'selecting' ? true : isBatchMode" :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(item.id) : selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
+                @activate="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
                 @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
-                @updateTags="updateTabTags(item.id, $event)" @addTag="addCustomTag($event)"
-                @updateNumber="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
+                @update-tags="updateTabTags(item.id, $event)" @add-tag="addCustomTag($event)"
+                @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
                 @refresh="handleRefresh(item.id)" @pin="handlePin(item.id)"
                 @contextmenu.prevent="onContextMenu($event, item)" />
             </div>
@@ -161,58 +224,117 @@
       </template>
     </div>
 
-    <FooterStats :stats="stats" :activeFilter="activeFilter" @filter="activeFilter = $event" />
+    <!-- 聚焦态内容区 - 只显示聚焦标签 -->
+    <div v-else ref="contentRef" class="flex-1 overflow-y-auto min-h-0 px-3 py-2" @scroll="onContentScroll">
+      <div v-if="!focusingNormalItems.length && !focusingPinnedItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
+      <!-- 聚焦态只显示平铺列表，简化操作 -->
+      <div class="flex flex-col gap-1">
+        <TabListItem v-for="item in focusingNormalItems" :key="item.id"
+          :data-tabid="item.id"
+          :item="item" :is-batch="false" :is-checked="false" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
+          @activate="activateTab(item.id)" @close="handleFocusTabClosed(item.id)"
+        />
+      </div>
+    </div>
+
+    <!-- 底部退出聚焦按钮（聚焦态显示） -->
+    <div v-if="focusMode === 'focusing'" class="shrink-0 border-t border-gray-200 bg-white">
+      <button
+        class="w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-medium"
+        @click="exitFocusingWithToast">
+        ← 退出聚焦模式
+      </button>
+    </div>
+
+    <!-- 底部统计栏（普通/选择态显示） -->
+    <FooterStats v-if="focusMode !== 'focusing'" :stats="stats" :active-filter="activeFilter" @filter="activeFilter = $event" />
+
     <LaterDialog :open="laterDialogOpen" @close="laterDialogOpen = false" @confirm="confirmLater" />
     <TreeGuideDialog :open="treeGuideOpen" @close="treeGuideOpen = false" />
+
+    <!-- 清理菜单：直接关闭类的二次确认 -->
+    <ConfirmDialog
+      :open="!!cleanupConfirm"
+      :title="cleanupConfirm?.title ?? ''"
+      :message="cleanupConfirm?.message"
+      :hint="cleanupConfirm?.hint"
+      :confirm-text="cleanupConfirm?.confirmText"
+      danger
+      @cancel="cleanupConfirm = null"
+      @confirm="runCleanupConfirm"
+    />
+
+    <!-- 清理菜单：检测类的预览清单 -->
+    <DetectReviewDialog
+      :open="!!detectDialog"
+      :mode="detectDialog?.mode ?? 'duplicates'"
+      :groups="detectDialog?.mode === 'duplicates' ? detectDialog?.groups : undefined"
+      :items="detectDialog?.mode === 'unused' ? detectDialog?.items : undefined"
+      :threshold-ms="detectDialog?.mode === 'unused' ? detectDialog?.thresholdMs : undefined"
+      @cancel="detectDialog = null"
+      @confirm="runDetectConfirm"
+      @change-threshold="onChangeUnusedThreshold"
+    />
+
+    <!-- 聚焦模式组件 -->
+    <FocusHelpBubble />
+    <FocusSelectBar v-if="focusMode === 'selecting'" :selected-count="focusSelectedIds.length" @cancel="exitFocusSelectMode" @start-focus="startFocusingWithToast" />
 
     <!-- 右键菜单 -->
     <TabContextMenu :tab="ctxMenu?.tab ?? null" :x="ctxMenu?.x ?? 0" :y="ctxMenu?.y ?? 0"
       @action="handleCtxAction" @close="ctxMenu = null" />
 
-    <!-- 标记浮层（右键→添加标记） -->
-    <div v-if="tagPickerTab" class="fixed z-[9990] bg-white border border-gray-200 rounded-lg shadow-xl w-48 pb-1"
-      :style="{ left: `${tagPickerPos.x}px`, top: `${tagPickerPos.y}px` }"
-      v-click-outside="() => tagPickerTabId = null" @click.stop>
-      <p class="px-2.5 py-1.5 border-b border-gray-100 text-[11px] font-medium text-gray-500">添加标记</p>
+    <!-- 标记浮层（右键→添加标记，独立于卡片内嵌 TagPicker） -->
+    <div v-if="popover.isOpen('right-click-tag-picker') && rightClickTab" class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-48 pb-1"
+      :style="rightClickTagPickerStyle" @click.stop>
+      <p class="px-2.5 py-1.5 border-b border-gray-100 dark:border-gray-700 text-[11px] font-medium text-gray-500 dark:text-gray-400">添加标记</p>
       <div class="grid grid-cols-3 gap-1 p-2 max-h-36 overflow-y-auto">
         <button v-for="tag in customTags" :key="tag"
-          :class="['px-1 py-0.5 text-[10px] rounded border text-center truncate transition-colors', tagPickerTab.tags.includes(tag) ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-600 hover:border-blue-400']"
+          :class="['px-1 py-0.5 text-[10px] rounded border text-center truncate transition-colors',
+            rightClickTab.tags.includes(tag) ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-blue-400']"
           :title="tag"
-          @click="updateTabTags(tagPickerTab.id, tagPickerTab.tags.includes(tag) ? tagPickerTab.tags.filter(t=>t!==tag) : [...tagPickerTab.tags, tag])">{{ tag }}</button>
+          @click="updateTabTags(rightClickTab.id, rightClickTab.tags.includes(tag) ? rightClickTab.tags.filter(t=>t!==tag) : [...rightClickTab.tags, tag])">{{ tag }}</button>
         <p v-if="!customTags.length" class="col-span-3 text-[11px] text-gray-400 text-center py-2">暂无标记</p>
       </div>
     </div>
     <!-- 编号选择浮层（右键→设置编号） -->
-    <div v-if="numberPickerTab" class="fixed z-[9990] bg-white border border-gray-200 rounded-lg shadow-xl w-44 p-2.5"
-      :style="{ left: `${numberPickerPos.x}px`, top: `${numberPickerPos.y}px` }"
-      v-click-outside="() => numberPickerTabId = null" @click.stop>
-      <p class="text-[11px] font-medium text-gray-600 mb-2">设置快捷键编号 (1-9)</p>
+    <div v-if="popover.isOpen('number-picker') && numberPickerTab" class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-44 p-2.5"
+      :style="numberPickerStyle" @click.stop>
+      <p class="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-2">设置快捷键编号 (1-9)</p>
       <div class="flex gap-1.5">
         <input v-model="numberPickerDraft" type="number" min="1" max="9" placeholder="1-9"
-          class="flex-1 border border-gray-200 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-400"
-          @keyup.enter="confirmNumberPicker" @keyup.escape="numberPickerTabId = null" />
+          class="flex-1 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-400"
+          @keyup.enter="confirmNumberPicker" @keyup.escape="popover.close('number-picker')" />
         <button class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700" @click="confirmNumberPicker">确定</button>
       </div>
-      <button class="mt-1.5 text-[10px] text-gray-400 hover:text-red-500 w-full text-left" @click="() => { if (numberPickerTab) { updateTabNumber(numberPickerTab.id, 0); showToast('编号已清除') } numberPickerTabId = null }">清除编号</button>
+      <button class="mt-1.5 text-[10px] text-gray-400 hover:text-red-500 w-full text-left" @click="clearNumberFromPicker">清除编号</button>
     </div>
-    <button v-if="scrolled" class="fixed bottom-10 right-3 z-30 p-1.5 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all" @click="scrollToTop" title="回到顶部">
+    <button v-if="scrolled && focusMode !== 'focusing'" class="fixed bottom-10 right-3 z-30 p-1.5 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all" @click="scrollToTop" title="回到顶部">
       <ChevronUp :size="14" />
     </button>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide } from "vue"
-import { Settings, LogIn, Palette, Type, Layout, Cloud, Camera, Tag, HardDrive, Globe as Globe2, ChevronUp, RotateCcw } from "@lucide/vue"
+import { Tag, ChevronUp, HelpCircle, Zap } from "@lucide/vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabStats } from "~composables/useTabStats"
 import { useTabTree } from "~composables/useTabTree"
+import { useFocusMode, SUPPORTS_FOCUS_MODE } from "~composables/useFocusMode"
+import { useTabGroups, SUPPORTS_TAB_GROUPS, TAB_GROUP_ID_NONE } from "~composables/useTabGroups"
+import { useSettings } from "~composables/useSettings"
+import { usePopoverManager, installGlobalPopoverClose } from "~composables/usePopoverManager"
+import { computePopoverPos } from "~lib/popoverPosition"
 import { sortTabs, groupByDomain } from "~lib/sortUtils"
+import HeaderMenu from "~components/HeaderMenu.vue"
 import TabTileItem from "~components/TabTileItem.vue"
 import TabListItem from "~components/TabListItem.vue"
 import TabIconItem from "~components/TabIconItem.vue"
 import TabTreeItem from "~components/TabTreeItem.vue"
 import AppToolbar from "~components/AppToolbar.vue"
+import CreateGroupDialog from "~components/CreateGroupDialog.vue"
 import LaterList from "~components/LaterList.vue"
 import LaterDialog from "~components/LaterDialog.vue"
 import FooterStats from "~components/FooterStats.vue"
@@ -224,9 +346,16 @@ import TabContextMenu from "~components/TabContextMenu.vue"
 import PinnedBar from "~components/PinnedBar.vue"
 import TreeGuideBanner from "~components/TreeGuideBanner.vue"
 import TreeGuideDialog from "~components/TreeGuideDialog.vue"
+import ConfirmDialog from "~components/ConfirmDialog.vue"
+import DetectReviewDialog from "~components/DetectReviewDialog.vue"
+import { detectDuplicates as detectDuplicatesFn, detectUnused as detectUnusedFn, UNUSED_THRESHOLDS, type DuplicateGroup } from "~composables/useCleanup"
+import FocusHelpBubble from "~components/FocusHelpBubble.vue"
+import FocusSelectBar from "~components/FocusSelectBar.vue"
+import FocusBanner from "~components/FocusBanner.vue"
+import GroupListPage from "~components/GroupListPage.vue"
+import GroupBadge from "~components/GroupBadge.vue"
 import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
-import { vClickOutside } from "~lib/clickOutside"
 
 const {
   tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
@@ -239,6 +368,124 @@ const {
 } = useTabManager()
 const stats = computed(() => useTabStats(tabs).value)
 const treeNodes = useTabTree(tabs, treeParentMap)
+
+// 标签分组
+const {
+  groups,
+  ungroupedTabs,
+  guideShown: tabGroupsGuideShown,
+  loadGroups,
+  createGroup,
+  addToGroup,
+  removeFromGroup,
+  updateGroup,
+  ungroupAll,
+  closeGroupTabs,
+  getGroupById,
+  markGuideShown: markTabGroupsGuideShown,
+  updateGroupTabs,
+} = useTabGroups(tabs)
+
+// 提供 getGroupById 给子组件
+provide('getGroupById', getGroupById)
+provide('tabGroups', groups)
+
+// 聚焦模式
+const {
+  mode: focusMode,
+  selectedTabIds: focusSelectedIds,
+  focusingTabs,
+  hiddenGroupId,
+  selectableTabs: focusSelectableTabs,
+  protectedTabCount,
+  isFirstTime: isFirstFocusTime,
+  toastEvent: focusToastEvent,
+  enterSelectMode: enterFocusSelectMode,
+  exitSelectMode: exitFocusSelectMode,
+  toggleSelectTab,
+  startFocusing,
+  exitFocusing,
+  onFocusTabClosed,
+  onNewTabInFocus,
+  restoreFocusState,
+} = useFocusMode(tabs)
+
+// 计算灰色分组中的标签数量
+const hiddenGroupTabCount = computed(() => {
+  if (!hiddenGroupId.value) return 0
+  return tabs.value.filter(t => t.groupId === hiddenGroupId.value).length
+})
+
+// 聚焦标签中的固定标签和普通标签
+const focusingPinnedItems = computed(() => focusingTabs.value.filter(t => t.pinned))
+const focusingNormalItems = computed(() => focusingTabs.value.filter(t => !t.pinned))
+
+// 监听聚焦 toast 事件
+watch(focusToastEvent, (event) => {
+  if (!event) return
+  switch (event.type) {
+    case 'group_recollapsed':
+      showToast('聚焦模式中，分组已重新折叠')
+      break
+    case 'tab_added_to_focus':
+      showToast(`已加入聚焦标签：${event.tabTitle.slice(0, 20)}`)
+      break
+    case 'all_focus_closed':
+      showToast('所有聚焦标签已关闭，已退出聚焦模式')
+      break
+    case 'enter_focus':
+      showToast(`进入聚焦模式，${event.count} 个标签`)
+      break
+    case 'exit_focus':
+      showToast('已退出聚焦模式')
+      break
+  }
+  // 重置事件
+  focusToastEvent.value = null
+})
+
+// 聚焦问号气泡现在由 PopoverManager（id='focus-help'）统一管理 —— 见 FocusHelpBubble.vue
+// 之前散落在这里的 helpBubblePos / openHelpBubble / closeHelpBubble 全部移除
+const toggleFocusHelpFromEvent = (e: MouseEvent) => {
+  popover.toggle("focus-help", e.currentTarget as HTMLElement)
+}
+const onTagFilterClick = (e: MouseEvent) => {
+  popover.toggle("tag-filter", e.currentTarget as HTMLElement)
+}
+
+const startFocusingWithToast = async () => {
+  const result = await startFocusing()
+  if (result.needActivateFirst && result.firstTabId !== undefined) {
+    const tab = tabs.value.find(t => t.id === result.firstTabId)
+    showToast(`已切换到聚焦标签：${tab?.title?.slice(0, 20) || ''}`)
+  }
+  // 检查是否全是固定标签
+  const allPinned = focusingTabs.value.every(t => t.pinned)
+  if (allPinned) {
+    showToast('固定标签本来就不会被折叠，本次聚焦实际未折叠任何标签')
+  }
+}
+
+const exitFocusingWithToast = async () => {
+  await exitFocusing()
+}
+
+const toggleSelectFocusTab = (id: number) => {
+  const focusTabIds = focusSelectableTabs.value.map(t => t.id)
+  if (focusTabIds.includes(id)) {
+    toggleSelectTab(id)
+    // 检查是否超过7个
+    if (focusSelectedIds.value.length > 7) {
+      showToast('建议聚焦 4-7 个标签，效果更好')
+    }
+  }
+}
+
+const handleNewTabInFocus = (t: chrome.tabs.Tab) => {
+  if (focusMode.value === 'focusing' && t.id !== undefined) {
+    onNewTabInFocus(t.id)
+  }
+}
 
 // 树形操作 handler：provide 给 TabTreeItem（HoverCard 用）
 provide('treeAction', (action: string, item: TabItem, data?: any) => {
@@ -262,7 +509,7 @@ provide('treeDrag', (dragId: number, targetId: number, pos: 'before' | 'into' | 
     if (targetIdx >= 0) moveTabToIndex(dragId, pos === 'before' ? targetIdx : targetIdx + 1)
     // 同时清除拖动项的自定义 parent（还原到同级）
     const targetParent = treeParentMap.value[String(targetId)] ?? null
-    updateTreeParent(dragId, targetParent ?? null)
+    updateTreeParent(dragId, targetParent)
   }
 })
 
@@ -276,29 +523,157 @@ const activeFilter = ref("all")
 const activeTagFilters = ref<string[]>([])
 const laterDialogOpen = ref(false)
 const pendingLaterTabId = ref<number | null>(null)
-const settingsOpen = ref(false)
-const isFocusMode = ref(false)
-const showTagPanel = ref(false)
+useSettings()  // 初始化设置：加载 storage + 应用主题/字号/字体/密度
+installGlobalPopoverClose()  // 安装全局浮层关闭监听（点空白/Esc 关）
+const popover = usePopoverManager()
+const tagFilterTriggerRef = ref<HTMLElement | null>(null)
 const showStorage = ref(false)
 const contentRef = ref<HTMLElement | null>(null)
 const toastMsg = ref("")
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 const ctxMenu = ref<{ tab: TabItem; x: number; y: number } | null>(null)
-const tagPickerTabId = ref<number | null>(null)
-const tagPickerPos = ref({ x: 0, y: 0 })
-const numberPickerTabId = ref<number | null>(null)
-const numberPickerPos = ref({ x: 0, y: 0 })
+// 右键 picker —— 用 PopoverManager 统一管理 open/close，自身只保留"对哪个 tab"
+const rightClickTabId = ref<number | null>(null)
 const numberPickerDraft = ref("")
-const numberPickerTab = computed(() => numberPickerTabId.value !== null ? tabs.value.find(t => t.id === numberPickerTabId.value) ?? null : null)
+
+const rightClickTab = computed(() => rightClickTabId.value !== null ? tabs.value.find(t => t.id === rightClickTabId.value) ?? null : null)
+const numberPickerTab = computed(() => rightClickTabId.value !== null && popover.isOpen('number-picker') ? tabs.value.find(t => t.id === rightClickTabId.value) ?? null : null)
+
+// 右键 picker 位置：从 PopoverManager 的 activeAnchorRect 读出（右键时合成的 1x1 rect）
+const rightClickTagPickerStyle = computed(() => {
+  if (!popover.isOpen('right-click-tag-picker') || !popover.activeAnchorRect.value) return { left: '0px', top: '0px' }
+  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 192, height: 200 }, 'bottom-left')
+  return { left: `${p.left}px`, top: `${p.top}px` }
+})
+const numberPickerStyle = computed(() => {
+  if (!popover.isOpen('number-picker') || !popover.activeAnchorRect.value) return { left: '0px', top: '0px' }
+  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 176, height: 100 }, 'bottom-left')
+  return { left: `${p.left}px`, top: `${p.top}px` }
+})
+
 const confirmNumberPicker = () => {
-  if (numberPickerTabId.value === null) return
+  if (rightClickTabId.value === null) return
   const n = parseInt(numberPickerDraft.value)
   const val = !isNaN(n) && n >= 1 && n <= 9 ? n : 0
-  updateTabNumber(numberPickerTabId.value, val)
+  updateTabNumber(rightClickTabId.value, val)
   showToast(val > 0 ? `编号已设置 ${modKey}${val}` : '编号已清除')
-  numberPickerTabId.value = null
+  popover.close('number-picker')
+  rightClickTabId.value = null
 }
-const tagPickerTab = computed(() => tagPickerTabId.value !== null ? (tabs.value.find(t => t.id === tagPickerTabId.value) ?? null) : null)
+const clearNumberFromPicker = () => {
+  if (rightClickTabId.value !== null) {
+    updateTabNumber(rightClickTabId.value, 0)
+    showToast('编号已清除')
+  }
+  popover.close('number-picker')
+  rightClickTabId.value = null
+}
+
+// ===== 工具栏「清理」菜单 =====
+// 详见 PRD: docs/prd/cleanup-toolbar.md
+
+// 直接关闭类的待确认状态
+type CleanupKind = "unpinned" | "others" | "frozenDiscarded"
+interface CleanupConfirmState {
+  kind: CleanupKind
+  title: string
+  message: string
+  hint?: string
+  confirmText: string
+  /** 要关的标签数（提前算好，避免确认时数据已变） */
+  count: number
+}
+const cleanupConfirm = ref<CleanupConfirmState | null>(null)
+
+// 检测类的弹窗状态
+type DetectDialogState =
+  | { mode: "duplicates"; groups: DuplicateGroup[] }
+  | { mode: "unused"; items: TabItem[]; thresholdMs: number }
+const detectDialog = ref<DetectDialogState | null>(null)
+
+// === 直接关闭类入口 ===
+const openCleanupUnpinned = () => {
+  const targets = tabs.value.filter(t => !t.pinned)
+  if (!targets.length) { showToast("没有非固定标签可关闭"); return }
+  const pinnedCount = tabs.value.length - targets.length
+  cleanupConfirm.value = {
+    kind: "unpinned",
+    title: "确认关闭非固定标签",
+    message: `将关闭 ${targets.length} 个未固定标签${pinnedCount > 0 ? `，保留 ${pinnedCount} 个固定标签` : ''}`,
+    hint: "关闭的标签可用 Ctrl+Shift+T 逐个恢复",
+    confirmText: `确认关闭 ${targets.length} 个`,
+    count: targets.length,
+  }
+}
+const openCleanupOthers = () => {
+  // closeOthers 后台用 t.active 判定；这里口径保持一致
+  const targets = tabs.value.filter(t => !t.active)
+  if (!targets.length) { showToast("没有其他标签可关闭"); return }
+  const pinnedCount = tabs.value.filter(t => t.pinned && !t.active).length
+  cleanupConfirm.value = {
+    kind: "others",
+    title: "确认关闭其他标签",
+    message: `将关闭 ${targets.length} 个标签，保留当前激活的页面${pinnedCount > 0 ? `（注：固定标签也会被关）` : ''}`,
+    hint: "关闭的标签可用 Ctrl+Shift+T 逐个恢复",
+    confirmText: `确认关闭 ${targets.length} 个`,
+    count: targets.length,
+  }
+}
+const openCleanupFrozenDiscarded = () => {
+  const targets = tabs.value.filter(t => t.frozen || t.discarded)
+  if (!targets.length) { showToast("没有已冻结/已舍弃的标签"); return }
+  cleanupConfirm.value = {
+    kind: "frozenDiscarded",
+    title: "确认关闭已冻结/已舍弃标签",
+    message: `将关闭 ${targets.length} 个被浏览器冻结或舍弃的标签。这些标签当前不占内存，但仍占用列表空间`,
+    hint: "关闭的标签可用 Ctrl+Shift+T 逐个恢复",
+    confirmText: `确认关闭 ${targets.length} 个`,
+    count: targets.length,
+  }
+}
+// 用户点「确认」时调原来的批量关 API（不重写逻辑，复用 useTabManager 已实现好的）
+const runCleanupConfirm = async () => {
+  const conf = cleanupConfirm.value
+  if (!conf) return
+  cleanupConfirm.value = null
+  if (conf.kind === "unpinned") await closeUnpinned()
+  else if (conf.kind === "others") await closeOthers()
+  else await closeFrozenDiscarded()
+  showToast(`已关闭 ${conf.count} 个标签 · Ctrl+Shift+T 可恢复`)
+}
+
+// === 检测类入口 ===
+const openDetectDuplicates = () => {
+  const groups = detectDuplicatesFn(tabs.value)
+  if (!groups.length) { showToast("未检测到重复标签"); return }
+  detectDialog.value = { mode: "duplicates", groups }
+}
+const openDetectUnused = () => {
+  const defaultMs = UNUSED_THRESHOLDS[0].ms // 默认 1 天
+  const items = detectUnusedFn(tabs.value, defaultMs)
+  if (!items.length) { showToast("未检测到长期未用标签"); return }
+  detectDialog.value = { mode: "unused", items, thresholdMs: defaultMs }
+}
+// 用户切换阈值时重新筛选
+const onChangeUnusedThreshold = (ms: number) => {
+  if (detectDialog.value?.mode !== "unused") return
+  const items = detectUnusedFn(tabs.value, ms)
+  detectDialog.value = { mode: "unused", items, thresholdMs: ms }
+}
+// 用户点「关闭选中 N 个」
+const runDetectConfirm = async (ids: number[]) => {
+  detectDialog.value = null
+  if (!ids.length) return
+  let success = 0, failed = 0
+  for (const id of ids) {
+    try { await closeTab(id); success++ } catch { failed++ }
+  }
+  showToast(failed > 0
+    ? `已关闭 ${success} 个，${failed} 个失败 · Ctrl+Shift+T 可恢复`
+    : `已关闭 ${success} 个标签 · Ctrl+Shift+T 可恢复`,
+  )
+}
+
 
 const navItems = [
   { key: "home", label: "首页" },
@@ -337,7 +712,7 @@ chrome.storage.local.get("treeGuideShown").then((d) => {
 })
 // 模板里直接用 window.location.reload() 在 Vue 3 <script setup> 的求值上下文中找不到 window，
 // 包成方法暴露给模板才能正常触发。
-const reloadPanel = () => { settingsOpen.value = false; window.location.reload() }
+const reloadPanel = () => { window.location.reload() }
 
 const scrolled = ref(false)
 const onContentScroll = (e: Event) => { scrolled.value = (e.target as HTMLElement).scrollTop > 80 }
@@ -352,8 +727,24 @@ const onKeydown = (e: KeyboardEvent) => {
     else showToast(`${modKey}${n} — 暂无对应编号的标签`)
   }
 }
-onMounted(() => document.addEventListener("keydown", onKeydown))
-onUnmounted(() => document.removeEventListener("keydown", onKeydown))
+
+onMounted(async () => {
+  document.addEventListener("keydown", onKeydown)
+  // 初始化聚焦模式
+  if (SUPPORTS_FOCUS_MODE) {
+    const result = await restoreFocusState()
+    if (result.reset) {
+      showToast('聚焦状态已重置（浏览器重启）')
+    }
+  }
+  // 监听标签创建事件（用于聚焦模式）
+  chrome.tabs.onCreated.addListener(handleNewTabInFocus)
+})
+
+onUnmounted(() => {
+  document.removeEventListener("keydown", onKeydown)
+  chrome.tabs.onCreated.removeListener(handleNewTabInFocus)
+})
 
 const scrollToActive = (activeId: number | undefined) => {
   if (!activeId) return
@@ -365,6 +756,13 @@ const scrollToActive = (activeId: number | undefined) => {
   }, 0))
 }
 watch(activeTabId, scrollToActive, { immediate: true })
+
+// 切换导航 tab 时自动退出批量模式
+watch(activeNav, (newNav) => {
+  if (newNav !== 'home' && isBatchMode.value) {
+    exitBatch()
+  }
+})
 
 const itemComponent = computed(() => {
   if (viewMode.value === "tile") return TabTileItem
@@ -387,6 +785,10 @@ const searchClosed = computed(() => { const q = search.value.trim(); return q ? 
 
 const filteredTabs = computed(() => {
   let list = tabs.value
+  // 选择态下过滤掉受保护的标签
+  if (focusMode.value === 'selecting') {
+    list = list.filter(t => !t.isProtected)
+  }
   if (activeTagFilters.value.length) list = list.filter(t => activeTagFilters.value.every(tag => t.tags.includes(tag)))
   if (activeFilter.value !== "all") {
     const f = activeFilter.value
@@ -417,13 +819,78 @@ const toggleSelect = (id: number) => {
   selectedIds.value = selectedIds.value.includes(id) ? selectedIds.value.filter(i => i !== id) : [...selectedIds.value, id]
 }
 const toggleBatch = () => { isBatchMode.value = !isBatchMode.value; if (!isBatchMode.value) selectedIds.value = [] }
-const batchClose = async () => { for (const id of selectedIds.value) await closeTab(id); selectedIds.value = []; isBatchMode.value = false }
+const exitBatch = () => { isBatchMode.value = false; selectedIds.value = [] }
+
+/** 从单条右键快速进入批量并预选 —— 右键「选择此/同域名/同分组/全选可见」入口共用 */
+const enterBatchWithSelection = (ids: number[]) => {
+  selectedIds.value = ids.filter(id => visibleNormalIds.value.includes(id))
+  isBatchMode.value = true
+  if (selectedIds.value.length) showToast(`已选中 ${selectedIds.value.length} 个标签`)
+}
+const batchClose = async () => {
+  const n = selectedIds.value.length
+  for (const id of selectedIds.value) await closeTab(id)
+  selectedIds.value = []
+  isBatchMode.value = false
+  if (n) showToast(`已关闭 ${n} 个标签`)
+}
+
+// 批量动作：当前可见标签 = sortedNormalItems（已经过搜索/标记/状态过滤 + 排序）
+// 注意：固定标签 (pinnedItems) 不参与批量 —— 批量是为了清理/整理非固定标签
+const visibleNormalIds = computed(() => sortedNormalItems.value.map(t => t.id))
+
+const selectAllVisible = () => {
+  selectedIds.value = [...visibleNormalIds.value]
+}
+const invertSelection = () => {
+  const visible = visibleNormalIds.value
+  const sel = new Set(selectedIds.value)
+  selectedIds.value = visible.filter(id => !sel.has(id))
+}
+const batchLater = async () => {
+  const n = selectedIds.value.length
+  for (const id of selectedIds.value) await moveToLater(id, "")
+  selectedIds.value = []
+  isBatchMode.value = false
+  if (n) showToast(`已加入稍后处理（${n}）`)
+}
+const batchAddTags = async (tags: string[]) => {
+  if (!tags.length || !selectedIds.value.length) return
+  const ids = [...selectedIds.value]
+  for (const id of ids) {
+    const cur = tabs.value.find(t => t.id === id)?.tags ?? []
+    const merged = Array.from(new Set([...cur, ...tags]))
+    await updateTabTags(id, merged)
+  }
+  showToast(`已为 ${ids.length} 个标签加 ${tags.length} 个标记`)
+  // 标记保留批量模式（用户可能继续做别的动作）
+}
+const batchAddToExistingGroup = async (groupId: number) => {
+  if (!selectedIds.value.length) return
+  const n = selectedIds.value.length
+  await addToGroup(selectedIds.value, groupId)
+  selectedIds.value = []
+  isBatchMode.value = false
+  showToast(`已加入分组（${n}）`)
+}
+const onBatchCreateGroupClick = async () => {
+  if (!selectedIds.value.length) return
+  // 这里简化处理，直接创建默认分组，或者可以复用 GroupListPage 的逻辑
+  // 暂时使用简单的实现
+  const name = `分组 ${groups.value.length + 1}`
+  const n = selectedIds.value.length
+  await createGroup(selectedIds.value, name, 'blue')
+  selectedIds.value = []
+  isBatchMode.value = false
+  showToast(`已新建分组「${name}」（${n}）`)
+}
+
 const openLater = (id: number) => { pendingLaterTabId.value = id; laterDialogOpen.value = true }
 const confirmLater = async (note: string) => {
   if (pendingLaterTabId.value !== null) await moveToLater(pendingLaterTabId.value, note)
   pendingLaterTabId.value = null; laterDialogOpen.value = false
 }
-const copyUrl = (url: string) => { navigator.clipboard.writeText(url); showToast("已复制URL") }
+const copyUrl = (url: string) => { navigator.clipboard.writeText(url); showToast('已复制URL') }
 const openNewTab = () => chrome.tabs.create({})
 const handleRefresh = (id: number) => refreshTab(id)
 const refreshCurrentTab = () => { if (activeTabId.value) refreshTab(activeTabId.value) }
@@ -432,7 +899,7 @@ const handlePin = (id: number) => { const tab = tabs.value.find(t => t.id === id
 const onContextMenu = (e: MouseEvent, item: TabItem) => {
   e.preventDefault(); ctxMenu.value = { tab: item, x: e.clientX, y: e.clientY }
 }
-const handleCtxAction = (action: string) => {
+const handleCtxAction = (action: string, data?: any) => {
   const tab = ctxMenu.value?.tab; if (!tab) return
   const { x, y } = ctxMenu.value!
   ctxMenu.value = null
@@ -442,12 +909,45 @@ const handleCtxAction = (action: string) => {
     pin: () => pinTab(tab.id, !tab.pinned),
     mute: () => muteTab(tab.id, !tab.muted),
     group: () => groupTab(tab.id),
-    tag: () => { tagPickerTabId.value = tab.id; tagPickerPos.value = { x, y } },
-    setNumber: () => { numberPickerTabId.value = tab.id; numberPickerPos.value = { x, y }; numberPickerDraft.value = tab.number ? String(tab.number) : "" },
+    newGroup: () => {
+      // 这里可以打开创建分组的对话框
+      showToast('创建新分组');
+      createGroup([tab.id], '新分组', 'blue');
+    },
+    addToGroup: () => {
+      if (typeof data === 'number') {
+        addToGroup([tab.id], data);
+      }
+    },
+    removeFromGroup: () => removeFromGroup([tab.id]),
+    // 右键 tag/setNumber：用 setTimeout(0) 推迟一帧 —— 当前点击事件仍在冒泡，会被全局
+    // popover-close 监听器一开就立刻关掉；推到下一个事件循环可避开这个 race
+    tag: () => {
+      rightClickTabId.value = tab.id
+      setTimeout(() => popover.openAtRect('right-click-tag-picker', new DOMRect(x, y, 0, 0)), 0)
+    },
+    setNumber: () => {
+      rightClickTabId.value = tab.id
+      numberPickerDraft.value = tab.number ? String(tab.number) : ""
+      setTimeout(() => popover.openAtRect('number-picker', new DOMRect(x, y, 0, 0)), 0)
+    },
     later: () => openLater(tab.id),
     copyUrl: () => copyUrl(tab.url),
     close: () => closeTab(tab.id),
     closeOthers: () => closeTabsExcept(tab.id),
+    // 批量选择入口：从单条右键直接进入批量模式并预选好对应标签
+    selectThis: () => enterBatchWithSelection([tab.id]),
+    selectSameDomain: () => {
+      const domain = tab.domain.toLowerCase()
+      const ids = tabs.value.filter(t => t.domain.toLowerCase() === domain).map(t => t.id)
+      enterBatchWithSelection(ids)
+    },
+    selectSameGroup: () => {
+      if (tab.groupId === TAB_GROUP_ID_NONE) return
+      const ids = tabs.value.filter(t => t.groupId === tab.groupId).map(t => t.id)
+      enterBatchWithSelection(ids)
+    },
+    selectAllVisible: () => enterBatchWithSelection(visibleNormalIds.value),
   }
   acts[action]?.()
 }
@@ -460,4 +960,70 @@ const handleCtxAction = (action: string) => {
 @tailwind utilities;
 * { box-sizing: border-box; }
 body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+/* ======================================================================
+ * 字号档位 —— 通过改 :root font-size 让 Tailwind rem 类自动响应
+ * 影响：text-xs/sm/base/lg 等所有 rem 单位的字号
+ * 不影响：硬编码的 text-[10px]/[11px] 等任意值（约 30 处，肉眼差异不大）
+ * 默认：fs-normal = 16px（Tailwind base）
+ * ====================================================================== */
+:root.fs-normal  { font-size: 16px; }
+:root.fs-large   { font-size: 17.5px; }   /* +10% */
+:root.fs-xlarge  { font-size: 19px; }     /* +18% */
+
+/* ======================================================================
+ * 字体族
+ * ====================================================================== */
+:root.font-mono body { font-family: 'SF Mono', 'Cascadia Code', Consolas, Monaco, monospace; }
+
+/* ======================================================================
+ * 卡片密度档位 —— 覆盖标签卡片的 padding，让"紧凑/标准/宽松"真的有视觉差
+ * 设计取舍：用 :root.density-* 选择卡片 padding 相关 Tailwind 类做覆盖
+ * 影响范围：TabListItem (px-3 py-2) / TabTileItem (p-2)
+ * 默认：density-normal 不做任何覆盖（Tailwind 原值）
+ * ====================================================================== */
+:root.density-compact .px-3 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+:root.density-compact .py-2 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
+:root.density-compact .p-2  { padding: 0.375rem !important; }
+:root.density-compact .gap-2 { gap: 0.375rem !important; }
+
+:root.density-loose .px-3 { padding-left: 1rem !important; padding-right: 1rem !important; }
+:root.density-loose .py-2 { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
+:root.density-loose .p-2  { padding: 0.75rem !important; }
+:root.density-loose .gap-2 { gap: 0.625rem !important; }
+
+/* ======================================================================
+ * 暗色模式 —— 全局 CSS 覆盖关键 Tailwind 类
+ * 设计取舍：不去 31 个组件逐个加 dark:bg-xxx，集中在这里维护
+ * 覆盖范围：背景、文字、边框、hover 态、divide 边框
+ * 不覆盖：blue/red/green 等品牌色（保持视觉锚点）、shadow（深色已经够低对比）
+ * ====================================================================== */
+html.dark body { background-color: #111827; color: #e5e7eb; }
+
+html.dark .bg-white         { background-color: #1f2937 !important; }
+html.dark .bg-gray-50       { background-color: #1f2937 !important; }
+html.dark .bg-gray-100      { background-color: #374151 !important; }
+
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-gray-300  { border-color: #374151 !important; }
+
+html.dark .text-gray-400    { color: #9ca3af !important; }
+html.dark .text-gray-500    { color: #9ca3af !important; }
+html.dark .text-gray-600,
+html.dark .text-gray-700,
+html.dark .text-gray-800,
+html.dark .text-gray-900    { color: #e5e7eb !important; }
+
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-100:hover { background-color: #374151 !important; }
+
+html.dark .divide-gray-100 > * + *,
+html.dark .divide-gray-200 > * + * { border-color: #374151 !important; }
+
+/* 浅蓝色高亮（激活态/选中）在暗色模式下需要降透明 */
+html.dark .bg-blue-50       { background-color: rgba(59, 130, 246, 0.15) !important; }
+html.dark .bg-blue-100      { background-color: rgba(59, 130, 246, 0.25) !important; }
+html.dark .text-blue-600,
+html.dark .text-blue-700    { color: #60a5fa !important; }
 </style>

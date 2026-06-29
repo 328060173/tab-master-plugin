@@ -205,6 +205,16 @@
     "comment": "深度求索AI"
   },
   {
+    "domain": "bigmodel.cn",
+    "name": "智谱",
+    "comment": "智谱AI / GLM"
+  },
+  {
+    "domain": "zhipuai.cn",
+    "name": "智谱",
+    "comment": "智谱AI 官网"
+  },
+  {
     "domain": "dianping.com",
     "name": "大众点评",
     "comment": "本地生活"
@@ -308,6 +318,11 @@
     "domain": "google.com",
     "name": "Google",
     "comment": "国际搜索引擎"
+  },
+  {
+    "domain": "chrome.com",
+    "name": "Chrome",
+    "comment": "Google Chrome 官方"
   },
   {
     "domain": "hailuoai.com",
@@ -1178,6 +1193,26 @@
     "domain": "yuanbao.tencent.com",
     "name": "腾讯元宝",
     "comment": "腾讯AI"
+  },
+  {
+    "domain": "tencent.com",
+    "name": "腾讯",
+    "comment": "腾讯集团兜底（子域有更具体品牌时优先匹配子域）"
+  },
+  {
+    "domain": "bytedance.com",
+    "name": "字节跳动",
+    "comment": "字节集团兜底"
+  },
+  {
+    "domain": "alibaba.com",
+    "name": "阿里巴巴",
+    "comment": "阿里集团兜底"
+  },
+  {
+    "domain": "qq.com",
+    "name": "QQ / 腾讯",
+    "comment": "腾讯邮箱、QQ 等"
   },
   {
     "domain": "yuewen.cn",

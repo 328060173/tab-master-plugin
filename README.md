@@ -10,12 +10,19 @@
 
 ```bash
 pnpm install
-pnpm dev      # 开发模式：产物在 build/chrome-mv3-dev/
-pnpm build    # 生产构建：产物在 build/chrome-mv3-prod/
-pnpm package  # 打包成 Chrome Web Store 上架 zip
+pnpm dev:safe   # 🌟 日常开发（保险版，会先清理残留进程）
+pnpm build:all  # 一次性产出 build/dev/ + build/prod/
+pnpm kill-dev   # 杀掉所有 plasmo dev 进程
+pnpm package    # 打包成 Chrome Web Store 上架 zip
 ```
 
-加载扩展：浏览器 → 扩展程序 → 加载已解压 → 选 `build/chrome-mv3-dev/`。
+加载扩展：浏览器 → 扩展程序 → 加载已解压：
+
+- 日常开发 → `build/chrome-mv3-dev/`
+- 验证生产构建 → `build/prod/`
+
+> 📖 **详细开发流程、多终端规则、报错排查**：见 [`docs/dev-workflow.md`](./docs/dev-workflow.md)
+> 📚 **完整开发规范**（权限/API/存储配额/Vue 实战）：见 [`docs/reference/extension-vue-best-practices.md`](./docs/reference/extension-vue-best-practices.md)
 
 ## 目录约定
 

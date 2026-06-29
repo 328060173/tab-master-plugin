@@ -1,6 +1,6 @@
 <template>
-  <div class="fixed inset-0 z-50 bg-black/30" @click="emit('close')"></div>
-  <div class="fixed inset-x-3 top-14 bottom-4 z-50 bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden">
+  <div class="fixed inset-0 z-[100] bg-black/30" @click="emit('close')"></div>
+  <div class="fixed inset-x-3 top-14 bottom-4 z-[100] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden">
     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
       <h2 class="text-sm font-semibold">存储空间使用情况</h2>
       <button class="text-gray-400 hover:text-gray-700 p-1 rounded hover:bg-gray-100" @click="emit('close')"><X :size="16" /></button>
@@ -44,7 +44,7 @@
     </div>
 
     <!-- 单项清理确认 -->
-    <div v-if="confirming" class="absolute inset-x-4 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 z-50">
+    <div v-if="confirming" class="absolute inset-x-4 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 z-[100]">
       <p class="text-sm font-semibold text-gray-800 mb-2">⚠️ 确认清理「{{ confirming.label }}」</p>
       <p class="text-xs text-red-600 bg-red-50 rounded p-2 mb-4 leading-relaxed">{{ confirming.warning }}</p>
       <div class="flex gap-2 justify-end">
@@ -54,7 +54,7 @@
     </div>
 
     <!-- 清空所有确认 -->
-    <div v-if="confirmClearAll" class="absolute inset-x-4 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 z-50">
+    <div v-if="confirmClearAll" class="absolute inset-x-4 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 z-[100]">
       <p class="text-sm font-semibold text-gray-800 mb-2">⚠️ 清空所有缓存？</p>
       <p class="text-xs text-red-600 bg-red-50 rounded p-2 mb-4 leading-relaxed">将清除全部本地数据（稍后列表、标记、编号、打开时间、搜索历史等），操作不可恢复，清空后自动重新打开插件。</p>
       <div class="flex gap-2 justify-end">

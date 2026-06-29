@@ -1,36 +1,56 @@
 <template>
-  <div ref="containerRef" class="flex items-center px-3 py-1.5 border-t border-gray-200 bg-gray-50 text-xs shrink-0">
+  <div ref="containerRef" class="flex items-center px-3 py-1.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-xs shrink-0">
     <!-- 状态按钮区，overflow-hidden 防止撑出 -->
     <div class="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
       <button
         v-for="s in visibleStats" :key="s.key" :title="s.desc"
-        :class="['shrink-0 whitespace-nowrap flex items-center gap-0.5 transition-colors', activeFilter === s.key ? 'text-blue-600 font-bold' : 'text-gray-400 hover:text-gray-700']"
+        :class="['shrink-0 whitespace-nowrap flex items-center gap-0.5 transition-colors', activeFilter === s.key ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200']"
         @click="emit('filter', s.key)"
       ><span>{{ s.icon }}</span>{{ s.label }}({{ s.value }})</button>
     </div>
-    <!-- 更多按钮固定在右侧，shrink-0 保证始终可见 -->
-    <div v-if="hiddenStats.length" class="shrink-0 pl-2 relative">
-      <button class="text-gray-400 hover:text-gray-600 font-medium text-[11px] whitespace-nowrap" @click.stop="showMore = !showMore">更多</button>
-      <div v-if="showMore"
-        class="fixed bottom-10 right-2 bg-white border border-gray-200 rounded-lg shadow-xl z-50 py-1 min-w-max"
-        v-click-outside="() => showMore = false"
-      >
-        <button
-          v-for="s in hiddenStats" :key="s.key" :title="s.desc"
-          :class="['flex items-center gap-2 w-full text-left px-4 py-1.5 text-xs hover:bg-gray-50 whitespace-nowrap', activeFilter === s.key ? 'text-blue-600 font-bold' : 'text-gray-700']"
-          @click="emit('filter', s.key); showMore = false"
-        >
-          <span class="text-sm">{{ s.icon }}</span>
-          {{ s.label }}<span class="ml-auto text-gray-400 pl-4">{{ s.value }}</span>
-        </button>
-      </div>
+    <!-- 更多按钮固定在右侧 -->
+    <div v-if="hiddenStats.length" class="shrink-0 pl-2">
+      <button
+        ref="moreTriggerRef"
+        :class="['font-medium text-[11px] whitespace-nowrap transition-colors',
+          popover.isOpen('footer-more') ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200']"
+        @click.stop="popover.toggle('footer-more', moreTriggerRef)"
+      >更多</button>
     </div>
   </div>
+
+  <!-- 更多弹层 -->
+  <Teleport to="body">
+    <div
+      v-if="popover.isOpen('footer-more')"
+      :style="morePos"
+      class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1 min-w-max max-h-[60vh] overflow-y-auto"
+      @click.stop>
+      <button
+        v-for="s in hiddenStats" :key="s.key" :title="s.desc"
+        :class="['flex items-center gap-2 w-full text-left px-4 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap',
+          activeFilter === s.key ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-gray-700 dark:text-gray-200']"
+        @click="emit('filter', s.key); popover.close('footer-more')"
+      >
+        <span class="text-sm">{{ s.icon }}</span>
+        {{ s.label }}<span class="ml-auto text-gray-400 pl-4">{{ s.value }}</span>
+      </button>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
+/**
+ * 底部状态栏 —— 状态筛选 + "更多"折叠浮层。
+ *
+ * 重要变更（2026-06-29 浮层统一改造）：
+ * - "更多"浮层接入 PopoverManager（id='footer-more'）
+ * - fixed + Teleport 定位，向上弹出（top-right anchor，因为底栏在视窗底部）
+ * - z-index 统一到 z-[60]
+ */
 import { ref, computed, onMounted, onUnmounted } from "vue"
-import { vClickOutside } from "~lib/clickOutside"
+import { usePopoverManager } from "~composables/usePopoverManager"
+import { computePopoverPos } from "~lib/popoverPosition"
 
 const props = defineProps<{
   stats: Array<{ key: string; label: string; icon: string; desc: string; value: number }>
@@ -38,11 +58,29 @@ const props = defineProps<{
 }>()
 const emit = defineEmits(["filter"])
 
-const showMore = ref(false)
+const popover = usePopoverManager()
+
+const moreTriggerRef = ref<HTMLElement | null>(null)
 const containerRef = ref<HTMLElement | null>(null)
 const containerWidth = ref(300)
 
-// 新顺序：播放中、已静音、录制中、共享中、已冻结、已舍弃、当前激活、加载中、已固定、引起注意、未保存表单、连接设备、受保护
+// 估算"更多"浮层高度（行高 ~28px，每项一行；max-h 限制 60vh）
+const moreEstimatedHeight = computed(() => {
+  const lines = Math.max(1, Math.min(hiddenStats.value.length, 12))
+  return lines * 28 + 8
+})
+
+const morePos = computed(() => {
+  if (!popover.isOpen("footer-more") || !popover.activeAnchorRect.value) return { left: "0px", top: "0px" }
+  // 从触发按钮的右上角向上弹出（底栏在视窗底部，必须向上）
+  const p = computePopoverPos(
+    popover.activeAnchorRect.value,
+    { width: 200, height: moreEstimatedHeight.value },
+    "top-right"
+  )
+  return { left: `${p.left}px`, top: `${p.top}px` }
+})
+
 const PRIORITY_ORDER = ["playing","muted","recording","sharing","frozen","discarded","active","loading","pinned","attention","hasUnsavedForm","hasConnectedDevice","isProtected"]
 
 const sortedStats = computed(() => {
@@ -57,9 +95,7 @@ const sortedStats = computed(() => {
   return all ? [all, ...withCount, ...withoutCount] : [...withCount, ...withoutCount]
 })
 
-// 宽度估算更保守：emoji(18) + 中文字(10px) + 数字(7px) + 内边距(20px)
 const visibleCount = computed(() => {
-  // 预留更多按钮 56px + 两侧 px-3(24px) = 80px
   const available = containerWidth.value - 80
   let used = 0; let count = 0
   for (const s of sortedStats.value) {

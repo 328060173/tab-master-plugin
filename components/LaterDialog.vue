@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="open" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" @click.self="emit('close')">
+    <div v-if="open" class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center" @click.self="emit('close')">
       <div class="bg-white rounded-xl shadow-xl w-80 p-5">
         <h3 class="text-sm font-bold mb-2">稍后处理</h3>
         <!-- 提示语 -->

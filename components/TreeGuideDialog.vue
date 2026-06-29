@@ -1,7 +1,7 @@
 <template>
   <!-- 树形视图操作说明弹框：覆盖在 sidepanel 之上，需点击「我知道了」或遮罩关闭 -->
   <Teleport to="body">
-    <div v-if="open" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 px-4" @click.self="emit('close')">
+    <div v-if="open" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 px-4" @click.self="emit('close')">
       <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-hidden flex flex-col">
         <!-- 头部 -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-amber-50 to-white">

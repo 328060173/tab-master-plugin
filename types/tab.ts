@@ -18,9 +18,12 @@ export interface TabItem {
   hasConnectedDevice: boolean
   isProtected: boolean
   openedAt: string
+  /** 上次访问时间戳（毫秒）。Chrome 121+ 原生提供；老版本由 background.ts 兜底采集 */
+  lastAccessed?: number
   number: number
   tags: string[]
   openerTabId?: number
+  groupId: number
 }
 
 export interface LaterItem extends TabItem {
