@@ -16,12 +16,12 @@
     <div class="flex items-start justify-between gap-1 mb-1">
       <FavIcon :src="item.favIconUrl" :domain="item.domain" size="md" :badge="statusBadge" class="shrink-0" />
       <div class="flex flex-wrap gap-0.5 justify-end min-w-0 flex-1 pt-0.5">
-        <span v-if="item.tags[0]" class="text-[9px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 truncate max-w-[60px] leading-none">{{ item.tags[0] }}</span>
+        <span v-if="item.tags[0]" class="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1 py-0.5 rounded border border-blue-100 dark:border-blue-800 truncate max-w-[60px] leading-none">{{ item.tags[0] }}</span>
         <span v-if="item.tags.length > 1" class="text-[9px] text-gray-400 leading-none">···</span>
       </div>
     </div>
     <p :class="['flex-1 text-[11px] leading-tight line-clamp-2 overflow-hidden',
-      item.active ? 'text-blue-900 font-semibold' : 'text-gray-800']">{{ item.title }}</p>
+      item.active ? 'text-blue-900 font-semibold' : 'text-gray-800 dark:text-gray-100']">{{ item.title }}</p>
     <div class="flex items-center justify-between mt-1">
       <div class="flex items-center gap-1 flex-1 min-w-0">
         <GroupBadge :group="group" />
@@ -34,15 +34,14 @@
           button-class="p-0.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700"
           :icon-size="13"
           @update="emit('updateTags', $event)" @addTag="emit('addTag', $event)" />
-        <button :class="['p-0.5 rounded', hovered ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100']" @click.stop="toggle" title="更多操作"><Menu :size="13" :stroke-width="2.25" /></button>
-        <button class="p-0.5 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded" @click.stop="emit('close')" title="关闭"><X :size="13" :stroke-width="2.5" /></button>
+        <button :class="['p-0.5 rounded', popover.isOpen(hoverCardId) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700']" @click.stop="onMenuClick" title="更多操作"><Menu :size="13" :stroke-width="2.25" /></button>
+        <button class="p-0.5 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" @click.stop="emit('close')" title="关闭"><X :size="13" :stroke-width="2.5" /></button>
       </div>
     </div>
   </div>
 
   <TabHoverCard
-    :show="hovered" :item="item" :x="cardPos.x" :y="cardPos.y"
-    @stay="clearLeave" @leave="startLeave"
+    :hoverCardId="hoverCardId" :item="item"
     @refresh="emit('refresh')" @copy="emit('copy')"
     @pin="emit('pin')" @addTag="onHoverAddTag" @later="emit('later')" @close="emit('close')"
     @updateNumber="emit('updateNumber', $event)"
@@ -58,13 +57,19 @@ import TabHoverCard from "./TabHoverCard.vue"
 import GroupBadge from "./GroupBadge.vue"
 import TagPicker from "./TagPicker.vue"
 import { getHighestPriorityStatus } from "~lib/statusPriority"
-import { useHoverCard } from "~composables/useHoverCard"
+import { usePopoverManager } from "~composables/usePopoverManager"
 import { GROUP_COLOR_CLASSES, TAB_GROUP_ID_NONE } from "~composables/useTabGroups"
 
 const props = defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[]; isPrev?: boolean }>()
 const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "refresh", "pin", "addTag", "updateTags", "updateNumber"])
 
-const { hovered, cardPos, toggle, clearLeave, startLeave } = useHoverCard()
+const popover = usePopoverManager()
+const hoverCardId = `hover-card-${props.item.id}`
+
+const onMenuClick = (e: MouseEvent) => {
+  popover.toggle(hoverCardId, e.currentTarget as HTMLElement)
+}
+
 const statusBadge = computed(() => getHighestPriorityStatus(props.item)?.icon)
 
 const getGroupById = inject<(groupId: number) => chrome.tabGroups.TabGroup | undefined>("getGroupById")

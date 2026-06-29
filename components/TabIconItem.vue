@@ -7,8 +7,7 @@
     @click="onCardClick"
   >
   <TabHoverCard
-    :show="hovered" :item="item" :x="cardPos.x" :y="cardPos.y"
-    @stay="clearLeave" @leave="startLeave"
+    :hoverCardId="hoverCardId" :item="item"
     @refresh="emit('refresh')" @copy="emit('copy')"
     @pin="emit('pin')" @addTag="onHoverAddTag" @later="emit('later')" @close="emit('close')"
     @updateNumber="emit('updateNumber', $event)"
@@ -23,11 +22,11 @@
         button-class="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700"
         :icon-size="13"
         @update="emit('updateTags', $event)" @addTag="emit('addTag', $event)" />
-      <button :class="['p-1 rounded', hovered ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100']" @click.stop="toggle" title="更多操作"><Menu :size="14" :stroke-width="2.25" /></button>
-      <button class="p-1 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded" @click.stop="emit('close')" title="关闭"><X :size="14" :stroke-width="2.5" /></button>
+      <button :class="['p-1 rounded', popover.isOpen(hoverCardId) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700']" @click.stop="onMenuClick" title="更多操作"><Menu :size="14" :stroke-width="2.25" /></button>
+      <button class="p-1 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" @click.stop="emit('close')" title="关闭"><X :size="14" :stroke-width="2.5" /></button>
     </div>
     <FavIcon :src="item.favIconUrl" :domain="item.domain" size="lg" :badge="statusBadge" />
-    <p :class="['text-[11px] text-center leading-tight w-full truncate px-0.5', item.active ? 'text-blue-700 font-semibold' : 'text-gray-800 font-medium']" :title="item.title">{{ item.title || item.domain }}</p>
+    <p :class="['text-[11px] text-center leading-tight w-full truncate px-0.5', item.active ? 'text-blue-700 font-semibold' : 'text-gray-800 dark:text-gray-100']" :title="item.title">{{ item.title || item.domain }}</p>
     <p :class="['text-[10px] text-center leading-tight w-full truncate px-0.5', item.active ? 'text-blue-600' : 'text-gray-500']" :title="item.domain">{{ item.domain.toLowerCase() }}</p>
     <StatusBadge :item="item" mini />
   </div>
@@ -41,15 +40,22 @@ import FavIcon from "./FavIcon.vue"
 import StatusBadge from "./StatusBadge.vue"
 import TabHoverCard from "./TabHoverCard.vue"
 import TagPicker from "./TagPicker.vue"
-import { useHoverCard } from "~composables/useHoverCard"
+import { usePopoverManager } from "~composables/usePopoverManager"
 import { getHighestPriorityStatus } from "~lib/statusPriority"
 
 const props = defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[]; isPrev?: boolean }>()
 const emit = defineEmits(["activate", "toggle", "refresh", "pin", "copy", "addTag", "later", "close", "updateNumber", "updateTags"])
-const { hovered, cardPos, toggle, clearLeave, startLeave } = useHoverCard()
+
+const popover = usePopoverManager()
+const hoverCardId = `hover-card-${props.item.id}`
+
+const onMenuClick = (e: MouseEvent) => {
+  popover.toggle(hoverCardId, e.currentTarget as HTMLElement)
+}
+
 const statusBadge = computed(() => getHighestPriorityStatus(props.item)?.icon)
 
-const tagPickerRef = ref<{ openFromAnchor: (el: HTMLElement) => void } | null>(null)
+const tagPickerRef = ref<{ openFromAnchor: (el: HTMLElement) => void } | null>()
 const onHoverAddTag = (anchorEl: HTMLElement) => {
   tagPickerRef.value?.openFromAnchor(anchorEl)
 }

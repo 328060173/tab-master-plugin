@@ -110,6 +110,7 @@
           :tags="customTags" :active-tags="activeTagFilters" :tab-count-by-tag="tabCountByTag"
           @apply="activeTagFilters = $event"
           @add-tag="addCustomTag" @rename-tag="renameCustomTag"
+          @remove-tag="removeCustomTag"
         />
       </div>
     </div>
@@ -117,17 +118,9 @@
     <!-- Toolbar（普通/选择态显示）。批量按钮只看 isBatchMode 本身，不被聚焦选择态污染 -->
     <AppToolbar
       v-if="(activeNav === 'home' && focusMode === 'normal') || focusMode === 'selecting'"
-      :is-later-page="false" :is-batch-mode="isBatchMode" :selected-count="selectedIds.length"
+      :is-later-page="false"
       :view-mode="viewMode" :sort-mode="sortMode" :can-go-back="canGoBack" :can-go-forward="canGoForward"
-      :can-batch="focusMode === 'normal'"
-      :groups="groups"
-      :all-tags="customTags"
       @view-change="setViewMode" @sort-change="sortMode = $event"
-      @toggle-batch="toggleBatch" @exit-batch="exitBatch"
-      @select-all="selectAllVisible" @invert-selection="invertSelection"
-      @batch-close="batchClose" @batch-later="batchLater"
-      @pick-group="batchAddToExistingGroup" @create-new-group="onBatchCreateGroupClick"
-      @apply-tags="batchAddTags" @add-new-tag="addCustomTag"
       @close-unpinned="openCleanupUnpinned" @close-others="openCleanupOthers" @close-frozen-discarded="openCleanupFrozenDiscarded"
       @detect-duplicates="openDetectDuplicates" @detect-unused="openDetectUnused"
       @go-back="goBack" @go-forward="goForward"
@@ -139,11 +132,14 @@
     <PinnedBar
       v-if="focusMode === 'focusing' || (!search.trim() && activeNav === 'home')"
       :items="focusMode === 'focusing' ? focusingPinnedItems : pinnedItems"
+      :custom-tags="customTags"
       @activate="activateTab" @close="focusMode === 'focusing' ? handleFocusTabClosed : closeTab"
       @later="focusMode === 'focusing' ? undefined : openLater" @copy="focusMode === 'focusing' ? undefined : copyUrl"
       @refresh="focusMode === 'focusing' ? undefined : handleRefresh" @pin="focusMode === 'focusing' ? undefined : handlePin"
       @update-number="focusMode === 'focusing' ? undefined : (id, n) => { updateTabNumber(id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
       @ctx="focusMode === 'focusing' ? undefined : onContextMenu"
+      @update-tags="focusMode === 'focusing' ? undefined : updateTabTags"
+      @add-tag="focusMode === 'focusing' ? undefined : addCustomTag"
     />
 
     <!-- 搜索结果（普通/选择态显示） -->
@@ -180,13 +176,59 @@
         <p class="mb-1 font-medium">历史记录</p><p>需要 chrome.history API，开发中...</p>
       </div>
       <template v-else>
+        <!-- 批量按钮组 -->
+        <div v-if="focusMode === 'normal'" class="flex justify-end mb-2">
+          <template v-if="!isBatchMode">
+            <button
+              :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', 'border-gray-200 hover:bg-gray-50']"
+              @click.stop="onBatchButtonClick"
+            >
+              <CheckSquare :size="11" />
+              批量
+            </button>
+          </template>
+          <template v-else>
+            <div class="flex items-center gap-1">
+              <label class="flex items-center gap-1 px-2 py-1 text-xs rounded border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 cursor-pointer">
+                <input
+                  ref="selectAllCheckboxRef"
+                  type="checkbox"
+                  class="w-4 h-4 cursor-pointer accent-blue-600"
+                  :checked="selectAllState === 'all'"
+                  @click.stop="onToggleSelectAll"
+                />
+                全选
+              </label>
+              <button
+                ref="batchMenuTriggerRef"
+                :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', popover.isOpen('normal-batch') ? 'border-blue-400 bg-blue-50 text-blue-700' : 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100']"
+                @click.stop="onBatchMenuClick"
+              >
+                更多
+                <ChevronDown :size="10" class="text-gray-400" />
+              </button>
+              <button
+                :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100']"
+                @click.stop="exitBatch"
+              >
+                <XSquare :size="11" />
+                取消批量
+              </button>
+            </div>
+          </template>
+        </div>
+
         <template v-if="viewMode === 'tree'">
           <!-- 树形视图常驻黄条引导 -->
           <TreeGuideBanner @open="treeGuideOpen = true" />
           <TabTreeItem v-for="node in treeNodes" :key="node.item.id"
             :item="node.item" :children="node.children" :depth="0"
+            :is-batch="focusMode === 'selecting' ? true : isBatchMode"
+            :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(node.item.id) : selectedIds.includes(node.item.id)"
             @activate="activateTab(node.item.id)" @activate-child="activateTab($event)"
             @close="closeTab(node.item.id)" @close-child="closeTab($event)"
+            @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(node.item.id) : toggleSelect(node.item.id)"
+            @toggle-child="focusMode === 'selecting' ? toggleSelectFocusTab($event) : toggleSelect($event)"
           />
         </template>
         <template v-else>
@@ -198,7 +240,7 @@
                 <component :is="itemComponent" v-for="item in group.items" :key="item.id"
                   :data-tabid="item.id"
                   :item="item" :is-batch="focusMode === 'selecting' ? true : isBatchMode" :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(item.id) : selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
-                  @activate="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
+                  @activate="activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
                   @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
                   @update-tags="updateTabTags(item.id, $event)" @add-tag="addCustomTag($event)"
                   @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
@@ -212,7 +254,7 @@
               <component :is="itemComponent" v-for="item in sortedNormalItems" :key="item.id"
                 :data-tabid="item.id"
                 :item="item" :is-batch="focusMode === 'selecting' ? true : isBatchMode" :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(item.id) : selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
-                @activate="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
+                @activate="activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
                 @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
                 @update-tags="updateTabTags(item.id, $event)" @add-tag="addCustomTag($event)"
                 @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
@@ -251,6 +293,122 @@
 
     <LaterDialog :open="laterDialogOpen" @close="laterDialogOpen = false" @confirm="confirmLater" />
     <TreeGuideDialog :open="treeGuideOpen" @close="treeGuideOpen = false" />
+
+    <!-- 批量菜单 -->
+    <Teleport to="body">
+      <div
+        v-if="popover.isOpen('normal-batch')"
+        :style="batchMenuPos"
+        class="fixed z-[60] w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+        @click.stop
+        @mouseleave="batchActiveSubmenu = null"
+      >
+        <p class="px-3 py-1 text-[10px] text-gray-400 font-medium uppercase tracking-wide">选择</p>
+        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700" @click="invertSelection">
+          <RefreshCw :size="12" />
+          反选
+        </button>
+        <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+        <p class="px-3 py-1 text-[10px] text-gray-400 font-medium uppercase tracking-wide">操作</p>
+        <button
+          :disabled="!selectedIds.length"
+          :class="['flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left transition-colors', selectedIds.length ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed']"
+          @click="onMenuBatchClose"
+        >
+          <X :size="12" />
+          <span class="flex-1">关闭 {{ selectedIds.length }} 个</span>
+        </button>
+        <button
+          :disabled="!selectedIds.length"
+          :class="['flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left transition-colors', selectedIds.length ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed']"
+          @click="onMenuBatchLater"
+        >
+          <Clock :size="12" class="text-amber-500" />
+          <span class="flex-1">加入稍后处理</span>
+        </button>
+        <button
+          :disabled="!selectedIds.length"
+          :class="['flex items-center justify-between w-full px-3 py-1.5 text-xs text-left transition-colors', selectedIds.length ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed', batchActiveSubmenu === 'group' && 'bg-gray-50 dark:bg-gray-700']"
+          @mouseenter="onEnterGroupSubmenu"
+        >
+          <span class="flex items-center gap-2"><Folder :size="12" class="text-blue-500" />加入分组</span>
+          <ChevronLeft :size="11" class="text-gray-400" />
+        </button>
+        <button
+          :disabled="!selectedIds.length"
+          :class="['flex items-center justify-between w-full px-3 py-1.5 text-xs text-left transition-colors', selectedIds.length ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed', batchActiveSubmenu === 'tag' && 'bg-gray-50 dark:bg-gray-700']"
+          @mouseenter="onEnterTagSubmenu"
+        >
+          <span class="flex items-center gap-2"><Tag :size="12" class="text-purple-500" />添加标记</span>
+          <ChevronLeft :size="11" class="text-gray-400" />
+        </button>
+      </div>
+
+      <!-- 批量子菜单：加入分组 -->
+      <div
+        v-if="popover.isOpen('normal-batch') && batchActiveSubmenu === 'group'"
+        :style="batchGroupSubmenuPos"
+        class="fixed z-[60] w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+        @click.stop
+        @mouseenter="batchActiveSubmenu = 'group'"
+      >
+        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700" @click="onMenuCreateNewGroup">
+          <Plus :size="12" />新建分组...
+        </button>
+        <div v-if="groups.length" class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+        <button
+          v-for="g in groups" :key="g.id"
+          class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+          @click="onMenuPickGroup(g.id)"
+        >
+          <span class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: groupColorHex(g.color) }"></span>
+          <span class="flex-1 truncate">{{ g.title || '未命名分组' }}</span>
+        </button>
+      </div>
+
+      <!-- 批量子菜单：添加标记 -->
+      <div
+        v-if="popover.isOpen('normal-batch') && batchActiveSubmenu === 'tag'"
+        :style="batchTagSubmenuPos"
+        class="fixed z-[60] w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+        @click.stop
+        @mouseenter="batchActiveSubmenu = 'tag'"
+      >
+        <div v-if="!customTags.length" class="px-3 py-1.5 text-xs text-gray-400">暂无标记</div>
+        <button
+          v-for="tag in customTags" :key="tag"
+          class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+          @click="onMenuApplyTag(tag)"
+        >
+          <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+          <span class="flex-1 truncate">{{ tag }}</span>
+        </button>
+        <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30" @click="batchShowNewTagDialog = true">
+          <Plus :size="12" />新建标记...
+        </button>
+      </div>
+
+      <!-- 批量新建标记对话框 -->
+      <div v-if="batchShowNewTagDialog" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/30" @click.self="batchShowNewTagDialog = false">
+        <div class="w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4" @click.stop>
+          <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">新建标记</h3>
+          <input
+            v-model="batchNewTagName"
+            type="text"
+            maxlength="15"
+            class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            placeholder="输入标记名称"
+            @keyup.enter="onBatchNewTagConfirm"
+            @keyup.escape="batchShowNewTagDialog = false"
+          />
+          <div class="flex justify-end gap-2 mt-4">
+            <button class="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded" @click="batchShowNewTagDialog = false">取消</button>
+            <button class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50" :disabled="!batchNewTagName.trim()" @click="onBatchNewTagConfirm">创建</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- 清理菜单：直接关闭类的二次确认 -->
     <ConfirmDialog
@@ -318,7 +476,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide } from "vue"
-import { Tag, ChevronUp, HelpCircle, Zap } from "@lucide/vue"
+import { Tag, ChevronUp, ChevronDown, ChevronLeft, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock } from "@lucide/vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabStats } from "~composables/useTabStats"
 import { useTabTree } from "~composables/useTabTree"
@@ -389,6 +547,8 @@ const {
 // 提供 getGroupById 给子组件
 provide('getGroupById', getGroupById)
 provide('tabGroups', groups)
+// 提供给 TabTreeItem 递归子节点 —— 让深层子节点能正确判断自己是否被选中
+provide('isTabSelected', (id: number) => focusMode.value === 'selecting' ? focusSelectedIds.value.includes(id) : selectedIds.value.includes(id))
 
 // 聚焦模式
 const {
@@ -495,6 +655,13 @@ provide('treeAction', (action: string, item: TabItem, data?: any) => {
     case 'refresh': handleRefresh(item.id); break
     case 'pin': handlePin(item.id); break
     case 'updateNumber': updateTabNumber(item.id, data); showToast(data > 0 ? `编号 ${modKey}${data} 已设置` : '编号已清除'); break
+    case 'addTag': {
+      // 树形视图 hover card 的「标记」：data 是标记按钮 DOM，用它的位置打开右键标记选择器
+      rightClickTabId.value = item.id
+      const rect = data instanceof HTMLElement ? data.getBoundingClientRect() : new DOMRect(0, 0, 0, 0)
+      popover.openAtRect('right-click-tag-picker', rect)
+      break
+    }
   }
 })
 
@@ -527,6 +694,12 @@ useSettings()  // 初始化设置：加载 storage + 应用主题/字号/字体/
 installGlobalPopoverClose()  // 安装全局浮层关闭监听（点空白/Esc 关）
 const popover = usePopoverManager()
 const tagFilterTriggerRef = ref<HTMLElement | null>(null)
+const batchMenuTriggerRef = ref<HTMLElement | null>(null)
+const selectAllCheckboxRef = ref<HTMLInputElement | null>(null)
+const batchActiveSubmenu = ref<"group" | "tag" | null>(null)
+const batchSubmenuAnchorRect = ref<DOMRect | null>(null)
+const batchShowNewTagDialog = ref(false)
+const batchNewTagName = ref("")
 const showStorage = ref(false)
 const contentRef = ref<HTMLElement | null>(null)
 const toastMsg = ref("")
@@ -819,7 +992,99 @@ const toggleSelect = (id: number) => {
   selectedIds.value = selectedIds.value.includes(id) ? selectedIds.value.filter(i => i !== id) : [...selectedIds.value, id]
 }
 const toggleBatch = () => { isBatchMode.value = !isBatchMode.value; if (!isBatchMode.value) selectedIds.value = [] }
-const exitBatch = () => { isBatchMode.value = false; selectedIds.value = [] }
+const exitBatch = () => {
+  isBatchMode.value = false;
+  selectedIds.value = [];
+  popover.close('normal-batch');
+  batchActiveSubmenu.value = null;
+}
+
+const onBatchButtonClick = (e: MouseEvent) => {
+  toggleBatch();
+  if (isBatchMode.value) {
+    popover.open('normal-batch', e.currentTarget as HTMLElement);
+  }
+}
+
+const onBatchMenuClick = (e: MouseEvent) => {
+  popover.toggle('normal-batch', e.currentTarget as HTMLElement);
+}
+
+// 批量菜单位置计算
+const batchMenuPos = computed(() => {
+  if (!popover.isOpen('normal-batch') || !popover.activeAnchorRect.value) return { left: '0px', top: '0px' }
+  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 192, height: 280 }, 'bottom-right')
+  return { left: `${p.left}px`, top: `${p.top}px` }
+})
+
+// 批量子菜单位置计算
+const batchGroupSubmenuPos = computed(() => {
+  if (!batchSubmenuAnchorRect.value) return { left: '0px', top: '0px' }
+  const rect = batchSubmenuAnchorRect.value
+  let left = rect.left - 180 - 4
+  if (left < 4) left = rect.right + 4
+  return { left: `${left}px`, top: `${rect.top}px` }
+})
+const batchTagSubmenuPos = computed(() => {
+  if (!batchSubmenuAnchorRect.value) return { left: '0px', top: '0px' }
+  const rect = batchSubmenuAnchorRect.value
+  let left = rect.left - 160 - 4
+  if (left < 4) left = rect.right + 4
+  return { left: `${left}px`, top: `${rect.top}px` }
+})
+
+const onBatchEnterSubmenuRow = (type: "group" | "tag", rowEl: HTMLElement | null) => {
+  batchActiveSubmenu.value = type
+  batchSubmenuAnchorRect.value = rowEl?.getBoundingClientRect() ?? null
+}
+
+// 子菜单 hover 入口（绕开 Vue 模板 TS 断言不能用的限制）
+const onEnterGroupSubmenu = (e: MouseEvent) => {
+  if (!selectedIds.value.length) return
+  onBatchEnterSubmenuRow("group", e.currentTarget as HTMLElement)
+}
+const onEnterTagSubmenu = (e: MouseEvent) => {
+  if (!selectedIds.value.length) return
+  onBatchEnterSubmenuRow("tag", e.currentTarget as HTMLElement)
+}
+
+// 批量菜单项的 click handlers（避免在模板里写 `fn; popover.close()` 这种 statement 组合，Vue 解析不稳）
+const onMenuBatchClose = () => {
+  if (!selectedIds.value.length) return
+  batchClose()
+  popover.close("normal-batch")
+}
+const onMenuBatchLater = () => {
+  if (!selectedIds.value.length) return
+  batchLater()
+  popover.close("normal-batch")
+}
+const onMenuCreateNewGroup = () => {
+  onBatchCreateGroupClick()
+  popover.close("normal-batch")
+}
+const onMenuPickGroup = (gid: number) => {
+  batchAddToExistingGroup(gid)
+  popover.close("normal-batch")
+}
+const onMenuApplyTag = (tag: string) => {
+  batchAddTags([tag])
+}
+
+// 分组颜色 → 实际颜色 hex（避开模板里 `(GROUP_COLOR_CLASSES as any)[color]` 这种 TS 断言）
+const GROUP_COLOR_HEX: Record<string, string> = {
+  grey: "#6b7280", blue: "#3b82f6", red: "#ef4444", yellow: "#eab308",
+  green: "#22c55e", pink: "#ec4899", purple: "#a855f7", cyan: "#06b6d4", orange: "#f97316",
+}
+const groupColorHex = (color: string | undefined) => color ? (GROUP_COLOR_HEX[color] || "#6b7280") : "#6b7280"
+
+const onBatchNewTagConfirm = () => {
+  if (batchNewTagName.value.trim()) {
+    addCustomTag(batchNewTagName.value.trim())
+    batchShowNewTagDialog.value = false
+    batchNewTagName.value = ""
+  }
+}
 
 /** 从单条右键快速进入批量并预选 —— 右键「选择此/同域名/同分组/全选可见」入口共用 */
 const enterBatchWithSelection = (ids: number[]) => {
@@ -839,8 +1104,30 @@ const batchClose = async () => {
 // 注意：固定标签 (pinnedItems) 不参与批量 —— 批量是为了清理/整理非固定标签
 const visibleNormalIds = computed(() => sortedNormalItems.value.map(t => t.id))
 
-const selectAllVisible = () => {
-  selectedIds.value = [...visibleNormalIds.value]
+// 三态全选逻辑
+const selectAllState = computed<'all' | 'partial' | 'none'>(() => {
+  const visible = visibleNormalIds.value
+  if (!visible.length) return 'none'
+  const selectedVisible = visible.filter(id => selectedIds.value.includes(id))
+  if (selectedVisible.length === 0) return 'none'
+  if (selectedVisible.length === visible.length) return 'all'
+  return 'partial'
+})
+
+// 监听三态变化，更新DOM的indeterminate状态
+watch(selectAllState, (state) => {
+  if (selectAllCheckboxRef.value) {
+    selectAllCheckboxRef.value.indeterminate = state === 'partial'
+    selectAllCheckboxRef.value.checked = state === 'all'
+  }
+}, { immediate: true })
+
+const onToggleSelectAll = () => {
+  if (selectAllState.value === 'all') {
+    selectedIds.value = []
+  } else {
+    selectedIds.value = [...visibleNormalIds.value]
+  }
 }
 const invertSelection = () => {
   const visible = visibleNormalIds.value
