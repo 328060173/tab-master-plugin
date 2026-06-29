@@ -43,7 +43,7 @@
         <button class="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-center gap-1" @click="onPin">
           <Pin :size="10" />{{ item.pinned ? '取消固定' : '固定' }}
         </button>
-        <button class="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-center gap-1" @click="onClickTag">
+        <button v-if="!hideAddTag" class="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-center gap-1" @click="onClickTag">
           <Tag :size="10" />标记
         </button>
         <button class="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-center gap-1" @click="onLater">
@@ -65,7 +65,7 @@ import { modKey } from "~lib/platform"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 
-const props = defineProps<{ hoverCardId: string; item: TabItem }>()
+const props = defineProps<{ hoverCardId: string; item: TabItem; hideAddTag?: boolean }>()
 const emit = defineEmits<{ refresh: []; copy: []; pin: []; addTag: [anchor: HTMLElement]; later: []; close: []; updateNumber: [n: number] }>()
 
 const popover = usePopoverManager()

@@ -95,13 +95,13 @@
     </div>
 
     <!-- Search（普通/选择态显示） -->
-    <div v-if="activeNav === 'home' && (focusMode === 'normal' || focusMode === 'selecting')" class="px-3 py-2 border-b border-gray-100 shrink-0">
+    <div v-if="focusMode === 'normal' || focusMode === 'selecting'" class="px-3 py-2 border-b border-gray-100 shrink-0">
       <SearchBox v-model="search" />
     </div>
 
     <!-- Tag Bar（仅普通态显示） -->
     <TagBar
-      v-if="activeNav === 'home' && focusMode === 'normal'"
+      v-if="focusMode === 'normal'"
       :tags="customTags"
       :active-tags="activeTagFilters"
       :tab-count-by-tag="tabCountByTag"
@@ -140,9 +140,9 @@
       @ctx="focusMode === 'focusing' ? undefined : onContextMenu"
     />
 
-    <!-- 搜索结果（普通/选择态显示，仅首页） -->
+    <!-- 搜索结果（普通/选择态显示） -->
     <SearchResults
-      v-if="activeNav === 'home' && (focusMode === 'normal' || focusMode === 'selecting') && search.trim()"
+      v-if="(focusMode === 'normal' || focusMode === 'selecting') && search.trim()"
       :pinned="searchPinned" :open="searchOpen" :closed="searchClosed"
       :query="search.trim()" :custom-tags="customTags"
       @activate="activateTab($event); search = ''"
@@ -170,15 +170,12 @@
         @close-group-tabs="closeGroupTabs"
         @mark-guide-shown="markTabGroupsGuideShown"
       />
-      <HistoryList
-        v-else-if="activeNav === 'history'"
-        :items="recentlyClosed"
-        @restore="onRestoreFromHistory"
-        @remove="removeRecentlyClosed"
-      />
+      <div v-else-if="activeNav === 'history'" class="text-center text-gray-400 text-xs py-12">
+        <p class="mb-1 font-medium">历史记录</p><p>需要 chrome.history API，开发中...</p>
+      </div>
       <template v-else>
         <!-- 批量按钮组 -->
-        <div v-if="activeNav === 'home' && focusMode === 'normal'" class="flex justify-end mb-2">
+        <div v-if="focusMode === 'normal'" class="flex justify-end mb-2">
           <template v-if="!isBatchMode">
             <button
               :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', 'border-gray-200 hover:bg-gray-50']"
@@ -858,11 +855,6 @@ const showToast = (msg: string) => {
   toastMsg.value = msg
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => { toastMsg.value = "" }, 2000)
-}
-// 历史页：恢复一条最近关闭的标签
-const onRestoreFromHistory = (url: string) => {
-  restoreTab(url)
-  showToast("已恢复标签")
 }
 const setViewMode = (v: string) => {
   viewMode.value = v

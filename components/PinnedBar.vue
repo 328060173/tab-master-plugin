@@ -11,13 +11,6 @@
         @contextmenu.prevent="emit('ctx', $event, item)">
         <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" :badge="getHighestPriorityStatus(item)?.icon" />
         <span :class="['text-[11px] font-medium truncate flex-1 min-w-0', item.active ? 'text-blue-900 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200']">{{ item.title }}</span>
-        <TagPicker :ref="el => registerTagPicker(item.id, el)"
-          :tabId="item.id" :currentTags="item.tags" :allTags="customTags"
-          button-class="p-0.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700"
-          :icon-size="12"
-          @update="emit('update-tags', item.id, $event)"
-          @add-tag="emit('add-tag', $event)"
-        />
         <button class="shrink-0 p-0.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" @click.stop="onMenuClick($event, item)" title="更多操作"><Menu :size="12" :stroke-width="2.25" /></button>
         <button class="shrink-0 p-0.5 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" @click.stop="emit('close', item.id)" title="关闭"><X :size="12" :stroke-width="2.5" /></button>
       </div>
@@ -25,11 +18,11 @@
   </div>
 
   <Teleport to="body">
-    <TabHoverCard v-if="currentItem" :hoverCardId="hoverCardId" :item="currentItem"
+    <!-- 固定标签不支持标记，hover 卡隐藏「标记」按钮（节省空间，固定标签场景下标记意义不大）-->
+    <TabHoverCard v-if="currentItem" :hoverCardId="hoverCardId" :item="currentItem" :hide-add-tag="true"
       @refresh="onAction('refresh')"
       @copy="onAction('copy')"
       @pin="onAction('pin')"
-      @addTag="onAddTagFromCard"
       @later="onAction('later')"
       @updateNumber="onUpdateNumber($event)"
     />
@@ -42,30 +35,19 @@ import { Pin, X, Menu } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import FavIcon from "./FavIcon.vue"
 import TabHoverCard from "./TabHoverCard.vue"
-import TagPicker from "./TagPicker.vue"
 import { getHighestPriorityStatus } from "~lib/statusPriority"
 import { usePopoverManager } from "~composables/usePopoverManager"
 
-defineProps<{ items: TabItem[]; customTags: string[] }>()
+defineProps<{ items: TabItem[] }>()
 const emit = defineEmits<{
   activate: [id: number]; close: [id: number]; later: [id: number]
   copy: [url: string]; refresh: [id: number]; pin: [id: number]
   updateNumber: [id: number, n: number]; ctx: [e: MouseEvent, item: TabItem]
-  "update-tags": [id: number, tags: string[]]; "add-tag": [tag: string]
 }>()
 
 const popover = usePopoverManager()
 const currentItem = ref<TabItem | null>(null)
 const hoverCardId = computed(() => currentItem.value ? `hover-card-${currentItem.value.id}` : "")
-
-// v-for 里每个固定标签的 TagPicker 实例，用 function ref 存进 id→实例 的 Map
-// （string ref 在 v-for 里会变成数组，没法按 tab 取，所以用 function ref）
-type TagPickerExpose = { openFromAnchor: (el: HTMLElement) => void }
-const tagPickerRefs = new Map<number, TagPickerExpose>()
-const registerTagPicker = (id: number, el: unknown) => {
-  if (el) tagPickerRefs.set(id, el as TagPickerExpose)
-  else tagPickerRefs.delete(id)
-}
 
 const onMenuClick = (e: MouseEvent, item: TabItem) => {
   currentItem.value = item
@@ -76,11 +58,6 @@ const onAction = (action: 'refresh' | 'copy' | 'pin' | 'later') => {
   if (!currentItem.value) return
   if (action === 'copy') emit('copy', currentItem.value.url)
   else emit(action, currentItem.value.id)
-}
-// 汉堡菜单「标记」：打开当前固定标签自己的内嵌 TagPicker（anchor = hover card 的标记按钮）
-const onAddTagFromCard = (anchor: HTMLElement) => {
-  if (!currentItem.value) return
-  tagPickerRefs.get(currentItem.value.id)?.openFromAnchor(anchor)
 }
 const onUpdateNumber = (n: number) => { if (currentItem.value) emit('updateNumber', currentItem.value.id, n) }
 </script>

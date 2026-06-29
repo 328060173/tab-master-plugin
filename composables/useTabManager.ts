@@ -192,6 +192,10 @@ export function useTabManager() {
     laterTabs.value = laterTabs.value.filter(t => t.id !== id)
     await chrome.storage.local.set({ laterTabs: laterTabs.value })
   }
+  const removeRecentlyClosed = async (id: number) => {
+    recentlyClosed.value = recentlyClosed.value.filter(t => t.id !== id)
+    await chrome.storage.local.set({ recentlyClosed: recentlyClosed.value })
+  }
 
   // 编号管理：新编号唯一，冲突时旧标签编号清零
   const updateTabNumber = async (id: number, num: number) => {
@@ -428,7 +432,7 @@ export function useTabManager() {
   return {
     tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
     canGoBack, canGoForward, goBack, goForward,
-    closeTab, activateTab, restoreTab, moveToLater, removeLater,
+    closeTab, activateTab, restoreTab, moveToLater, removeLater, removeRecentlyClosed,
     updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag,
     closeUnpinned, closeOthers, closeFrozenDiscarded,
     refreshTab, duplicateTab, pinTab, muteTab, closeTabsExcept, groupTab,
