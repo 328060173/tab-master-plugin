@@ -153,38 +153,45 @@
 
     <!-- 正常内容区（普通/选择态） -->
     <div v-else-if="focusMode !== 'focusing'" ref="contentRef" class="flex-1 overflow-y-auto min-h-0 px-3 py-2" @scroll="onContentScroll">
-      <ErrorBoundary scope="content">
-      <LaterList v-if="activeNav === 'later'" :items="laterTabs" @remove="removeLater" @open="restoreTab($event)" />
-      <GroupListPage
-        v-else-if="activeNav === 'groups'"
-        :groups="groups"
-        :ungrouped-tabs="ungroupedTabs"
-        :guide-shown="tabGroupsGuideShown"
-        @activate-tab="activateTab"
-        @close-tab="closeTab"
-        @create-group="onGroupCreate"
-        @add-to-group="onGroupAdd"
-        @rename-group="(id, name) => updateGroup(id, { title: name })"
-        @change-group-color="(id, color) => updateGroup(id, { color })"
-        @toggle-group-collapse="(id, collapsed) => updateGroup(id, { collapsed })"
-        @ungroup="ungroupAll"
-        @close-group-tabs="closeGroupTabs"
-        @mark-guide-shown="markTabGroupsGuideShown"
-      />
-      <HistoryList
-        v-else-if="activeNav === 'history'"
-        :items="recentlyClosed"
-        :has-permission="historyHasPermission"
-        :history-items="historyItems"
-        :history-loading="historyLoading"
-        :history-supported="historySupported"
-        @restore="onRestoreFromHistory"
-        @remove="removeRecentlyClosed"
-        @request-permission="requestHistoryPermission"
-        @revoke-permission="revokeHistoryPermission"
-        @delete-history="deleteHistoryUrl"
-      />
-      <template v-else>
+      <!-- 稍后页面 -->
+      <ErrorBoundary v-if="activeNav === 'later'" scope="later" @reload="reloadPanel">
+        <LaterList :items="laterTabs" @remove="removeLater" @open="restoreTab($event)" />
+      </ErrorBoundary>
+      <!-- 分组页面 -->
+      <ErrorBoundary v-else-if="activeNav === 'groups'" scope="groups" @reload="reloadPanel">
+        <GroupListPage
+          :groups="groups"
+          :ungrouped-tabs="ungroupedTabs"
+          :guide-shown="tabGroupsGuideShown"
+          @activate-tab="activateTab"
+          @close-tab="closeTab"
+          @create-group="onGroupCreate"
+          @add-to-group="onGroupAdd"
+          @rename-group="(id, name) => updateGroup(id, { title: name })"
+          @change-group-color="(id, color) => updateGroup(id, { color })"
+          @toggle-group-collapse="(id, collapsed) => updateGroup(id, { collapsed })"
+          @ungroup="ungroupAll"
+          @close-group-tabs="closeGroupTabs"
+          @mark-guide-shown="markTabGroupsGuideShown"
+        />
+      </ErrorBoundary>
+      <!-- 历史页面 -->
+      <ErrorBoundary v-else-if="activeNav === 'history'" scope="history" @reload="reloadPanel">
+        <HistoryList
+          :items="recentlyClosed"
+          :has-permission="historyHasPermission"
+          :history-items="historyItems"
+          :history-loading="historyLoading"
+          :history-supported="historySupported"
+          @restore="onRestoreFromHistory"
+          @remove="removeRecentlyClosed"
+          @request-permission="requestHistoryPermission"
+          @revoke-permission="revokeHistoryPermission"
+          @delete-history="deleteHistoryUrl"
+        />
+      </ErrorBoundary>
+      <!-- 首页 -->
+      <ErrorBoundary v-else scope="home" @reload="reloadPanel">
         <!-- 批量按钮组 -->
         <div v-if="activeNav === 'home' && focusMode === 'normal'" class="flex justify-end mb-2">
           <template v-if="!isBatchMode">
@@ -272,7 +279,6 @@
             </div>
           </template>
         </template>
-      </template>
       </ErrorBoundary>
     </div>
 
@@ -526,24 +532,8 @@ import GroupListPage from "~components/GroupListPage.vue"
 import GroupBadge from "~components/GroupBadge.vue"
 import HistoryList from "~components/HistoryList.vue"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
-import { installGlobalCapture, vueErrorHandler } from "~composables/useLogger"
 import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
-
-// 全局错误捕获（切面）：脚本顶层安装，不依赖 prepare 是否被调用。
-// 之后 Vue 渲染错误(window error) + 所有 console.error/warn 自动进运行日志。
-installGlobalCapture()
-defineOptions({
-  prepare(app: any) {
-    try { app.config.errorHandler = vueErrorHandler } catch {}
-  },
-})
-// 根级 onErrorCaptured 兜底：即使 prepare 没被 Plasmo 调用、errorHandler 没装上，
-// 这里也能接到子组件树抛出的错误并记进日志（不依赖任何外部条件）。
-onErrorCaptured((err, _instance, info) => {
-  vueErrorHandler(err, _instance, info)
-  // 不 return false → 让 ErrorBoundary 也能接到（它在自己范围内 return false 阻断）
-})
 
 const {
   tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
