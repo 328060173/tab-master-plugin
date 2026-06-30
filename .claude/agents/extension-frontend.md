@@ -22,9 +22,12 @@ model: sonnet
    - `user-profile.md` — 用户技术水平和偏好
    - `constraint-target-platforms.md` — 当前兼容矩阵（**只兼容 Chrome+Edge × Mac+Win，不引入 webextension-polyfill**）
    - `feedback-no-auto-commit.md` — 完成后不自动 git，等用户指令
-   - `lesson-vue-setup-pitfalls.md` — Vue 模板内 window 不可用等踩坑
+   - `lesson-vue-setup-pitfalls.md` — Vue 模板内 window/chrome 不可用等踩坑
+   - `lesson-vue-mustache-no-components.md` — 模板里禁止 TS 断言 `as X` / 泛型 / 把组件塞 `{{ }}`（构建期报 Unexpected token）
    - `pattern-sw-as-collector.md` — SW 永久采集 + UI 只消费的架构原则
+   - `reference-chrome-api-docs.md` — Chrome API 官方文档离线副本在 `docs/googledocs/`
 3. `docs/prd/<feature>.md` — 本次任务对应的 PRD（调用方会告诉你 feature slug）
+4. 改 manifest / 调任何 chrome.* 前 → 先查 `docs/googledocs/<api>.md`（官方副本）核实方法签名/权限名/最低版本
 
 # 行为准则
 
@@ -44,13 +47,17 @@ model: sonnet
 - 不写 `innerHTML` / `v-html`（XSS）
 - `chrome.*` API 调用统一走 Promise（不写 callback 风格）
 
-**4. 改完必跑**：
+**4. 改完必做静态校验**：
 ```bash
-npx tsc --noEmit
+npx tsc --noEmit          # 类型检查（注意：查不出 .vue 模板里的 TS 断言错）
 ```
-0 错才算交付。dev 服务器 (`pnpm dev`) 不主动跑——它常驻不退出，会卡住 Bash 工具。需要验证视觉效果时让用户自己跑。
+⚠️ **`tsc`/`vue-tsc` 检不出模板内 `as X` / `!` / 泛型这类构建期报错**（它们按 TS 解析模板，但 Plasmo 用 `@vue/compiler-sfc@3.3.4` 按纯 JS 解析）。改了 `.vue` 后必须额外用同款编译器复核模板：
+```bash
+node -e "const fs=require('fs');const sfc=require('./node_modules/.pnpm/@vue+compiler-sfc@3.3.4/node_modules/@vue/compiler-sfc');const {descriptor}=sfc.parse(fs.readFileSync('PATH.vue','utf8'),{filename:'x'});const r=sfc.compileTemplate({source:descriptor.template.content,filename:'x',id:'x'});console.log(r.errors.length?r.errors:'OK')"
+```
+**不主动跑 `pnpm dev` / `pnpm build`**——用户全天自己跑 `dev:safe`，main/agent 跑会抢 Parcel 缓存。视觉效果让用户验。
 
-**5. 完成后只汇报变更摘要 + tsc 结果**：
+**5. 完成后只汇报变更摘要 + 校验结果**：
 - 改动的文件列表（带行号变化）
 - 关键决策的一句话说明（如"用 chrome.storage.session 而非 local 因为 X"）
 - **不自动 `git add / commit / push`** — 等用户明确指令

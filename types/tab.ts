@@ -39,3 +39,17 @@ export interface ClosedTabItem {
   favIconUrl: string
   closedAt: string
 }
+
+/** 浏览历史项（来自 chrome.history，需用户授权 optional_permission "history"） */
+export interface HistoryItem {
+  /** Chrome 历史记录 ID（字符串） */
+  id: string
+  title: string
+  url: string
+  domain: string
+  favIconUrl: string
+  /** 最近一次访问时间（毫秒时间戳） */
+  lastVisitTime: number
+  /** 访问次数 */
+  visitCount: number
+}

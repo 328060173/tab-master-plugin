@@ -30,6 +30,7 @@
   },
   "manifest": {
     "host_permissions": ["https://*/*"],
-    "permissions": ["tabs", "tabGroups", "storage", "sidePanel"]
+    "permissions": ["tabs", "tabGroups", "storage", "sidePanel"],
+    "optional_permissions": ["history"]
   }
 }

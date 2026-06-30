@@ -53,13 +53,18 @@
           <ChevronLeft :size="11" class="text-gray-400" />
         </button>
 
-        <!-- 显示位置（灰显） -->
+        <!-- 显示位置：hover 展开「如何手动切换」指引（扩展无法直接设置位置，Chrome 没给 setter）-->
         <button
-          class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-400 cursor-not-allowed opacity-60 text-left"
-          disabled
-          title="扩展 API 不支持控制侧边栏位置。请右键侧边栏标题 → 选择「Show on left / Show on right」手动切换"
+          ref="positionRowRef"
+          class="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+          :class="activeSubmenu === 'position' && 'bg-gray-50 dark:bg-gray-700'"
+          @mouseenter="onEnterSubmenuRow('position', positionRowRef)"
         >
-          <Layout :size="13" />显示位置
+          <span class="flex items-center gap-2"><Layout :size="13" />显示位置</span>
+          <span class="flex items-center gap-1">
+            <span v-if="sidePanelSide !== 'unknown'" class="text-[10px] text-gray-400">{{ sidePanelSide === 'left' ? '左侧' : '右侧' }}</span>
+            <ChevronLeft :size="11" class="text-gray-400" />
+          </span>
         </button>
 
         <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
@@ -71,16 +76,16 @@
         <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-400 cursor-not-allowed opacity-60 text-left" disabled title="需要后端服务，敬请期待">
           <Camera :size="13" />快照
         </button>
-        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left" @click="onOpenStorage">
+        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left" @mouseenter="activeSubmenu = null" @click="onOpenStorage">
           <HardDrive :size="13" />存储空间
         </button>
 
         <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
 
-        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium text-left" @click="onOpenOptions">
+        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium text-left" @mouseenter="activeSubmenu = null" @click="onOpenOptions">
           <Sliders :size="13" />更多设置...
         </button>
-        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-left" @click="onReload">
+        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-left" @mouseenter="activeSubmenu = null" @click="onReload">
           <RotateCcw :size="13" />重新打开
         </button>
       </div>
@@ -121,6 +126,23 @@
           <Check v-if="settings.fontSize === opt.value" :size="12" class="text-blue-600 dark:text-blue-400" />
         </button>
       </div>
+      <!-- ====== 二级子菜单：显示位置指引 ====== -->
+      <div
+        v-if="popover.isOpen('header-menu') && activeSubmenu === 'position'"
+        :style="positionSubmenuPos"
+        class="fixed z-[60] w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl p-3 text-[11px] leading-relaxed text-gray-600 dark:text-gray-300"
+        @click.stop
+        @mouseenter="activeSubmenu = 'position'"
+      >
+        <p class="font-semibold text-gray-800 dark:text-gray-100 mb-1.5">
+          侧边栏在<b>{{ sidePanelSide === 'left' ? '左侧' : sidePanelSide === 'right' ? '右侧' : '哪一侧' }}</b>
+        </p>
+        <p class="mb-2">左右位置是<b>浏览器自带的设置</b>，标签大师改不了，需要你在浏览器里手动切。两种方法任选其一 👇</p>
+        <p class="font-medium text-gray-700 dark:text-gray-200">方法一（最快）</p>
+        <p class="mb-2">在<b>本侧边栏最顶部</b>那条窄工具栏（显示标题/扩展名的地方）<b>点右键</b> → 选「显示在{{ sidePanelSide === 'left' ? '右' : '左' }}侧」<span class="text-gray-400">（英文界面是 Show on {{ sidePanelSide === 'left' ? 'right' : 'left' }}）</span></p>
+        <p class="font-medium text-gray-700 dark:text-gray-200">方法二</p>
+        <p>打开浏览器<b>设置 → 外观</b>，找「侧边栏」位置选项切换</p>
+      </div>
     </Teleport>
   </div>
 </template>
@@ -145,6 +167,7 @@ import {
   Sliders, RotateCcw, Sun, Moon, Monitor, Check, ChevronLeft,
 } from "@lucide/vue"
 import { useSettings } from "~composables/useSettings"
+import { useSidePanelLayout } from "~composables/useSidePanelLayout"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 
@@ -154,6 +177,7 @@ const emit = defineEmits<{
 }>()
 
 const { settings, updateSetting } = useSettings()
+const { side: sidePanelSide } = useSidePanelLayout()
 const popover = usePopoverManager()
 
 const triggerRef = ref<HTMLElement | null>(null)
@@ -164,8 +188,9 @@ const onTriggerClick = (e: MouseEvent) => {
 }
 const themeRowRef = ref<HTMLElement | null>(null)
 const fontRowRef = ref<HTMLElement | null>(null)
+const positionRowRef = ref<HTMLElement | null>(null)
 
-const activeSubmenu = ref<"theme" | "font" | null>(null)
+const activeSubmenu = ref<"theme" | "font" | "position" | null>(null)
 const submenuAnchorRect = ref<DOMRect | null>(null)
 
 // 主菜单位置：anchor 在触发按钮的 bottom-right（右对齐）
@@ -192,8 +217,16 @@ const fontSubmenuPos = computed(() => {
   if (left < 4) left = rect.right + 4
   return { left: `${left}px`, top: `${rect.top}px` }
 })
+// 显示位置指引 flyout：w-64 = 256px
+const positionSubmenuPos = computed(() => {
+  if (!submenuAnchorRect.value) return { left: "0px", top: "0px" }
+  const rect = submenuAnchorRect.value
+  let left = rect.left - 256 - 4
+  if (left < 4) left = rect.right + 4
+  return { left: `${left}px`, top: `${rect.top}px` }
+})
 
-const onEnterSubmenuRow = (type: "theme" | "font", rowEl: HTMLElement | null) => {
+const onEnterSubmenuRow = (type: "theme" | "font" | "position", rowEl: HTMLElement | null) => {
   activeSubmenu.value = type
   submenuAnchorRect.value = rowEl?.getBoundingClientRect() ?? null
 }

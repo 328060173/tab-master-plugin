@@ -173,8 +173,15 @@
       <HistoryList
         v-else-if="activeNav === 'history'"
         :items="recentlyClosed"
+        :has-permission="historyHasPermission"
+        :history-items="historyItems"
+        :history-loading="historyLoading"
+        :history-supported="historySupported"
         @restore="onRestoreFromHistory"
         @remove="removeRecentlyClosed"
+        @request-permission="requestHistoryPermission"
+        @revoke-permission="revokeHistoryPermission"
+        @delete-history="deleteHistoryUrl"
       />
       <template v-else>
         <!-- 批量按钮组 -->
@@ -477,13 +484,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide } from "vue"
-import { ChevronUp, ChevronDown, ChevronLeft, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock } from "@lucide/vue"
+import { ChevronUp, ChevronDown, ChevronLeft, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag } from "@lucide/vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabStats } from "~composables/useTabStats"
 import { useTabTree } from "~composables/useTabTree"
 import { useFocusMode, SUPPORTS_FOCUS_MODE } from "~composables/useFocusMode"
 import { useTabGroups, SUPPORTS_TAB_GROUPS, TAB_GROUP_ID_NONE } from "~composables/useTabGroups"
 import { useSettings } from "~composables/useSettings"
+import { useHistory } from "~composables/useHistory"
 import { usePopoverManager, installGlobalPopoverClose } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 import { sortTabs, groupByDomain } from "~lib/sortUtils"
@@ -529,6 +537,18 @@ const {
 } = useTabManager()
 const stats = computed(() => useTabStats(tabs).value)
 const treeNodes = useTabTree(tabs, treeParentMap)
+
+// 浏览历史（可选权限 chrome.history）—— 渐进式：未授权只显最近关闭，授权后多一个「浏览历史」分段
+const {
+  hasPermission: historyHasPermission,
+  historyItems,
+  loading: historyLoading,
+  supported: historySupported,
+  requestPermission: requestHistoryPermission,
+  revokePermission: revokeHistoryPermission,
+  loadHistory,
+  deleteHistoryUrl,
+} = useHistory()
 
 // 标签分组
 const {
@@ -939,6 +959,8 @@ watch(activeNav, (newNav) => {
   if (newNav !== 'home' && isBatchMode.value) {
     exitBatch()
   }
+  // 进入历史页且已授权时刷新浏览历史，保证看到最新记录
+  if (newNav === 'history' && historyHasPermission.value) loadHistory()
 })
 
 const itemComponent = computed(() => {

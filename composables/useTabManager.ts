@@ -315,7 +315,7 @@ export function useTabManager() {
     const tab = tabs.value.find(t => t.id === id)
     const storageUpdate: Record<string, any> = {}
     if (tab && tab.url && !isProtectedUrl(tab.url)) {
-      recentlyClosed.value = [{ id, title: tab.title, url: tab.url, domain: tab.domain, favIconUrl: tab.favIconUrl, closedAt: nowTime() }, ...recentlyClosed.value].slice(0, 20)
+      recentlyClosed.value = [{ id, title: tab.title, url: tab.url, domain: tab.domain, favIconUrl: tab.favIconUrl, closedAt: nowTime() }, ...recentlyClosed.value].slice(0, 50)
       storageUpdate.recentlyClosed = recentlyClosed.value
     }
     tabs.value = tabs.value.filter(t => t.id !== id)
@@ -359,9 +359,15 @@ export function useTabManager() {
   const onTabUpdated = (_: number, change: chrome.tabs.TabChangeInfo, t: chrome.tabs.Tab) => {
     const idx = tabs.value.findIndex(x => x.id === t.id)
     if (idx === -1) return
+    // URL 可能在会话内变化（地址栏输入新地址 / SPA 跳转）。必须同步重算 domain / isProtected，
+    // 否则按域名分组时会沿用旧域名（如 newtab、edge://extensions/），导致分组错乱、域名显示错误。
+    const nextUrl = t.url || tabs.value[idx].url
     tabs.value[idx] = {
       ...tabs.value[idx],
       title: t.title || tabs.value[idx].title,
+      url: nextUrl,
+      domain: getDomain(nextUrl),
+      isProtected: isProtectedUrl(nextUrl),
       favIconUrl: t.favIconUrl || tabs.value[idx].favIconUrl,
       audible: t.audible || false,
       muted: t.mutedInfo?.muted || false,
