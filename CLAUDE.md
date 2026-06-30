@@ -61,6 +61,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 
 
 ## 协作协议（务必遵守）
+- **研发工作必须用研发 agent**：实质性前端开发派 `extension-frontend` agent 实现，main 只协调+审查+提交，不要自己瞎写。没把握/不确定的先查资料和最佳实践（`docs/googledocs/` + 网上），**不要靠猜**；查不了（网络限制）就明确告诉用户需要哪份资料、让用户查完生成 .md 给我。详见 [[feedback-rnd-via-agent-and-research-first]]
 - **多 agent 分工**：实质需求 → `product-manager` 出 PRD（docs/prd/）→ `extension-frontend` 实现 → main 协调+审查。详见 [[feedback-multiagent-and-no-regression]]
 - **不跑 build/dev**：用户自己跑 `pnpm dev:safe`（产物 `build/chrome-mv3-dev/`）。main 跑 build 会抢 Parcel 缓存 → "改了没生效"。详见 [[feedback-no-build-user-runs-dev]]
 - **审查 .vue 必查**：① 模板复合语句 `@click="fn; x()"` ② 模板内 TS 语法 `as X` / `!` 非空断言 / 泛型 ③ HTML 转义（grep `&lt;`）+ 多个 `<script setup>` 块 ④ 是否波及既有功能。⚠️ **`vue-tsc` 检不出模板内 TS 断言**——必须用 Plasmo 同款 `@vue/compiler-sfc@3.3.4` 跑 `compileTemplate` 复核（见 [[lesson-vue-mustache-no-components]]）
@@ -82,17 +83,19 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - 聚焦模式（`chrome.tabGroups` 折叠）/ 分组 / 设置面板 / 清理菜单 / 域名 eTLD+1 分组归并
 - 浮层统一 PopoverManager / 批量功能（4 视图全支持）/ 标记体系重设计（TagBar）
 - 历史页：最近关闭（50 条，零权限）+ **完整浏览历史 P1 已落地**（`chrome.history` 走 `optional_permissions`，引导式运行时授权）
-- **运行日志**：`composables/useLogger.ts` 全局切面（拦截 `console.error/warn` + window 错误 + Vue errorHandler），业务代码零硬编码；独立页 `tabs/logs.vue`（⚙ 菜单→运行日志）；`components/ErrorBoundary.vue` 错误边界 + 直接显示错误明文/复制
 - **侧边栏位置感知**：`useSidePanelLayout.ts`（getLayout 读左/右，不能写）+ HeaderMenu「显示位置」hover 问号指引
 - **整理菜单**：Trash2→ListChecks +「整理 ▾」+ 危险项标红/检测项「先预览」标注
 - **存储占用核对**：`StoragePanel.vue` 补齐 tabLastAccessedMap/tabMasterSettings/tabMasterLogs/引导记录/viewMode 等
 - **代码地图** `docs/code-map.md`（改 A 联动改 B 表）+ Chrome API 离线副本 `docs/googledocs/`（76 API + INDEX）
 - **`pnpm fresh`**：杀全部 plasmo→清 .plasmo+build→重启（任何怪问题无脑跑）
+- **分组交互重设计**（2026-07-01，PM PRD→落地）：未分组复选框常显 + 顶部「已选 N 个」+「新建分组」+ 已有分组「← 放入」一气呵成；加搜索 + 排序（时间/ID 倒序）
+- **分组 bug 修复**（`e30c4cc`）：`GroupItem` 的 `selectedIds` 未传 → `.includes` 崩 → 触发 ErrorBoundary（这才是"添加分组报错"真凶，跟 Proxy 无关）。已加 `withDefaults(()=>[])`
+- **错误处理重做**（`3b51277`，extension-frontend agent 实现）：每页独立 ErrorBoundary（later/groups/history/home 各一个 scope）—— 一页崩不波及其它；统一降级 UI「⚠️ 此区域出错了 / 其它功能不受影响。可以重试，或在『设置』里点『重新打开』尝试恢复」+ [重试此区域][去设置重新打开] 两按钮
 
-## 待办（2026-07-01 继续）
-> 🔥 **明天第一件事**：`pnpm fresh` → reload → 点「添加分组」，把 ErrorBoundary 黄框里的**错误明文**复制给我定位（详见下方"分组报错未定位"）
-- **分组报错未定位**：用户点添加分组仍触发 ErrorBoundary。Proxy 数组 `[...tabIds]` 已修（`15157af`）、ref 用 `.value` 已修（同上）、全局捕获已移顶层（`823830f`）、ErrorBoundary 已显示错误明文（`823830f`）。差最后一步：拿用户复制的错误定位是哪行抛错
-- 分组页已加搜索 + 排序（时间/ID 倒序），明天确认交互顺
+## 待办（2026-07-02 继续）
+> 🔥 **明天第一件事**：`pnpm fresh` → **移除扩展 + 重新加载已解压**（绕浏览器缓存）→ 进分组页验证：① 分组页正常显示不再报错 ② 添加分组/放入正常 ③ 搜索+排序可用
+- **运行日志功能：暂缓（没做出来）**：sidepanel 上下文写 chrome.storage.local 的时序问题我没搞定，且没查官方文档靠猜。代码保留（useLogger.ts / tabs/logs.vue / StoragePanel 的 tabMasterLogs 项）但当前不调用。将来复活前必须先查官方文档 + 最佳实践，查不了让用户给 .md
+- 分组页交互实测（搜索/排序/放入/新建）确认顺
 - **4 格矩阵实测**（Chrome+Edge × macOS+Windows）这几天积累的全部改动
 - **暗色模式精修**：少数品牌色类深色对比度不足，碰到一处改一处
 - **i18n 扩展**（优先级低）
