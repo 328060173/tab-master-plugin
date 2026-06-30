@@ -110,14 +110,19 @@ import type { TabItem } from "~types/tab"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   group: chrome.tabGroups.TabGroup
   tabs: TabItem[]
   isBatchMode?: boolean
   selectedIds?: number[]
   canDropIn?: boolean
   dropInCount?: number
-}>()
+}>(), {
+  // 兜底：父组件不传时按空数组处理，避免 selectedIds.includes(...) 崩溃
+  selectedIds: () => [],
+  canDropIn: false,
+  dropInCount: 0,
+})
 
 const emit = defineEmits<{
   activateTab: [id: number]
