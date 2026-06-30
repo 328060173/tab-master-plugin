@@ -42,6 +42,8 @@
 
     <!-- 分组列表 -->
     <div class="flex-1 overflow-y-auto px-3 py-2">
+      <!-- 临时调试：验证错误捕获链路。点一下应该：① ErrorBoundary 显示错误明文 ② 进运行日志页。验证完删掉 -->
+      <button class="mb-2 px-2 py-1 text-[10px] border border-dashed border-red-300 text-red-600 rounded hover:bg-red-50" @click="debugThrow">🐛 点我测试错误捕获</button>
       <GroupItem v-for="group in groups" :key="group.id"
         :group="group"
         :tabs="group.tabs"
@@ -206,6 +208,15 @@ const closeGroupTabs = (id: number) => {
 
 const markGuideShown = () => {
   emit("markGuideShown")
+}
+
+// 临时调试：故意抛错，验证错误捕获链路（ErrorBoundary 显示 + 运行日志记录）。验证完删掉
+const debugThrow = () => {
+  const arr: number[] = []
+  // 数组越界 + 故意访问 undefined 的属性，触发 TypeError
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const x: any = arr[5]
+  console.log("调试：即将抛错，x =", x.notExist.foo)
 }
 
 const toggleUngroupedSelect = (id: number) => {
