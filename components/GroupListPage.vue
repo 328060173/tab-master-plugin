@@ -67,7 +67,18 @@
           <ChevronDown :size="14" :class="ungroupedCollapsed ? '-rotate-90' : ''" class="transition-transform" />
         </div>
         <div v-show="!ungroupedCollapsed" class="py-1">
-          <div v-for="tab in ungroupedTabs" :key="tab.id"
+          <!-- 搜索 + 排序（未分组数量多时方便定位）-->
+          <div class="flex items-center gap-1.5 px-2 py-1.5 border-b border-gray-100 sticky top-0 bg-white dark:bg-gray-800 z-[1]">
+            <div class="relative flex-1">
+              <input v-model="searchQuery" type="text" placeholder="搜索未分组标签..."
+                class="w-full text-xs border border-gray-200 dark:border-gray-700 rounded px-2 py-1 pr-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              <button v-if="searchQuery" class="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700" @click="searchQuery = ''"><X :size="11" /></button>
+            </div>
+            <button class="flex items-center gap-0.5 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0" :title="sortMode === 'time' ? '按打开时间倒序，点击切到 ID' : '按标签 ID 倒序，点击切到时间'" @click="sortMode = sortMode === 'time' ? 'id' : 'time'">
+              <ArrowUpDown :size="11" />{{ sortMode === 'time' ? '时间' : 'ID' }}
+            </button>
+          </div>
+          <div v-for="tab in filteredUngrouped" :key="tab.id"
                class="group flex items-center gap-2 px-3 py-2 hover:bg-blue-50 cursor-pointer"
                :class="ungroupedSelectedIds.includes(tab.id) && 'bg-blue-50'"
                @click="toggleUngroupedSelect(tab.id)"
@@ -81,6 +92,9 @@
             <button class="p-1 text-gray-500 hover:text-red-500 rounded opacity-0 group-hover:opacity-100 shrink-0" title="关闭标签" @click.stop="closeTab(tab.id)">
               <X :size="14" />
             </button>
+          </div>
+          <div v-if="!filteredUngrouped.length" class="text-center text-[11px] text-gray-400 py-4">
+            {{ searchQuery ? '没匹配到标签' : '暂无未分组标签' }}
           </div>
         </div>
       </div>
@@ -99,7 +113,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import { ChevronDown, X, FolderPlus, HelpCircle } from "@lucide/vue"
+import { ChevronDown, X, FolderPlus, HelpCircle, ArrowUpDown } from "@lucide/vue"
 import GroupItem from "./GroupItem.vue"
 import CreateGroupDialog from "./CreateGroupDialog.vue"
 import FavIcon from "./FavIcon.vue"
@@ -132,8 +146,35 @@ const ungroupedCollapsed = ref(false)
 const ungroupedSelectedIds = ref<number[]>([])
 const showCreateDialog = ref(false)
 const showHelp = ref(false)
+const searchQuery = ref("")
+const sortMode = ref<"time" | "id">("time")
 
 const hasAnySelected = computed(() => ungroupedSelectedIds.value.length > 0)
+
+// 未分组标签：搜索过滤 + 排序（时间倒序=打开时间，或 ID 倒序）
+const filteredUngrouped = computed(() => {
+  let list = [...props.ungroupedTabs]
+  const q = searchQuery.value.trim().toLowerCase()
+  if (q) {
+    list = list.filter(t =>
+      (t.title || "").toLowerCase().includes(q) ||
+      (t.url || "").toLowerCase().includes(q) ||
+      (t.domain || "").toLowerCase().includes(q)
+    )
+  }
+  if (sortMode.value === "id") {
+    list.sort((a, b) => b.id - a.id)
+  } else {
+    // 时间倒序：openedAt 大的在前；openedAt 缺失时退回 id
+    list.sort((a, b) => {
+      const ta = new Date(a.openedAt).getTime() || 0
+      const tb = new Date(b.openedAt).getTime() || 0
+      if (ta === tb) return b.id - a.id
+      return tb - ta
+    })
+  }
+  return list
+})
 
 const activateTab = (id: number) => {
   emit("activateTab", id)

@@ -530,11 +530,12 @@ import { installGlobalCapture, vueErrorHandler } from "~composables/useLogger"
 import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
 
-// 全局错误捕获（切面）：一处安装，Vue 渲染错误 + window 未捕获错误 + 所有 console.error/warn 自动进运行日志
+// 全局错误捕获（切面）：脚本顶层安装，不依赖 prepare 是否被调用。
+// 之后 Vue 渲染错误(window error) + 所有 console.error/warn 自动进运行日志。
+installGlobalCapture()
 defineOptions({
   prepare(app: any) {
     try { app.config.errorHandler = vueErrorHandler } catch {}
-    installGlobalCapture()
   },
 })
 
