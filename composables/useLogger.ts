@@ -110,10 +110,11 @@ function argToStr(a: unknown): string {
 }
 
 let captureInstalled = false
-/** 在入口（sidepanel prepare）调一次：拦截 console.error/warn + window 未捕获错误/Promise 拒绝 */
+/** 在入口（sidepanel 脚本顶层）调一次：拦截 console.error/warn + window 未捕获错误/Promise 拒绝 */
 export function installGlobalCapture() {
   if (captureInstalled) return
   captureInstalled = true
+  // 拦截 console.error/warn：业务代码照常用 console.error 即自动入库
   for (const level of ["error", "warn"] as const) {
     const orig = console[level].bind(console)
     console[level] = (...args: unknown[]) => {
@@ -121,13 +122,17 @@ export function installGlobalCapture() {
       try { log(level, "console", args.map(argToStr).join(" ").slice(0, 500)) } catch {}
     }
   }
+  // window 错误：能接到 Vue 没拦住、或非 Vue 上下文的错
   try {
-    window.addEventListener("error", (e) => log("error", "window", e.message || "error", e.error))
+    window.addEventListener("error", (e) => {
+      log("error", "window", e.message || "error", e.error)
+    })
     window.addEventListener("unhandledrejection", (e) => log("error", "window", "unhandledrejection", (e as PromiseRejectionEvent).reason))
   } catch {}
 }
 
-/** 装到 app.config.errorHandler：捕获 Vue 渲染/生命周期错误 */
+/** 装到 app.config.errorHandler：捕获 Vue 渲染/事件 handler 错误。
+ *  注意：必须确认 prepare 真的被 Plasmo 调用了；否则用根级 onErrorCaptured 兜底（见 sidepanel）。 */
 export function vueErrorHandler(err: unknown, _instance: unknown, info: string) {
   log("error", "vue", err instanceof Error ? err.message : String(err), `${info} | ${err instanceof Error ? err.stack : ""}`)
 }

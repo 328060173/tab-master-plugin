@@ -212,11 +212,13 @@ const markGuideShown = () => {
 
 // 临时调试：故意抛错，验证错误捕获链路（ErrorBoundary 显示 + 运行日志记录）。验证完删掉
 const debugThrow = () => {
+  // 先 console.error 一条，验证 console 拦截是否进日志
+  console.error("[调试] 即将抛错，这条 console.error 应该进运行日志")
+  // 再抛错，验证 Vue errorHandler / window error / ErrorBoundary 是否接住
   const arr: number[] = []
-  // 数组越界 + 故意访问 undefined 的属性，触发 TypeError
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const x: any = arr[5]
-  console.log("调试：即将抛错，x =", x.notExist.foo)
+  throw new Error("调试抛错：x.notExist.foo → " + x.notExist.foo)
 }
 
 const toggleUngroupedSelect = (id: number) => {

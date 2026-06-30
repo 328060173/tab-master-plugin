@@ -485,7 +485,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide } from "vue"
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
 import { ChevronUp, ChevronDown, ChevronLeft, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag } from "@lucide/vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabStats } from "~composables/useTabStats"
@@ -537,6 +537,12 @@ defineOptions({
   prepare(app: any) {
     try { app.config.errorHandler = vueErrorHandler } catch {}
   },
+})
+// 根级 onErrorCaptured 兜底：即使 prepare 没被 Plasmo 调用、errorHandler 没装上，
+// 这里也能接到子组件树抛出的错误并记进日志（不依赖任何外部条件）。
+onErrorCaptured((err, _instance, info) => {
+  vueErrorHandler(err, _instance, info)
+  // 不 return false → 让 ErrorBoundary 也能接到（它在自己范围内 return false 阻断）
 })
 
 const {
