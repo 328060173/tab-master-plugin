@@ -82,14 +82,23 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - 聚焦模式（`chrome.tabGroups` 折叠）/ 分组 / 设置面板 / 清理菜单 / 域名 eTLD+1 分组归并
 - 浮层统一 PopoverManager / 批量功能（4 视图全支持）/ 标记体系重设计（TagBar）
 - 历史页：最近关闭（50 条，零权限）+ **完整浏览历史 P1 已落地**（`chrome.history` 走 `optional_permissions`，引导式运行时授权）
+- **运行日志**：`composables/useLogger.ts` 全局切面（拦截 `console.error/warn` + window 错误 + Vue errorHandler），业务代码零硬编码；独立页 `tabs/logs.vue`（⚙ 菜单→运行日志）；`components/ErrorBoundary.vue` 错误边界 + 直接显示错误明文/复制
+- **侧边栏位置感知**：`useSidePanelLayout.ts`（getLayout 读左/右，不能写）+ HeaderMenu「显示位置」hover 问号指引
+- **整理菜单**：Trash2→ListChecks +「整理 ▾」+ 危险项标红/检测项「先预览」标注
+- **存储占用核对**：`StoragePanel.vue` 补齐 tabLastAccessedMap/tabMasterSettings/tabMasterLogs/引导记录/viewMode 等
+- **代码地图** `docs/code-map.md`（改 A 联动改 B 表）+ Chrome API 离线副本 `docs/googledocs/`（76 API + INDEX）
+- **`pnpm fresh`**：杀全部 plasmo→清 .plasmo+build→重启（任何怪问题无脑跑）
 
-## 待办
+## 待办（2026-07-01 继续）
+> 🔥 **明天第一件事**：`pnpm fresh` → reload → 点「添加分组」，把 ErrorBoundary 黄框里的**错误明文**复制给我定位（详见下方"分组报错未定位"）
+- **分组报错未定位**：用户点添加分组仍触发 ErrorBoundary。Proxy 数组 `[...tabIds]` 已修（`15157af`）、ref 用 `.value` 已修（同上）、全局捕获已移顶层（`823830f`）、ErrorBoundary 已显示错误明文（`823830f`）。差最后一步：拿用户复制的错误定位是哪行抛错
+- 分组页已加搜索 + 排序（时间/ID 倒序），明天确认交互顺
 - **4 格矩阵实测**（Chrome+Edge × macOS+Windows）这几天积累的全部改动
-- **暗色模式精修**：少数品牌色类（`bg-red-50` / `bg-amber-50` / `text-purple-600`）深色对比度不足，碰到一处改一处，不批量改组件
-- **i18n 扩展**：`lib/locales` 仅覆盖部分文案，很多组件仍硬编码中文（优先级低）
-- 功能性（等用户拍板优先级）：客服消息提醒 / 智能标签冬眠（30min suspend+白名单）/ 快照（需后端）/ AI 总结归类 / 树形视图精修
-- 后端相关（登录 / 云同步）→ 等后端就绪解锁，见 [[project-defer-backend-features]]
-- ⚠️ build hash 卡死信号：遇"改了像旧代码"先 `rm -rf .plasmo/cache` 重启 dev
+- **暗色模式精修**：少数品牌色类深色对比度不足，碰到一处改一处
+- **i18n 扩展**（优先级低）
+- 功能性（等拍板）：客服消息提醒 / 智能标签冬眠 / 快照（需后端）/ AI 总结归类 / 树形视图精修
+- 后端相关（登录 / 云同步）→ 等后端就绪，见 [[project-defer-backend-features]]
+- ⚠️ build hash 卡死信号：遇"改了像旧代码"先 `pnpm fresh`
 
 ### 关键技术决策
 - 侧边栏位置由 Chrome 浏览器层控制，**扩展程序无法触发左右切换** — 2026-06-28 重新核实
