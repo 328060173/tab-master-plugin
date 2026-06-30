@@ -32,13 +32,13 @@
         <ArrowUpDown :size="11" />{{ SORT_OPTIONS.find(o => o.value === sortMode)?.label }}
       </button>
 
-      <!-- 清理 -->
+      <!-- 整理（点开是一组整理工具菜单，▾ 提示可展开，不是一键删除）-->
       <button
         ref="cleanTriggerRef"
         :class="['flex items-center gap-1 px-2 py-1 text-xs border rounded transition-colors',
           popover.isOpen('toolbar-clean') ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 hover:bg-gray-50']"
         @click.stop="onCleanTriggerClick">
-        <Trash2 :size="12" />清理
+        <ListChecks :size="12" />整理<ChevronDown :size="10" class="text-gray-400" />
       </button>
 
     </template>
@@ -103,7 +103,7 @@
  */
 import { ref, computed, watch } from "vue"
 import {
-  Plus, Trash2, LayoutGrid, List, Grid2X2, GitFork, ArrowUpDown,
+  Plus, ListChecks, LayoutGrid, List, Grid2X2, GitFork, ArrowUpDown,
   X, Search, Clock, Snowflake,
   ChevronLeft, ChevronRight, ChevronDown, RotateCw
 } from "@lucide/vue"

@@ -153,6 +153,7 @@
 
     <!-- 正常内容区（普通/选择态） -->
     <div v-else-if="focusMode !== 'focusing'" ref="contentRef" class="flex-1 overflow-y-auto min-h-0 px-3 py-2" @scroll="onContentScroll">
+      <ErrorBoundary scope="content">
       <LaterList v-if="activeNav === 'later'" :items="laterTabs" @remove="removeLater" @open="restoreTab($event)" />
       <GroupListPage
         v-else-if="activeNav === 'groups'"
@@ -272,6 +273,7 @@
           </template>
         </template>
       </template>
+      </ErrorBoundary>
     </div>
 
     <!-- 聚焦态内容区 - 只显示聚焦标签 -->
@@ -493,7 +495,7 @@ import { useTabGroups, SUPPORTS_TAB_GROUPS, TAB_GROUP_ID_NONE } from "~composabl
 import { useSettings } from "~composables/useSettings"
 import { useHistory } from "~composables/useHistory"
 import { usePopoverManager, installGlobalPopoverClose } from "~composables/usePopoverManager"
-import { computePopoverPos } from "~lib/popoverPosition"
+import { computePopoverPos, computeFlyoutPos } from "~lib/popoverPosition"
 import { sortTabs, groupByDomain } from "~lib/sortUtils"
 import HeaderMenu from "~components/HeaderMenu.vue"
 import TabTileItem from "~components/TabTileItem.vue"
@@ -523,8 +525,25 @@ import FocusBanner from "~components/FocusBanner.vue"
 import GroupListPage from "~components/GroupListPage.vue"
 import GroupBadge from "~components/GroupBadge.vue"
 import HistoryList from "~components/HistoryList.vue"
+import ErrorBoundary from "~components/ErrorBoundary.vue"
+import { logInfo, logError } from "~composables/useLogger"
 import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
+
+// 全局错误捕获：Vue 渲染/handler 错误 + window 未捕获错误/Promise 拒绝 → 记运行日志（不白屏）
+defineOptions({
+  prepare(app: any) {
+    try {
+      app.config.errorHandler = (err: unknown, _instance: unknown, info: string) => {
+        logError("vue", err instanceof Error ? err.message : String(err), `${info} | ${err instanceof Error ? err.stack : ""}`)
+      }
+    } catch {}
+    try {
+      window.addEventListener("error", (e) => logError("window", e.message || "error", e.error))
+      window.addEventListener("unhandledrejection", (e) => logError("window", "unhandledrejection", (e as PromiseRejectionEvent).reason))
+    } catch {}
+  },
+})
 
 const {
   tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
@@ -1043,20 +1062,16 @@ const batchMenuPos = computed(() => {
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
 
-// 批量子菜单位置计算
+// 批量子菜单位置计算（统一走 computeFlyoutPos，双向兜底 clamp 不溢出窄面板）
 const batchGroupSubmenuPos = computed(() => {
   if (!batchSubmenuAnchorRect.value) return { left: '0px', top: '0px' }
-  const rect = batchSubmenuAnchorRect.value
-  let left = rect.left - 180 - 4
-  if (left < 4) left = rect.right + 4
-  return { left: `${left}px`, top: `${rect.top}px` }
+  const p = computeFlyoutPos(batchSubmenuAnchorRect.value, { width: 180, height: 200 }, 'left')
+  return { left: `${p.left}px`, top: `${p.top}px` }
 })
 const batchTagSubmenuPos = computed(() => {
   if (!batchSubmenuAnchorRect.value) return { left: '0px', top: '0px' }
-  const rect = batchSubmenuAnchorRect.value
-  let left = rect.left - 160 - 4
-  if (left < 4) left = rect.right + 4
-  return { left: `${left}px`, top: `${rect.top}px` }
+  const p = computeFlyoutPos(batchSubmenuAnchorRect.value, { width: 160, height: 200 }, 'left')
+  return { left: `${p.left}px`, top: `${p.top}px` }
 })
 
 const onBatchEnterSubmenuRow = (type: "group" | "tag", rowEl: HTMLElement | null) => {

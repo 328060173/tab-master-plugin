@@ -18,7 +18,12 @@
             <FolderPlus :size="12" />移到分组
             <ChevronRight :size="12" class="ml-auto" />
           </button>
-          <div class="absolute left-full top-0 ml-0.5 bg-white border border-gray-200 rounded-lg shadow-xl py-1 w-48 hidden group-hover/submenu:block">
+          <div
+            :class="[
+              submenuOpensLeft ? 'right-full mr-0.5' : 'left-full ml-0.5',
+              'absolute top-0 bg-white border border-gray-200 rounded-lg shadow-xl py-1 w-48 hidden group-hover/submenu:block'
+            ]"
+          >
             <button :class="btn" @click="act('newGroup')"><FolderPlus :size="12" />新建分组...</button>
             <hr v-if="groups.length" class="my-1 border-gray-100" />
             <button v-for="g in groups" :key="g.id" :class="btn" @click="act('addToGroup', g.id)">
@@ -66,6 +71,9 @@ const emit = defineEmits<{ action: [string, any?]; close: [] }>()
 const btn = "flex items-center gap-2 w-full px-3 py-1.5 hover:bg-gray-50 text-left text-gray-700"
 const menuRef = ref<HTMLElement>()
 const pos = ref({ x: 0, y: 0 })
+// 二级子菜单（移到分组）向左还是向右弹：右键菜单常被 clamp 到面板右缘，
+// 此时 left-full（向右）会冲出窄面板 → 改为 right-full（向左）
+const submenuOpensLeft = ref(false)
 
 // 注入分组列表
 const groups = inject<chrome.tabGroups.TabGroup[]>("tabGroups", [])
@@ -79,10 +87,13 @@ watch([() => props.tab, () => props.x, () => props.y], async () => {
   await nextTick()
   if (!menuRef.value) return
   const w = menuRef.value.offsetWidth, h = menuRef.value.offsetHeight
+  const x = Math.min(props.x, window.innerWidth - w - 4)
   pos.value = {
-    x: Math.min(props.x, window.innerWidth - w - 4),
+    x,
     y: Math.min(props.y, window.innerHeight - h - 4),
   }
+  // 子菜单宽 w-48=192：右侧放不下就向左弹
+  submenuOpensLeft.value = x + w + 192 > window.innerWidth - 4
 })
 
 const act = (action: string, data?: any) => { emit('action', action, data); emit('close') }

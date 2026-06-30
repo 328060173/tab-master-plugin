@@ -85,6 +85,9 @@
         <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium text-left" @mouseenter="activeSubmenu = null" @click="onOpenOptions">
           <Sliders :size="13" />更多设置...
         </button>
+        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left" @mouseenter="activeSubmenu = null" @click="onOpenOptions">
+          <ScrollText :size="13" />运行日志
+        </button>
         <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-left" @mouseenter="activeSubmenu = null" @click="onReload">
           <RotateCcw :size="13" />重新打开
         </button>
@@ -126,22 +129,18 @@
           <Check v-if="settings.fontSize === opt.value" :size="12" class="text-blue-600 dark:text-blue-400" />
         </button>
       </div>
-      <!-- ====== 二级子菜单：显示位置指引 ====== -->
+      <!-- ====== 二级子菜单：显示位置指引（窄·浮在左侧，不压菜单）====== -->
       <div
         v-if="popover.isOpen('header-menu') && activeSubmenu === 'position'"
         :style="positionSubmenuPos"
-        class="fixed z-[60] w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl p-3 text-[11px] leading-relaxed text-gray-600 dark:text-gray-300"
+        class="fixed z-[60] w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl p-2.5 text-[11px] leading-relaxed text-gray-600 dark:text-gray-300"
         @click.stop
         @mouseenter="activeSubmenu = 'position'"
       >
-        <p class="font-semibold text-gray-800 dark:text-gray-100 mb-1.5">
-          侧边栏在<b>{{ sidePanelSide === 'left' ? '左侧' : sidePanelSide === 'right' ? '右侧' : '哪一侧' }}</b>
-        </p>
-        <p class="mb-2">左右位置是<b>浏览器自带的设置</b>，标签大师改不了，需要你在浏览器里手动切。两种方法任选其一 👇</p>
-        <p class="font-medium text-gray-700 dark:text-gray-200">方法一（最快）</p>
-        <p class="mb-2">在<b>本侧边栏最顶部</b>那条窄工具栏（显示标题/扩展名的地方）<b>点右键</b> → 选「显示在{{ sidePanelSide === 'left' ? '右' : '左' }}侧」<span class="text-gray-400">（英文界面是 Show on {{ sidePanelSide === 'left' ? 'right' : 'left' }}）</span></p>
-        <p class="font-medium text-gray-700 dark:text-gray-200">方法二</p>
-        <p>打开浏览器<b>设置 → 外观</b>，找「侧边栏」位置选项切换</p>
+        <p class="font-semibold text-gray-800 dark:text-gray-100 mb-1">显示位置</p>
+        <p class="mb-1">左右位置<b>由浏览器控制</b>，扩展改不了。</p>
+        <p>右键侧边栏<b>顶部标题栏</b> → 选「显示在{{ sidePanelSide === 'left' ? '右' : '左' }}侧」即可切换。</p>
+        <p v-if="sidePanelSide !== 'unknown'" class="mt-1 text-gray-400">当前：{{ sidePanelSide === 'left' ? '左侧' : '右侧' }}</p>
       </div>
     </Teleport>
   </div>
@@ -164,12 +163,12 @@
 import { ref, computed, watch } from "vue"
 import {
   Settings, LogIn, Palette, Type, Layout, Cloud, Camera, HardDrive,
-  Sliders, RotateCcw, Sun, Moon, Monitor, Check, ChevronLeft,
+  Sliders, RotateCcw, Sun, Moon, Monitor, Check, ChevronLeft, ScrollText,
 } from "@lucide/vue"
 import { useSettings } from "~composables/useSettings"
 import { useSidePanelLayout } from "~composables/useSidePanelLayout"
 import { usePopoverManager } from "~composables/usePopoverManager"
-import { computePopoverPos } from "~lib/popoverPosition"
+import { computePopoverPos, computeFlyoutPos } from "~lib/popoverPosition"
 
 const emit = defineEmits<{
   (e: "open-storage"): void
@@ -200,30 +199,24 @@ const menuPos = computed(() => {
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
 
-// 子菜单位置：根据子菜单行的 rect 计算到行的左侧（向左展开，避免越界）
-// w-36=144px, w-32=128px
+// 子菜单位置：统一走 computeFlyoutPos（双向兜底 clamp，绝不溢出窄面板）
+// w-36=144px, w-32=128px, 显示位置 w-56=224px（含较多文字，给 height 让它纵向也能 clamp）
 const themeSubmenuPos = computed(() => {
   if (!submenuAnchorRect.value) return { left: "0px", top: "0px" }
-  const rect = submenuAnchorRect.value
-  // 自定义：浮在行的左侧，top 对齐
-  let left = rect.left - 144 - 4
-  if (left < 4) left = rect.right + 4 // 左边越界则改到右侧
-  return { left: `${left}px`, top: `${rect.top}px` }
+  const p = computeFlyoutPos(submenuAnchorRect.value, { width: 144 }, "left")
+  return { left: `${p.left}px`, top: `${p.top}px` }
 })
 const fontSubmenuPos = computed(() => {
   if (!submenuAnchorRect.value) return { left: "0px", top: "0px" }
-  const rect = submenuAnchorRect.value
-  let left = rect.left - 128 - 4
-  if (left < 4) left = rect.right + 4
-  return { left: `${left}px`, top: `${rect.top}px` }
+  const p = computeFlyoutPos(submenuAnchorRect.value, { width: 128 }, "left")
+  return { left: `${p.left}px`, top: `${p.top}px` }
 })
-// 显示位置指引 flyout：w-64 = 256px
+// 显示位置指引 flyout：用和「字体大小」一致的窄宽度（w-36=144px），
+// 才能干净地浮在菜单左侧、不压住下面的菜单项；文案务必精简
 const positionSubmenuPos = computed(() => {
   if (!submenuAnchorRect.value) return { left: "0px", top: "0px" }
-  const rect = submenuAnchorRect.value
-  let left = rect.left - 256 - 4
-  if (left < 4) left = rect.right + 4
-  return { left: `${left}px`, top: `${rect.top}px` }
+  const p = computeFlyoutPos(submenuAnchorRect.value, { width: 144, height: 150 }, "left")
+  return { left: `${p.left}px`, top: `${p.top}px` }
 })
 
 const onEnterSubmenuRow = (type: "theme" | "font" | "position", rowEl: HTMLElement | null) => {

@@ -76,3 +76,50 @@ export const computePopoverPos = (
 
   return { left, top }
 }
+
+/**
+ * 侧向飞出二级子菜单的定位（菜单项左/右侧弹出 submenu）。
+ *
+ * 为什么单独一个函数：side panel 视窗很窄（≈300-400px），二级菜单横向弹出极易越界。
+ * 旧的自定义算法 `left = rowLeft - W; if (left<4) left = rowRight` 只兜了左边界，
+ * **翻到右侧后没有再判断右边界** → 宽一点的 submenu（如 256px 的显示位置指引）直接冲出面板。
+ *
+ * 这里双向兜底：优先一侧放不下就翻另一侧，两侧都放不下就 clamp 进视窗
+ *（宁可压住父菜单也绝不溢出到面板外），纵向也按 height clamp/不溢出底边。
+ *
+ * 注意：side panel 是独立文档，window.innerWidth = 面板宽度（不是屏幕宽），
+ * 所以面板停在屏幕左还是右不影响这里的坐标——clamp 进 innerWidth 即可保证留在可见面板内。
+ */
+export const computeFlyoutPos = (
+  rowRect: DOMRect,
+  size: PopoverSize,
+  prefer: "left" | "right" = "left",
+  gap = 4
+): { left: number; top: number } => {
+  const VW = window.innerWidth
+  const VH = window.innerHeight
+  const w = size.width
+
+  const leftSide = rowRect.left - w - gap
+  const rightSide = rowRect.right + gap
+
+  let left: number
+  if (prefer === "left") {
+    // 优先左侧；左侧越界 → 翻右侧（右侧若也越界，下面统一 clamp 收回）
+    left = leftSide >= VIEWPORT_PADDING ? leftSide : rightSide
+  } else {
+    // 优先右侧；右侧越界 → 翻左侧
+    left = rightSide + w <= VW - VIEWPORT_PADDING ? rightSide : leftSide
+  }
+
+  // 双向兜底 clamp（核心修复点：翻面后仍可能越右界 / 太宽两侧都放不下）
+  if (left + w > VW - VIEWPORT_PADDING) left = VW - w - VIEWPORT_PADDING
+  if (left < VIEWPORT_PADDING) left = VIEWPORT_PADDING
+
+  // 纵向：与触发行顶部对齐，超出底边则上移
+  let top = rowRect.top
+  if (size.height && top + size.height > VH - VIEWPORT_PADDING) top = VH - size.height - VIEWPORT_PADDING
+  if (top < VIEWPORT_PADDING) top = VIEWPORT_PADDING
+
+  return { left, top }
+}
