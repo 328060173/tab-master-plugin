@@ -1,6 +1,5 @@
 import { ref, onMounted, onUnmounted } from "vue"
 import type { TabItem, LaterItem, ClosedTabItem } from "~types/tab"
-import { logError, logInfo } from "~composables/useLogger"
 
 function getDomain(url: string) {
   try { return new URL(url).hostname } catch { return url }
@@ -130,7 +129,6 @@ export function useTabManager() {
       if (active) activeTabId.value = active.id
     } catch (e) {
       console.error("[tab-master] loadTabs 异常", e)
-      logError("tabs", "loadTabs 失败", e)
       if (!chrome.runtime?.id) window.location.reload()
     }
   }
@@ -156,7 +154,6 @@ export function useTabManager() {
       tabLastAccessedMap.value = (data.tabLastAccessedMap && typeof data.tabLastAccessedMap === "object" && !Array.isArray(data.tabLastAccessedMap)) ? data.tabLastAccessedMap : {}
     } catch (e) {
       console.warn("[tab-master] loadLater 失败，使用默认空值；loadTabs 会继续执行不阻塞 UI：", e)
-      logError("storage", "loadLater 失败，已用空值兜底", e)
       // 即使 storage 完全不可读，也给所有 ref 设为安全空值，不让 onMounted 主链断掉
       laterTabs.value = []
       customTags.value = []
@@ -297,9 +294,9 @@ export function useTabManager() {
     try { await chrome.tabs.move(tabId, { index: targetIndex }) } catch {}
   }
 
-  const closeUnpinned = async () => { const ids = tabs.value.filter(t => !t.pinned).map(t => t.id); logInfo("cleanup", `关闭非固定标签 ${ids.length} 个`); for (const id of ids) await closeTab(id) }
-  const closeOthers = async () => { const ids = tabs.value.filter(t => !t.active).map(t => t.id); logInfo("cleanup", `关闭其他标签 ${ids.length} 个`); for (const id of ids) await closeTab(id) }
-  const closeFrozenDiscarded = async () => { const ids = tabs.value.filter(t => t.frozen || t.discarded).map(t => t.id); logInfo("cleanup", `关闭已冻结/已舍弃标签 ${ids.length} 个`); for (const id of ids) await closeTab(id) }
+  const closeUnpinned = async () => { for (const id of tabs.value.filter(t => !t.pinned).map(t => t.id)) await closeTab(id) }
+  const closeOthers = async () => { for (const id of tabs.value.filter(t => !t.active).map(t => t.id)) await closeTab(id) }
+  const closeFrozenDiscarded = async () => { for (const id of tabs.value.filter(t => t.frozen || t.discarded).map(t => t.id)) await closeTab(id) }
 
   const goBack = async () => {
     if (!canGoBack.value) return
@@ -420,8 +417,8 @@ export function useTabManager() {
 
   onMounted(async () => {
     // loadLater 用 try-catch 单独抓 —— 即使它整个崩了也不阻塞 loadTabs，避免 UI 上所有标签消失
-    try { await loadLater() } catch (e) { console.error("[tab-master] loadLater fatal:", e); logError("init", "loadLater fatal", e) }
-    try { await Promise.all([loadTabs(), loadSwitchHistory()]) } catch (e) { console.error("[tab-master] loadTabs/loadSwitchHistory fatal:", e); logError("init", "loadTabs/loadSwitchHistory fatal", e) }
+    try { await loadLater() } catch (e) { console.error("[tab-master] loadLater fatal:", e) }
+    try { await Promise.all([loadTabs(), loadSwitchHistory()]) } catch (e) { console.error("[tab-master] loadTabs/loadSwitchHistory fatal:", e) }
     chrome.tabs.onRemoved.addListener(onTabRemoved)
     chrome.tabs.onCreated.addListener(onTabCreated)
     chrome.tabs.onUpdated.addListener(onTabUpdated)

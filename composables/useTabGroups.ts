@@ -1,6 +1,5 @@
 import { ref, computed, onMounted, onUnmounted, type Ref } from "vue"
 import type { TabItem } from "~types/tab"
-import { logError } from "~composables/useLogger"
 
 // 支持的分组颜色
 export const GROUP_COLORS = [
@@ -76,7 +75,6 @@ export function useTabGroups(tabsRef: Ref<readonly TabItem[]>) {
       return groupId
     } catch (e) {
       console.error("Failed to create group:", e)
-      logError("groups", "创建分组失败", e)
       return null
     }
   }
@@ -88,7 +86,6 @@ export function useTabGroups(tabsRef: Ref<readonly TabItem[]>) {
       await chrome.tabs.group({ tabIds: [...tabIds], groupId })
     } catch (e) {
       console.error("Failed to add tabs to group:", e)
-      logError("groups", "加入分组失败", e)
     }
   }
 
@@ -99,7 +96,6 @@ export function useTabGroups(tabsRef: Ref<readonly TabItem[]>) {
       await chrome.tabs.ungroup([...tabIds])
     } catch (e) {
       console.error("Failed to remove tabs from group:", e)
-      logError("groups", "移出分组失败", e)
     }
   }
 

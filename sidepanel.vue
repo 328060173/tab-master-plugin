@@ -526,22 +526,15 @@ import GroupListPage from "~components/GroupListPage.vue"
 import GroupBadge from "~components/GroupBadge.vue"
 import HistoryList from "~components/HistoryList.vue"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
-import { logInfo, logError } from "~composables/useLogger"
+import { installGlobalCapture, vueErrorHandler } from "~composables/useLogger"
 import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
 
-// 全局错误捕获：Vue 渲染/handler 错误 + window 未捕获错误/Promise 拒绝 → 记运行日志（不白屏）
+// 全局错误捕获（切面）：一处安装，Vue 渲染错误 + window 未捕获错误 + 所有 console.error/warn 自动进运行日志
 defineOptions({
   prepare(app: any) {
-    try {
-      app.config.errorHandler = (err: unknown, _instance: unknown, info: string) => {
-        logError("vue", err instanceof Error ? err.message : String(err), `${info} | ${err instanceof Error ? err.stack : ""}`)
-      }
-    } catch {}
-    try {
-      window.addEventListener("error", (e) => logError("window", e.message || "error", e.error))
-      window.addEventListener("unhandledrejection", (e) => logError("window", "unhandledrejection", (e as PromiseRejectionEvent).reason))
-    } catch {}
+    try { app.config.errorHandler = vueErrorHandler } catch {}
+    installGlobalCapture()
   },
 })
 

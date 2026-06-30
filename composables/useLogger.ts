@@ -99,6 +99,39 @@ export const logInfo = (scope: string, msg: string, detail?: unknown) => log("in
 export const logWarn = (scope: string, msg: string, detail?: unknown) => log("warn", scope, msg, detail)
 export const logError = (scope: string, msg: string, detail?: unknown) => log("error", scope, msg, detail)
 
+// ============ 全局捕获（切面）============
+// 设计：一次性安装，之后业务代码照常用 console.error / console.warn 即可被自动记录，
+// 不需要在各处 import 这个 logger、也不用手写 logError——高内聚、低耦合、零硬编码。
+
+function argToStr(a: unknown): string {
+  if (a instanceof Error) return a.stack || a.message || String(a)
+  if (typeof a === "string") return a
+  try { return JSON.stringify(a) } catch { return String(a) }
+}
+
+let captureInstalled = false
+/** 在入口（sidepanel prepare）调一次：拦截 console.error/warn + window 未捕获错误/Promise 拒绝 */
+export function installGlobalCapture() {
+  if (captureInstalled) return
+  captureInstalled = true
+  for (const level of ["error", "warn"] as const) {
+    const orig = console[level].bind(console)
+    console[level] = (...args: unknown[]) => {
+      orig(...args) // 原样输出到控制台
+      try { log(level, "console", args.map(argToStr).join(" ").slice(0, 500)) } catch {}
+    }
+  }
+  try {
+    window.addEventListener("error", (e) => log("error", "window", e.message || "error", e.error))
+    window.addEventListener("unhandledrejection", (e) => log("error", "window", "unhandledrejection", (e as PromiseRejectionEvent).reason))
+  } catch {}
+}
+
+/** 装到 app.config.errorHandler：捕获 Vue 渲染/生命周期错误 */
+export function vueErrorHandler(err: unknown, _instance: unknown, info: string) {
+  log("error", "vue", err instanceof Error ? err.message : String(err), `${info} | ${err instanceof Error ? err.stack : ""}`)
+}
+
 /** 供设置页使用：响应式 logs + 清空 + 跨页实时同步 */
 export function useLogger() {
   ensureLoaded()
