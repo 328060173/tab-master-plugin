@@ -21,7 +21,35 @@ pnpm package    # 打包成 Chrome Web Store 上架 zip
 - 日常开发 → `build/chrome-mv3-dev/`
 - 验证生产构建 → `build/prod/`
 
+## 构建卡住 / 报错恢复
+
+> ⚠️ 任何清理前先 **Ctrl+C 停掉 dev**，清完再 `pnpm dev:safe`。平时不用删，直接 `pnpm dev:safe`。
+
+按严重程度三档，**二选一，别同时敲**：
+
+| 情况 | 命令 |
+|---|---|
+| 改了代码没生效 / 构建 hash 一直不变 | `rm -rf .plasmo/cache` → `pnpm dev:safe` |
+| 构建报怪错（`manifest.json does not exist`、组件解析失败、`xxx.filter is not a function` 等莫名错误） | `rm -rf .plasmo build` → `pnpm dev:safe` |
+
+> `.plasmo/cache` 是 `.plasmo` 的子目录，删整个 `.plasmo` 已包含它，做了第二档就不必再删 cache。
+> 重清后第一次构建慢十几秒，**等"构建成功、无 ERROR"再 reload 扩展**（别在 `🔄 Building` 时就 reload）。
+
+**怎么看是不是重复启动了多个 dev：**
+
+```bash
+pgrep -fl 'plasmo dev'   # 1 行=正常；≥2 行=有残留；无输出=没在跑
+pkill -f plasmo          # 杀掉所有残留（不管几个）
+```
+
+一步到位的"干净重启"：
+
+```bash
+pkill -f plasmo && rm -rf .plasmo build && pnpm dev:safe
+```
+
 > 📖 **详细开发流程、多终端规则、报错排查**：见 [`docs/dev-workflow.md`](./docs/dev-workflow.md)
+> 🗺️ **代码地图（改 A 要联动改 B/C）**：见 [`docs/code-map.md`](./docs/code-map.md) — 改 / 加功能前先查
 > 📚 **完整开发规范**（权限/API/存储配额/Vue 实战）：见 [`docs/reference/extension-vue-best-practices.md`](./docs/reference/extension-vue-best-practices.md)
 
 ## 目录约定

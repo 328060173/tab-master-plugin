@@ -133,11 +133,15 @@ import FavIcon from "./FavIcon.vue"
 import { GROUP_COLOR_CLASSES } from "~composables/useTabGroups"
 import type { TabItem } from "~types/tab"
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   groups: chrome.tabGroups.TabGroup[]
   ungroupedTabs: TabItem[]
   guideShown: boolean
-}>()
+}>(), {
+  // 兜底：即使父级传入 undefined（如初始化中途），也按空数组处理，绝不让 .length 崩溃
+  groups: () => [],
+  ungroupedTabs: () => [],
+})
 
 const emit = defineEmits<{
   activateTab: [id: number]

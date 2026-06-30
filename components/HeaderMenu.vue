@@ -85,7 +85,7 @@
         <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium text-left" @mouseenter="activeSubmenu = null" @click="onOpenOptions">
           <Sliders :size="13" />更多设置...
         </button>
-        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left" @mouseenter="activeSubmenu = null" @click="onOpenOptions">
+        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left" @mouseenter="activeSubmenu = null" @click="onOpenLogs">
           <ScrollText :size="13" />运行日志
         </button>
         <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-left" @mouseenter="activeSubmenu = null" @click="onReload">
@@ -245,6 +245,11 @@ const onReload = () => { popover.close("header-menu"); emit("reload") }
 const onOpenOptions = () => {
   popover.close("header-menu")
   try { chrome.runtime.openOptionsPage() } catch (e) { console.warn("openOptionsPage failed", e) }
+}
+// 运行日志独立成页（tabs/logs.html），不塞进设置页
+const onOpenLogs = () => {
+  popover.close("header-menu")
+  try { chrome.tabs.create({ url: chrome.runtime.getURL("tabs/logs.html") }) } catch (e) { console.warn("open logs page failed", e) }
 }
 const onPickTheme = (v: "light" | "dark" | "system") => {
   updateSetting("theme", v)

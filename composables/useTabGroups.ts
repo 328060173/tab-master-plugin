@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted } from "vue"
+import { ref, computed, onMounted, onUnmounted, type Ref } from "vue"
 import type { TabItem } from "~types/tab"
 
 // 支持的分组颜色
@@ -37,13 +37,13 @@ export function isNotFocusGroup(group: chrome.tabGroups.TabGroup): boolean {
   return group.title !== "🌙 已隐藏"
 }
 
-export function useTabGroups(tabs: readonly TabItem[]) {
+export function useTabGroups(tabsRef: Ref<readonly TabItem[]>) {
   const groups = ref<TabGroupWithTabs[]>([])
   const guideShown = ref(false)
 
-  // 获取未分组的标签
+  // 获取未分组的标签（tabsRef 是 ref，必须用 .value；并对非数组兜底，避免渲染崩溃）
   const ungroupedTabs = computed(() =>
-    tabs.filter(t => t.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE)
+    (Array.isArray(tabsRef.value) ? tabsRef.value : []).filter(t => t.groupId === TAB_GROUP_ID_NONE)
   )
 
   // 加载分组
@@ -55,7 +55,7 @@ export function useTabGroups(tabs: readonly TabItem[]) {
         .filter(isNotFocusGroup)
         .map(g => ({
           ...g,
-          tabs: tabs.filter(t => t.groupId === g.id),
+          tabs: tabsRef.value.filter(t => t.groupId === g.id),
         }))
     } catch (e) {
       console.error("Failed to load tab groups:", e)
@@ -111,7 +111,7 @@ export function useTabGroups(tabs: readonly TabItem[]) {
   const ungroupAll = async (groupId: number) => {
     if (!SUPPORTS_TAB_GROUPS) return
     try {
-      const groupTabs = tabs.filter(t => t.groupId === groupId).map(t => t.id)
+      const groupTabs = tabsRef.value.filter(t => t.groupId === groupId).map(t => t.id)
       if (groupTabs.length > 0) {
         await chrome.tabs.ungroup(groupTabs)
       }
@@ -124,7 +124,7 @@ export function useTabGroups(tabs: readonly TabItem[]) {
   const closeGroupTabs = async (groupId: number) => {
     if (!SUPPORTS_TAB_GROUPS) return
     try {
-      const groupTabs = tabs.filter(t => t.groupId === groupId).map(t => t.id)
+      const groupTabs = tabsRef.value.filter(t => t.groupId === groupId).map(t => t.id)
       if (groupTabs.length > 0) {
         await chrome.tabs.remove(groupTabs)
       }
@@ -143,7 +143,7 @@ export function useTabGroups(tabs: readonly TabItem[]) {
     if (!isNotFocusGroup(group)) return
     groups.value.push({
       ...group,
-      tabs: tabs.filter(t => t.groupId === group.id),
+      tabs: tabsRef.value.filter(t => t.groupId === group.id),
     })
   }
 
@@ -160,7 +160,7 @@ export function useTabGroups(tabs: readonly TabItem[]) {
     if (idx !== -1) {
       groups.value[idx] = {
         ...group,
-        tabs: tabs.filter(t => t.groupId === group.id),
+        tabs: tabsRef.value.filter(t => t.groupId === group.id),
       }
     }
   }
@@ -211,7 +211,7 @@ export function useTabGroups(tabs: readonly TabItem[]) {
   const updateGroupTabs = () => {
     groups.value = groups.value.map(g => ({
       ...g,
-      tabs: tabs.filter(t => t.groupId === g.id),
+      tabs: tabsRef.value.filter(t => t.groupId === g.id),
     }))
   }
 

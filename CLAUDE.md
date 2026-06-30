@@ -65,6 +65,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - **不跑 build/dev**：用户自己跑 `pnpm dev:safe`（产物 `build/chrome-mv3-dev/`）。main 跑 build 会抢 Parcel 缓存 → "改了没生效"。详见 [[feedback-no-build-user-runs-dev]]
 - **审查 .vue 必查**：① 模板复合语句 `@click="fn; x()"` ② 模板内 TS 语法 `as X` / `!` 非空断言 / 泛型 ③ HTML 转义（grep `&lt;`）+ 多个 `<script setup>` 块 ④ 是否波及既有功能。⚠️ **`vue-tsc` 检不出模板内 TS 断言**——必须用 Plasmo 同款 `@vue/compiler-sfc@3.3.4` 跑 `compileTemplate` 复核（见 [[lesson-vue-mustache-no-components]]）
 - **新功能不碰老功能；重构/统一既有代码需先经用户批准**
+- **改动 / 新增功能前先查 `docs/code-map.md`（代码地图）**——它列了"改 A 必须联动改 B/C"（如：加 storage key 必须同步 `StoragePanel.vue`）；引入新的跨文件联动后**回去更新这张表**
 - **不自动 git commit/push**，等明确指令
 
 ## 官方文档（改 manifest / 调 chrome.* 前必查）
@@ -74,6 +75,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 ## 历史与参考
 - 逐日完成记录 + 项目结构快照 → `docs/dev-log.md`
 - 功能 PRD → `docs/prd/<feature>.md`；开发规范手册（11 章）→ `docs/reference/extension-vue-best-practices.md`；dev 命令 / 报错排查 → `docs/dev-workflow.md`
+- **代码地图（改动联动表）→ `docs/code-map.md`** —— 改/加功能前先查，照着把所有关联点改到
 - 历史修复细节 → `git log`（不在此复述）
 
 ## 近期已完成（摘要，细节看 docs/dev-log.md + git log）

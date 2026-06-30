@@ -1,0 +1,106 @@
+# 代码地图（改动联动表）
+
+> **这是什么**：一张「改 A 必须联动改 B/C」的地图。新增功能 / 改既有功能 / 仿写类似功能前先查这里，照着把所有关联点都改到，避免"只改一半"。
+>
+> **维护规则（重要）**：每当你新引入一处**跨文件联动**（"加这个就必须同时改那个"），回来把它补进对应小节。这张表只有持续更新才有价值。Last updated: 2026-06-30。
+
+---
+
+## A. 新增一个持久化存储 key（最容易漏！）
+
+新增一个要长期保存的数据时，**必须**同步这几处，否则"存了但没人统计/没法清理"：
+
+1. **读写它的 composable**：`useTabManager` / `useSettings`(key=`tabMasterSettings`) / `useLogger`(key=`tabMasterLogs`) / `useTabGroups` / `background.ts` 等
+2. **`components/StoragePanel.vue`** — 加进 `USER_DEFS` 或 `SYS_DEFS`，并确认 `doClear` 能正确清空（数组→`[]` / 对象→`{}` / 多 key→`remove` / localStorage→`removeItem`）
+3. **防御性读取**：`loadLater()` 这类入口要对脏数据兜底（非数组/对象 → 空值），不能让坏数据炸 UI
+4. 区分存储位置：`chrome.storage.local`(持久) / `window.localStorage`(持久，目前仅 `viewMode`、`tabmaster_search_history`) / `chrome.storage.session`(关浏览器即清，不进 StoragePanel)
+
+> 当前已登记的 key 清单见 `StoragePanel.vue` 的 `USER_DEFS`/`SYS_DEFS` —— 那是唯一权威清单，改 key 先对照它。
+
+## B. 新增一个浮层 / 下拉 / 子菜单
+
+1. 用 `composables/usePopoverManager.ts`（单例 `activeId`），给一个**唯一 id**
+2. 定位用 `lib/popoverPosition.ts`：
+   - 按钮正下方弹出 → `computePopoverPos(rect, {width,height?}, anchor)`（已 clamp 进视窗）
+   - **侧向飞出的二级子菜单** → `computeFlyoutPos(rowRect, {width,height?}, prefer)`（双向兜底 clamp，窄面板不溢出）。**不要再手写 `left = rect.left - W` 那种土算法**
+3. z-index 用 `lib/zLayers.ts` 档位（popover60 / hoverCard70 / dialog100 / contextMenu110 / toast200）
+4. 结构：`fixed` + `<Teleport to="body">`
+5. 关闭由 `installGlobalPopoverClose`（sidepanel setup 调一次）统一处理 document click / Esc
+6. 窄面板提醒：side panel `window.innerWidth` ≈ 面板宽(300-400px)，不是屏幕宽；子菜单别太宽（≤144px 才能浮在菜单旁不压住主菜单，参考主题/字号子菜单）
+
+## C. 新增 / 修改 `.vue` 组件（构建安全红线）
+
+模板里**禁止**：
+- TS 语法：`x as HTMLElement`、`x!` 非空断言、泛型、把组件塞进 `{{ }}`
+- 复合语句：`@click="fn; popover.close()"` → 抽成一个 handler 函数
+- 直接用全局 `window` / `chrome` / `document` → 在 `<script setup>` 暴露常量再用
+- 用到的 lucide 图标**必须 import**，否则运行时 "Failed to resolve component: Xxx"
+
+校验（两步都要）：
+```bash
+npx vue-tsc --noEmit                    # 类型检查（查不出模板 TS 断言）
+# Plasmo 同款编译器复核模板（能查出上面的模板 TS 断言 / 标签不闭合）：
+node -e "const fs=require('fs');const sfc=require('./node_modules/.pnpm/@vue+compiler-sfc@3.3.4/node_modules/@vue/compiler-sfc');const {descriptor}=sfc.parse(fs.readFileSync('PATH.vue','utf8'),{filename:'x'});const r=sfc.compileTemplate({source:descriptor.template.content,filename:'x',id:'x'});console.log(r.errors.length?r.errors:'OK')"
+```
+
+## D. 新增 / 修改 manifest 权限，或调用新的 `chrome.*` API
+
+1. **先查 `docs/googledocs/<api>.md`**（官方副本）核实方法签名 / 权限名 / 最低 Chrome 版本 —— 不凭印象
+2. manifest 在 `package.json` 的 `manifest` 字段；非必需权限用 `optional_permissions` + 运行时 `chrome.permissions.request`（必须在用户手势里调）
+3. 兼容：`typeof chrome.x.method === 'function'` 检测 + 优雅降级（Edge 落后 Chrome 1-2 版）
+4. 新 API 不在 `@types/chrome` 里 → 用**模块增强**补类型（见 `composables/useSidePanelLayout.ts` 的 `declare global`），**禁止 `as any`**
+
+## E. 新增一个设置项
+
+1. `types/settings.ts` — 类型 + `DEFAULT_SETTINGS`
+2. `composables/useSettings.ts` — `mergeSettings` 兼容旧数据迁移
+3. UI 入口：`components/HeaderMenu.vue`（侧栏内快捷）和/或 `options.vue`（完整设置页）
+4. **视觉类设置（主题/字号/密度）**：除了给 `<html>` 加 class，**必须**在 `sidepanel.vue` 全局 `<style>` 写 `:root.xxx` 规则，否则 class 加了但没视觉变化
+5. `options.vue` 与 sidepanel 共享同一份 `useSettings()`，改完两边即时生效
+
+## F. 新增导航页 / 标签视图 / 独立页面
+
+- **导航 tab**（首页/稍后/分组/历史）：`sidepanel.vue` 的 `activeNav` + 导航栏 + 内容区 v-if 分支（注意包在 `ErrorBoundary` 内）
+- **标签卡片视图**（列表/平铺/图标/树形）：四套组件 `components/Tab{List,Tile,Icon,Tree}Item.vue` 通常要一起改
+- **独立浏览器页面**（不在侧栏里）：放 `tabs/<name>.vue` → Plasmo 自动出 `tabs/<name>.html`，用 `chrome.tabs.create({url: chrome.runtime.getURL("tabs/<name>.html")})` 打开（例：`tabs/logs.vue`）。**加 tabs/ 新入口后必须 `rm -rf .plasmo build` 全新构建**
+
+## G. 新增用户操作 / 错误处理（可感知 + 容错）
+
+- 关键操作记 `logInfo(scope, msg)`、捕获到的错误记 `logError(scope, msg, err)`（`composables/useLogger.ts`）
+- 可能崩的子树用 `components/ErrorBoundary.vue` 包住（崩了只降级局部，不白屏）
+- 破坏性操作 → `ConfirmDialog` 二次确认；耗时 → loading；完成 → toast 反馈（**可感知原则**：事前文案/图标 + 事中反馈 + 事后提示，见 product-manager 角色 §6）
+- 复杂/新功能 → 配 `?` 问号说明（它是什么、影响什么、能否撤销）
+
+## H. 域名识别 / 品牌名 / 分组归并
+
+- `lib/registrableDomain.ts` — eTLD+1 提取（复合后缀清单）
+- `lib/domainNames.ts` — host → 品牌名（最长后缀回溯）
+- `config/domain-config.json` — 品牌名映射数据
+- 按域名排序/分组的 key 统一走 `getRegistrableDomain()`（`lib/sortUtils.ts`）
+
+## I. Service Worker 采集型数据（持续追踪的状态）
+
+- 凡是"需要持续追踪浏览器变化"的数据（tab 父子、切换历史、停留时长、lastAccessed）→ **主采集在 `background.ts`**（永久监听），UI 只消费 + 用户主动操作时写
+- 详见记忆 `pattern-sw-as-collector`
+- UI 侧（composable）的同类监听只是兜底，不能当唯一数据源
+
+---
+
+## 索引：核心文件速查
+
+| 关注点 | 文件 |
+|---|---|
+| tab 数据/操作 | `composables/useTabManager.ts` |
+| 分组 | `composables/useTabGroups.ts` |
+| 聚焦模式 | `composables/useFocusMode.ts` |
+| 设置 | `composables/useSettings.ts` + `types/settings.ts` |
+| 浏览历史(可选权限) | `composables/useHistory.ts` |
+| 清理/检测 | `composables/useCleanup.ts` |
+| 日志 | `composables/useLogger.ts` + `tabs/logs.vue` |
+| 浮层管理/定位/层级 | `composables/usePopoverManager.ts` + `lib/popoverPosition.ts` + `lib/zLayers.ts` |
+| 存储占用/清理 | `components/StoragePanel.vue` |
+| 设置菜单/设置页 | `components/HeaderMenu.vue` + `options.vue` |
+| 工具栏(视图/排序/整理) | `components/AppToolbar.vue` |
+| 右键菜单 | `components/TabContextMenu.vue` |
+| 错误边界 | `components/ErrorBoundary.vue` |
+| 官方 API 文档(离线) | `docs/googledocs/INDEX.md` |

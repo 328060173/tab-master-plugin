@@ -93,38 +93,6 @@
         </div>
       </section>
 
-      <!-- 运行日志 -->
-      <section>
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">运行日志</h2>
-          <div class="flex items-center gap-2">
-            <select v-model="logFilter" class="text-xs border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800">
-              <option value="all">全部</option>
-              <option value="error">仅错误</option>
-              <option value="warn">警告+错误</option>
-            </select>
-            <button class="text-xs px-2.5 py-1 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700" :disabled="!logs.length" @click="onCopyLogs">{{ copied ? '已复制 ✓' : '复制全部' }}</button>
-            <button class="text-xs px-2.5 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/30 disabled:opacity-40" :disabled="!logs.length" @click="onClearLogs">{{ confirmClear ? '确认清空？' : '清空日志' }}</button>
-          </div>
-        </div>
-        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-          <p class="px-5 py-3 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
-            记录插件运行中的错误和关键操作，仅保存在本机（最多 300 条，自动顶出旧的）。遇到问题可「复制全部」发给开发者排查。
-          </p>
-          <div v-if="!filteredLogs.length" class="px-5 py-8 text-center text-xs text-gray-400">暂无日志</div>
-          <div v-else class="max-h-96 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-700/50">
-            <div v-for="(l, i) in filteredLogs" :key="i" class="px-5 py-2 flex items-start gap-2 text-xs">
-              <span :class="['shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full', l.level === 'error' ? 'bg-red-500' : l.level === 'warn' ? 'bg-amber-500' : 'bg-gray-300']"></span>
-              <span class="shrink-0 text-gray-400 tabular-nums">{{ fmtTime(l.t) }}</span>
-              <span class="shrink-0 text-gray-400">[{{ l.scope }}]</span>
-              <span class="flex-1 min-w-0 break-words" :class="l.level === 'error' ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-200'">
-                {{ l.msg }}<span v-if="l.detail" class="block text-gray-400 break-all">{{ l.detail }}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- 关于 -->
       <section>
         <h2 class="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">关于</h2>
@@ -152,43 +120,11 @@
  *
  * 触发方式：sidepanel HeaderMenu "设置..." → chrome.runtime.openOptionsPage()
  */
-import { computed, ref } from "vue"
+import { computed } from "vue"
 import { Sliders, Cloud, Camera, LogIn } from "@lucide/vue"
 import { useSettings } from "~composables/useSettings"
-import { useLogger } from "~composables/useLogger"
 
 const { settings, updateSetting } = useSettings()
-const { logs, clearLogs } = useLogger()
-
-// 运行日志：筛选 / 清空(二次确认) / 复制
-const logFilter = ref<"all" | "warn" | "error">("all")
-const confirmClear = ref(false)
-const copied = ref(false)
-const filteredLogs = computed(() => {
-  if (logFilter.value === "all") return logs.value
-  if (logFilter.value === "error") return logs.value.filter(l => l.level === "error")
-  return logs.value.filter(l => l.level === "error" || l.level === "warn")
-})
-const fmtTime = (t: number) => {
-  try {
-    const d = new Date(t)
-    const p = (n: number) => String(n).padStart(2, "0")
-    return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
-  } catch { return "" }
-}
-const onClearLogs = async () => {
-  if (!confirmClear.value) { confirmClear.value = true; setTimeout(() => (confirmClear.value = false), 3000); return }
-  confirmClear.value = false
-  await clearLogs()
-}
-const onCopyLogs = async () => {
-  try {
-    const text = logs.value.map(l => `${fmtTime(l.t)} [${l.level}] [${l.scope}] ${l.msg}${l.detail ? " | " + l.detail : ""}`).join("\n")
-    await navigator.clipboard.writeText(text)
-    copied.value = true
-    setTimeout(() => (copied.value = false), 1500)
-  } catch { /* 剪贴板不可用时静默 */ }
-}
 
 const viewOptions = [
   { value: 'tile' as const, label: '平铺' },

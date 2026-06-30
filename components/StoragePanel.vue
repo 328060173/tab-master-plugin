@@ -6,7 +6,7 @@
       <button class="text-gray-400 hover:text-gray-700 p-1 rounded hover:bg-gray-100" @click="emit('close')"><X :size="16" /></button>
     </div>
     <div class="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-      <div class="text-xs text-gray-400 mb-3">数据存储在浏览器本地（chrome.storage.local），不上传至云端。</div>
+      <div class="text-xs text-gray-400 mb-3">数据存储在本机（chrome.storage.local 与浏览器 localStorage），不上传云端。会话级数据（标签切换历史、聚焦状态）关闭浏览器自动清除，不在此列出。</div>
 
       <!-- 用户数据 -->
       <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1">用户数据</p>
@@ -71,9 +71,24 @@ import { X, Trash2 } from "@lucide/vue"
 
 const emit = defineEmits(["close", "cleared"])
 
-interface StorageItem {
-  key: string; label: string; icon: string; count: number; size: string; warning: string
+/**
+ * 存储占用面板 —— 必须与代码真实写入的 key 一一对应（不少/不多/不错）。
+ * 持久化存储两处：
+ *  - chrome.storage.local：业务数据 + 系统数据
+ *  - window.localStorage：搜索历史(tabmaster_search_history)、视图模式(viewMode)
+ * 会话存储 chrome.storage.session（tabSwitchHistory/tabSwitchIndex/focusState）关浏览器即清，不计入。
+ */
+interface StorageDef {
+  key: string                 // 唯一 id（多 key 项用合成 id，如 __guides__）
+  label: string
+  icon: string
+  warning: string
+  storage: "local" | "ls"     // chrome.storage.local 或 window.localStorage
+  keys?: string[]             // 多 key 项的真实 key 列表（默认 [key]）
+  empty?: "array" | "object"  // local 单 key 清空后重置成的空值
 }
+type StorageItem = StorageDef & { count: number; size: string }
+
 const userItems = ref<StorageItem[]>([])
 const sysItems = ref<StorageItem[]>([])
 const totalSize = ref("0 B")
@@ -85,60 +100,85 @@ function fmtBytes(b: number) {
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
   return `${(b / 1024 / 1024).toFixed(2)} MB`
 }
-function sizeOf(val: unknown) { return new Blob([JSON.stringify(val)]).size }
+function sizeOf(val: unknown) { return new Blob([JSON.stringify(val ?? null)]).size }
 
-const USER_DEFS = [
-  { key: "laterTabs",      label: "稍后处理列表", icon: "🕐", warning: "会清空所有稍后处理的标签记录，操作不可恢复。" },
-  { key: "customTags",     label: "自定义标记",   icon: "🏷️", warning: "会清空所有自定义标记，同时清除所有标签页上绑定的标记，操作不可恢复。" },
-  { key: "tabTagsMap",     label: "标签标记数据", icon: "🗂️", warning: "会清空所有标签页绑定的标记映射，但不会删除标记名称本身。" },
-  { key: "recentlyClosed", label: "最近关闭记录", icon: "📋", warning: "会清空所有最近关闭的标签页记录。" },
+// 用户数据：用户主动产生、清理有明确语义
+const USER_DEFS: StorageDef[] = [
+  { key: "laterTabs",      label: "稍后处理列表",   icon: "🕐", storage: "local", empty: "array",  warning: "会清空所有稍后处理的标签记录，操作不可恢复。" },
+  { key: "customTags",     label: "自定义标记",     icon: "🏷️", storage: "local", empty: "array",  warning: "会清空所有自定义标记，同时清除所有标签页上绑定的标记，操作不可恢复。" },
+  { key: "tabTagsMap",     label: "标签标记映射",   icon: "🗂️", storage: "local", empty: "object", warning: "会清空标签页与标记的绑定关系，但不删除标记名称本身。" },
+  { key: "recentlyClosed", label: "关闭历史",       icon: "📋", storage: "local", empty: "array",  warning: "会清空所有最近关闭的标签页记录。" },
+  { key: "tabmaster_search_history", label: "搜索历史", icon: "🔍", storage: "ls", warning: "会清空所有搜索历史记录。" },
 ]
-const SYS_DEFS = [
-  { key: "tabNumberMap",   label: "快捷键编号",   icon: "🔢", warning: "会清空所有自定义编号，Alt+数字快捷键将全部失效。" },
-  { key: "tabOpenedAtMap", label: "标签打开时间", icon: "🕒", warning: "会清空记录的标签打开时间，时间排序将以重置后的加载时间为准。" },
-  { key: "treeParentMap",  label: "树形父子关系", icon: "🌲", warning: "会清空树形视图中手动设置的父子层级关系。" },
+// 系统数据：插件自动生成、清理会重置相关行为
+const SYS_DEFS: StorageDef[] = [
+  { key: "tabNumberMap",      label: "快捷键编号",       icon: "🔢", storage: "local", empty: "object", warning: "会清空所有自定义编号，Alt+数字 快捷键将全部失效。" },
+  { key: "tabOpenedAtMap",    label: "标签打开时间",     icon: "🕒", storage: "local", empty: "object", warning: "会清空记录的标签打开时间，时间排序将以重置后的加载时间为准。" },
+  { key: "tabLastAccessedMap",label: "标签最近访问时间", icon: "⏱️", storage: "local", empty: "object", warning: "会清空记录的最近访问时间，「检测长期未使用」会以重置后的时间为准。" },
+  { key: "treeParentMap",     label: "树形父子关系",     icon: "🌲", storage: "local", empty: "object", warning: "会清空树形视图中的父子层级关系。" },
+  { key: "tabMasterSettings", label: "界面设置",         icon: "⚙️", storage: "local", empty: "object", warning: "会把主题/字号/密度/默认视图等设置重置为默认值。" },
+  { key: "tabMasterLogs",     label: "运行日志",         icon: "📜", storage: "local", empty: "array",  warning: "会清空所有运行日志（也可在「运行日志」页清空）。" },
+  { key: "__guides__",        label: "功能引导记录",     icon: "💡", storage: "local", keys: ["tabGroupsGuideShown", "treeGuideShown", "focusModeShown"], warning: "清空后，分组 / 树形 / 聚焦模式的首次引导提示会再次出现。" },
+  { key: "viewMode",          label: "视图模式",         icon: "🖼️", storage: "ls", warning: "会清空记住的视图模式，下次打开恢复默认列表视图。" },
 ]
 
 const loadData = async () => {
-  const keys = [...USER_DEFS, ...SYS_DEFS].map(d => d.key)
-  const data = await chrome.storage.local.get(keys)
+  const localKeys = [...USER_DEFS, ...SYS_DEFS]
+    .filter(d => d.storage === "local")
+    .flatMap(d => d.keys ?? [d.key])
+  const data = await chrome.storage.local.get(localKeys)
+  let total = 0
 
-  let shSize = 0; let shCount = 0
-  try { const sh = JSON.parse(localStorage.getItem("tabmaster_search_history") || "[]"); shCount = sh.length; shSize = sizeOf(sh) } catch {}
+  const build = (defs: StorageDef[]): StorageItem[] => defs.map(d => {
+    let count = 0
+    let sz = 0
+    if (d.storage === "ls") {
+      const raw = localStorage.getItem(d.key)
+      if (d.key === "tabmaster_search_history") {
+        let arr: unknown[] = []
+        try { arr = JSON.parse(raw || "[]") } catch {}
+        count = Array.isArray(arr) ? arr.length : 0
+        sz = sizeOf(arr)
+      } else {
+        count = raw ? 1 : 0
+        sz = sizeOf(raw || "")
+      }
+    } else if (d.keys) {
+      // 多 key 合并项（功能引导记录）：count = 已置位的数量
+      const obj: Record<string, unknown> = {}
+      for (const k of d.keys) { obj[k] = data[k]; if (data[k]) count++ }
+      sz = sizeOf(obj)
+    } else {
+      const val = data[d.key] ?? (d.empty === "array" ? [] : {})
+      count = Array.isArray(val) ? val.length : (val && typeof val === "object" ? Object.keys(val).length : 0)
+      sz = sizeOf(val)
+    }
+    total += sz
+    return { ...d, count, size: fmtBytes(sz) }
+  })
 
-  let vmSize = 0
-  const vmVal = localStorage.getItem("viewMode") || ""
-  vmSize = sizeOf(vmVal)
-
-  let total = shSize + vmSize
-  const makeItem = (d: typeof USER_DEFS[0]) => {
-    const val = data[d.key] ?? []
-    const sz = sizeOf(val); total += sz
-    return { ...d, count: Array.isArray(val) ? val.length : Object.keys(val).length, size: fmtBytes(sz) }
-  }
-
-  userItems.value = USER_DEFS.map(makeItem)
-  userItems.value.push({ key: "__searchHistory__", label: "搜索历史", icon: "🔍", count: shCount, size: fmtBytes(shSize), warning: "会清空所有搜索历史记录。" })
-
-  sysItems.value = SYS_DEFS.map(makeItem)
-  sysItems.value.push({ key: "__viewMode__", label: "界面偏好（视图/排序）", icon: "⚙️", count: vmVal ? 1 : 0, size: fmtBytes(vmSize), warning: "会清空视图模式等界面偏好设置，下次打开将恢复默认列表视图。" })
-
+  userItems.value = build(USER_DEFS)
+  sysItems.value = build(SYS_DEFS)
   totalSize.value = fmtBytes(total)
 }
 
 const confirmClear = (item: StorageItem) => { confirming.value = item }
 const doClear = async () => {
-  if (!confirming.value) return
-  const key = confirming.value.key
-  if (key === "__searchHistory__") {
-    localStorage.removeItem("tabmaster_search_history")
-  } else if (key === "__viewMode__") {
-    localStorage.removeItem("viewMode")
-  } else if (key === "customTags") {
-    await chrome.storage.local.set({ customTags: [], tabTagsMap: {} })
-  } else {
-    const empty = (key === "tabTagsMap" || key === "tabNumberMap" || key === "tabOpenedAtMap" || key === "treeParentMap") ? {} : []
-    await chrome.storage.local.set({ [key]: empty })
+  const d = confirming.value
+  if (!d) return
+  try {
+    if (d.storage === "ls") {
+      localStorage.removeItem(d.key)
+    } else if (d.key === "__guides__") {
+      await chrome.storage.local.remove(d.keys!)
+    } else if (d.key === "customTags") {
+      // 清标记同时清掉绑定映射，避免悬空引用
+      await chrome.storage.local.set({ customTags: [], tabTagsMap: {} })
+    } else {
+      await chrome.storage.local.set({ [d.key]: d.empty === "array" ? [] : {} })
+    }
+  } catch (e) {
+    console.warn("[tab-master] 清理存储失败", e)
   }
   confirming.value = null
   emit("cleared")
