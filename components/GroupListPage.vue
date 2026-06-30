@@ -9,43 +9,34 @@
     </div>
 
     <!-- 工具栏 -->
-    <div class="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
-      <button v-if="hasUngroupedSelected"
-              class="px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              @click="showCreateDialog = true">
-        从选中创建分组
-      </button>
-      <button v-else-if="hasAnySelected"
-              class="px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              @click="showAddToGroupDialog = true">
-        添加到分组
-      </button>
-      <button v-else
-              class="px-2 py-1 text-xs border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="ungroupedTabs.length === 0"
-              :title="ungroupedTabs.length === 0 ? '所有标签都已分组，没有可新建分组的未分组标签' : '从未分组标签里挑选，创建一个新分组'"
-              @click="openNewGroupForUngrouped">
-        + 新建分组
-      </button>
-      <div class="flex items-center gap-2">
-        <div v-if="hasAnySelected" class="flex items-center gap-2">
-          <span class="text-xs text-gray-500">{{ ungroupedSelectedIds.length }} 个选中</span>
-          <button class="text-xs text-gray-600 hover:text-gray-800" @click="clearSelection">取消选择</button>
+    <div class="px-3 py-2 border-b border-gray-100 flex items-center justify-between gap-2 min-h-[40px]">
+      <!-- 有选中：选中栏 -->
+      <template v-if="hasAnySelected">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-medium text-blue-700">已选 {{ ungroupedSelectedIds.length }} 个</span>
+          <button class="text-xs text-gray-500 hover:text-gray-800" @click="clearSelection">取消</button>
         </div>
-        <button
-          :class="['p-0.5 rounded transition-colors', showHelp ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600']"
-          title="这是什么？"
-          @click="showHelp = !showHelp"
-        >
-          <HelpCircle :size="14" />
-        </button>
-      </div>
+        <div class="flex items-center gap-2">
+          <button
+            class="flex items-center gap-1 px-2.5 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            title="用选中的标签创建一个新分组"
+            @click="showCreateDialog = true">
+            <FolderPlus :size="12" />新建分组
+          </button>
+          <button :class="['p-0.5 rounded transition-colors', showHelp ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600']" title="这是什么？" @click="showHelp = !showHelp"><HelpCircle :size="14" /></button>
+        </div>
+      </template>
+      <!-- 无选中：提示如何开始 -->
+      <template v-else>
+        <span class="text-xs text-gray-400">{{ ungroupedTabs.length > 0 ? '勾选下方未分组标签 → 新建分组 / 放入已有分组' : '分组管理' }}</span>
+        <button :class="['p-0.5 rounded transition-colors', showHelp ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600']" title="这是什么？" @click="showHelp = !showHelp"><HelpCircle :size="14" /></button>
+      </template>
     </div>
 
     <!-- 功能说明（点问号展开）-->
     <div v-if="showHelp" class="px-3 py-2.5 bg-blue-50 border-b border-blue-100 text-[11px] leading-relaxed text-blue-800">
-      <p class="mb-1">把相关标签<b>归到一组</b>，颜色+名称标识，和 Chrome 原生标签组实时同步（在标签栏也能看到）。</p>
-      <p class="mb-1"><b>怎么用：</b>① 点「未分组」里的标签前的勾选框选中几个 → ②「新建分组」起名选色，或「添加到分组」并入已有组。</p>
+      <p class="mb-1">把相关标签<b>归到一组</b>，颜色+名称标识，和 Chrome 原生标签组实时同步（标签栏也能看到）。</p>
+      <p class="mb-1"><b>怎么用：</b>① 在「未分组」里<b>勾选</b>几个标签 → ② 点顶部<b>「新建分组」</b>起名选色，<b>或</b> hover/点已有分组右侧的<b>「← 放入」</b>并进去。</p>
       <p>每个分组可重命名、改颜色、折叠、解散。🔒 分组关系仅本机/浏览器，不上传。</p>
     </div>
 
@@ -55,6 +46,8 @@
         :group="group"
         :tabs="group.tabs"
         :is-batch-mode="false"
+        :can-drop-in="hasAnySelected"
+        :drop-in-count="ungroupedSelectedIds.length"
         @activate-tab="activateTab"
         @close-tab="closeTab"
         @rename-group="renameGroup"
@@ -62,6 +55,7 @@
         @toggle-group-collapse="toggleGroupCollapse"
         @ungroup="ungroup"
         @close-group-tabs="closeGroupTabs"
+        @drop-in="handleDropIn"
       />
 
       <!-- 未分组 -->
@@ -75,15 +69,16 @@
         <div v-show="!ungroupedCollapsed" class="py-1">
           <div v-for="tab in ungroupedTabs" :key="tab.id"
                class="group flex items-center gap-2 px-3 py-2 hover:bg-blue-50 cursor-pointer"
-               @click="!isUngroupedBatchMode ? activateTab(tab.id) : toggleUngroupedSelect(tab.id)"
+               :class="ungroupedSelectedIds.includes(tab.id) && 'bg-blue-50'"
+               @click="toggleUngroupedSelect(tab.id)"
           >
-            <input v-if="isUngroupedBatchMode" type="checkbox" :checked="ungroupedSelectedIds.includes(tab.id)" @click.stop @change.stop="toggleUngroupedSelect(tab.id)" class="cursor-pointer" />
+            <input type="checkbox" :checked="ungroupedSelectedIds.includes(tab.id)" title="勾选以分组" @click.stop @change.stop="toggleUngroupedSelect(tab.id)" class="cursor-pointer shrink-0" />
             <FavIcon :src="tab.favIconUrl" :domain="tab.domain" size="sm" />
-            <div class="flex-1 min-w-0">
+            <div class="flex-1 min-w-0" @click.stop="activateTab(tab.id)">
               <p class="text-sm truncate" :class="tab.active ? 'font-semibold text-blue-900' : 'text-gray-900'">{{ tab.title }}</p>
               <p class="text-xs text-gray-500 truncate">{{ tab.domain.toLowerCase() }}</p>
             </div>
-            <button class="p-1 text-gray-500 hover:text-red-500 rounded opacity-0 group-hover:opacity-100" @click.stop="closeTab(tab.id)">
+            <button class="p-1 text-gray-500 hover:text-red-500 rounded opacity-0 group-hover:opacity-100 shrink-0" title="关闭标签" @click.stop="closeTab(tab.id)">
               <X :size="14" />
             </button>
           </div>
@@ -97,49 +92,8 @@
       </div>
     </div>
 
-    <!-- 未分组选择模式的底部栏 -->
-    <div v-if="isUngroupedBatchMode && ungroupedSelectedIds.length > 0" class="border-t border-gray-100 px-3 py-2 bg-white shrink-0">
-      <div class="flex items-center justify-between">
-        <button class="text-xs text-gray-600 hover:text-gray-800" @click="clearSelection">取消</button>
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-500">{{ ungroupedSelectedIds.length }} 个选中</span>
-          <button class="px-3 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700" @click="showCreateDialog = true">
-            新建分组
-          </button>
-          <button class="px-3 py-1 text-xs border border-gray-300 rounded-md hover:bg-gray-50" @click="showAddToGroupDialog = true">
-            添加到分组
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- 创建分组对话框 -->
-    <CreateGroupDialog :open="showCreateDialog" :title="selectedTabIdsForCreate.length > 0 ? '从选中创建分组' : '新建分组'" :create-text="'创建'" @close="showCreateDialog = false" @create="handleCreateGroup" />
-
-    <!-- 添加到分组对话框 -->
-    <Teleport to="body">
-      <div v-if="showAddToGroupDialog" class="fixed inset-0 z-[100] flex items-center justify-center">
-        <div class="absolute inset-0 bg-black/30" @click="showAddToGroupDialog = false"></div>
-        <div class="relative bg-white rounded-lg shadow-xl w-72 p-4">
-          <button class="absolute top-3 right-3 text-gray-400 hover:text-gray-600" @click="showAddToGroupDialog = false">
-            <X :size="16" />
-          </button>
-          <h3 class="text-sm font-semibold text-gray-900 mb-4">添加到分组</h3>
-          <div class="space-y-1 max-h-64 overflow-y-auto">
-            <button v-for="g in groups" :key="g.id" :class="btn" @click="addToExistingGroup(g.id)">
-              <span :class="[colorClass(g.color), 'w-3 h-3 rounded-full']"></span>
-              {{ g.title || '未命名分组' }}
-              <span class="text-gray-400 ml-auto">({{ g.tabs.length }})</span>
-            </button>
-            <hr v-if="groups.length" class="my-2 border-gray-100" />
-            <button :class="[btn, 'text-blue-600']" @click="showAddToGroupDialog = false; showCreateDialog = true">
-              <FolderPlus :size="12" />
-              新建分组...
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <CreateGroupDialog :open="showCreateDialog" :title="`新建分组 · 包含 ${ungroupedSelectedIds.length} 个标签`" :create-text="'创建'" @close="showCreateDialog = false" @create="handleCreateGroup" />
   </div>
 </template>
 
@@ -149,7 +103,6 @@ import { ChevronDown, X, FolderPlus, HelpCircle } from "@lucide/vue"
 import GroupItem from "./GroupItem.vue"
 import CreateGroupDialog from "./CreateGroupDialog.vue"
 import FavIcon from "./FavIcon.vue"
-import { GROUP_COLOR_CLASSES } from "~composables/useTabGroups"
 import type { TabItem } from "~types/tab"
 
 const props = withDefaults(defineProps<{
@@ -175,23 +128,12 @@ const emit = defineEmits<{
   markGuideShown: []
 }>()
 
-const btn = "flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700 rounded-md"
-
 const ungroupedCollapsed = ref(false)
-const isUngroupedBatchMode = ref(false)
 const ungroupedSelectedIds = ref<number[]>([])
 const showCreateDialog = ref(false)
-const showAddToGroupDialog = ref(false)
 const showHelp = ref(false)
 
 const hasAnySelected = computed(() => ungroupedSelectedIds.value.length > 0)
-const hasUngroupedSelected = computed(() => ungroupedSelectedIds.value.length > 0)
-
-const selectedTabIdsForCreate = computed(() => ungroupedSelectedIds.value)
-
-const colorClass = (color: string) => {
-  return GROUP_COLOR_CLASSES[color as keyof typeof GROUP_COLOR_CLASSES] || "bg-gray-400"
-}
 
 const activateTab = (id: number) => {
   emit("activateTab", id)
@@ -227,32 +169,17 @@ const markGuideShown = () => {
 
 const toggleUngroupedSelect = (id: number) => {
   const idx = ungroupedSelectedIds.value.indexOf(id)
-  if (idx === -1) {
-    ungroupedSelectedIds.value.push(id)
-  } else {
-    ungroupedSelectedIds.value.splice(idx, 1)
-  }
-  // 自动进入选择模式
-  if (ungroupedSelectedIds.value.length > 0) {
-    isUngroupedBatchMode.value = true
-  }
+  if (idx === -1) ungroupedSelectedIds.value.push(id)
+  else ungroupedSelectedIds.value.splice(idx, 1)
 }
 
 const clearSelection = () => {
   ungroupedSelectedIds.value = []
-  isUngroupedBatchMode.value = false
-}
-
-const openNewGroupForUngrouped = () => {
-  // 自动选择第一个未分组标签（因为不能创建空分组）
-  if (props.ungroupedTabs.length > 0 && ungroupedSelectedIds.value.length === 0) {
-    ungroupedSelectedIds.value = [props.ungroupedTabs[0].id]
-  }
-  showCreateDialog.value = true
 }
 
 const handleCreateGroup = (name: string, color: string) => {
-  const tabIds = ungroupedSelectedIds.value.length > 0 ? ungroupedSelectedIds.value : (props.ungroupedTabs.length > 0 ? [props.ungroupedTabs[0].id] : [])
+  // 复选框常显，新建分组按钮只在有选中时出现，所以这里一定有选中
+  const tabIds = [...ungroupedSelectedIds.value]
   if (tabIds.length > 0) {
     emit("createGroup", tabIds, name, color)
   }
@@ -260,20 +187,16 @@ const handleCreateGroup = (name: string, color: string) => {
   clearSelection()
 }
 
-const addToExistingGroup = (groupId: number) => {
-  if (ungroupedSelectedIds.value.length > 0) {
-    emit("addToGroup", ungroupedSelectedIds.value, groupId)
-  }
-  showAddToGroupDialog.value = false
+// 点已有分组的「← 放入」：把选中的未分组标签加入该分组
+const handleDropIn = (groupId: number) => {
+  if (ungroupedSelectedIds.value.length === 0) return
+  emit("addToGroup", [...ungroupedSelectedIds.value], groupId)
   clearSelection()
 }
 
-// 监听未分组标签变化，清理不存在的选中
+// 监听未分组标签变化，清理已不存在的选中
 watch(() => props.ungroupedTabs, (tabs) => {
   const existingIds = new Set(tabs.map(t => t.id))
   ungroupedSelectedIds.value = ungroupedSelectedIds.value.filter(id => existingIds.has(id))
-  if (ungroupedSelectedIds.value.length === 0) {
-    isUngroupedBatchMode.value = false
-  }
 }, { deep: true })
 </script>

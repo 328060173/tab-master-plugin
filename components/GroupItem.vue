@@ -5,6 +5,13 @@
       <span :class="[colorClass, 'w-3 h-3 rounded-full']"></span>
       <span class="flex-1 text-sm font-medium text-gray-900">{{ group.title || "未命名分组" }}</span>
       <span class="text-xs text-gray-500">{{ tabs.length }}</span>
+      <button
+        v-if="canDropIn"
+        class="px-1.5 py-0.5 text-[10px] bg-blue-600 text-white rounded hover:bg-blue-700 shrink-0"
+        :title="`把选中的 ${dropInCount} 个标签放入此分组`"
+        @click.stop="emit('dropIn', group.id)">
+        ← 放入
+      </button>
       <button class="p-1 rounded hover:bg-gray-200" @click.stop="toggleCollapse">
         <ChevronDown :size="14" :class="collapsed ? '-rotate-90' : ''" class="transition-transform" />
       </button>
@@ -108,6 +115,8 @@ const props = defineProps<{
   tabs: TabItem[]
   isBatchMode?: boolean
   selectedIds?: number[]
+  canDropIn?: boolean
+  dropInCount?: number
 }>()
 
 const emit = defineEmits<{
@@ -119,6 +128,7 @@ const emit = defineEmits<{
   toggleGroupCollapse: [id: number, collapsed: boolean]
   ungroup: [id: number]
   closeGroupTabs: [id: number]
+  dropIn: [groupId: number]
 }>()
 
 const btn = "flex items-center gap-2 w-full px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 text-left text-gray-700 dark:text-gray-200 text-xs"

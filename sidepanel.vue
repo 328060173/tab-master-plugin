@@ -162,8 +162,8 @@
         :guide-shown="tabGroupsGuideShown"
         @activate-tab="activateTab"
         @close-tab="closeTab"
-        @create-group="createGroup"
-        @add-to-group="addToGroup"
+        @create-group="onGroupCreate"
+        @add-to-group="onGroupAdd"
         @rename-group="(id, name) => updateGroup(id, { title: name })"
         @change-group-color="(id, color) => updateGroup(id, { color })"
         @toggle-group-collapse="(id, collapsed) => updateGroup(id, { collapsed })"
@@ -897,6 +897,15 @@ const showToast = (msg: string) => {
   toastMsg.value = msg
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => { toastMsg.value = "" }, 2000)
+}
+// 分组：创建/加入后给 toast 反馈（可感知原则·事后）
+const onGroupCreate = async (tabIds: number[], name: string, color: string) => {
+  const id = await createGroup(tabIds, name, color)
+  showToast(id !== null ? `已创建「${name || '未命名分组'}」分组（${tabIds.length} 个标签）` : "创建分组失败，详见运行日志")
+}
+const onGroupAdd = async (tabIds: number[], groupId: number) => {
+  await addToGroup(tabIds, groupId)
+  showToast(`已将 ${tabIds.length} 个标签加入分组`)
 }
 // 历史页：恢复一条最近关闭的标签
 const onRestoreFromHistory = (url: string) => {
