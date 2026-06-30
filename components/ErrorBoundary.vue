@@ -15,12 +15,14 @@
 
 <script setup lang="ts">
 /**
- * 错误边界：捕获子树渲染/生命周期错误，显示局部降级 UI + 把错误明文展示出来，
- * 不依赖日志就能看到报错（日志由全局切面 console.error 拦截记录，这里只管展示）。
+ * 错误边界：捕获子树渲染/生命周期错误，显示局部降级 UI + 把错误明文展示出来。
+ * - 插槽内容变化（如 activeNav 切换）时自动重置，避免"一个页面出错后切到别的页面还是错误态"
+ * - 记录交给全局切面（console.error 拦截），这里只管展示
  */
-import { ref, onErrorCaptured } from "vue"
+import { ref, onErrorCaptured, useSlots, watch } from "vue"
 
 const props = defineProps<{ scope?: string }>()
+const slots = useSlots()
 const errored = ref(false)
 const errMsg = ref("")
 const copied = ref(false)
@@ -31,6 +33,11 @@ onErrorCaptured((err) => {
   errMsg.value = `[${props.scope || "ui"}] ${msg}`.slice(0, 600)
   console.error(`[ErrorBoundary:${props.scope || "ui"}]`, err)
   return false
+})
+
+// 插槽默认内容变化（v-if 切换导致子组件换人）时自动重置，让别的页面能正常显示
+watch(() => slots.default?.(), () => {
+  if (errored.value) { errored.value = false; errMsg.value = "" }
 })
 
 const reset = () => { errored.value = false; errMsg.value = "" }

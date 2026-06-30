@@ -60,10 +60,26 @@ async function flush() {
   queue = []
   try {
     await ensureLoaded()
+    // 先更新内存镜像（日志页当前会话立即可见，即使 storage 写失败也不影响展示）
     logs.value = [...batch.reverse(), ...logs.value].slice(0, MAX_LOGS)
     await chrome.storage.local.set({ [STORAGE_KEY]: logs.value })
-  } catch {
-    // 写盘失败也不抛
+  } catch (e) {
+    // storage 写失败：至少保留内存镜像，并把失败本身打到控制台（不再静默吞掉）
+    console.warn("[useLogger] flush 写 storage 失败，仅保留内存镜像：", e)
+  }
+}
+
+// error 专用落盘：自包含读-改-写，不依赖 flush 队列状态，确保错误一定能写进 storage
+async function flushError(entry: LogEntry) {
+  try {
+    const data = await chrome.storage.local.get(STORAGE_KEY)
+    const existing = Array.isArray((data as Record<string, unknown>)?.[STORAGE_KEY])
+      ? (data as Record<string, unknown>)[STORAGE_KEY] as LogEntry[]
+      : []
+    const merged = [entry, ...existing].slice(0, MAX_LOGS)
+    await chrome.storage.local.set({ [STORAGE_KEY]: merged })
+  } catch (e) {
+    console.warn("[useLogger] flushError 写 storage 失败：", e)
   }
 }
 
@@ -81,16 +97,23 @@ function safeDetail(d: unknown): string | undefined {
 /** 写一条日志（任何地方可调用，永不抛错） */
 export function log(level: LogLevel, scope: string, msg: string, detail?: unknown) {
   try {
-    queue.push({
+    const entry: LogEntry = {
       t: Date.now(),
       level,
       scope: String(scope).slice(0, 40),
       msg: String(msg).slice(0, 200),
       detail: safeDetail(detail),
-    })
+    }
+    queue.push(entry)
     if (queue.length > MAX_LOGS) queue = queue.slice(-MAX_LOGS)
-    // 错误立即落盘（不等 800ms 防抖），避免用户马上去看日志页时还没写进去而"看不到"
-    if (level === "error") { void flush() } else { scheduleFlush() }
+    // error 立即落盘 + 同步更新内存镜像；其它级别走防抖
+    if (level === "error") {
+      // 内存镜像先更新（当前会话立即可见）
+      logs.value = [entry, ...logs.value].slice(0, MAX_LOGS)
+      void flushError(entry)
+    } else {
+      scheduleFlush()
+    }
   } catch {
     // 连记日志都失败就彻底放弃，绝不影响主流程
   }
