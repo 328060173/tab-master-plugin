@@ -66,7 +66,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - **审查 .vue 必查**：① 模板复合语句 `@click="fn; x()"` ② 模板内 TS 语法 `as X` / `!` 非空断言 / 泛型 ③ HTML 转义（grep `&lt;`）+ 多个 `<script setup>` 块 ④ 是否波及既有功能。⚠️ **`vue-tsc` 检不出模板内 TS 断言**——必须用 Plasmo 同款 `@vue/compiler-sfc@3.3.4` 跑 `compileTemplate` 复核（见 [[lesson-vue-mustache-no-components]]）
 - **新功能不碰老功能；重构/统一既有代码需先经用户批准**
 - **改动 / 新增功能前先查 `docs/code-map.md`（代码地图）**——它列了"改 A 必须联动改 B/C"（如：加 storage key 必须同步 `StoragePanel.vue`）；引入新的跨文件联动后**回去更新这张表**
-- **不自动 git commit/push**，等明确指令
+- **改完代码自行 `git add`/`commit`/`push` 到 master**（2026-06-30 用户授权，静态校验通过后即可提交，不必逐次问）→ [[feedback-no-auto-commit]]
 
 ## 官方文档（改 manifest / 调 chrome.* 前必查）
 - 本地权威副本：`docs/googledocs/`（76 个 Chrome 扩展 API 的 `.md` + `INDEX.md` 索引，每文件头带官方 URL）。重抓脚本：`docs/googledocs/fetch-chrome-docs.sh`
@@ -115,7 +115,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - 改 manifest permissions / 调 chrome.* 前必查 `docs/googledocs/<api>.md`（官方副本）核实——`tabHide` 不存在、`chrome.tabs.hide` 是实验 API
 - 禁用 `(chrome.x as any)` 强转
 - 禁用 v-html（XSS）
-- 不自动 git commit/push（等用户明确指令）
+- 改完代码自行 git add/commit/push 到 master（静态校验通过后即可，2026-06-30 用户授权）
 
 ### 参考原型
 交互原型在 `/Users/yuyany/web_space/tab-master-demo`（React + shadcn/ui），已迁移核心功能到本项目。

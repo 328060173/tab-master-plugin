@@ -72,18 +72,18 @@
         @click="onSortOptionClick(o.value)">{{ o.label }}</button>
     </div>
 
-    <!-- 清理下拉 -->
+    <!-- 整理下拉 -->
     <div
       v-if="popover.isOpen('toolbar-clean')"
       :style="cleanPos"
-      class="fixed z-[60] w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+      class="fixed z-[60] w-60 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
       @click.stop>
-      <p class="px-3 py-1 text-[10px] text-gray-400 font-medium uppercase tracking-wide">直接关闭</p>
-      <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700" @click="onCleanOptionClick('closeUnpinned')"><X :size="12" />关闭非固定标签</button>
-      <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700" @click="onCleanOptionClick('closeOthers')"><X :size="12" />关闭其他标签（除当前页）</button>
-      <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700" @click="onCleanOptionClick('closeFrozenDiscarded')"><Snowflake :size="12" />关闭已冻结/已舍弃标签</button>
+      <p class="px-3 pt-1.5 pb-0.5 text-[10px] font-medium tracking-wide text-red-500">直接关闭 · 点了会先弹确认</p>
+      <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20" @click="onCleanOptionClick('closeUnpinned')"><X :size="12" />关闭非固定标签</button>
+      <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20" @click="onCleanOptionClick('closeOthers')"><X :size="12" />关闭其他标签（除当前页）</button>
+      <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20" @click="onCleanOptionClick('closeFrozenDiscarded')"><Snowflake :size="12" />关闭已冻结/已舍弃标签</button>
       <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-      <p class="px-3 py-1 text-[10px] text-gray-400 font-medium uppercase tracking-wide">检测后选择</p>
+      <p class="px-3 pt-1.5 pb-0.5 text-[10px] font-medium tracking-wide text-gray-400">检测后选择 · 先预览，不会立即关</p>
       <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700" @click="onCleanOptionClick('detectDuplicates')"><Search :size="12" />检测重复标签</button>
       <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700" @click="onCleanOptionClick('detectUnused')"><Clock :size="12" />检测长期未使用标签</button>
     </div>

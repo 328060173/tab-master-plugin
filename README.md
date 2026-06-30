@@ -11,6 +11,7 @@
 ```bash
 pnpm install
 pnpm dev:safe   # 🌟 日常开发（保险版，会先清理残留进程）
+pnpm fresh      # 🧹 全新构建（清 .plasmo+build 再起，遇到任何怪问题无脑跑这个）
 pnpm build:all  # 一次性产出 build/dev/ + build/prod/
 pnpm kill-dev   # 杀掉所有 plasmo dev 进程
 pnpm package    # 打包成 Chrome Web Store 上架 zip
@@ -23,7 +24,12 @@ pnpm package    # 打包成 Chrome Web Store 上架 zip
 
 ## 构建卡住 / 报错恢复
 
-> ⚠️ 任何清理前先 **Ctrl+C 停掉 dev**，清完再 `pnpm dev:safe`。平时不用删，直接 `pnpm dev:safe`。
+> 😀 **嫌麻烦、不想思考？任何怪问题统一一招**：`pnpm fresh`（清 `.plasmo`+`build` 全新构建），等构建成功无 ERROR → 浏览器扩展页点 ↻ reload。
+>
+> 🔫 它靠 `pkill -f plasmo` **按进程名杀光所有 plasmo**——不管你用 Trae 还是 VSCode、在几个终端开过、build 过多少次，全部清零，**以这次重新构建为准**。终端无关，无脑跑。
+> （手敲等价命令：`pkill -f plasmo; rm -rf .plasmo build && pnpm dev:safe` —— 注意 pkill 后是 `;` 不是 `&&`，否则没进程时会中断。）
+
+> ⚠️ 想省那十几秒、做精细控制时，看下面分档版。任何清理前先 **Ctrl+C 停掉 dev**。平时不用删，直接 `pnpm dev:safe`。
 
 按严重程度三档，**二选一，别同时敲**：
 

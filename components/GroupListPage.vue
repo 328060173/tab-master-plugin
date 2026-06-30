@@ -23,13 +23,30 @@
       <button v-else
               class="px-2 py-1 text-xs border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="ungroupedTabs.length === 0"
+              :title="ungroupedTabs.length === 0 ? '所有标签都已分组，没有可新建分组的未分组标签' : '从未分组标签里挑选，创建一个新分组'"
               @click="openNewGroupForUngrouped">
         + 新建分组
       </button>
-      <div v-if="hasAnySelected" class="flex items-center gap-2">
-        <span class="text-xs text-gray-500">{{ ungroupedSelectedIds.length }} 个选中</span>
-        <button class="text-xs text-gray-600 hover:text-gray-800" @click="clearSelection">取消选择</button>
+      <div class="flex items-center gap-2">
+        <div v-if="hasAnySelected" class="flex items-center gap-2">
+          <span class="text-xs text-gray-500">{{ ungroupedSelectedIds.length }} 个选中</span>
+          <button class="text-xs text-gray-600 hover:text-gray-800" @click="clearSelection">取消选择</button>
+        </div>
+        <button
+          :class="['p-0.5 rounded transition-colors', showHelp ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600']"
+          title="这是什么？"
+          @click="showHelp = !showHelp"
+        >
+          <HelpCircle :size="14" />
+        </button>
       </div>
+    </div>
+
+    <!-- 功能说明（点问号展开）-->
+    <div v-if="showHelp" class="px-3 py-2.5 bg-blue-50 border-b border-blue-100 text-[11px] leading-relaxed text-blue-800">
+      <p class="mb-1">把相关标签<b>归到一组</b>，颜色+名称标识，和 Chrome 原生标签组实时同步（在标签栏也能看到）。</p>
+      <p class="mb-1"><b>怎么用：</b>① 点「未分组」里的标签前的勾选框选中几个 → ②「新建分组」起名选色，或「添加到分组」并入已有组。</p>
+      <p>每个分组可重命名、改颜色、折叠、解散。🔒 分组关系仅本机/浏览器，不上传。</p>
     </div>
 
     <!-- 分组列表 -->
@@ -74,7 +91,9 @@
       </div>
 
       <div v-if="groups.length === 0 && ungroupedTabs.length === 0" class="text-center text-gray-500 text-xs py-12">
-        暂无标签
+        <p class="mb-1 font-medium text-gray-500">还没有标签可分组 🗂️</p>
+        <p class="leading-relaxed">打开一些标签后，在「未分组」里勾选几个<br/>就能创建分组，给它们起名、配色</p>
+        <p class="mt-1.5 text-[10px] text-gray-300">点右上角 ? 看怎么用</p>
       </div>
     </div>
 
@@ -126,7 +145,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import { ChevronDown, X, FolderPlus } from "@lucide/vue"
+import { ChevronDown, X, FolderPlus, HelpCircle } from "@lucide/vue"
 import GroupItem from "./GroupItem.vue"
 import CreateGroupDialog from "./CreateGroupDialog.vue"
 import FavIcon from "./FavIcon.vue"
@@ -163,6 +182,7 @@ const isUngroupedBatchMode = ref(false)
 const ungroupedSelectedIds = ref<number[]>([])
 const showCreateDialog = ref(false)
 const showAddToGroupDialog = ref(false)
+const showHelp = ref(false)
 
 const hasAnySelected = computed(() => ungroupedSelectedIds.value.length > 0)
 const hasUngroupedSelected = computed(() => ungroupedSelectedIds.value.length > 0)

@@ -1,5 +1,6 @@
 import { ref, computed, onMounted, onUnmounted, type Ref } from "vue"
 import type { TabItem } from "~types/tab"
+import { logError } from "~composables/useLogger"
 
 // 支持的分组颜色
 export const GROUP_COLORS = [
@@ -66,13 +67,16 @@ export function useTabGroups(tabsRef: Ref<readonly TabItem[]>) {
   const createGroup = async (tabIds: number[], title?: string, color?: GroupColor): Promise<number | null> => {
     if (!SUPPORTS_TAB_GROUPS || tabIds.length === 0) return null
     try {
-      const groupId = await chrome.tabs.group({ tabIds })
+      // 必须传纯数组：tabIds 多来自 Vue 响应式 ref(.value 是 Proxy)，
+      // 直接传给 chrome.tabs.group 会被 Chrome 的类型校验当成 object 拒绝
+      const groupId = await chrome.tabs.group({ tabIds: [...tabIds] })
       if (title || color) {
         await chrome.tabGroups.update(groupId, { title, color })
       }
       return groupId
     } catch (e) {
       console.error("Failed to create group:", e)
+      logError("groups", "创建分组失败", e)
       return null
     }
   }
@@ -81,9 +85,10 @@ export function useTabGroups(tabsRef: Ref<readonly TabItem[]>) {
   const addToGroup = async (tabIds: number[], groupId: number) => {
     if (!SUPPORTS_TAB_GROUPS) return
     try {
-      await chrome.tabs.group({ tabIds, groupId })
+      await chrome.tabs.group({ tabIds: [...tabIds], groupId })
     } catch (e) {
       console.error("Failed to add tabs to group:", e)
+      logError("groups", "加入分组失败", e)
     }
   }
 
@@ -91,9 +96,10 @@ export function useTabGroups(tabsRef: Ref<readonly TabItem[]>) {
   const removeFromGroup = async (tabIds: number[]) => {
     if (!SUPPORTS_TAB_GROUPS) return
     try {
-      await chrome.tabs.ungroup(tabIds)
+      await chrome.tabs.ungroup([...tabIds])
     } catch (e) {
       console.error("Failed to remove tabs from group:", e)
+      logError("groups", "移出分组失败", e)
     }
   }
 
