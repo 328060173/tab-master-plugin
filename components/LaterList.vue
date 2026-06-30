@@ -15,15 +15,23 @@
 
     <!-- 功能说明（点问号展开）-->
     <div v-if="showHelp" class="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 p-2.5 text-[11px] leading-relaxed text-blue-800 dark:text-blue-200">
-      <p class="mb-1">把<b>暂时不看、之后还要用</b>的标签存到这里，然后关掉它腾出空间；需要时点一下就重新打开。</p>
-      <p>添加方式：标签卡片上 hover 出汉堡菜单 → 选「稍后处理」（或右键标签 → 稍后处理），可加备注。🔒 仅存本机。</p>
+      <p class="mb-1.5">把<b>暂时不看、之后还要用</b>的标签存到这里，然后关掉它腾出空间；需要时点一下就重新打开。</p>
+      <p class="flex items-center flex-wrap gap-x-1 gap-y-1">
+        <span>添加方式：点卡片上的</span>
+        <Clock :size="13" class="inline-block text-amber-600" /><span>稍后处理小图标，</span>
+        <span>或点</span>
+        <Menu :size="13" class="inline-block" :stroke-width="2.25" /><span>汉堡菜单 → 选</span>
+        <Clock :size="13" class="inline-block" /><span>稍后处理。可加备注。🔒 仅存本机。</span>
+      </p>
     </div>
 
     <!-- 空态引导 -->
     <div v-if="!items.length" class="text-center text-gray-400 text-xs py-12">
       <p class="mb-1 font-medium text-gray-500 dark:text-gray-300">还没有稍后处理的标签 🌱</p>
       <p class="leading-relaxed">把暂时不看、之后要用的标签存这儿<br/>关掉它腾空间，需要时一键打开</p>
-      <p class="mt-1.5 text-[10px] text-gray-300 leading-relaxed">添加：标签卡片 hover 菜单 / 右键 → 「稍后处理」</p>
+      <p class="flex items-center justify-center flex-wrap gap-x-1 mt-1.5 text-[10px] text-gray-400">
+        <span>添加：点卡片的</span><Clock :size="11" class="inline-block" /><span>小图标，或</span><Menu :size="11" class="inline-block" /><span>菜单 → 稍后处理</span>
+      </p>
     </div>
 
     <div
@@ -51,7 +59,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue"
-import { X, HelpCircle } from "@lucide/vue"
+import { X, HelpCircle, Menu, Clock } from "@lucide/vue"
 import type { LaterItem } from "~types/tab"
 import FavIcon from "./FavIcon.vue"
 

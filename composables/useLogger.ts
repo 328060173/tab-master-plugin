@@ -89,7 +89,8 @@ export function log(level: LogLevel, scope: string, msg: string, detail?: unknow
       detail: safeDetail(detail),
     })
     if (queue.length > MAX_LOGS) queue = queue.slice(-MAX_LOGS)
-    scheduleFlush()
+    // 错误立即落盘（不等 800ms 防抖），避免用户马上去看日志页时还没写进去而"看不到"
+    if (level === "error") { void flush() } else { scheduleFlush() }
   } catch {
     // 连记日志都失败就彻底放弃，绝不影响主流程
   }
