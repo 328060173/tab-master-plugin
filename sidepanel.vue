@@ -516,11 +516,6 @@ const {
   updateTreeParent, moveTabToIndex,
 } = useTabManager()
 
-const {
-  refresh, copyUrl, togglePin, toggleMute, duplicate, close: closeAction, closeOthers: closeOthersAction,
-  addToGroupSingle, removeFromGroupSingle, newGroupSingle,
-  batchClose, batchLater, batchAddToGroup, batchNewGroup,
-} = useTabActions({ showToast })
 const stats = computed(() => useTabStats(tabs).value)
 
 const treeNodes = useTabTree(tabs, treeParentMap)
@@ -970,6 +965,14 @@ const showToast = (msg: string) => {
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => { toastMsg.value = "" }, 2000)
 }
+
+// 标签操作动作层（单标签 + 批量）：refresh/copyUrl/togglePin/close/batchClose 等
+// 必须在 showToast 定义之后调用（内部传 showToast 回调）
+const {
+  refresh, copyUrl, togglePin, toggleMute, duplicate, close: closeAction, closeOthers: closeOthersAction,
+  addToGroupSingle, removeFromGroupSingle, newGroupSingle,
+  batchClose, batchLater, batchAddToGroup, batchNewGroup,
+} = useTabActions({ showToast })
 // 分组：创建/加入后给 toast 反馈（可感知原则·事后）
 const onGroupCreate = async (tabIds: number[], name: string, color: string) => {
   const id = await createGroup(tabIds, name, color)
