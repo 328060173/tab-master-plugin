@@ -297,15 +297,6 @@
       </ErrorBoundary>
     </div>
 
-    <!-- 底部退出聚焦按钮（聚焦态显示） -->
-    <div v-if="focusMode === 'focusing'" class="shrink-0 border-t border-gray-200 bg-white">
-      <button
-        class="w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-medium"
-        @click="exitFocusingWithToast">
-        ← 退出聚焦模式
-      </button>
-    </div>
-
     <!-- 底部统计栏（普通/选择态显示） -->
     <FooterStats v-if="focusMode !== 'focusing'" :stats="stats" :active-filter="activeFilter" @filter="activeFilter = $event" />
 
@@ -489,12 +480,23 @@
       <ChevronUp :size="14" />
     </button>
 
+    <!-- 聚焦模式全屏蒙层 + 中央关闭按钮 -->
+    <div v-if="focusMode === 'focusing'" class="fixed inset-0 z-[150] bg-black/60 flex items-center justify-center">
+      <button
+        class="px-8 py-4 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-base font-semibold rounded-lg shadow-2xl flex items-center gap-2 transition-colors"
+        @click="exitFocusingWithToast"
+        title="退出聚焦模式">
+        <XCircle :size="20" />
+        关闭聚焦
+      </button>
+    </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
-import { ChevronUp, ChevronDown, ChevronLeft, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag } from "@lucide/vue"
+import { ChevronUp, ChevronDown, ChevronLeft, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle } from "@lucide/vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabStats } from "~composables/useTabStats"
 import { useTabTree } from "~composables/useTabTree"
