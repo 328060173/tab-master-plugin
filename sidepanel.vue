@@ -549,14 +549,6 @@ const {
 } = useTabManager()
 const stats = computed(() => useTabStats(tabs).value)
 
-// 当 activeFilter 对应的状态计数为 0 时，自动切回全部
-watch([stats, activeFilter], () => {
-  if (activeFilter.value === 'all') return
-  const curStat = stats.value.find(s => s.key === activeFilter.value)
-  if (curStat && curStat.value === 0) {
-    activeFilter.value = 'all'
-  }
-})
 const treeNodes = useTabTree(tabs, treeParentMap)
 
 // 浏览历史（可选权限 chrome.history）—— 渐进式：未授权只显最近关闭，授权后多一个「浏览历史」分段
@@ -728,6 +720,14 @@ const search = ref("")
 const isBatchMode = ref(false)
 const selectedIds = ref<number[]>([])
 const activeFilter = ref("all")
+// 当 activeFilter 对应的状态计数变 0 时，自动切回"全部"（避免关闭最后一个该状态标签后卡空列表）
+watch([stats, activeFilter], () => {
+  if (activeFilter.value === 'all') return
+  const curStat = stats.value.find(s => s.key === activeFilter.value)
+  if (curStat && curStat.value === 0) {
+    activeFilter.value = 'all'
+  }
+})
 const activeTagFilters = ref<string[]>([])
 // 监听 customTags 变化，清理 activeTagFilters 中不存在的标记
 watch(customTags, (newTags) => {
