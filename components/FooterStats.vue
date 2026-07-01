@@ -4,7 +4,11 @@
     <div class="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
       <button
         v-for="s in visibleStats" :key="s.key" :title="s.desc"
-        :class="['shrink-0 whitespace-nowrap flex items-center gap-0.5 transition-colors', activeFilter === s.key ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200']"
+        :disabled="s.value === 0 && s.key !== 'all'"
+        :class="['shrink-0 whitespace-nowrap flex items-center gap-0.5 transition-colors',
+                  activeFilter === s.key ? 'text-blue-600 dark:text-blue-400 font-bold' :
+                  s.value === 0 && s.key !== 'all' ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' :
+                  'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200']"
         @click="emit('filter', s.key)"
       ><span>{{ s.icon }}</span>{{ s.label }}({{ s.value }})</button>
     </div>
@@ -28,8 +32,10 @@
       @click.stop>
       <button
         v-for="s in hiddenStats" :key="s.key" :title="s.desc"
-        :class="['flex items-center gap-2 w-full text-left px-4 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap',
-          activeFilter === s.key ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-gray-700 dark:text-gray-200']"
+        :disabled="s.value === 0 && s.key !== 'all'"
+        :class="['flex items-center gap-2 w-full text-left px-4 py-1.5 text-xs whitespace-nowrap',
+          activeFilter === s.key ? 'text-blue-600 dark:text-blue-400 font-bold' :
+          s.value === 0 && s.key !== 'all' ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700']"
         @click="emit('filter', s.key); popover.close('footer-more')"
       >
         <span class="text-sm">{{ s.icon }}</span>
@@ -81,7 +87,7 @@ const morePos = computed(() => {
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
 
-const PRIORITY_ORDER = ["playing","muted","recording","sharing","frozen","discarded","active","loading","pinned","attention","hasUnsavedForm","hasConnectedDevice","isProtected"]
+const PRIORITY_ORDER = ["playing","muted","recording","sharing","hasConnectedDevice","frozen","discarded","active","loading","pinned","attention","hasUnsavedForm","isProtected"]
 
 const sortedStats = computed(() => {
   const all = props.stats.find(s => s.key === "all")

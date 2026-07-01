@@ -43,6 +43,7 @@ function chromeTabToItem(t: chrome.tabs.Tab, savedTags: Record<string, string[]>
 
 export function useTabManager() {
   const tabs = ref<TabItem[]>([])
+  const currentWindowId = ref<number>(-1)
   const laterTabs = ref<LaterItem[]>([])
   const customTags = ref<string[]>([])
   const tabTagsMap = ref<Record<string, string[]>>({})
@@ -87,6 +88,10 @@ export function useTabManager() {
   const loadTabs = async () => {
     try {
       const raw = await chrome.tabs.query({ currentWindow: true })
+      // 从查询结果推导当前窗口 ID（避免依赖 chrome.windows.getCurrent，零额外 API/权限风险）
+      if (raw.length && raw[0].windowId !== undefined) {
+        currentWindowId.value = raw[0].windowId
+      }
       // 为首次见到的标签推算打开时间：按 tab.id 升序（id 越小越早打开）分配递增时间
       const unseenTabs = raw.filter(t => !tabOpenedAtMap.value[String(t.id!)]).sort((a, b) => a.id! - b.id!)
       const newEntries: Record<string, string> = {}
@@ -369,6 +374,11 @@ export function useTabManager() {
     }
   }
   const onTabCreated = (t: chrome.tabs.Tab) => {
+    // 只处理当前窗口的标签
+    if (currentWindowId.value !== -1 && t.windowId !== currentWindowId.value) {
+      return
+    }
+
     // 父子关系：background.ts 是主写入方（永久监听），UI 这里是兜底（同窗口才挂亲子，含循环检测）
     if (t.openerTabId && tabs.value.some(tab => tab.id === t.openerTabId)) {
       if (!wouldCreateCycle(t.id!, t.openerTabId, treeParentMap.value)) {
@@ -434,6 +444,13 @@ export function useTabManager() {
     loadTabs()
   }
 
+  // 防抖重载：多个事件短时间内集中触发时只 loadTabs 一次
+  let resyncTimer: ReturnType<typeof setTimeout> | null = null
+  const scheduleResync = () => {
+    if (resyncTimer) clearTimeout(resyncTimer)
+    resyncTimer = setTimeout(() => { loadTabs() }, 200)
+  }
+
   // 睡眠唤醒/锁屏解锁时：优先检测扩展上下文是否仍有效，失效则整页重载（保证所有功能正常）
   const onVisibilityChange = () => {
     if (document.visibilityState !== 'visible') return
@@ -447,6 +464,14 @@ export function useTabManager() {
     tabLastAccessedMap.value = changes.tabLastAccessedMap.newValue || {}
   }
 
+  // 跨窗口标签移动事件监听：触发重载保证一致性
+  const onTabAttached = () => {
+    scheduleResync()
+  }
+  const onTabDetached = () => {
+    scheduleResync()
+  }
+
   onMounted(async () => {
     // loadLater 用 try-catch 单独抓 —— 即使它整个崩了也不阻塞 loadTabs，避免 UI 上所有标签消失
     try { await loadLater() } catch (e) { console.error("[tab-master] loadLater fatal:", e) }
@@ -456,6 +481,8 @@ export function useTabManager() {
     chrome.tabs.onUpdated.addListener(onTabUpdated)
     chrome.tabs.onActivated.addListener(onTabActivated)
     chrome.tabs.onMoved.addListener(onTabMoved)
+    chrome.tabs.onAttached.addListener(onTabAttached)
+    chrome.tabs.onDetached.addListener(onTabDetached)
     chrome.storage.onChanged.addListener(onStorageChanged)
     document.addEventListener('visibilitychange', onVisibilityChange)
   })
@@ -465,8 +492,11 @@ export function useTabManager() {
     chrome.tabs.onUpdated.removeListener(onTabUpdated)
     chrome.tabs.onActivated.removeListener(onTabActivated)
     chrome.tabs.onMoved.removeListener(onTabMoved)
+    chrome.tabs.onAttached.removeListener(onTabAttached)
+    chrome.tabs.onDetached.removeListener(onTabDetached)
     chrome.storage.onChanged.removeListener(onStorageChanged)
     document.removeEventListener('visibilitychange', onVisibilityChange)
+    if (resyncTimer) clearTimeout(resyncTimer)
   })
 
   return {
