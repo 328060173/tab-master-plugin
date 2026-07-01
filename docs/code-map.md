@@ -84,6 +84,38 @@ node -e "const fs=require('fs');const sfc=require('./node_modules/.pnpm/@vue+com
 - 详见记忆 `pattern-sw-as-collector`
 - UI 侧（composable）的同类监听只是兜底，不能当唯一数据源
 
+## J. 标签操作菜单联动（右键 / 汉堡 / 批量 / 卡片）
+
+标签操作动作逻辑统一在 `composables/useTabActions.ts`（单标签 + 批量）。三个菜单 + 卡片直接操作都调它，改一个操作逻辑只改 `useTabActions.ts` 一处。
+
+### 改一个操作（如"复制链接"）要联动：
+1. `useTabActions.ts` 的对应函数 —— 改逻辑/toast 文案
+2. （如改菜单项文案/图标）`components/TabContextMenu.vue`（右键）+ `components/TabHoverCard.vue`（汉堡）+ `sidepanel.vue` 批量菜单模板
+3. 测试：右键菜单 / 汉堡菜单 / 批量菜单 / 卡片直接按钮 各跑一遍
+
+### 各菜单引用 useTabActions 的函数清单
+| 操作 | useTabActions 函数 | 右键 | 汉堡 | 批量 | 卡片 |
+|---|---|---|---|---|---|
+| 刷新 | refresh | ✓ | ✓ | — | ✓ |
+| 复制链接 | copyUrl | ✓ | ✓ | — | ✓ |
+| 固定/取消固定 | togglePin | ✓ | ✓ | — | ✓ |
+| 静音/取消静音 | toggleMute | ✓ | — | — | — |
+| 复制标签页 | duplicate | ✓ | — | — | — |
+| 关闭标签 | close | ✓ | ✓ | — | ✓ |
+| 关闭其他标签 | closeOthers | ✓ | — | — | — |
+| 新建分组 | newGroupSingle | ✓ | — | — | — |
+| 加入分组 | addToGroupSingle | ✓ | — | — | — |
+| 移出分组 | removeFromGroupSingle | ✓ | — | — | — |
+| 批量关闭 | batchClose | — | — | ✓ | — |
+| 批量稍后 | batchLater | — | — | ✓ | — |
+| 批量加入分组 | batchAddToGroup | — | — | ✓ | — |
+| 批量新建分组 | batchNewGroup | — | — | ✓ | — |
+
+### 不在 useTabActions（UI 耦合，仍 sidepanel 管）
+- later（开 LaterDialog）/ setNumber（开 number-picker 浮层）/ addTag（开 TagSelectPopover）
+- 批量选择入口（selectThis/selectSameDomain/selectSameGroup/selectAllVisible）
+- 聚焦模式相关操作
+
 ---
 
 ## 索引：核心文件速查

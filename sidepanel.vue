@@ -130,11 +130,11 @@
       v-if="focusMode === 'focusing' || (!search.trim() && activeNav === 'home')"
       :items="focusMode === 'focusing' ? focusingPinnedItems : pinnedItems"
       @activate="activateTab"
-      @close="(id) => focusMode === 'focusing' ? handleFocusTabClosed(id) : closeTab(id)"
+      @close="(id) => focusMode === 'focusing' ? handleFocusTabClosed(id) : closeAction(id)"
       @later="(id) => { if (focusMode !== 'focusing') openLater(id) }"
       @copy="(url) => { if (focusMode !== 'focusing') copyUrl(url) }"
-      @refresh="(id) => { if (focusMode !== 'focusing') handleRefresh(id) }"
-      @pin="(id) => { if (focusMode !== 'focusing') handlePin(id) }"
+      @refresh="(id) => { if (focusMode !== 'focusing') refresh(id) }"
+      @pin="(id) => { if (focusMode !== 'focusing') togglePin(id) }"
       @update-number="(id, n) => { if (focusMode !== 'focusing') { updateTabNumber(id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') } }"
       @ctx="(e, item) => { if (focusMode !== 'focusing') onContextMenu(e, item) }"
       @move="(sourceId, targetId) => handlePinnedMove(sourceId, targetId)"
@@ -147,7 +147,7 @@
       :query="search.trim()" :custom-tags="customTags"
       @activate="activateTab($event); search = ''"
       @restore="restoreTab($event); search = ''"
-      @later="openLater" @close="closeTab" @copy="copyUrl"
+      @later="openLater" @close="closeAction" @copy="copyUrl"
       @update-tags="updateTabTags" @add-tag="addCustomTag"
     />
 
@@ -242,7 +242,7 @@
             :is-batch="focusMode === 'selecting' ? true : isBatchMode"
             :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(node.item.id) : selectedIds.includes(node.item.id)"
             @activate="activateTab(node.item.id)" @activate-child="activateTab($event)"
-            @close="closeTab(node.item.id)" @close-child="closeTab($event)"
+            @close="closeAction(node.item.id)" @close-child="closeAction($event)"
             @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(node.item.id) : toggleSelect(node.item.id)"
             @toggle-child="focusMode === 'selecting' ? toggleSelectFocusTab($event) : toggleSelect($event)"
           />
@@ -257,10 +257,10 @@
                   :data-tabid="item.id"
                   :item="item" :is-batch="focusMode === 'selecting' ? true : isBatchMode" :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(item.id) : selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
                   @activate="activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
-                  @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
+                  @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
                   @update-tags="updateTabTags(item.id, $event)" @add-tag="addCustomTag($event)"
                   @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
-                  @refresh="handleRefresh(item.id)" @pin="handlePin(item.id)"
+                  @refresh="refresh(item.id)" @pin="togglePin(item.id)"
                   @contextmenu.prevent="onContextMenu($event, item)" />
               </div>
             </div>
@@ -271,10 +271,10 @@
                 :data-tabid="item.id"
                 :item="item" :is-batch="focusMode === 'selecting' ? true : isBatchMode" :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(item.id) : selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
                 @activate="activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
-                @later="openLater(item.id)" @close="closeTab(item.id)" @copy="copyUrl(item.url)"
+                @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
                 @update-tags="updateTabTags(item.id, $event)" @add-tag="addCustomTag($event)"
                 @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
-                @refresh="handleRefresh(item.id)" @pin="handlePin(item.id)"
+                @refresh="refresh(item.id)" @pin="togglePin(item.id)"
                 @contextmenu.prevent="onContextMenu($event, item)" />
             </div>
           </template>
@@ -465,6 +465,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErro
 import { ChevronUp, ChevronDown, ChevronLeft, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle } from "@lucide/vue"
 import TagSelectPopover from "~components/TagSelectPopover.vue"
 import { useTabManager } from "~composables/useTabManager"
+import { useTabActions } from "~composables/useTabActions"
 import { useTabStats } from "~composables/useTabStats"
 import { useTabTree } from "~composables/useTabTree"
 import { useFocusMode, SUPPORTS_FOCUS_MODE } from "~composables/useFocusMode"
@@ -509,11 +510,17 @@ const {
   tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
   canGoBack, canGoForward, goBack, goForward,
   closeTab, activateTab, restoreTab, moveToLater, removeLater, removeRecentlyClosed,
-  updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag, reorderCustomTags,
+  updateTabNumber, updateTabTags, removeCustomTag, renameCustomTag, reorderCustomTags,
   closeUnpinned, closeOthers, closeFrozenDiscarded,
-  refreshTab, duplicateTab, pinTab, muteTab, closeTabsExcept, groupTab,
+  groupTab, addToGroup, createGroup,
   updateTreeParent, moveTabToIndex,
 } = useTabManager()
+
+const {
+  refresh, copyUrl, togglePin, toggleMute, duplicate, close: closeAction, closeOthers: closeOthersAction,
+  addToGroupSingle, removeFromGroupSingle, newGroupSingle,
+  batchClose, batchLater, batchAddToGroup, batchNewGroup,
+} = useTabActions({ showToast })
 const stats = computed(() => useTabStats(tabs).value)
 
 const treeNodes = useTabTree(tabs, treeParentMap)
@@ -652,8 +659,8 @@ provide('treeAction', (action: string, item: TabItem, data?: any) => {
   switch (action) {
     case 'later': openLater(item.id); break
     case 'copy': copyUrl(item.url); break
-    case 'refresh': handleRefresh(item.id); break
-    case 'pin': handlePin(item.id); break
+    case 'refresh': refresh(item.id); break
+    case 'pin': togglePin(item.id); break
     case 'updateNumber': updateTabNumber(item.id, data); showToast(data > 0 ? `编号 ${modKey}${data} 已设置` : '编号已清除'); break
     case 'addTag': {
       // 树形视图 hover card 的「标记」：data 是标记按钮 DOM，用它的位置打开右键标记选择器
@@ -1155,22 +1162,33 @@ const onEnterGroupSubmenu = (e: MouseEvent) => {
 }
 
 // 批量菜单项的 click handlers（避免在模板里写 `fn; popover.close()` 这种 statement 组合，Vue 解析不稳）
-const onMenuBatchClose = () => {
+const onMenuBatchClose = async () => {
   if (!selectedIds.value.length) return
-  batchClose()
+  await batchClose(selectedIds.value)
+  selectedIds.value = []
+  isBatchMode.value = false
   popover.close("normal-batch")
 }
-const onMenuBatchLater = () => {
+const onMenuBatchLater = async () => {
   if (!selectedIds.value.length) return
-  batchLater()
+  await batchLater(selectedIds.value)
+  selectedIds.value = []
+  isBatchMode.value = false
   popover.close("normal-batch")
 }
-const onMenuCreateNewGroup = () => {
-  onBatchCreateGroupClick()
+const onMenuCreateNewGroup = async () => {
+  if (!selectedIds.value.length) return
+  const name = `分组 ${groups.value.length + 1}`
+  await batchNewGroup(selectedIds.value, name, 'blue')
+  selectedIds.value = []
+  isBatchMode.value = false
   popover.close("normal-batch")
 }
-const onMenuPickGroup = (gid: number) => {
-  batchAddToExistingGroup(gid)
+const onMenuPickGroup = async (gid: number) => {
+  if (!selectedIds.value.length) return
+  await batchAddToGroup(selectedIds.value, gid)
+  selectedIds.value = []
+  isBatchMode.value = false
   popover.close("normal-batch")
 }
 
@@ -1186,13 +1204,6 @@ const enterBatchWithSelection = (ids: number[]) => {
   selectedIds.value = ids.filter(id => visibleNormalIds.value.includes(id))
   isBatchMode.value = true
   if (selectedIds.value.length) showToast(`已选中 ${selectedIds.value.length} 个标签`)
-}
-const batchClose = async () => {
-  const n = selectedIds.value.length
-  for (const id of selectedIds.value) await closeTab(id)
-  selectedIds.value = []
-  isBatchMode.value = false
-  if (n) showToast(`已关闭 ${n} 个标签`)
 }
 
 // 批量动作：当前可见标签 = sortedNormalItems（已经过搜索/标记/状态过滤 + 排序）
@@ -1229,13 +1240,6 @@ const invertSelection = () => {
   const sel = new Set(selectedIds.value)
   selectedIds.value = visible.filter(id => !sel.has(id))
 }
-const batchLater = async () => {
-  const n = selectedIds.value.length
-  for (const id of selectedIds.value) await moveToLater(id, "")
-  selectedIds.value = []
-  isBatchMode.value = false
-  if (n) showToast(`已加入稍后处理（${n}）`)
-}
 const batchAddTags = async (tags: string[]) => {
   if (!tags.length || !selectedIds.value.length) return
   const ids = [...selectedIds.value]
@@ -1247,36 +1251,14 @@ const batchAddTags = async (tags: string[]) => {
   showToast(`已为 ${ids.length} 个标签加 ${tags.length} 个标记`)
   // 标记保留批量模式（用户可能继续做别的动作）
 }
-const batchAddToExistingGroup = async (groupId: number) => {
-  if (!selectedIds.value.length) return
-  const n = selectedIds.value.length
-  await addToGroup(selectedIds.value, groupId)
-  selectedIds.value = []
-  isBatchMode.value = false
-  showToast(`已加入分组（${n}）`)
-}
-const onBatchCreateGroupClick = async () => {
-  if (!selectedIds.value.length) return
-  // 这里简化处理，直接创建默认分组，或者可以复用 GroupListPage 的逻辑
-  // 暂时使用简单的实现
-  const name = `分组 ${groups.value.length + 1}`
-  const n = selectedIds.value.length
-  await createGroup(selectedIds.value, name, 'blue')
-  selectedIds.value = []
-  isBatchMode.value = false
-  showToast(`已新建分组「${name}」（${n}）`)
-}
 
 const openLater = (id: number) => { pendingLaterTabId.value = id; laterDialogOpen.value = true }
 const confirmLater = async (note: string) => {
   if (pendingLaterTabId.value !== null) await moveToLater(pendingLaterTabId.value, note)
   pendingLaterTabId.value = null; laterDialogOpen.value = false
 }
-const copyUrl = (url: string) => { navigator.clipboard.writeText(url); showToast('已复制URL') }
 const openNewTab = () => chrome.tabs.create({})
-const handleRefresh = (id: number) => refreshTab(id)
-const refreshCurrentTab = () => { if (activeTabId.value) refreshTab(activeTabId.value) }
-const handlePin = (id: number) => { const tab = tabs.value.find(t => t.id === id); if (tab) pinTab(id, !tab.pinned) }
+const refreshCurrentTab = () => { if (activeTabId.value) refresh(activeTabId.value) }
 const handlePinnedMove = async (sourceId: number, targetId: number) => {
   // 获取当前标签的实际index（tabs数组按Chrome顺序排列）
   const targetIndex = tabs.value.findIndex(t => t.id === targetId)
@@ -1291,23 +1273,19 @@ const handleCtxAction = (action: string, data?: any) => {
   const tab = ctxMenu.value?.tab; if (!tab) return
   const { x, y } = ctxMenu.value!
   ctxMenu.value = null
-  const acts: Record<string, () => void> = {
-    refresh: () => refreshTab(tab.id),
-    duplicate: () => duplicateTab(tab.id),
-    pin: () => pinTab(tab.id, !tab.pinned),
-    mute: () => muteTab(tab.id, !tab.muted),
+  const acts: Record<string, () => void | Promise<void>> = {
+    refresh: () => refresh(tab.id),
+    duplicate: () => duplicate(tab.id),
+    pin: () => togglePin(tab.id),
+    mute: () => toggleMute(tab.id),
     group: () => groupTab(tab.id),
-    newGroup: () => {
-      // 这里可以打开创建分组的对话框
-      showToast('创建新分组');
-      createGroup([tab.id], '新分组', 'blue');
-    },
+    newGroup: () => newGroupSingle(tab.id, '新分组', 'blue'),
     addToGroup: () => {
       if (typeof data === 'number') {
-        addToGroup([tab.id], data);
+        addToGroupSingle(tab.id, data);
       }
     },
-    removeFromGroup: () => removeFromGroup([tab.id]),
+    removeFromGroup: () => removeFromGroupSingle(tab.id),
     // 右键 tag/setNumber：用 setTimeout(0) 推迟一帧 —— 当前点击事件仍在冒泡，会被全局
     // popover-close 监听器一开就立刻关掉；推到下一个事件循环可避开这个 race
     tag: () => {
@@ -1321,8 +1299,8 @@ const handleCtxAction = (action: string, data?: any) => {
     },
     later: () => openLater(tab.id),
     copyUrl: () => copyUrl(tab.url),
-    close: () => closeTab(tab.id),
-    closeOthers: () => closeTabsExcept(tab.id),
+    close: () => closeAction(tab.id),
+    closeOthers: () => closeOthersAction(tab.id),
     // 批量选择入口：从单条右键直接进入批量模式并预选好对应标签
     selectThis: () => enterBatchWithSelection([tab.id]),
     selectSameDomain: () => {
