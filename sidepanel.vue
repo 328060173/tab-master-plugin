@@ -152,7 +152,7 @@
     />
 
     <!-- 正常内容区（普通/选择态） -->
-    <div v-else-if="focusMode !== 'focusing'" ref="contentRef" class="flex-1 overflow-y-auto min-h-0 px-3 py-2" @scroll="onContentScroll">
+    <div v-else-if="focusMode !== 'focusing'" ref="contentRef" :class="['flex-1 overflow-y-auto min-h-0 px-3 py-2', scrolled ? 'pb-16' : 'pb-2']" @scroll="onContentScroll">
       <!-- 稍后页面 -->
       <ErrorBoundary v-if="activeNav === 'later'" scope="later" @reload="reloadPanel">
         <LaterList :items="laterTabs" @remove="removeLater" @open="restoreTab($event)" />
@@ -283,7 +283,7 @@
     </div>
 
     <!-- 聚焦态内容区 - 只显示聚焦标签 -->
-    <div v-else ref="contentRef" class="flex-1 overflow-y-auto min-h-0 px-3 py-2" @scroll="onContentScroll">
+    <div v-else ref="contentRef" :class="['flex-1 overflow-y-auto min-h-0 px-3 py-2', scrolled ? 'pb-16' : 'pb-2']" @scroll="onContentScroll">
       <ErrorBoundary scope="focus" @reload="reloadPanel">
         <div v-if="!focusingNormalItems.length && !focusingPinnedItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
         <!-- 聚焦态只显示平铺列表，简化操作 -->

@@ -62,6 +62,9 @@
             <p class="text-[11px] text-gray-500 leading-relaxed">
               <strong class="text-gray-700">说明：</strong>父子关系由 Chrome 记录的 <code class="px-1 bg-gray-200 rounded text-[10px]">openerTabId</code> 推断（即"哪个标签打开了哪个"）。在树形视图下排序按钮会被禁用。
             </p>
+            <p class="text-[11px] text-gray-500 leading-relaxed mt-1.5">
+              <strong class="text-gray-700">层级限制：</strong>树形最多显示 <strong>5 层</strong>。超过 5 层的标签会自动放到第 5 层、与第 5 层的节点并排显示（按打开顺序依次追加），不会丢失也不会无限嵌套。
+            </p>
           </div>
         </div>
 
