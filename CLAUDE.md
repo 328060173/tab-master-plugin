@@ -108,6 +108,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 
 ### 关键技术决策
 - **统一错误处理**（2026-07-01 用户拍板）：每个页面/区域独立 `ErrorBoundary`（`components/ErrorBoundary.vue`）包裹，scope 命名（later/groups/history/home/...），崩了只降级局部、不波及其它；统一降级 UI「⚠️ 此区域出错了」+ [重试此区域][去设置重新打开]；ErrorBoundary 只 `console.error` 不写 storage（不依赖暂缓的日志功能）。新增页面/区域**先包 ErrorBoundary 再写内容**，不许裸渲染可能崩的子树、不许自己随便写 try/catch。详见 [[pattern-unified-error-handling]]
+- **数据一致性底线**（2026-07-01 用户拍板，最高优先级，开发+设计+测试都要保证）：插件显示的所有数据/数量/操作必须与浏览器实际状态一致，任何漂移都是底线问题。① 派生数据（PinnedBar 等）从 `tabs.value` 直接派生，不经过 filteredTabs（不受筛选/搜索污染）② `onTabCreated` 必须判断 `t.windowId === currentWindowId`，其他窗口标签不加入 ③ `currentWindowId` 从 `tabs.query` 结果推导，不用 `chrome.windows.getCurrent()`（免 windows 权限）④ `onAttached`/`onDetached` → 防抖 `scheduleResync()` → 全量 `loadTabs()` 兜底跨窗口移动 ⑤ `onVisibilityChange` 会话内兜底保留。详见 [[pattern-data-consistency-with-browser]]
 - 侧边栏位置由 Chrome 浏览器层控制，**扩展程序无法触发左右切换** — 2026-06-28 重新核实
   - 完整 `chrome.sidePanel` 命名空间（Chrome 145）方法：`getOptions / setOptions / getPanelBehavior / setPanelBehavior / open / close / getLayout / onOpened / onClosed`
   - **只有 `getLayout()` 是读位置（Chrome 140+），没有任何 setter 写位置**
@@ -131,6 +132,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - 改 manifest permissions / 调 chrome.* 前必查 `docs/googledocs/<api>.md`（官方副本）核实——`tabHide` 不存在、`chrome.tabs.hide` 是实验 API
 - 禁用 `(chrome.x as any)` 强转
 - 禁用 v-html（XSS）
+- **数据一致性**（底线）：派生数据不从 filteredTabs 派生（避免筛选污染数量）；onTabCreated 必须过滤窗口；跨窗口移动监听 onAttached/onDetached 兜底重载。开发+测试都要验收「插件数量=浏览器实际」。详见 [[pattern-data-consistency-with-browser]]
 - 改完代码自行 git add/commit/push 到 master（静态校验通过后即可，2026-06-30 用户授权）
 
 ### 参考原型
