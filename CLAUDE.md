@@ -93,7 +93,8 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - **错误处理重做**（`3b51277`，extension-frontend agent 实现）：每页独立 ErrorBoundary（later/groups/history/home 各一个 scope）—— 一页崩不波及其它；统一降级 UI「⚠️ 此区域出错了 / 其它功能不受影响。可以重试，或在『设置』里点『重新打开』尝试恢复」+ [重试此区域][去设置重新打开] 两按钮
 
 ## 待办（2026-07-02 继续）
-> 🔥 **明天第一件事**：`pnpm fresh` → **移除扩展 + 重新加载已解压**（绕浏览器缓存）→ 进分组页验证：① 分组页正常显示不再报错 ② 添加分组/放入正常 ③ 搜索+排序可用
+> 🔥 **明天第一件事**：`pnpm fresh`（清 .plasmo+build 重新构建，绕缓存）→ 在 chrome://extensions **点扩展卡片「刷新」按钮**（⚠️ **不要移除扩展**！移除=卸载会清空 `chrome.storage.local`，标记/稍后/树关系/编号全丢。刷新不清 storage）→ 进分组页验证：① 分组页正常显示不再报错 ② 添加分组/放入正常 ③ 搜索+排序可用
+> - ⚠️ **存储持久性**（查自 `docs/googledocs/storage.md` 官方原文）：`chrome.storage.local` 在「清缓存/历史」「扩展刷新/更新」「浏览器重启」时都**不清**；**只在「移除/卸载扩展」时清空**。`storage.session` 才在刷新/重启时清。项目数据全走 `storage.local` → 刷新扩展数据不丢，移除扩展数据全丢。
 - **运行日志功能：暂缓（没做出来）**：sidepanel 上下文写 chrome.storage.local 的时序问题我没搞定，且没查官方文档靠猜。代码保留（useLogger.ts / tabs/logs.vue / StoragePanel 的 tabMasterLogs 项）但当前不调用。将来复活前必须先查官方文档 + 最佳实践，查不了让用户给 .md
   - **需求（复活时要实现的）**：捕获**所有**日志 —— `console.error`/`warn` 拦截 + Vue 渲染/事件错误（`app.config.errorHandler` + 根级 `onErrorCaptured`）+ `window.error` + `unhandledrejection`，统一写入 `chrome.storage.local`（key `tabMasterLogs`），设置页可查看/清空。当前 `useLogger.installGlobalCapture()` 已写好拦截逻辑但**未被调用**（时序问题未解决前不接入）
 - **聚焦态内容区补 ErrorBoundary**（2026-07-01 核实发现缺口）：`sidepanel.vue` 聚焦态分支（`focusMode === 'focusing'` 的 `v-else` 内容区）未包 ErrorBoundary，崩了无局部降级 UI。补的话派 extension-frontend agent。见 [[pattern-unified-error-handling]]
