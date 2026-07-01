@@ -95,6 +95,8 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 ## 待办（2026-07-02 继续）
 > 🔥 **明天第一件事**：`pnpm fresh` → **移除扩展 + 重新加载已解压**（绕浏览器缓存）→ 进分组页验证：① 分组页正常显示不再报错 ② 添加分组/放入正常 ③ 搜索+排序可用
 - **运行日志功能：暂缓（没做出来）**：sidepanel 上下文写 chrome.storage.local 的时序问题我没搞定，且没查官方文档靠猜。代码保留（useLogger.ts / tabs/logs.vue / StoragePanel 的 tabMasterLogs 项）但当前不调用。将来复活前必须先查官方文档 + 最佳实践，查不了让用户给 .md
+  - **需求（复活时要实现的）**：捕获**所有**日志 —— `console.error`/`warn` 拦截 + Vue 渲染/事件错误（`app.config.errorHandler` + 根级 `onErrorCaptured`）+ `window.error` + `unhandledrejection`，统一写入 `chrome.storage.local`（key `tabMasterLogs`），设置页可查看/清空。当前 `useLogger.installGlobalCapture()` 已写好拦截逻辑但**未被调用**（时序问题未解决前不接入）
+- **聚焦态内容区补 ErrorBoundary**（2026-07-01 核实发现缺口）：`sidepanel.vue` 聚焦态分支（`focusMode === 'focusing'` 的 `v-else` 内容区）未包 ErrorBoundary，崩了无局部降级 UI。补的话派 extension-frontend agent。见 [[pattern-unified-error-handling]]
 - 分组页交互实测（搜索/排序/放入/新建）确认顺
 - **4 格矩阵实测**（Chrome+Edge × macOS+Windows）这几天积累的全部改动
 - **暗色模式精修**：少数品牌色类深色对比度不足，碰到一处改一处
@@ -104,6 +106,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - ⚠️ build hash 卡死信号：遇"改了像旧代码"先 `pnpm fresh`
 
 ### 关键技术决策
+- **统一错误处理**（2026-07-01 用户拍板）：每个页面/区域独立 `ErrorBoundary`（`components/ErrorBoundary.vue`）包裹，scope 命名（later/groups/history/home/...），崩了只降级局部、不波及其它；统一降级 UI「⚠️ 此区域出错了」+ [重试此区域][去设置重新打开]；ErrorBoundary 只 `console.error` 不写 storage（不依赖暂缓的日志功能）。新增页面/区域**先包 ErrorBoundary 再写内容**，不许裸渲染可能崩的子树、不许自己随便写 try/catch。详见 [[pattern-unified-error-handling]]
 - 侧边栏位置由 Chrome 浏览器层控制，**扩展程序无法触发左右切换** — 2026-06-28 重新核实
   - 完整 `chrome.sidePanel` 命名空间（Chrome 145）方法：`getOptions / setOptions / getPanelBehavior / setPanelBehavior / open / close / getLayout / onOpened / onClosed`
   - **只有 `getLayout()` 是读位置（Chrome 140+），没有任何 setter 写位置**

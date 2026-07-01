@@ -284,15 +284,17 @@
 
     <!-- 聚焦态内容区 - 只显示聚焦标签 -->
     <div v-else ref="contentRef" class="flex-1 overflow-y-auto min-h-0 px-3 py-2" @scroll="onContentScroll">
-      <div v-if="!focusingNormalItems.length && !focusingPinnedItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
-      <!-- 聚焦态只显示平铺列表，简化操作 -->
-      <div class="flex flex-col gap-1">
-        <TabListItem v-for="item in focusingNormalItems" :key="item.id"
-          :data-tabid="item.id"
-          :item="item" :is-batch="false" :is-checked="false" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
-          @activate="activateTab(item.id)" @close="handleFocusTabClosed(item.id)"
-        />
-      </div>
+      <ErrorBoundary scope="focus" @reload="reloadPanel">
+        <div v-if="!focusingNormalItems.length && !focusingPinnedItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
+        <!-- 聚焦态只显示平铺列表，简化操作 -->
+        <div class="flex flex-col gap-1">
+          <TabListItem v-for="item in focusingNormalItems" :key="item.id"
+            :data-tabid="item.id"
+            :item="item" :is-batch="false" :is-checked="false" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
+            @activate="activateTab(item.id)" @close="handleFocusTabClosed(item.id)"
+          />
+        </div>
+      </ErrorBoundary>
     </div>
 
     <!-- 底部退出聚焦按钮（聚焦态显示） -->
