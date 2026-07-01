@@ -225,30 +225,57 @@ export function useTabManager() {
     tabTagsMap.value = { ...tabTagsMap.value, [String(id)]: tags }
     await chrome.storage.local.set({ tabTagsMap: tabTagsMap.value })
   }
-  const addCustomTag = async (tag: string) => {
-    if (!customTags.value.includes(tag)) {
-      customTags.value = [...customTags.value, tag]
-      await chrome.storage.local.set({ customTags: customTags.value })
-    }
+  const addCustomTag = async (tag: string): Promise<boolean> => {
+    const trimmedTag = tag.trim()
+    if (!trimmedTag || trimmedTag.length > 15) return false
+    if (customTags.value.length >= 15) return false
+    if (customTags.value.includes(trimmedTag)) return false
+    customTags.value = [...customTags.value, trimmedTag]
+    await chrome.storage.local.set({ customTags: customTags.value })
+    return true
   }
   const removeCustomTag = async (tag: string) => {
     customTags.value = customTags.value.filter(t => t !== tag)
-    await chrome.storage.local.set({ customTags: customTags.value })
+    // 从所有标签中移除该标记
+    const newTagsMap: Record<string, string[]> = {}
+    for (const [k, v] of Object.entries(tabTagsMap.value)) {
+      const filtered = v.filter(tg => tg !== tag)
+      if (filtered.length > 0) newTagsMap[k] = filtered
+    }
+    tabTagsMap.value = newTagsMap
+    // 更新内存中的标签
+    tabs.value = tabs.value.map(t => ({
+      ...t,
+      tags: t.tags.filter(tg => tg !== tag)
+    }))
+    await chrome.storage.local.set({ customTags: customTags.value, tabTagsMap: newTagsMap })
   }
   const renameCustomTag = async (oldTag: string, newTag: string) => {
-    if (!newTag.trim() || oldTag === newTag) return
-    customTags.value = customTags.value.map(t => t === oldTag ? newTag : t)
+    const trimmedNewTag = newTag.trim()
+    if (!trimmedNewTag || trimmedNewTag.length > 15 || oldTag === trimmedNewTag) return
+    if (customTags.value.includes(trimmedNewTag)) return
+    customTags.value = customTags.value.map(t => t === oldTag ? trimmedNewTag : t)
     // 更新所有标签的 tags
     tabs.value = tabs.value.map(t => ({
       ...t,
-      tags: t.tags.map(tg => tg === oldTag ? newTag : tg)
+      tags: t.tags.map(tg => tg === oldTag ? trimmedNewTag : tg)
     }))
     const newTagsMap: Record<string, string[]> = {}
     for (const [k, v] of Object.entries(tabTagsMap.value)) {
-      newTagsMap[k] = v.map(tg => tg === oldTag ? newTag : tg)
+      newTagsMap[k] = v.map(tg => tg === oldTag ? trimmedNewTag : tg)
     }
     tabTagsMap.value = newTagsMap
     await chrome.storage.local.set({ customTags: customTags.value, tabTagsMap: newTagsMap })
+  }
+  const reorderCustomTags = async (fromIndex: number, toIndex: number) => {
+    if (fromIndex < 0 || fromIndex >= customTags.value.length) return
+    if (toIndex < 0 || toIndex >= customTags.value.length) return
+    if (fromIndex === toIndex) return
+    const newTags = [...customTags.value]
+    const [removed] = newTags.splice(fromIndex, 1)
+    newTags.splice(toIndex, 0, removed)
+    customTags.value = newTags
+    await chrome.storage.local.set({ customTags: customTags.value })
   }
 
   const refreshTab = (id: number) => chrome.tabs.reload(id)
@@ -446,7 +473,7 @@ export function useTabManager() {
     tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
     canGoBack, canGoForward, goBack, goForward,
     closeTab, activateTab, restoreTab, moveToLater, removeLater, removeRecentlyClosed,
-    updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag,
+    updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag, reorderCustomTags,
     closeUnpinned, closeOthers, closeFrozenDiscarded,
     refreshTab, duplicateTab, pinTab, muteTab, closeTabsExcept, groupTab,
     updateTreeParent, moveTabToIndex,

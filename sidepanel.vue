@@ -106,14 +106,10 @@
       :active-tags="activeTagFilters"
       :tab-count-by-tag="tabCountByTag"
       @apply="activeTagFilters = $event"
-      @add-tag="addCustomTag"
-    />
-    <!-- TagFilterPanel（复用，由 TagBar 或其他入口打开） -->
-    <TagFilterPanel
-      :tags="customTags" :active-tags="activeTagFilters" :tab-count-by-tag="tabCountByTag"
-      @apply="activeTagFilters = $event"
-      @add-tag="addCustomTag" @rename-tag="renameCustomTag"
-      @remove-tag="removeCustomTag"
+      @add-tag="handleAddTag"
+      @remove-tag="handleRemoveTag"
+      @rename-tag="handleRenameTag"
+      @reorder-tag="reorderCustomTags"
     />
 
     <!-- Toolbar（普通/选择态显示）。批量按钮只看 isBatchMode 本身，不被聚焦选择态污染 -->
@@ -519,7 +515,6 @@ import CreateGroupDialog from "~components/CreateGroupDialog.vue"
 import LaterList from "~components/LaterList.vue"
 import LaterDialog from "~components/LaterDialog.vue"
 import FooterStats from "~components/FooterStats.vue"
-import TagFilterPanel from "~components/TagFilterPanel.vue"
 import SearchResults from "~components/SearchResults.vue"
 import SearchBox from "~components/SearchBox.vue"
 import TagBar from "~components/TagBar.vue"
@@ -545,7 +540,7 @@ const {
   tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
   canGoBack, canGoForward, goBack, goForward,
   closeTab, activateTab, restoreTab, moveToLater, removeLater, removeRecentlyClosed,
-  updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag,
+  updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag, reorderCustomTags,
   closeUnpinned, closeOthers, closeFrozenDiscarded,
   refreshTab, duplicateTab, pinTab, muteTab, closeTabsExcept, groupTab,
   updateTreeParent, moveTabToIndex,
@@ -723,6 +718,38 @@ const isBatchMode = ref(false)
 const selectedIds = ref<number[]>([])
 const activeFilter = ref("all")
 const activeTagFilters = ref<string[]>([])
+// 监听 customTags 变化，清理 activeTagFilters 中不存在的标记
+watch(customTags, (newTags) => {
+  activeTagFilters.value = activeTagFilters.value.filter(tag => newTags.includes(tag))
+})
+// 处理添加标记
+const handleAddTag = async (tag: string) => {
+  const success = await addCustomTag(tag)
+  if (success) {
+    showToast(`已添加标记「${tag}」`)
+  } else if (customTags.value.length >= 15) {
+    showToast('已达15个标记上限')
+  } else if (customTags.value.includes(tag.trim())) {
+    showToast('该标记已存在')
+  }
+}
+// 处理删除标记
+const handleRemoveTag = async (tag: string) => {
+  await removeCustomTag(tag)
+  // 从 activeTagFilters 中移除
+  activeTagFilters.value = activeTagFilters.value.filter(t => t !== tag)
+  showToast(`已删除标记「${tag}」`)
+}
+// 处理重命名标记
+const handleRenameTag = async (oldTag: string, newTag: string) => {
+  await renameCustomTag(oldTag, newTag)
+  // 更新 activeTagFilters
+  const idx = activeTagFilters.value.indexOf(oldTag)
+  if (idx !== -1) {
+    activeTagFilters.value.splice(idx, 1, newTag)
+  }
+  showToast(`已将「${oldTag}」重命名为「${newTag}」`)
+}
 const laterDialogOpen = ref(false)
 const pendingLaterTabId = ref<number | null>(null)
 useSettings()  // 初始化设置：加载 storage + 应用主题/字号/字体/密度
