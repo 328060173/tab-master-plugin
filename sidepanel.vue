@@ -461,16 +461,16 @@
       @action="handleCtxAction" @close="ctxMenu = null" />
 
     <!-- 标记浮层（右键→添加标记，独立于卡片内嵌 TagPicker） -->
-    <div v-if="popover.isOpen('right-click-tag-picker') && rightClickTab" class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-48 pb-1"
+    <div v-if="popover.isOpen('right-click-tag-picker') && rightClickTab" class="fixed z-[80] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-72 pb-1"
       :style="rightClickTagPickerStyle" @click.stop>
-      <p class="px-2.5 py-1.5 border-b border-gray-100 dark:border-gray-700 text-[11px] font-medium text-gray-500 dark:text-gray-400">添加标记</p>
-      <div class="grid grid-cols-3 gap-1 p-2 max-h-36 overflow-y-auto">
+      <p class="px-3 py-2 border-b border-gray-100 dark:border-gray-700 text-[11px] font-medium text-gray-500 dark:text-gray-400">添加标记</p>
+      <div class="grid grid-cols-4 gap-1.5 p-2.5 max-h-60 overflow-y-auto">
         <button v-for="tag in customTags" :key="tag"
           :class="['px-1 py-0.5 text-[10px] rounded border text-center truncate transition-colors',
             rightClickTab.tags.includes(tag) ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-blue-400']"
           :title="tag"
           @click="updateTabTags(rightClickTab.id, rightClickTab.tags.includes(tag) ? rightClickTab.tags.filter(t=>t!==tag) : [...rightClickTab.tags, tag])">{{ tag }}</button>
-        <p v-if="!customTags.length" class="col-span-3 text-[11px] text-gray-400 text-center py-2">暂无标记</p>
+        <p v-if="!customTags.length" class="col-span-4 text-[11px] text-gray-400 text-center py-2">暂无标记</p>
       </div>
     </div>
     <!-- 编号选择浮层（右键→设置编号） -->
@@ -776,7 +776,7 @@ const numberPickerTab = computed(() => rightClickTabId.value !== null && popover
 // 右键 picker 位置：从 PopoverManager 的 activeAnchorRect 读出（右键时合成的 1x1 rect）
 const rightClickTagPickerStyle = computed(() => {
   if (!popover.isOpen('right-click-tag-picker') || !popover.activeAnchorRect.value) return { left: '0px', top: '0px' }
-  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 192, height: 200 }, 'bottom-left')
+  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 288, height: 240 }, 'bottom-left')
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
 const numberPickerStyle = computed(() => {

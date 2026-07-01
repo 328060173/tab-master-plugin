@@ -11,10 +11,10 @@
     <div
       v-if="popover.isOpen(popoverId)"
       :style="pickerStyle"
-      class="fixed z-[60] w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl"
+      class="fixed z-[80] w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl"
       @click.stop>
       <!-- 顶部新增标记 -->
-      <div class="flex items-center gap-1.5 px-2.5 py-2 border-b border-gray-100 dark:border-gray-700">
+      <div class="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 dark:border-gray-700">
         <Plus :size="11" class="text-gray-400 shrink-0" />
         <input
           v-model="newTag" maxlength="15" placeholder="新增标记（最多15字）"
@@ -24,7 +24,7 @@
         <button class="text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-700 shrink-0" @click="create">添加</button>
       </div>
       <!-- 已有标记列表 -->
-      <div class="grid grid-cols-3 gap-1 p-2 max-h-36 overflow-y-auto">
+      <div class="grid grid-cols-4 gap-1.5 p-2.5 max-h-60 overflow-y-auto">
         <button
           v-for="tag in allTags" :key="tag"
           :class="['px-1 py-0.5 text-[10px] rounded border text-center truncate transition-colors',
@@ -32,7 +32,7 @@
           :title="tag"
           @click="toggle(tag)"
         >{{ tag }}</button>
-        <p v-if="!allTags.length" class="col-span-3 text-[11px] text-gray-400 text-center py-2">暂无标记</p>
+        <p v-if="!allTags.length" class="col-span-4 text-[11px] text-gray-400 text-center py-2">暂无标记</p>
       </div>
     </div>
   </Teleport>
@@ -78,7 +78,7 @@ const pickerStyle = computed(() => {
   if (!popover.isOpen(popoverId.value) || !popover.activeAnchorRect.value) return { left: "0px", top: "0px" }
   // 默认从 Tag 图标右下方弹出（更符合直觉），computePopoverPos 会在下方空间不够时
   // 自动翻到上方；横向越界会 clamp 到视窗内
-  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 192, height: 180 }, "bottom-right")
+  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 288, height: 240 }, "bottom-right")
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
 
