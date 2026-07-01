@@ -103,7 +103,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - **聚焦模式 UI**：全屏黑罩 + 中央大红「关闭聚焦」按钮（屏幕共享样式）
 - **审查流程升级**（4 次白屏教训）：改 .vue 必跑 compileScript（不只 vue-tsc/compileTemplate）+ 扫顶层 TDZ（[[lesson-compilescript-not-just-compiletemplate]]）
 
-## 待办（2026-07-02 继续）
+## 待办（2026-07-03 继续）
 > 🔥 **明天第一件事**：`pnpm fresh`（清 .plasmo+build 重新构建，绕缓存）→ 在 chrome://extensions **点扩展卡片「刷新」按钮**（⚠️ **不要移除扩展**！移除=卸载会清空 `chrome.storage.local`，标记/稍后/树关系/编号全丢。刷新不清 storage）→ 进分组页验证：① 分组页正常显示不再报错 ② 添加分组/放入正常 ③ 搜索+排序可用
 > - ⚠️ **存储持久性**（查自 `docs/googledocs/storage.md` 官方原文）：`chrome.storage.local` 在「清缓存/历史」「扩展刷新/更新」「浏览器重启」时都**不清**；**只在「移除/卸载扩展」时清空**。`storage.session` 才在刷新/重启时清。项目数据全走 `storage.local` → 刷新扩展数据不丢，移除扩展数据全丢。
 - **运行日志功能：暂缓（没做出来）**：sidepanel 上下文写 chrome.storage.local 的时序问题我没搞定，且没查官方文档靠猜。代码保留（useLogger.ts / tabs/logs.vue / StoragePanel 的 tabMasterLogs 项）但当前不调用。将来复活前必须先查官方文档 + 最佳实践，查不了让用户给 .md

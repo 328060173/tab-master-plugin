@@ -361,3 +361,50 @@
 - 暗色模式精修、i18n 扩展
 - 运行日志功能复活（先查官方文档）
 - 后端相关（登录/同步）等后端就绪
+
+---
+
+## 2026-07-02 完成（批量布局迭代 + 标记校验统一 + 防白屏清单）
+
+> 主线：批量按钮与普通标签容器的布局质感迭代（多次调整）+ 添加标记业务逻辑统一校验 + 提交前防白屏清单落地。期间因审查疏漏又出 2 次白屏（addCustomTag 未解构、useTabActions TDZ），已修。
+
+### 一、批量按钮 / 普通标签容器布局迭代（4 轮）
+用户反复反馈"批量按钮滚走、边框跳、半遮掩、没质感"，经多轮调整：
+1. **sticky panel 常驻**（`bc85ac2`）：批量行 `sticky top-0` + 半透模糊 panel，常驻内容区顶部不随滚
+2. **legend 跨边框**（`9a5cfc6`）：普通标签列表包进带边框 scroll-view，批量按钮 `absolute -top-3` 跨在边框上（fieldset legend 式），容器内自身滚动
+3. **sticky 替代 absolute**（`66f8ffc`）：因双层滚动（contentRef 外层 + border 内层）导致 absolute 按钮随外层滚消失，改 `sticky top-0` + 去掉内层滚动
+4. **抽屉式容器**（`3ae177b`，最终方案）：contentRef home 普通态 `overflow-hidden` 不滚；border 容器 `flex-1 flex flex-col` 撑满；批量按钮 `shrink-0` 固定顶部；标签区 `flex-1 overflow-y-auto` 内部滚。抽屉效果：容器和按钮固定，只标签在容器内滚，边框不跳不露
+- 新增 `homeTabsScrollRef` 指向标签区，`onContentScroll`/`scrollToTop`/`scrollToActive` 适配新滚动容器
+- 去掉 legend 上的「普通标签」4 字（用户要求）
+
+### 二、添加标记业务逻辑统一校验（`42152d1`）
+用户问"添加标记逻辑统一了吗"——捋清后发现底层统一（都走 addCustomTag）但前端校验各写各的，且有真 bug：
+- **TagPicker 数据不一致 bug**：`handleCreate` 无论 addCustomTag 成不成功都 emit update 把标记挂到标签上 → 重复/超限时标签挂了全局不存在的标记
+- **新建 `lib/tagValidate.ts`**：`validateTag(raw, existingTags)` 统一校验（trim + 空 + 15字 + 15个上限 + 重复），`TAG_MAX_COUNT`/`TAG_MAX_LENGTH` 常量，`TAG_INVALID_MSG` 提示映射
+- 所有入口（TagPicker / TagSelectPopover / TagBar canSubmit+doAdd+doPanelAdd / 底层 addCustomTag）统一用 validateTag
+- 入口样式不同（浮层/下拉panel/卡片内嵌），但判断逻辑一处定义处处复用
+
+### 三、修 addCustomTag 未解构报错（`10a5bad`）
+useTabActions 重构时误把 addCustomTag 从 useTabManager 解构删了，但模板 `@add-tag` 和 handleAddTag 内部还在用 → "addCustomTag is not a function" → 卡片/汉堡/搜索添加标记全报错。加回解构 + 所有 `@add-tag` 统一走 `handleAddTag`（带 toast + 上限提示）。
+
+### 四、提交前防白屏清单落地（`46d74b3` + `60bf992`）
+今天又出 2 次白屏（addCustomTag 未解构、useTabActions TDZ），用户强烈批评。写进 CLAUDE.md 协作协议 + 记忆 `lesson-precommit-checklist-after-bugs`：
+- 改完代码必跑 5 步：① compileScript（抓重复声明/解构重名）② compileTemplate（抓模板 TS 断言）③ vue-tsc（抓类型）④ 顶层 TDZ 扫描（useXxx 调用参数是否在定义前）⑤ 未定义引用扫描（改解构后 grep 模板用到的函数是否还在）
+- **绝不能只跑 vue-tsc 就提交**——它查不出 TDZ/重复声明
+- 每次对照清单，不许跳过
+
+### 五、消息通知感知 PRD（暂缓未实现）
+- 用户问"100 个标签怎么知道哪个有消息通知" → 查官方文档确认 Chrome tabs API 无消息字段，`attention` 等字段全是硬编码 false
+- PM 出 PRD `docs/prd/tab-notification.md`：用标题变化检测（`(3) Gmail` 模式），零额外权限，复用 attention 字段 + 底部状态栏筛选
+- 澄清"网站弹的通知权限框"与扩展功能无关（那是网站请求系统通知权限）
+- 用户决定暂不实现，PRD 留档
+
+### 六、customTags 脏数据自愈（一次性 warn）
+- 用户遇到 "customTags 在 storage 中被存成了非数组" warn —— 历史脏数据，防御代码已自动重置（loadLater 检测非数组 → 清空 → 写回 storage），一次性自愈，刷新后不再报
+
+### 待办（2026-07-03 继续）
+- 🔥 `pnpm fresh` → 点扩展刷新按钮 → 全量实测今天所有改动（重点：抽屉式批量容器、添加标记统一校验）
+- 4 格矩阵实测（Chrome+Edge × macOS+Windows）
+- 消息通知感知（PRD 已出，暂缓，将来想做时拿来实现）
+- 两个 Vue warn（data-tabid/contextmenu 透传到多根卡片）看要不要修
+- 暗色模式精修、i18n 扩展
