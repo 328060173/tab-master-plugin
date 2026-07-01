@@ -65,6 +65,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - **多 agent 分工**：实质需求 → `product-manager` 出 PRD（docs/prd/）→ `extension-frontend` 实现 → main 协调+审查。详见 [[feedback-multiagent-and-no-regression]]
 - **不跑 build/dev**：用户自己跑 `pnpm dev:safe`（产物 `build/chrome-mv3-dev/`）。main 跑 build 会抢 Parcel 缓存 → "改了没生效"。详见 [[feedback-no-build-user-runs-dev]]
 - **审查 .vue 必查**：① 模板复合语句 `@click="fn; x()"` ② 模板内 TS 语法 `as X` / `!` 非空断言 / 泛型 ③ HTML 转义（grep `&lt;`）+ 多个 `<script setup>` 块 ④ 是否波及既有功能。⚠️ **`vue-tsc` 检不出模板内 TS 断言，也查不出重复解构声明**——必须用 Plasmo 同款 `@vue/compiler-sfc@3.3.4` 跑 **`compileScript`**（不只 `compileTemplate`！compileScript 才解析 script setup、抓重复 `const`/解构重名）复核（见 [[lesson-vue-mustache-no-components]]）。改 sidepanel 等大文件后**必跑 compileScript**，否则 Plasmo 实构建会白屏/失败
+- **🚨 提交前防白屏清单（4 次白屏教训，每次改完必跑，不许跳过）**：① compileScript（抓重复声明/解构重名）② compileTemplate（抓模板 TS 断言/复合语句）③ `npx vue-tsc --noEmit`（抓类型）④ 顶层 TDZ 扫描（`useXxx({ident})` 的 ident 是否在调用前定义）⑤ 未定义引用扫描（改解构后 grep 模板用到的函数是否还在解构里）。详见 [[lesson-precommit-checklist-after-bugs]]。**绝不能只跑 vue-tsc 就提交**——它查不出 TDZ/重复声明
 - **新功能不碰老功能；重构/统一既有代码需先经用户批准**
 - **改动 / 新增功能前先查 `docs/code-map.md`（代码地图）**——它列了"改 A 必须联动改 B/C"（如：加 storage key 必须同步 `StoragePanel.vue`）；引入新的跨文件联动后**回去更新这张表**
 - **改完代码自行 `git add`/`commit`/`push` 到 master**（2026-06-30 用户授权，静态校验通过后即可提交，不必逐次问）→ [[feedback-no-auto-commit]]
