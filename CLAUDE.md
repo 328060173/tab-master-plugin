@@ -92,6 +92,16 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - **分组 bug 修复**（`e30c4cc`）：`GroupItem` 的 `selectedIds` 未传 → `.includes` 崩 → 触发 ErrorBoundary（这才是"添加分组报错"真凶，跟 Proxy 无关）。已加 `withDefaults(()=>[])`
 - **错误处理重做**（`3b51277`，extension-frontend agent 实现）：每页独立 ErrorBoundary（later/groups/history/home 各一个 scope）—— 一页崩不波及其它；统一降级 UI「⚠️ 此区域出错了 / 其它功能不受影响。可以重试，或在『设置』里点『重新打开』尝试恢复」+ [重试此区域][去设置重新打开] 两按钮
 
+### 2026-07-01 完成摘要（细节看 docs/dev-log.md + git log）
+- **聚焦态补 ErrorBoundary**（scope=focus）+ 立统一错误处理规矩（[[pattern-unified-error-handling]] + agent 红线 F）
+- **标记系统三轮优化**：①TagBar 重构（拖动排序+15上限+右键管理+问号）②横滚改下拉 panel（编辑/删除/排序/添加归拢）③统一浮层 `TagSelectPopover`（四处入口共用，列数自适应，batch 三态）
+- **固定标签拖动排序**（GripVertical+chrome.tabs.move）+ 修 PinnedBar 菜单失效 bug（三元 handler 返回引用不调用）+ 补 onMoved 监听
+- **树形限 5 层**（超层并到第 5 层）+ 滚动 pb-16 避让回到顶部
+- **状态栏 + 数据一致性底线**：筛选自动回全部 + 0计数不可点 + 状态排序（🔌提前）+ pinnedItems 解耦筛选 + onTabCreated 过滤窗口 + onAttached/onDetached 兜底重载（[[pattern-data-consistency-with-browser]] + agent 红线 G）
+- **菜单动作统一抽象** `useTabActions.ts`（单+批量）+ code-map J 节联动矩阵
+- **聚焦模式 UI**：全屏黑罩 + 中央大红「关闭聚焦」按钮（屏幕共享样式）
+- **审查流程升级**（4 次白屏教训）：改 .vue 必跑 compileScript（不只 vue-tsc/compileTemplate）+ 扫顶层 TDZ（[[lesson-compilescript-not-just-compiletemplate]]）
+
 ## 待办（2026-07-02 继续）
 > 🔥 **明天第一件事**：`pnpm fresh`（清 .plasmo+build 重新构建，绕缓存）→ 在 chrome://extensions **点扩展卡片「刷新」按钮**（⚠️ **不要移除扩展**！移除=卸载会清空 `chrome.storage.local`，标记/稍后/树关系/编号全丢。刷新不清 storage）→ 进分组页验证：① 分组页正常显示不再报错 ② 添加分组/放入正常 ③ 搜索+排序可用
 > - ⚠️ **存储持久性**（查自 `docs/googledocs/storage.md` 官方原文）：`chrome.storage.local` 在「清缓存/历史」「扩展刷新/更新」「浏览器重启」时都**不清**；**只在「移除/卸载扩展」时清空**。`storage.session` 才在刷新/重启时清。项目数据全走 `storage.local` → 刷新扩展数据不丢，移除扩展数据全丢。

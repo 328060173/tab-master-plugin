@@ -263,3 +263,101 @@
 - 文档：`docs/prd/*.md` / `docs/reference/extension-vue-best-practices.md` / `docs/dev-workflow.md`
 
 明天先 `git status` 检查 → 实测通过后再决定是否一次 commit 还是拆分多次提交。
+---
+
+## 2026-07-01 完成（大量重构 + 标记系统 + 一致性底线）
+
+> 一天产出密集，主线：错误处理体系 → 标记功能两轮优化 → 固定标签拖动 → 状态栏与数据一致性 → 菜单动作统一抽象。期间因审查疏漏导致 4 次运行时白屏，已修正审查流程。
+
+### 一、错误处理重做（每页独立 ErrorBoundary）
+- 每个页面/区域独立 `ErrorBoundary`（`components/ErrorBoundary.vue`）包裹，scope 命名（later/groups/history/home/focus），崩了只降级局部、不波及其它
+- 统一降级 UI「⚠️ 此区域出错了 / 其它功能不受影响」+ [重试此区域][去设置重新打开]
+- ErrorBoundary 只 `console.error` 不写 storage（不依赖暂缓的日志功能）
+- **聚焦态内容区补 ErrorBoundary**（之前漏了，补 scope="focus"）
+- 全局兜底链：页面级 ErrorBoundary → 根级 onErrorCaptured → app.config.errorHandler → window.error/unhandledrejection
+- 立规矩写进 [[pattern-unified-error-handling]] + agent 红线 F 节
+
+### 二、标记系统两轮优化
+**第一轮**（PM PRD `docs/prd/tag-system-redesign.md` → 落地）：
+- `useTabManager`：addCustomTag 加 15 上限 + 15 字 + 重复校验（返回 boolean）；新增 reorderCustomTags；removeCustomTag 同步清 tabTagsMap
+- `TagBar.vue` 重构：横向滚动替代折叠"更多"；chip=[手柄][名称][计数]；拖动排序；右键编辑/删除；问号引导
+- 两个添加标记浮层加宽（TagPicker + 右键浮层 w-48→w-72, 3列→4列, z-60→z-80）
+
+**第二轮**（体验修订）：
+- TagBar 横滚 → **下拉 panel**（点 ▾ 展开 w-80 panel，内含拖动排序+编辑+删除+添加，收起即不可见）—— 解决"标记多了不好操作、编辑删除入口找不到"
+- 问号移入 panel 头部，不占栏宽
+- 有标记时行首加「标记：」label
+
+**第三轮**（统一浮层，PM PRD `docs/prd/unified-tag-picker.md` → 落地）：
+- 新建 `components/TagSelectPopover.vue` 统一组件，替换四处重复"添加标记"浮层（卡片汉堡/右键/批量/卡片内嵌）
+- props: id/currentTags/allTags/mode(single|batch)/batchTabTags/placement
+- 列数自适应（≤5单列/6-10双列/>10四列）；长标记 truncate+tooltip；选中态统一蓝底
+- batch 三态（未应用/部分/全部），点击=全部应用或移除
+
+### 三、固定标签拖动排序 + 菜单 bug 修复
+- `PinnedBar` 加 GripVertical 手柄，HTML5 drag 拖动排序，`chrome.tabs.move` 真实移动
+- **修 PinnedBar 菜单按钮失效 bug**：根因 sidepanel 的事件绑定用三元 `@copy="focusMode==='focusing' ? undefined : copyUrl"`，Vue 编译为 `$event => (三元)` 只返回函数引用不调用（用 @vue/compiler-sfc@3.3.4 实测确认）。改内联箭头函数
+- `useTabManager` 补 `chrome.tabs.onMoved` 监听（之前缺失，拖动后顺序不刷新）
+
+### 四、树形 5 层限制 + 滚动留白
+- `buildTree` 加 `clampDepth`：超过第 5 层的节点提升到第 5 层并排（不丢失不无限嵌套），导出 MAX_TREE_DEPTH=5
+- TreeGuideDialog 说明补充层级限制
+- 滚动容器动态 pb-16（scrolled 时）避让「回到顶部」按钮挡最后标签的关闭/菜单
+
+### 五、状态栏 + 数据一致性底线（⚠️ 最高优先级）
+- **状态筛选自动回全部**：activeFilter 对应计数变 0 时自动回"all"（watch stats）
+- **0 计数状态不可点**：FooterStats 按钮 disabled + 灰色
+- **状态排序**：PRIORITY_ORDER 把 hasConnectedDevice(🔌) 提到 frozen 前（播放中→已静音→录制中→共享中→连接设备→冻结等）
+- **固定标签数量不一致修复**（底线）：
+  - `pinnedItems` 改从 `tabs.value` 直接派生（原经 filteredTabs 被筛选污染）
+  - `onTabCreated` 加窗口判断（其他窗口标签不混入）
+  - `currentWindowId` 从 tabs.query 结果推导（不用 chrome.windows.getCurrent，免权限）
+  - 新增 onAttached/onDetached → 防抖 scheduleResync(200ms) → 全量 loadTabs（跨窗口移动兜底）
+- **数据一致性底线写进 [[pattern-data-consistency-with-browser]] + agent 红线 G 节 + CLAUDE.md 红线**：开发+设计+测试都要保证插件数据=浏览器实际
+
+### 六、菜单动作统一抽象
+- 新建 `composables/useTabActions.ts` 统一标签操作动作逻辑（单标签+批量）：refresh/copyUrl/togglePin/toggleMute/duplicate/close/closeOthers/addToGroupSingle/.../batchClose/batchLater/batchAddToGroup/batchNewGroup
+- 三个菜单（右键/汉堡/批量）+ 卡片都调它，改一处动作逻辑全菜单生效
+- UI 耦合操作（later/setNumber/addTag 仍 sidepanel 管）
+- `docs/code-map.md` 新增 J 节「标签操作菜单联动」：改一个操作要联动 3 步 + 各菜单引用函数矩阵
+
+### 七、聚焦模式 UI 改造
+- 聚焦态改**全屏黑罩 + 页面正中央大红「关闭聚焦」按钮**（像浏览器屏幕共享的"结束共享"）
+- 蒙层 z-[150] 盖住所有（含固定标签，不可点），不盖 toast(z-200)
+- 删除原底部红条退出按钮
+
+### 八、存储持久性澄清 + 文档修正
+- 修正 CLAUDE.md 错误流程「移除扩展 + 重新加载」→ 改为「点扩展刷新按钮」（移除=卸载会清空 chrome.storage.local）
+- 补 storage 持久性速查：local 只在卸载时清，session 刷新/重启即清
+- 写进 [[reference-chrome-api-docs]] 旁
+
+### 九、审查流程升级（4 次白屏教训）
+今天因审查疏漏导致 4 次运行时白屏：
+1. `watch([stats, activeFilter])` TDZ（activeFilter 后定义）
+2. `onEnterTagSubmenu` const 重复声明
+3. `createGroup` 重复解构（useTabManager vs useTabGroups）
+4. `useTabActions({showToast})` TDZ（showToast 后定义）
+
+**共同根因**：vue-tsc 查不出 TDZ、查不出重复解构声明。已修正审查规范：
+- 改 .vue 后必跑 **compileScript**（不只 compileTemplate/vue-tsc）—— compileScript 才抓重复声明
+- **主动扫 setup 顶层执行顺序的 TDZ**（useXxx() 调用参数是否在定义前）
+- 写进 [[lesson-compilescript-not-just-compiletemplate]] + CLAUDE.md 审查规范
+
+### 十、运行日志功能（暂缓，待办已记）
+- 需求记进 CLAUDE.md 待办：捕获所有日志（console.error/warn + Vue 错误 + window.error + unhandledrejection）统一写 chrome.storage.local
+- `useLogger.installGlobalCapture()` 已写好拦截逻辑但未接入（时序问题未解决前不调用）
+- 复活前必须先查官方文档 + 最佳实践
+
+### 新增文件
+- `components/TagSelectPopover.vue`（统一标记浮层）
+- `composables/useTabActions.ts`（统一动作层）
+- `docs/prd/tag-system-redesign.md`、`docs/prd/unified-tag-picker.md`
+- 记忆：pattern-unified-error-handling / pattern-data-consistency-with-browser / lesson-compilescript-not-just-compiletemplate
+
+### 待办（2026-07-02 继续）
+- 🔥 `pnpm fresh` → 点扩展刷新按钮（不要移除）→ 全量实测今天所有改动
+- 4 格矩阵实测（Chrome+Edge × macOS+Windows）
+- 批量菜单 hover「标记」交互：PopoverManager 单例会关掉批量菜单，体验待确认（可能改 click 触发）
+- 暗色模式精修、i18n 扩展
+- 运行日志功能复活（先查官方文档）
+- 后端相关（登录/同步）等后端就绪
