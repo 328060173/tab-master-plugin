@@ -192,10 +192,10 @@
       </ErrorBoundary>
       <!-- 首页 -->
       <ErrorBoundary v-else scope="home" @reload="reloadPanel">
-        <!-- 普通标签列表：带边框的 scroll-view，批量按钮 legend 式跨在边框上 -->
-        <div v-if="activeNav === 'home' && focusMode === 'normal'" class="relative mt-3 border border-gray-200 dark:border-gray-700 rounded-lg">
-          <!-- 批量按钮组：absolute 跨在边框线上（legend 效果），不随内容滚动 -->
-          <div class="absolute -top-3 left-3 right-3 flex items-center gap-1 px-1 bg-white dark:bg-gray-900 z-10">
+        <!-- 普通标签列表：带边框容器，批量按钮 sticky 常驻顶部不随滚动 -->
+        <div v-if="activeNav === 'home' && focusMode === 'normal'" class="mt-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+          <!-- 批量按钮组：sticky 粘在 contentRef 滚动容器顶部，永远可见 -->
+          <div class="sticky top-0 z-10 flex items-center gap-1 px-2 py-1.5 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
             <span v-if="isBatchMode" class="text-[11px] text-blue-600 dark:text-blue-400 ml-1">已选 {{ selectedIds.length }}</span>
             <div class="flex-1"></div>
             <template v-if="!isBatchMode">
@@ -236,8 +236,8 @@
             </template>
           </div>
 
-          <!-- 标签内容区：自身滚动 -->
-          <div class="overflow-y-auto max-h-[calc(100vh-220px)] p-3 pt-4">
+          <!-- 标签内容区：跟随 contentRef 滚动（不再自身滚动，避免双层滚动导致 sticky 失效） -->
+          <div class="p-3">
             <template v-if="viewMode === 'tree'">
               <TreeGuideBanner @open="treeGuideOpen = true" />
               <TabTreeItem v-for="node in treeNodes" :key="node.item.id"
