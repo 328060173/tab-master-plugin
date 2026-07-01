@@ -192,11 +192,12 @@
       </ErrorBoundary>
       <!-- 首页 -->
       <ErrorBoundary v-else scope="home" @reload="reloadPanel">
-        <!-- 批量按钮组 -->
-        <div v-if="activeNav === 'home' && focusMode === 'normal'" class="flex justify-end mb-2">
+        <!-- 批量按钮组（sticky 常驻内容区顶部，不随标签滚动；panel 容器） -->
+        <div v-if="activeNav === 'home' && focusMode === 'normal'"
+          class="sticky top-0 z-10 -mx-3 -mt-2 mb-2 px-3 py-1.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-b border-gray-100 dark:border-gray-700 flex justify-end items-center gap-1">
           <template v-if="!isBatchMode">
             <button
-              :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', 'border-gray-200 hover:bg-gray-50']"
+              :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700']"
               @click.stop="onBatchButtonClick"
             >
               <CheckSquare :size="11" />
@@ -204,33 +205,32 @@
             </button>
           </template>
           <template v-else>
-            <div class="flex items-center gap-1">
-              <label class="flex items-center gap-1 px-2 py-1 text-xs rounded border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 cursor-pointer">
-                <input
-                  ref="selectAllCheckboxRef"
-                  type="checkbox"
-                  class="w-4 h-4 cursor-pointer accent-blue-600"
-                  :checked="selectAllState === 'all'"
-                  @click.stop="onToggleSelectAll"
-                />
-                全选
-              </label>
-              <button
-                ref="batchMenuTriggerRef"
-                :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', popover.isOpen('normal-batch') ? 'border-blue-400 bg-blue-50 text-blue-700' : 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100']"
-                @click.stop="onBatchMenuClick"
-              >
-                更多
-                <ChevronDown :size="10" class="text-gray-400" />
-              </button>
-              <button
-                :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100']"
-                @click.stop="exitBatch"
-              >
-                <XSquare :size="11" />
-                取消批量
-              </button>
-            </div>
+            <span class="text-[11px] text-blue-600 dark:text-blue-400 mr-1">已选 {{ selectedIds.length }}</span>
+            <label class="flex items-center gap-1 px-2 py-1 text-xs rounded border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 cursor-pointer">
+              <input
+                ref="selectAllCheckboxRef"
+                type="checkbox"
+                class="w-4 h-4 cursor-pointer accent-blue-600"
+                :checked="selectAllState === 'all'"
+                @click.stop="onToggleSelectAll"
+              />
+              全选
+            </label>
+            <button
+              ref="batchMenuTriggerRef"
+              :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', popover.isOpen('normal-batch') ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50']"
+              @click.stop="onBatchMenuClick"
+            >
+              更多
+              <ChevronDown :size="10" class="text-gray-400" />
+            </button>
+            <button
+              :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50']"
+              @click.stop="exitBatch"
+            >
+              <XSquare :size="11" />
+              取消批量
+            </button>
           </template>
         </div>
 
