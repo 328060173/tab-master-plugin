@@ -24,6 +24,9 @@
 
     <!-- 有标记状态：收起态 -->
     <div v-else class="flex items-center gap-2">
+      <!-- 行首 label -->
+      <span class="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">标记：</span>
+
       <!-- 全部按钮 -->
       <button
         :class="['shrink-0 px-2 py-0.5 text-xs rounded-full border transition-colors',
@@ -57,31 +60,17 @@
       >
         <ChevronDown :size="13" :class="popover.isOpen(panelId) ? 'rotate-180 transition-transform' : 'transition-transform'" />
       </button>
-
-      <!-- 帮助按钮 -->
-      <button
-        :class="['shrink-0 w-6 h-6 flex items-center justify-center rounded-full border transition-colors',
-          showHelp
-            ? 'border-blue-300 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:border-blue-700'
-            : 'border-gray-200 dark:border-gray-600 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-600']"
-        @click="showHelp = !showHelp"
-        title="这是什么？"
-      >
-        <HelpCircle :size="12" />
-      </button>
     </div>
 
-    <!-- 帮助说明 -->
-    <div v-if="showHelp" class="mt-2 px-3 py-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg text-[11px] leading-relaxed text-blue-800 dark:text-blue-200">
+    <!-- 帮助说明（仅空状态，有标记时在 panel 内展示） -->
+    <div v-if="tags.length === 0 && showHelp" class="mt-2 px-3 py-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg text-[11px] leading-relaxed text-blue-800 dark:text-blue-200">
       <p class="mb-1"><b>标记是什么？</b>给标签分类的自定义标签，方便快速筛选。</p>
       <p class="mb-1"><b>怎么用：</b></p>
       <ul class="list-disc list-inside mb-1 ml-1">
-        <li>点标记筛选标签（选多个 = 交集筛选）</li>
-        <li>点右侧 <ChevronDown :size="10" class="inline" /> 下拉：排序 / 编辑 / 删除 / 添加</li>
-        <li>拖标记左侧的「⠿」调整顺序</li>
-        <li>点「全部」清除所有筛选</li>
+        <li>点「添加标记来分类标签」创建第一个标记</li>
+        <li>有标记后：点标记筛选（选多个 = 交集），点 ▾ 下拉排序/编辑/删除</li>
       </ul>
-      <p>🔒 标记仅保存在本地浏览器，不上传。最多15个，每个最多15字。</p>
+      <p>🔒 仅本地保存，不上传。最多15个，每个最多15字。</p>
     </div>
 
     <!-- 添加标记输入框（空状态触发） -->
@@ -129,9 +118,32 @@
         <!-- panel 头 -->
         <div class="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-700">
           <span class="text-xs font-medium text-gray-700 dark:text-gray-200">管理标记</span>
-          <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" @click="closePanel" title="收起">
-            <X :size="14" />
-          </button>
+          <div class="flex items-center gap-1">
+            <button
+              :class="['p-0.5 rounded transition-colors',
+                showHelp ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/30' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200']"
+              @click="showHelp = !showHelp"
+              title="这是什么？"
+            >
+              <HelpCircle :size="14" />
+            </button>
+            <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" @click="closePanel" title="收起">
+              <X :size="14" />
+            </button>
+          </div>
+        </div>
+
+        <!-- 帮助说明（panel 内） -->
+        <div v-if="showHelp" class="mx-3 mt-2 px-3 py-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg text-[11px] leading-relaxed text-blue-800 dark:text-blue-200">
+          <p class="mb-1"><b>标记是什么？</b>给标签分类的自定义标签，方便快速筛选。</p>
+          <p class="mb-1"><b>怎么用：</b></p>
+          <ul class="list-disc list-inside mb-1 ml-1">
+            <li>点标记筛选标签（选多个 = 交集筛选）</li>
+            <li>拖标记左侧的「⠿」调整顺序</li>
+            <li>✏ 编辑、🗑 删除（删除会从所有标签移除）</li>
+            <li>点「全部」清除所有筛选</li>
+          </ul>
+          <p>🔒 仅本地保存，不上传。最多15个，每个最多15字。</p>
         </div>
 
         <!-- 标记列表（可滚动） -->
