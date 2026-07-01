@@ -192,68 +192,136 @@
       </ErrorBoundary>
       <!-- 首页 -->
       <ErrorBoundary v-else scope="home" @reload="reloadPanel">
-        <!-- 批量按钮组（sticky 常驻内容区顶部，不随标签滚动；panel 容器） -->
-        <div v-if="activeNav === 'home' && focusMode === 'normal'"
-          class="sticky top-0 z-10 -mx-3 -mt-2 mb-2 px-3 py-1.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-b border-gray-100 dark:border-gray-700 flex justify-end items-center gap-1">
-          <template v-if="!isBatchMode">
-            <button
-              :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700']"
-              @click.stop="onBatchButtonClick"
-            >
-              <CheckSquare :size="11" />
-              批量
-            </button>
-          </template>
-          <template v-else>
-            <span class="text-[11px] text-blue-600 dark:text-blue-400 mr-1">已选 {{ selectedIds.length }}</span>
-            <label class="flex items-center gap-1 px-2 py-1 text-xs rounded border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 cursor-pointer">
-              <input
-                ref="selectAllCheckboxRef"
-                type="checkbox"
-                class="w-4 h-4 cursor-pointer accent-blue-600"
-                :checked="selectAllState === 'all'"
-                @click.stop="onToggleSelectAll"
+        <!-- 普通标签列表：带边框的 scroll-view，批量按钮 legend 式跨在边框上 -->
+        <div v-if="activeNav === 'home' && focusMode === 'normal'" class="relative mt-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+          <!-- 批量按钮组：absolute 跨在边框线上（legend 效果），不随内容滚动 -->
+          <div class="absolute -top-3 left-3 right-3 flex items-center gap-1 px-1 bg-white dark:bg-gray-900 z-10">
+            <span class="text-[10px] text-gray-400 dark:text-gray-500 font-medium px-1">普通标签</span>
+            <span v-if="isBatchMode" class="text-[11px] text-blue-600 dark:text-blue-400 ml-1">已选 {{ selectedIds.length }}</span>
+            <div class="flex-1"></div>
+            <template v-if="!isBatchMode">
+              <button
+                :class="['flex items-center gap-1 px-2 py-0.5 text-xs rounded border transition-colors', 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 bg-white dark:bg-gray-900']"
+                @click.stop="onBatchButtonClick"
+              >
+                <CheckSquare :size="11" />
+                批量
+              </button>
+            </template>
+            <template v-else>
+              <label class="flex items-center gap-1 px-2 py-0.5 text-xs rounded border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 cursor-pointer">
+                <input
+                  ref="selectAllCheckboxRef"
+                  type="checkbox"
+                  class="w-4 h-4 cursor-pointer accent-blue-600"
+                  :checked="selectAllState === 'all'"
+                  @click.stop="onToggleSelectAll"
+                />
+                全选
+              </label>
+              <button
+                ref="batchMenuTriggerRef"
+                :class="['flex items-center gap-1 px-2 py-0.5 text-xs rounded border transition-colors', popover.isOpen('normal-batch') ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50']"
+                @click.stop="onBatchMenuClick"
+              >
+                更多
+                <ChevronDown :size="10" class="text-gray-400" />
+              </button>
+              <button
+                :class="['flex items-center gap-1 px-2 py-0.5 text-xs rounded border transition-colors', 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50']"
+                @click.stop="exitBatch"
+              >
+                <XSquare :size="11" />
+                取消批量
+              </button>
+            </template>
+          </div>
+
+          <!-- 标签内容区：自身滚动 -->
+          <div class="overflow-y-auto max-h-[calc(100vh-220px)] p-3 pt-4">
+            <template v-if="viewMode === 'tree'">
+              <TreeGuideBanner @open="treeGuideOpen = true" />
+              <TabTreeItem v-for="node in treeNodes" :key="node.item.id"
+                :item="node.item" :children="node.children" :depth="0"
+                :is-batch="isBatchMode"
+                :is-checked="selectedIds.includes(node.item.id)"
+                @activate="activateTab(node.item.id)" @activate-child="activateTab($event)"
+                @close="closeAction(node.item.id)" @close-child="closeAction($event)"
+                @toggle="toggleSelect(node.item.id)"
+                @toggle-child="toggleSelect($event)"
               />
-              全选
-            </label>
-            <button
-              ref="batchMenuTriggerRef"
-              :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', popover.isOpen('normal-batch') ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50']"
-              @click.stop="onBatchMenuClick"
-            >
-              更多
-              <ChevronDown :size="10" class="text-gray-400" />
-            </button>
-            <button
-              :class="['flex items-center gap-1 px-2 py-1 text-xs rounded border transition-colors', 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50']"
-              @click.stop="exitBatch"
-            >
-              <XSquare :size="11" />
-              取消批量
-            </button>
-          </template>
+            </template>
+            <template v-else>
+              <div v-if="!normalItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
+              <template v-if="sortMode === 'domain' && viewMode !== 'icon'">
+                <div v-for="group in domainGroups" :key="group.domain" class="mb-3">
+                  <p class="text-[10px] font-bold text-gray-400 tracking-wide mb-1">{{ group.displayName }}</p>
+                  <div :class="gridClass">
+                    <component :is="itemComponent" v-for="item in group.items" :key="item.id"
+                      :data-tabid="item.id"
+                      :item="item" :is-batch="isBatchMode" :is-checked="selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
+                      @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
+                      @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
+                      @update-tags="updateTabTags(item.id, $event)" @add-tag="addCustomTag($event)"
+                      @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
+                      @refresh="refresh(item.id)" @pin="togglePin(item.id)"
+                      @contextmenu.prevent="onContextMenu($event, item)" />
+                  </div>
+                </div>
+              </template>
+              <template v-else>
+                <div :class="gridClass">
+                  <component :is="itemComponent" v-for="item in sortedNormalItems" :key="item.id"
+                    :data-tabid="item.id"
+                    :item="item" :is-batch="isBatchMode" :is-checked="selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
+                    @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
+                    @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
+                    @update-tags="updateTabTags(item.id, $event)" @add-tag="addCustomTag($event)"
+                    @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
+                    @refresh="refresh(item.id)" @pin="togglePin(item.id)"
+                    @contextmenu.prevent="onContextMenu($event, item)" />
+                </div>
+              </template>
+            </template>
+          </div>
         </div>
 
-        <template v-if="viewMode === 'tree'">
-          <!-- 树形视图常驻黄条引导 -->
-          <TreeGuideBanner @open="treeGuideOpen = true" />
-          <TabTreeItem v-for="node in treeNodes" :key="node.item.id"
-            :item="node.item" :children="node.children" :depth="0"
-            :is-batch="focusMode === 'selecting' ? true : isBatchMode"
-            :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(node.item.id) : selectedIds.includes(node.item.id)"
-            @activate="activateTab(node.item.id)" @activate-child="activateTab($event)"
-            @close="closeAction(node.item.id)" @close-child="closeAction($event)"
-            @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(node.item.id) : toggleSelect(node.item.id)"
-            @toggle-child="focusMode === 'selecting' ? toggleSelectFocusTab($event) : toggleSelect($event)"
-          />
-        </template>
+        <!-- 非首页普通态（聚焦选择态等）保留原结构 -->
         <template v-else>
-          <div v-if="!normalItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
-          <template v-if="sortMode === 'domain' && viewMode !== 'icon'">
-            <div v-for="group in domainGroups" :key="group.domain" class="mb-3">
-              <p class="text-[10px] font-bold text-gray-400 tracking-wide mb-1">{{ group.displayName }}</p>
+          <template v-if="viewMode === 'tree'">
+            <!-- 树形视图常驻黄条引导 -->
+            <TreeGuideBanner @open="treeGuideOpen = true" />
+            <TabTreeItem v-for="node in treeNodes" :key="node.item.id"
+              :item="node.item" :children="node.children" :depth="0"
+              :is-batch="focusMode === 'selecting' ? true : isBatchMode"
+              :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(node.item.id) : selectedIds.includes(node.item.id)"
+              @activate="activateTab(node.item.id)" @activate-child="activateTab($event)"
+              @close="closeAction(node.item.id)" @close-child="closeAction($event)"
+              @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(node.item.id) : toggleSelect(node.item.id)"
+              @toggle-child="focusMode === 'selecting' ? toggleSelectFocusTab($event) : toggleSelect($event)"
+            />
+          </template>
+          <template v-else>
+            <div v-if="!normalItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
+            <template v-if="sortMode === 'domain' && viewMode !== 'icon'">
+              <div v-for="group in domainGroups" :key="group.domain" class="mb-3">
+                <p class="text-[10px] font-bold text-gray-400 tracking-wide mb-1">{{ group.displayName }}</p>
+                <div :class="gridClass">
+                  <component :is="itemComponent" v-for="item in group.items" :key="item.id"
+                    :data-tabid="item.id"
+                    :item="item" :is-batch="focusMode === 'selecting' ? true : isBatchMode" :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(item.id) : selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
+                    @activate="activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
+                    @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
+                    @update-tags="updateTabTags(item.id, $event)" @add-tag="addCustomTag($event)"
+                    @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
+                    @refresh="refresh(item.id)" @pin="togglePin(item.id)"
+                    @contextmenu.prevent="onContextMenu($event, item)" />
+                </div>
+              </div>
+            </template>
+            <template v-else>
               <div :class="gridClass">
-                <component :is="itemComponent" v-for="item in group.items" :key="item.id"
+                <component :is="itemComponent" v-for="item in sortedNormalItems" :key="item.id"
                   :data-tabid="item.id"
                   :item="item" :is-batch="focusMode === 'selecting' ? true : isBatchMode" :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(item.id) : selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
                   @activate="activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
@@ -263,20 +331,7 @@
                   @refresh="refresh(item.id)" @pin="togglePin(item.id)"
                   @contextmenu.prevent="onContextMenu($event, item)" />
               </div>
-            </div>
-          </template>
-          <template v-else>
-            <div :class="gridClass">
-              <component :is="itemComponent" v-for="item in sortedNormalItems" :key="item.id"
-                :data-tabid="item.id"
-                :item="item" :is-batch="focusMode === 'selecting' ? true : isBatchMode" :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(item.id) : selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
-                @activate="activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
-                @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
-                @update-tags="updateTabTags(item.id, $event)" @add-tag="addCustomTag($event)"
-                @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
-                @refresh="refresh(item.id)" @pin="togglePin(item.id)"
-                @contextmenu.prevent="onContextMenu($event, item)" />
-            </div>
+            </template>
           </template>
         </template>
       </ErrorBoundary>
