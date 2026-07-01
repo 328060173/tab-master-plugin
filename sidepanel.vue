@@ -375,48 +375,28 @@
         </button>
       </div>
 
-      <!-- 批量子菜单：添加标记 -->
-      <div
-        v-if="popover.isOpen('normal-batch') && batchActiveSubmenu === 'tag'"
-        :style="batchTagSubmenuPos"
-        class="fixed z-[60] w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
-        @click.stop
-        @mouseenter="batchActiveSubmenu = 'tag'"
-      >
-        <div v-if="!customTags.length" class="px-3 py-1.5 text-xs text-gray-400">暂无标记</div>
-        <button
-          v-for="tag in customTags" :key="tag"
-          class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-          @click="onMenuApplyTag(tag)"
-        >
-          <span class="w-2 h-2 rounded-full bg-purple-500"></span>
-          <span class="flex-1 truncate">{{ tag }}</span>
-        </button>
-        <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30" @click="batchShowNewTagDialog = true">
-          <Plus :size="12" />新建标记...
-        </button>
-      </div>
+      <!-- 统一标记选择浮层（右键/汉堡菜单/批量/卡片内嵌共用） -->
+      <TagSelectPopover
+        id="right-click-tag-picker"
+        :currentTags="rightClickTab?.tags ?? []"
+        :allTags="customTags"
+        mode="single"
+        placement="bottom-left"
+        @toggle="toggleRightClickTabTag"
+        @create="handleAddTag"
+      />
+      <TagSelectPopover
+        id="batch-tag-picker"
+        :currentTags="batchSelectedCommonTags"
+        :allTags="customTags"
+        mode="batch"
+        :batch-tab-tags="batchSelectedTabTags"
+        placement="bottom-right"
+        @apply="batchApplyTag"
+        @remove="batchRemoveTag"
+        @create="handleAddTagForBatch"
+      />
 
-      <!-- 批量新建标记对话框 -->
-      <div v-if="batchShowNewTagDialog" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/30" @click.self="batchShowNewTagDialog = false">
-        <div class="w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4" @click.stop>
-          <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">新建标记</h3>
-          <input
-            v-model="batchNewTagName"
-            type="text"
-            maxlength="15"
-            class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
-            placeholder="输入标记名称"
-            @keyup.enter="onBatchNewTagConfirm"
-            @keyup.escape="batchShowNewTagDialog = false"
-          />
-          <div class="flex justify-end gap-2 mt-4">
-            <button class="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded" @click="batchShowNewTagDialog = false">取消</button>
-            <button class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50" :disabled="!batchNewTagName.trim()" @click="onBatchNewTagConfirm">创建</button>
-          </div>
-        </div>
-      </div>
     </Teleport>
 
     <!-- 清理菜单：直接关闭类的二次确认 -->
@@ -450,20 +430,6 @@
     <!-- 右键菜单 -->
     <TabContextMenu :tab="ctxMenu?.tab ?? null" :x="ctxMenu?.x ?? 0" :y="ctxMenu?.y ?? 0"
       @action="handleCtxAction" @close="ctxMenu = null" />
-
-    <!-- 标记浮层（右键→添加标记，独立于卡片内嵌 TagPicker） -->
-    <div v-if="popover.isOpen('right-click-tag-picker') && rightClickTab" class="fixed z-[80] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-72 pb-1"
-      :style="rightClickTagPickerStyle" @click.stop>
-      <p class="px-3 py-2 border-b border-gray-100 dark:border-gray-700 text-[11px] font-medium text-gray-500 dark:text-gray-400">添加标记</p>
-      <div class="grid grid-cols-4 gap-1.5 p-2.5 max-h-60 overflow-y-auto">
-        <button v-for="tag in customTags" :key="tag"
-          :class="['px-1 py-0.5 text-[10px] rounded border text-center truncate transition-colors',
-            rightClickTab.tags.includes(tag) ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-blue-400']"
-          :title="tag"
-          @click="updateTabTags(rightClickTab.id, rightClickTab.tags.includes(tag) ? rightClickTab.tags.filter(t=>t!==tag) : [...rightClickTab.tags, tag])">{{ tag }}</button>
-        <p v-if="!customTags.length" class="col-span-4 text-[11px] text-gray-400 text-center py-2">暂无标记</p>
-      </div>
-    </div>
     <!-- 编号选择浮层（右键→设置编号） -->
     <div v-if="popover.isOpen('number-picker') && numberPickerTab" class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-44 p-2.5"
       :style="numberPickerStyle" @click.stop>
@@ -497,6 +463,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
 import { ChevronUp, ChevronDown, ChevronLeft, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle } from "@lucide/vue"
+import TagSelectPopover from "~components/TagSelectPopover.vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabStats } from "~composables/useTabStats"
 import { useTabTree } from "~composables/useTabTree"
@@ -770,8 +737,6 @@ const batchMenuTriggerRef = ref<HTMLElement | null>(null)
 const selectAllCheckboxRef = ref<HTMLInputElement | null>(null)
 const batchActiveSubmenu = ref<"group" | "tag" | null>(null)
 const batchSubmenuAnchorRect = ref<DOMRect | null>(null)
-const batchShowNewTagDialog = ref(false)
-const batchNewTagName = ref("")
 const showStorage = ref(false)
 const contentRef = ref<HTMLElement | null>(null)
 const toastMsg = ref("")
@@ -812,6 +777,72 @@ const clearNumberFromPicker = () => {
   }
   popover.close('number-picker')
   rightClickTabId.value = null
+}
+
+// ===== 统一标记选择浮层相关 =====
+// 右键菜单/汉堡菜单用：切换单个标签的标记
+const toggleRightClickTabTag = (tag: string) => {
+  if (!rightClickTabId.value) return
+  const tab = tabs.value.find(t => t.id === rightClickTabId.value)
+  if (!tab) return
+  const newTags = tab.tags.includes(tag)
+    ? tab.tags.filter(t => t !== tag)
+    : [...tab.tags, tag]
+  updateTabTags(rightClickTabId.value, newTags)
+}
+
+// 批量模式用：计算选中标签的 tags 数组
+const batchSelectedTabTags = computed(() => {
+  return selectedIds.value
+    .map(id => tabs.value.find(t => t.id === id)?.tags ?? [])
+})
+
+// 批量模式用：计算选中标签的共同标记（交集）
+const batchSelectedCommonTags = computed(() => {
+  const tagsArray = batchSelectedTabTags.value
+  if (tagsArray.length === 0) return []
+  return tagsArray.reduce((acc, tags) => acc.filter(t => tags.includes(t)), tagsArray[0])
+})
+
+// 批量模式用：应用标记到所有选中标签
+const batchApplyTag = (tag: string) => {
+  batchAddTags([tag])
+  showToast(`已为 ${selectedIds.value.length} 个标签添加标记「${tag}」`)
+}
+
+// 批量模式用：从所有选中标签移除标记
+const batchRemoveTag = (tag: string) => {
+  const ids = [...selectedIds.value]
+  for (const id of ids) {
+    const cur = tabs.value.find(t => t.id === id)?.tags ?? []
+    updateTabTags(id, cur.filter(t => t !== tag))
+  }
+  showToast(`已从 ${ids.length} 个标签移除标记「${tag}」`)
+}
+
+// 批量模式用：新建标记后自动应用到所有选中标签
+const handleAddTagForBatch = async (tag: string) => {
+  const success = await addCustomTag(tag)
+  if (success) {
+    showToast(`已添加标记「${tag}」`)
+    batchApplyTag(tag)
+  } else if (customTags.value.length >= 15) {
+    showToast('已达15个标记上限')
+  } else if (customTags.value.includes(tag.trim())) {
+    showToast('该标记已存在')
+  }
+}
+
+// 修改：批量菜单「标记」项 hover 时打开统一的 TagSelectPopover
+const onEnterTagSubmenu = (e: MouseEvent) => {
+  if (!selectedIds.value.length) return
+  onBatchEnterSubmenuRow("tag", e.currentTarget as HTMLElement)
+  // 延迟打开，确保 submenu 状态先切换
+  setTimeout(() => {
+    if (batchActiveSubmenu.value === "tag") {
+      popover.open("batch-tag-picker", e.currentTarget as HTMLElement)
+    }
+  }, 0)
 }
 
 // ===== 工具栏「清理」菜单 =====
@@ -1111,11 +1142,6 @@ const batchGroupSubmenuPos = computed(() => {
   const p = computeFlyoutPos(batchSubmenuAnchorRect.value, { width: 180, height: 200 }, 'left')
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
-const batchTagSubmenuPos = computed(() => {
-  if (!batchSubmenuAnchorRect.value) return { left: '0px', top: '0px' }
-  const p = computeFlyoutPos(batchSubmenuAnchorRect.value, { width: 160, height: 200 }, 'left')
-  return { left: `${p.left}px`, top: `${p.top}px` }
-})
 
 const onBatchEnterSubmenuRow = (type: "group" | "tag", rowEl: HTMLElement | null) => {
   batchActiveSubmenu.value = type
@@ -1126,10 +1152,6 @@ const onBatchEnterSubmenuRow = (type: "group" | "tag", rowEl: HTMLElement | null
 const onEnterGroupSubmenu = (e: MouseEvent) => {
   if (!selectedIds.value.length) return
   onBatchEnterSubmenuRow("group", e.currentTarget as HTMLElement)
-}
-const onEnterTagSubmenu = (e: MouseEvent) => {
-  if (!selectedIds.value.length) return
-  onBatchEnterSubmenuRow("tag", e.currentTarget as HTMLElement)
 }
 
 // 批量菜单项的 click handlers（避免在模板里写 `fn; popover.close()` 这种 statement 组合，Vue 解析不稳）
@@ -1151,24 +1173,13 @@ const onMenuPickGroup = (gid: number) => {
   batchAddToExistingGroup(gid)
   popover.close("normal-batch")
 }
-const onMenuApplyTag = (tag: string) => {
-  batchAddTags([tag])
-}
 
-// 分组颜色 → 实际颜色 hex（避开模板里 `(GROUP_COLOR_CLASSES as any)[color]` 这种 TS 断言）
+
 const GROUP_COLOR_HEX: Record<string, string> = {
   grey: "#6b7280", blue: "#3b82f6", red: "#ef4444", yellow: "#eab308",
   green: "#22c55e", pink: "#ec4899", purple: "#a855f7", cyan: "#06b6d4", orange: "#f97316",
 }
 const groupColorHex = (color: string | undefined) => color ? (GROUP_COLOR_HEX[color] || "#6b7280") : "#6b7280"
-
-const onBatchNewTagConfirm = () => {
-  if (batchNewTagName.value.trim()) {
-    addCustomTag(batchNewTagName.value.trim())
-    batchShowNewTagDialog.value = false
-    batchNewTagName.value = ""
-  }
-}
 
 /** 从单条右键快速进入批量并预选 —— 右键「选择此/同域名/同分组/全选可见」入口共用 */
 const enterBatchWithSelection = (ids: number[]) => {
