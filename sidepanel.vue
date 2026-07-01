@@ -512,7 +512,7 @@ const {
   closeTab, activateTab, restoreTab, moveToLater, removeLater, removeRecentlyClosed,
   updateTabNumber, updateTabTags, removeCustomTag, renameCustomTag, reorderCustomTags,
   closeUnpinned, closeOthers, closeFrozenDiscarded,
-  groupTab, addToGroup, createGroup,
+  groupTab,
   updateTreeParent, moveTabToIndex,
 } = useTabManager()
 
