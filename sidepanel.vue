@@ -151,8 +151,8 @@
       @update-tags="updateTabTags" @add-tag="handleAddTag"
     />
 
-    <!-- 正常内容区（普通/选择态） -->
-    <div v-else-if="focusMode !== 'focusing'" ref="contentRef" :class="['flex-1 overflow-y-auto min-h-0 px-3 py-2', scrolled ? 'pb-16' : 'pb-2']" @scroll="onContentScroll">
+    <!-- 正常内容区（普通/选择态）。home 普通态用 overflow-hidden 让普通标签容器自己内部滚（抽屉效果），其它页正常滚 -->
+    <div v-else-if="focusMode !== 'focusing'" ref="contentRef" :class="['flex-1 min-h-0 px-3 py-2 flex flex-col', (activeNav === 'home' && focusMode === 'normal') ? 'overflow-hidden' : 'overflow-y-auto', scrolled ? 'pb-16' : 'pb-2']" @scroll="onContentScroll">
       <!-- 稍后页面 -->
       <ErrorBoundary v-if="activeNav === 'later'" scope="later" @reload="reloadPanel">
         <LaterList :items="laterTabs" @remove="removeLater" @open="restoreTab($event)" />
@@ -192,10 +192,10 @@
       </ErrorBoundary>
       <!-- 首页 -->
       <ErrorBoundary v-else scope="home" @reload="reloadPanel">
-        <!-- 普通标签列表：带边框容器，批量按钮 sticky 常驻顶部不随滚动 -->
-        <div v-if="activeNav === 'home' && focusMode === 'normal'" class="mt-3 border border-gray-200 dark:border-gray-700 rounded-lg">
-          <!-- 批量按钮组：sticky 粘在 contentRef 滚动容器顶部，永远可见 -->
-          <div class="sticky top-0 z-10 flex items-center gap-1 px-2 py-1.5 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+        <!-- 普通标签列表：抽屉式容器——撑满剩余空间，批量按钮固定顶部，标签区内部滚动 -->
+        <div v-if="activeNav === 'home' && focusMode === 'normal'" class="flex-1 min-h-0 mt-1 flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <!-- 批量按钮组：固定在容器顶部，不随标签滚动 -->
+          <div class="shrink-0 flex items-center gap-1 px-2 py-1.5 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
             <span v-if="isBatchMode" class="text-[11px] text-blue-600 dark:text-blue-400 ml-1">已选 {{ selectedIds.length }}</span>
             <div class="flex-1"></div>
             <template v-if="!isBatchMode">
@@ -236,8 +236,8 @@
             </template>
           </div>
 
-          <!-- 标签内容区：跟随 contentRef 滚动（不再自身滚动，避免双层滚动导致 sticky 失效） -->
-          <div class="p-3">
+          <!-- 标签内容区：容器内部滚动（抽屉），撑满批量按钮下方的剩余空间 -->
+          <div ref="homeTabsScrollRef" class="flex-1 overflow-y-auto p-3" @scroll="onContentScroll">
             <template v-if="viewMode === 'tree'">
               <TreeGuideBanner @open="treeGuideOpen = true" />
               <TabTreeItem v-for="node in treeNodes" :key="node.item.id"
@@ -1069,8 +1069,13 @@ chrome.storage.local.get("treeGuideShown").then((d) => {
 const reloadPanel = () => { window.location.reload() }
 
 const scrolled = ref(false)
+const homeTabsScrollRef = ref<HTMLElement | null>(null)
 const onContentScroll = (e: Event) => { scrolled.value = (e.target as HTMLElement).scrollTop > 80 }
-const scrollToTop = () => contentRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
+const scrollToTop = () => {
+  // home 普通态滚动在 homeTabsScrollRef；其它页在 contentRef
+  const target = homeTabsScrollRef.value ?? contentRef.value
+  target?.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 const onKeydown = (e: KeyboardEvent) => {
   if (!e.altKey || e.ctrlKey || e.shiftKey || e.metaKey) return
