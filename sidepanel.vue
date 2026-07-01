@@ -133,11 +133,15 @@
     <PinnedBar
       v-if="focusMode === 'focusing' || (!search.trim() && activeNav === 'home')"
       :items="focusMode === 'focusing' ? focusingPinnedItems : pinnedItems"
-      @activate="activateTab" @close="focusMode === 'focusing' ? handleFocusTabClosed : closeTab"
-      @later="focusMode === 'focusing' ? undefined : openLater" @copy="focusMode === 'focusing' ? undefined : copyUrl"
-      @refresh="focusMode === 'focusing' ? undefined : handleRefresh" @pin="focusMode === 'focusing' ? undefined : handlePin"
-      @update-number="focusMode === 'focusing' ? undefined : (id, n) => { updateTabNumber(id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
-      @ctx="focusMode === 'focusing' ? undefined : onContextMenu"
+      @activate="activateTab"
+      @close="(id) => focusMode === 'focusing' ? handleFocusTabClosed(id) : closeTab(id)"
+      @later="(id) => { if (focusMode !== 'focusing') openLater(id) }"
+      @copy="(url) => { if (focusMode !== 'focusing') copyUrl(url) }"
+      @refresh="(id) => { if (focusMode !== 'focusing') handleRefresh(id) }"
+      @pin="(id) => { if (focusMode !== 'focusing') handlePin(id) }"
+      @update-number="(id, n) => { if (focusMode !== 'focusing') { updateTabNumber(id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') } }"
+      @ctx="(e, item) => { if (focusMode !== 'focusing') onContextMenu(e, item) }"
+      @move="(sourceId, targetId) => handlePinnedMove(sourceId, targetId)"
     />
 
     <!-- 搜索结果（普通/选择态显示，仅首页） -->
@@ -1224,6 +1228,12 @@ const openNewTab = () => chrome.tabs.create({})
 const handleRefresh = (id: number) => refreshTab(id)
 const refreshCurrentTab = () => { if (activeTabId.value) refreshTab(activeTabId.value) }
 const handlePin = (id: number) => { const tab = tabs.value.find(t => t.id === id); if (tab) pinTab(id, !tab.pinned) }
+const handlePinnedMove = async (sourceId: number, targetId: number) => {
+  // 获取当前标签的实际index（tabs数组按Chrome顺序排列）
+  const targetIndex = tabs.value.findIndex(t => t.id === targetId)
+  if (targetIndex === -1) return
+  await moveTabToIndex(sourceId, targetIndex)
+}
 
 const onContextMenu = (e: MouseEvent, item: TabItem) => {
   e.preventDefault(); ctxMenu.value = { tab: item, x: e.clientX, y: e.clientY }

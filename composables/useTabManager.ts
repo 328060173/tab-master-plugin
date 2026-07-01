@@ -402,6 +402,11 @@ export function useTabManager() {
     }
   }
 
+  // 标签移动时重新加载标签列表
+  const onTabMoved = () => {
+    loadTabs()
+  }
+
   // 睡眠唤醒/锁屏解锁时：优先检测扩展上下文是否仍有效，失效则整页重载（保证所有功能正常）
   const onVisibilityChange = () => {
     if (document.visibilityState !== 'visible') return
@@ -423,6 +428,7 @@ export function useTabManager() {
     chrome.tabs.onCreated.addListener(onTabCreated)
     chrome.tabs.onUpdated.addListener(onTabUpdated)
     chrome.tabs.onActivated.addListener(onTabActivated)
+    chrome.tabs.onMoved.addListener(onTabMoved)
     chrome.storage.onChanged.addListener(onStorageChanged)
     document.addEventListener('visibilitychange', onVisibilityChange)
   })
@@ -431,6 +437,7 @@ export function useTabManager() {
     chrome.tabs.onCreated.removeListener(onTabCreated)
     chrome.tabs.onUpdated.removeListener(onTabUpdated)
     chrome.tabs.onActivated.removeListener(onTabActivated)
+    chrome.tabs.onMoved.removeListener(onTabMoved)
     chrome.storage.onChanged.removeListener(onStorageChanged)
     document.removeEventListener('visibilitychange', onVisibilityChange)
   })
