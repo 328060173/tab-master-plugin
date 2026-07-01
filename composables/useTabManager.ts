@@ -1,5 +1,6 @@
 import { ref, onMounted, onUnmounted } from "vue"
 import type { TabItem, LaterItem, ClosedTabItem } from "~types/tab"
+import { validateTag } from "~lib/tagValidate"
 
 function getDomain(url: string) {
   try { return new URL(url).hostname } catch { return url }
@@ -231,11 +232,9 @@ export function useTabManager() {
     await chrome.storage.local.set({ tabTagsMap: tabTagsMap.value })
   }
   const addCustomTag = async (tag: string): Promise<boolean> => {
-    const trimmedTag = tag.trim()
-    if (!trimmedTag || trimmedTag.length > 15) return false
-    if (customTags.value.length >= 15) return false
-    if (customTags.value.includes(trimmedTag)) return false
-    customTags.value = [...customTags.value, trimmedTag]
+    const r = validateTag(tag, customTags.value)
+    if (!r.ok) return false
+    customTags.value = [...customTags.value, r.name]
     await chrome.storage.local.set({ customTags: customTags.value })
     return true
   }

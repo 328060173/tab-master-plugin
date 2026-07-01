@@ -50,6 +50,7 @@ import { ref, computed, watch, nextTick } from "vue"
 import { Plus } from "@lucide/vue"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
+import { validateTag } from "~lib/tagValidate"
 
 const props = withDefaults(defineProps<{
   /** 浮层唯一 ID，用于 PopoverManager */
@@ -151,11 +152,11 @@ const handleTagClick = (tag: string) => {
   }
 }
 
-// 处理创建标记
+// 处理创建标记：用统一校验 validateTag（与所有入口一致）
 const handleCreate = () => {
-  const t = newTag.value.trim()
-  if (!t || props.allTags.includes(t)) return
-  emit("create", t)
+  const r = validateTag(newTag.value, props.allTags)
+  if (!r.ok) return
+  emit("create", r.name)
   newTag.value = ""
 }
 

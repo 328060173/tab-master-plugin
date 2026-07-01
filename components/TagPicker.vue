@@ -24,6 +24,7 @@ import { ref, computed } from "vue"
 import { Tag } from "@lucide/vue"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import TagSelectPopover from "~components/TagSelectPopover.vue"
+import { validateTag } from "~lib/tagValidate"
 
 const props = withDefaults(defineProps<{
   currentTags: string[]
@@ -44,11 +45,14 @@ const triggerRef = ref<HTMLElement | null>(null)
 
 const popoverId = computed(() => `tag-picker-${props.tabId}`)
 
-// 创建标记：同时添加到全局和当前标签
+// 创建标记：用统一校验 validateTag，通过后才 emit addTag + update
+// 避免底层 addCustomTag 失败（重复/超限）但 update 仍把标记挂到标签上 → 数据不一致
 const handleCreate = (tag: string) => {
-  emit("addTag", tag)
-  if (!props.currentTags.includes(tag)) {
-    emit("update", [...props.currentTags, tag])
+  const r = validateTag(tag, props.allTags)
+  if (!r.ok) return
+  emit("addTag", r.name)
+  if (!props.currentTags.includes(r.name)) {
+    emit("update", [...props.currentTags, r.name])
   }
 }
 

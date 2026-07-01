@@ -312,6 +312,7 @@ import { Plus, X, HelpCircle, GripVertical, Pencil, Trash2, ChevronDown } from "
 import ConfirmDialog from "./ConfirmDialog.vue"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
+import { validateTag } from "~lib/tagValidate"
 
 const props = defineProps<{
   tags: string[]
@@ -357,18 +358,18 @@ const deleteConfirm = ref<{ open: boolean; tag: string; count: number }>({
   open: false, tag: "", count: 0
 })
 
-// 计算属性
+// 计算属性（校验统一走 lib/tagValidate.ts 的 validateTag）
 const canAddMore = computed(() => props.tags.length < 15)
-const isDuplicate = computed(() => props.tags.includes(newTag.value.trim()))
-const canSubmitAdd = computed(() => {
-  const trimmed = newTag.value.trim()
-  return trimmed.length > 0 && trimmed.length <= 15 && !isDuplicate.value && canAddMore.value
+const isDuplicate = computed(() => {
+  const r = validateTag(newTag.value, props.tags)
+  return !r.ok && r.reason === "duplicate"
 })
-const isPanelDuplicate = computed(() => props.tags.includes(panelNewTag.value.trim()))
-const canSubmitPanelAdd = computed(() => {
-  const trimmed = panelNewTag.value.trim()
-  return trimmed.length > 0 && trimmed.length <= 15 && !isPanelDuplicate.value && canAddMore.value
+const canSubmitAdd = computed(() => validateTag(newTag.value, props.tags).ok)
+const isPanelDuplicate = computed(() => {
+  const r = validateTag(panelNewTag.value, props.tags)
+  return !r.ok && r.reason === "duplicate"
 })
+const canSubmitPanelAdd = computed(() => validateTag(panelNewTag.value, props.tags).ok)
 const isEditDuplicate = computed(() => {
   const trimmed = editDraft.value.trim()
   return trimmed !== editDialog.value.tag && props.tags.includes(trimmed)
@@ -405,8 +406,9 @@ const closePanel = () => {
 
 // 收起态添加
 const doAdd = () => {
-  if (!canSubmitAdd.value) return
-  emit("addTag", newTag.value.trim())
+  const r = validateTag(newTag.value, props.tags)
+  if (!r.ok) return
+  emit("addTag", r.name)
   newTag.value = ""
   showAdd.value = false
 }
@@ -422,8 +424,9 @@ const openPanelAdd = async () => {
   panelAddInputRef.value?.focus()
 }
 const doPanelAdd = () => {
-  if (!canSubmitPanelAdd.value) return
-  emit("addTag", panelNewTag.value.trim())
+  const r = validateTag(panelNewTag.value, props.tags)
+  if (!r.ok) return
+  emit("addTag", r.name)
   panelNewTag.value = ""
   showPanelAdd.value = false
 }
