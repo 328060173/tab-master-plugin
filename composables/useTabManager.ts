@@ -211,23 +211,18 @@ export function useTabManager() {
         })
       }
     } catch (e) {
-      console.warn("[tab-master] loadLater 失败，使用默认空值；loadTabs 会继续执行不阻塞 UI：", e)
+      console.warn("[tab-master] loadLater 失败，保留当前内存数据；loadTabs 会继续执行不阻塞 UI：", e)
 
       // 诊断日志：异常情况
       if (!!(import.meta as any).env?.DEV) {
-        console.error("[tab-master:tags] loadLater 异常，内存将被清空!", { error: e })
+        console.error("[tab-master:tags] loadLater 异常，保留当前内存数据", { error: e })
       }
 
-      // 即使 storage 完全不可读，也给所有 ref 设为安全空值，不让 onMounted 主链断掉
-      laterTabs.value = []
-      customTags.value = []
-      tabTagsMap.value = {}
-      tabNumberMap.value = {}
-      recentlyClosed.value = []
-      treeParentMap.value = {}
-      tabOpenedAtMap.value = {}
-      tabLastAccessedMap.value = {}
-      tagSelectMode.value = "multi"
+      // 不重置内存状态，保留已有数据（标记名称永远展示）
+      // 仅 tagSelectMode 给兜底值，防止 undefined 导致筛选逻辑异常
+      if (tagSelectMode.value === undefined || tagSelectMode.value === null) {
+        tagSelectMode.value = "multi"
+      }
     }
   }
   const loadSwitchHistory = async () => {
@@ -314,11 +309,11 @@ export function useTabManager() {
 
     // 首次给标签绑定标记时，触发会话级提示（一次性，异步、不阻塞主流程）
     if (tags.length > 0 && !tagBoundFirstTime.value) {
-      chrome.storage.local.get(["tagsSessionNoticeShown"]).then(d => {
+      chrome.storage.session.get(["tagsSessionNoticeShown"]).then(d => {
         if (!d.tagsSessionNoticeShown) {
           tagBoundFirstTime.value = true
-          console.debug("[tab-master:tags] 首次绑标记，写 tagsSessionNoticeShown=true 触发 toast", { tabId: id, tags })
-          chrome.storage.local.set({ tagsSessionNoticeShown: true }).catch(() => {})
+          console.debug("[tab-master:tags] 首次绑标记，写 session:tagsSessionNoticeShown=true 触发 toast", { tabId: id, tags })
+          chrome.storage.session.set({ tagsSessionNoticeShown: true }).catch(() => {})
         }
       }).catch(() => {})
     }

@@ -759,8 +759,14 @@ watch(customTags, (newTags) => {
 })
 // 处理添加标记
 const handleAddTag = async (tag: string) => {
+  if (!!(import.meta as any).env?.DEV) {
+    console.debug("[tab-master:tags] handleAddTag 被调用", { tag, currentCustomTags: customTags.value })
+  }
   const success = await addCustomTag(tag)
   if (success) {
+    if (!!(import.meta as any).env?.DEV) {
+      console.debug("[tab-master:tags] handleAddTag 成功，准备 showToast")
+    }
     showToast(`已添加标记「${tag}」`)
   } else if (customTags.value.length >= 15) {
     showToast('已达15个标记上限')
@@ -1016,6 +1022,9 @@ const navItems = [
 ]
 
 const showToast = (msg: string) => {
+  if (!!(import.meta as any).env?.DEV) {
+    console.debug("[tab-master:tags] showToast 被调用", { msg })
+  }
   toastMsg.value = msg
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => { toastMsg.value = "" }, 2000)
@@ -1026,7 +1035,7 @@ const showToast = (msg: string) => {
 // 批量/HoverCard 删除/useTabActions）调的是各自实例的 updateTabTags，ref 跨实例不共享；
 // 但都写同一个 storage key，监听 storage 才能全覆盖
 const onTagsSessionNoticeChanged = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
-  if (area !== "local" || !changes.tagsSessionNoticeShown) return
+  if (area !== "session" || !changes.tagsSessionNoticeShown) return
   if (changes.tagsSessionNoticeShown.newValue === true) {
     showToast("标记绑在当前标签页，关闭或重启浏览器后标签页变了就找不回啦")
   }

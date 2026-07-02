@@ -118,7 +118,7 @@ const SYS_DEFS: StorageDef[] = [
   { key: "treeParentMap",     label: "树形父子关系",     icon: "🌲", storage: "local", empty: "object", warning: "会清空树形视图中的父子层级关系。" },
   { key: "tabMasterSettings", label: "界面设置",         icon: "⚙️", storage: "local", empty: "object", warning: "会把主题/字号/密度/默认视图等设置重置为默认值。" },
   { key: "tabMasterLogs",     label: "运行日志",         icon: "📜", storage: "local", empty: "array",  warning: "会清空所有运行日志（也可在「运行日志」页清空）。" },
-  { key: "__guides__",        label: "功能引导记录",     icon: "💡", storage: "local", keys: ["tabGroupsGuideShown", "treeGuideShown", "focusModeShown", "tagsSessionNoticeShown"], warning: "清空后，分组 / 树形 / 聚焦模式 / 标记会话级提示的首次引导会再次出现。" },
+  { key: "__guides__",        label: "功能引导记录",     icon: "💡", storage: "local", keys: ["tabGroupsGuideShown", "treeGuideShown", "focusModeShown"], warning: "清空后，分组 / 树形 / 聚焦模式的首次引导会再次出现。" },
   { key: "tagSelectMode",     label: "标记筛选模式",     icon: "🔘", storage: "local", warning: "会把标记筛选模式重置为默认「多选」。" },
   { key: "viewMode",          label: "视图模式",         icon: "🖼️", storage: "ls", warning: "会清空记住的视图模式，下次打开恢复默认列表视图。" },
 ]
