@@ -38,11 +38,12 @@
 
       <!-- 全部按钮 -->
       <button
-        :class="['shrink-0 px-2 py-0.5 text-xs rounded-full border transition-colors',
+        :class="['shrink-0 px-2 py-0.5 text-xs rounded-full border transition-colors flex items-center gap-1',
           activeTags.length === 0 ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700']"
         @click="emit('apply', [])"
       >
-        全部
+        <span>全部</span>
+        <span class="opacity-60">{{ totalCount }}</span>
       </button>
 
       <!-- 标记 chips：单行溢出隐藏（不滚动），溢出部分进下拉 panel 看 -->
@@ -330,6 +331,8 @@ const props = defineProps<{
   tags: string[]
   activeTags: string[]
   tabCountByTag: Record<string, number>
+  /** 当前窗口标签总数，用于「全部」chip 显示数量（与其他 chip 口径一致） */
+  totalCount: number
 }>()
 const emit = defineEmits<{
   apply: [tags: string[]]

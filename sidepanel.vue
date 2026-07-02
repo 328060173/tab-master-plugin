@@ -105,6 +105,7 @@
       :tags="customTags"
       :active-tags="activeTagFilters"
       :tab-count-by-tag="tabCountByTag"
+      :total-count="tabs.length"
       @apply="activeTagFilters = $event"
       @add-tag="handleAddTag"
       @remove-tag="handleRemoveTag"
