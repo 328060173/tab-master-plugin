@@ -89,6 +89,16 @@ export function useTabManager() {
   const loadTabs = async () => {
     try {
       const raw = await chrome.tabs.query({ currentWindow: true })
+
+      // 诊断日志：开始 loadTabs
+      if (!!(import.meta as any).env?.DEV) {
+        console.debug("[tab-master:tags] loadTabs 开始", {
+          queryTabsCount: raw.length,
+          currentTabTagsMapKeys: Object.keys(tabTagsMap.value).length,
+          currentTabTagsMap: tabTagsMap.value
+        })
+      }
+
       // 从查询结果推导当前窗口 ID（避免依赖 chrome.windows.getCurrent，零额外 API/权限风险）
       if (raw.length && raw[0].windowId !== undefined) {
         currentWindowId.value = raw[0].windowId
@@ -131,6 +141,20 @@ export function useTabManager() {
         }
         return item
       })
+
+      // 诊断日志：回填完成
+      if (!!(import.meta as any).env?.DEV) {
+        const tabsWithTags = tabs.value.filter(t => t.tags.length > 0)
+        console.debug("[tab-master:tags] loadTabs 回填完成", {
+          totalTabs: tabs.value.length,
+          tabsWithTagsCount: tabsWithTags.length,
+          tabsWithTags: tabsWithTags.map(t => ({ id: t.id, title: t.title, tags: t.tags })),
+          tabTagsMapKeysUsed: tabs.value
+            .map(t => String(t.id))
+            .filter(id => id in tabTagsMap.value).length
+        })
+      }
+
       const active = raw.find(t => t.active)
       if (active) activeTabId.value = active.id
     } catch (e) {
@@ -141,6 +165,19 @@ export function useTabManager() {
   const loadLater = async () => {
     try {
       const data = await chrome.storage.local.get(["laterTabs", "customTags", "tabTagsMap", "tabNumberMap", "recentlyClosed", "treeParentMap", "tabOpenedAtMap", "tabLastAccessedMap"])
+
+      // 诊断日志：读取到的数据
+      if (!!(import.meta as any).env?.DEV) {
+        console.debug("[tab-master:tags] loadLater 读取 storage 成功", {
+          tabTagsMapKeys: Object.keys(data.tabTagsMap || {}).length,
+          customTagsLength: (data.customTags || []).length,
+          rawCustomTagsType: typeof data.customTags,
+          rawCustomTagsIsArray: Array.isArray(data.customTags),
+          rawTabTagsMapType: typeof data.tabTagsMap,
+          rawTabTagsMap: data.tabTagsMap
+        })
+      }
+
       laterTabs.value = Array.isArray(data.laterTabs) ? data.laterTabs : []
       // customTags 防御性校验：旧版本数据 / 调试时人为塞过对象都会导致 prop 类型错（Vue 报 "Expected Array, got Object"）
       // 这里强制只接受数组里的字符串，其他一律丢弃；并自动写回 storage 治愈污染（不影响主流程）
@@ -158,8 +195,23 @@ export function useTabManager() {
       treeParentMap.value = (data.treeParentMap && typeof data.treeParentMap === "object" && !Array.isArray(data.treeParentMap)) ? data.treeParentMap : {}
       tabOpenedAtMap.value = (data.tabOpenedAtMap && typeof data.tabOpenedAtMap === "object" && !Array.isArray(data.tabOpenedAtMap)) ? data.tabOpenedAtMap : {}
       tabLastAccessedMap.value = (data.tabLastAccessedMap && typeof data.tabLastAccessedMap === "object" && !Array.isArray(data.tabLastAccessedMap)) ? data.tabLastAccessedMap : {}
+
+      // 诊断日志：处理后的数据
+      if (!!(import.meta as any).env?.DEV) {
+        console.debug("[tab-master:tags] loadLater 处理完成", {
+          tabTagsMapKeysAfter: Object.keys(tabTagsMap.value).length,
+          customTagsLengthAfter: customTags.value.length,
+          tabTagsMapAfter: tabTagsMap.value
+        })
+      }
     } catch (e) {
       console.warn("[tab-master] loadLater 失败，使用默认空值；loadTabs 会继续执行不阻塞 UI：", e)
+
+      // 诊断日志：异常情况
+      if (!!(import.meta as any).env?.DEV) {
+        console.error("[tab-master:tags] loadLater 异常，内存将被清空!", { error: e })
+      }
+
       // 即使 storage 完全不可读，也给所有 ref 设为安全空值，不让 onMounted 主链断掉
       laterTabs.value = []
       customTags.value = []
@@ -229,7 +281,29 @@ export function useTabManager() {
     const idx = tabs.value.findIndex(t => t.id === id)
     if (idx !== -1) tabs.value[idx] = { ...tabs.value[idx], tags }
     tabTagsMap.value = { ...tabTagsMap.value, [String(id)]: tags }
+
+    // 诊断日志：写入前
+    if (!!(import.meta as any).env?.DEV) {
+      console.debug("[tab-master:tags] updateTabTags 写入 storage", {
+        tabId: id,
+        tags: tags,
+        tabTagsMapKeysBefore: Object.keys(tabTagsMap.value).length
+      })
+    }
+
     await chrome.storage.local.set({ tabTagsMap: tabTagsMap.value })
+
+    // 诊断日志：写入后回读验证
+    if (!!(import.meta as any).env?.DEV) {
+      const verifyData = await chrome.storage.local.get(["tabTagsMap"])
+      console.debug("[tab-master:tags] updateTabTags 回读验证", {
+        tabId: id,
+        verifyHasTabId: String(id) in (verifyData.tabTagsMap || {}),
+        verifyTagsForTab: (verifyData.tabTagsMap || {})[String(id)],
+        verifyTabTagsMapKeys: Object.keys(verifyData.tabTagsMap || {}).length,
+        verifyTabTagsMap: verifyData.tabTagsMap
+      })
+    }
   }
   const addCustomTag = async (tag: string): Promise<boolean> => {
     const r = validateTag(tag, customTags.value)
@@ -453,6 +527,15 @@ export function useTabManager() {
   // 睡眠唤醒/锁屏解锁时：优先检测扩展上下文是否仍有效，失效则整页重载（保证所有功能正常）
   const onVisibilityChange = () => {
     if (document.visibilityState !== 'visible') return
+
+    // 诊断日志：visibilitychange 触发
+    if (!!(import.meta as any).env?.DEV) {
+      console.debug("[tab-master:tags] onVisibilityChange 触发", {
+        hasRuntimeId: !!chrome.runtime?.id,
+        currentTabTagsMapKeys: Object.keys(tabTagsMap.value).length
+      })
+    }
+
     if (!chrome.runtime?.id) { window.location.reload(); return }
     loadTabs(); loadLater()
   }
