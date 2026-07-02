@@ -12,7 +12,15 @@
       <div class="px-3 py-2 space-y-1.5 border-b border-gray-100 dark:border-gray-700">
         <div v-if="item.tags.length" class="flex items-center gap-1 flex-wrap">
           <span class="text-[10px] text-gray-400">标记:</span>
-          <span v-for="tag in item.tags" :key="tag" class="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">{{ tag }}</span>
+          <span v-for="tag in item.tags" :key="tag" class="relative group/tag text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 pl-1.5 pr-3 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+            {{ tag }}
+            <button
+              class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-white dark:bg-gray-700 border border-blue-200 dark:border-blue-800 text-blue-500 dark:text-blue-300 hover:bg-red-500 hover:text-white hover:border-red-500 flex items-center justify-center leading-none transition-colors"
+              title="移除该标记"
+              @click.stop="onRemoveTag(tag)">
+              <X :size="8" :stroke-width="2.5" />
+            </button>
+          </span>
         </div>
         <!-- 编号设置 -->
         <div class="flex items-center gap-1">
@@ -63,6 +71,7 @@ import { RefreshCw, Link, Pin, Tag, Clock, X } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
 import { usePopoverManager } from "~composables/usePopoverManager"
+import { useTabManager } from "~composables/useTabManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 
 const props = defineProps<{ hoverCardId: string; item: TabItem; hideAddTag?: boolean }>()
@@ -91,6 +100,13 @@ const onClose = () => { popover.close(); emit('close') }
 const onClickTag = (e: MouseEvent) => {
   popover.close()
   emit('addTag', e.currentTarget as HTMLElement)
+}
+
+// 移除单个标记：直接调 updateTabTags 更新该标签的标记数组（不关 hover card，方便连续删多个）
+// 直接用 useTabManager 而非层层 emit —— 5 个视图（List/Icon/Tile/Tree/Pinned）共用此卡，统一行为
+const { updateTabTags } = useTabManager()
+const onRemoveTag = (tag: string) => {
+  updateTabTags(props.item.id, props.item.tags.filter(t => t !== tag))
 }
 
 const editingNumber = ref(false)
