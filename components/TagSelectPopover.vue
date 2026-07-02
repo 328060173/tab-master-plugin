@@ -27,6 +27,17 @@
         已达15个标记上限
       </div>
 
+      <!-- 单选/多选切换（仅单标签模式显示，批量模式不显示） -->
+      <div v-if="mode === 'single'" class="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
+        <select
+          v-model="internalMode"
+          class="w-full text-[11px] border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          @change="handleModeChange">
+          <option value="multi">多选标记</option>
+          <option value="single">单选标记</option>
+        </select>
+      </div>
+
       <!-- 标记选择区域 -->
       <div :class="gridClass" class="p-2.5 max-h-[240px] overflow-y-auto">
         <button
@@ -35,7 +46,8 @@
           :class="tagButtonClass(tag)"
           :title="tag"
           @click="handleTagClick(tag)">
-          {{ tag }}
+          <component :is="tagIcon(tag)" :size="11" class="shrink-0" />
+          <span class="truncate">{{ tag }}</span>
         </button>
         <p v-if="!allTags.length" class="col-span-full text-[11px] text-gray-400 text-center py-4">
           暂无标记
@@ -47,13 +59,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue"
-import { Plus } from "@lucide/vue"
+import { Plus, Square, CheckSquare, Circle, CircleDot } from "@lucide/vue"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 import { validateTag } from "~lib/tagValidate"
+import { useTabManager } from "~composables/useTabManager"
 
 const props = withDefaults(defineProps<{
-  /** 浮层唯一 ID，用于 PopoverManager */
+  /** 浮层唯一 id，用于 PopoverManager */
   id: string
   /** 当前标签的已选标记（单标签模式），或批量模式时仅用于显示已选交集 */
   currentTags: string[]
@@ -73,6 +86,8 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   /** 单标签模式：切换标记 */
   toggle: [tag: string]
+  /** 单标签模式：直接设置最终标记列表（单选模式用） */
+  select: [tags: string[]]
   /** 批量模式：应用标记到所有选中标签 */
   apply: [tag: string]
   /** 批量模式：从所有选中标签移除标记 */
@@ -81,11 +96,44 @@ const emit = defineEmits<{
   create: [tag: string]
   /** 关闭浮层 */
   close: []
+  /** 更新选择模式 */
+  "update-mode": [mode: "multi" | "single"]
 }>()
 
 const popover = usePopoverManager()
+const { tagSelectMode } = useTabManager()
+
 const newTag = ref("")
 const newTagInputRef = ref<HTMLInputElement | null>(null)
+
+// 内部模式状态：优先用 prop（如果有），否则用全局状态
+const internalMode = ref<"multi" | "single">(tagSelectMode.value)
+
+// 同步内部模式与全局状态
+watch(tagSelectMode, (val) => {
+  internalMode.value = val
+})
+
+// 处理模式切换
+const handleModeChange = () => {
+  emit("update-mode", internalMode.value)
+}
+
+// 获取标记图标
+const tagIcon = (tag: string) => {
+  if (props.mode === "batch") {
+    // 批量模式：三态
+    const state = batchTagState.value[tag] || "none"
+    return state === "all" ? CheckSquare : Square
+  } else {
+    // 单标签模式：看内部模式
+    if (internalMode.value === "multi") {
+      return props.currentTags.includes(tag) ? CheckSquare : Square
+    } else {
+      return props.currentTags.includes(tag) ? CircleDot : Circle
+    }
+  }
+}
 
 // 自动聚焦输入框
 watch(() => popover.isOpen(props.id), (isOpen) => {
@@ -125,7 +173,7 @@ const batchTagState = computed(() => {
 
 // 标记按钮样式
 const tagButtonClass = (tag: string) => {
-  const base = "px-1 py-0.5 text-[10px] rounded border text-center truncate transition-colors"
+  const base = "px-1 py-0.5 text-[10px] rounded border text-center truncate transition-colors flex items-center gap-1"
   if (props.mode === "single") {
     return props.currentTags.includes(tag)
       ? `${base} bg-blue-600 text-white border-blue-600`
@@ -141,7 +189,17 @@ const tagButtonClass = (tag: string) => {
 // 处理标记点击
 const handleTagClick = (tag: string) => {
   if (props.mode === "single") {
-    emit("toggle", tag)
+    if (internalMode.value === "single") {
+      // 单选模式：点已选则清空，点未选则只选这个
+      if (props.currentTags.includes(tag)) {
+        emit("select", [])
+      } else {
+        emit("select", [tag])
+      }
+    } else {
+      // 多选模式：保持 toggle 行为
+      emit("toggle", tag)
+    }
   } else {
     const state = batchTagState.value[tag] || "none"
     if (state === "all") {

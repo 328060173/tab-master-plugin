@@ -437,6 +437,8 @@
         mode="single"
         placement="bottom-left"
         @toggle="toggleRightClickTabTag"
+        @select="setRightClickTabTags"
+        @update-mode="setTagSelectMode"
         @create="handleAddTag"
       />
       <TagSelectPopover
@@ -568,6 +570,7 @@ const {
   closeUnpinned, closeOthers, closeFrozenDiscarded,
   groupTab,
   updateTreeParent, moveTabToIndex,
+  tagBoundFirstTime, setTagSelectMode,
 } = useTabManager()
 
 const stats = computed(() => useTabStats(tabs).value)
@@ -846,6 +849,20 @@ const toggleRightClickTabTag = (tag: string) => {
     : [...tab.tags, tag]
   updateTabTags(rightClickTabId.value, newTags)
 }
+
+// 右键菜单/汉堡菜单用：直接设置单个标签的标记（单选模式用）
+const setRightClickTabTags = (tags: string[]) => {
+  if (!rightClickTabId.value) return
+  updateTabTags(rightClickTabId.value, tags)
+}
+
+// 监听首次绑标记，显示会话级提示
+watch(tagBoundFirstTime, (val) => {
+  if (val) {
+    showToast('标记绑在当前标签页，关闭或重启浏览器后标签页变了就找不回啦')
+    tagBoundFirstTime.value = false
+  }
+})
 
 // 批量模式用：计算选中标签的 tags 数组
 const batchSelectedTabTags = computed(() => {
