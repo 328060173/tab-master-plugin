@@ -3,8 +3,7 @@
     ref="triggerRef"
     :class="['rounded transition-colors', buttonClass]"
     :title="popover.isOpen(popoverId) ? '收起标记' : '添加标记'"
-    @click.stop="popover.toggle(popoverId, triggerRef)"
-  >
+    @click.stop="popover.toggle(popoverId, triggerRef)">
     <Tag :size="iconSize" />
   </button>
 
@@ -16,8 +15,6 @@
     mode="single"
     placement="bottom-right"
     @toggle="emit('update', currentTags.includes($event) ? currentTags.filter(t => t !== $event) : [...currentTags, $event])"
-    @select="emit('update', $event)"
-    @update-mode="setTagSelectMode"
     @create="handleCreate"
   />
 </template>
@@ -28,7 +25,6 @@ import { Tag } from "@lucide/vue"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import TagSelectPopover from "~components/TagSelectPopover.vue"
 import { validateTag } from "~lib/tagValidate"
-import { useTabManager } from "~composables/useTabManager"
 
 const props = withDefaults(defineProps<{
   currentTags: string[]
@@ -45,7 +41,6 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ update: [tags: string[]]; addTag: [tag: string] }>()
 
 const popover = usePopoverManager()
-const { setTagSelectMode } = useTabManager()
 const triggerRef = ref<HTMLElement | null>(null)
 
 const popoverId = computed(() => `tag-picker-${props.tabId}`)

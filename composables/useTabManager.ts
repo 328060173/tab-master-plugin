@@ -55,10 +55,6 @@ export function useTabManager() {
   const tabLastAccessedMap = ref<Record<string, number>>({})
   const recentlyClosed = ref<ClosedTabItem[]>([])
   const treeParentMap = ref<Record<string, number>>({})
-  // 标记选择模式：'multi'（多选，默认）或 'single'（单选）
-  const tagSelectMode = ref<'multi' | 'single'>('multi')
-  // 首次绑标记触发器
-  const tagBoundFirstTime = ref(false)
 
   const switchHistory = ref<number[]>([])
   const switchIndex = ref(-1)
@@ -168,7 +164,7 @@ export function useTabManager() {
   }
   const loadLater = async () => {
     try {
-      const data = await chrome.storage.local.get(["laterTabs", "customTags", "tabTagsMap", "tabNumberMap", "recentlyClosed", "treeParentMap", "tabOpenedAtMap", "tabLastAccessedMap", "tagSelectMode", "tagsSessionNoticeShown"])
+      const data = await chrome.storage.local.get(["laterTabs", "customTags", "tabTagsMap", "tabNumberMap", "recentlyClosed", "treeParentMap", "tabOpenedAtMap", "tabLastAccessedMap"])
 
       // 诊断日志：读取到的数据
       if (!!(import.meta as any).env?.DEV) {
@@ -181,10 +177,6 @@ export function useTabManager() {
           rawTabTagsMap: data.tabTagsMap
         })
       }
-
-      // 读取标记选择模式，非法值兜底为 'multi'
-      const rawMode = data.tagSelectMode
-      tagSelectMode.value = (rawMode === 'multi' || rawMode === 'single') ? rawMode : 'multi'
 
       laterTabs.value = Array.isArray(data.laterTabs) ? data.laterTabs : []
       // customTags 防御性校验：旧版本数据 / 调试时人为塞过对象都会导致 prop 类型错（Vue 报 "Expected Array, got Object"）
@@ -285,28 +277,10 @@ export function useTabManager() {
     await chrome.storage.local.set({ tabNumberMap: newMap })
   }
 
-  // 设置标记选择模式
-  const setTagSelectMode = async (mode: 'multi' | 'single') => {
-    tagSelectMode.value = mode
-    await chrome.storage.local.set({ tagSelectMode: mode })
-  }
-
   const updateTabTags = async (id: number, tags: string[]) => {
     const idx = tabs.value.findIndex(t => t.id === id)
     if (idx !== -1) tabs.value[idx] = { ...tabs.value[idx], tags }
     tabTagsMap.value = { ...tabTagsMap.value, [String(id)]: tags }
-
-    // 首次绑标记：有标记且未展示过提示
-    if (tags.length > 0) {
-      // 先检查是否已经展示过
-      const checkData = await chrome.storage.local.get(['tagsSessionNoticeShown'])
-      if (!checkData.tagsSessionNoticeShown) {
-        // 置位触发器
-        tagBoundFirstTime.value = true
-        // 记录已展示，避免重复
-        await chrome.storage.local.set({ tagsSessionNoticeShown: true })
-      }
-    }
 
     // 诊断日志：写入前
     if (!!(import.meta as any).env?.DEV) {
@@ -615,6 +589,5 @@ export function useTabManager() {
     closeUnpinned, closeOthers, closeFrozenDiscarded,
     refreshTab, duplicateTab, pinTab, muteTab, closeTabsExcept, groupTab,
     updateTreeParent, moveTabToIndex,
-    tagSelectMode, tagBoundFirstTime, setTagSelectMode,
   }
 }
