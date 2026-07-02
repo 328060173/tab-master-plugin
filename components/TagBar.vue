@@ -24,8 +24,17 @@
 
     <!-- 有标记状态：收起态 -->
     <div v-else class="flex items-center gap-2">
-      <!-- 行首 label -->
-      <span class="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">标记：</span>
+      <!-- 行首 label + 筛选模式切换 -->
+      <span class="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">标记:</span>
+      <select
+        :value="tagSelectMode"
+        class="shrink-0 text-[11px] text-gray-500 dark:text-gray-400 bg-transparent border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5 focus:outline-none cursor-pointer hover:border-blue-400 transition-colors"
+        title="筛选模式：多选=可同时选多个标记取交集；单选=只能选一个，再点取消"
+        @change="onModeChange"
+      >
+        <option value="multi">多选</option>
+        <option value="single">单选</option>
+      </select>
 
       <!-- 全部按钮 -->
       <button
@@ -71,6 +80,7 @@
         <li>有标记后：点标记筛选（选多个 = 交集），点 ▾ 下拉排序/编辑/删除</li>
       </ul>
       <p>🔒 仅本地保存，不上传。最多15个，每个最多15字。</p>
+      <p>⚠️ <b>标记与标签页绑定</b>：关闭该标签页、或重启浏览器后，新标签页的 ID 会变，标记无法自动对应到新标签（数据仍在本地，但显示不出来）。</p>
     </div>
 
     <!-- 添加标记输入框（空状态触发） -->
@@ -144,6 +154,7 @@
             <li>点「全部」清除所有筛选</li>
           </ul>
           <p>🔒 仅本地保存，不上传。最多15个，每个最多15字。</p>
+          <p>⚠️ <b>标记与标签页绑定</b>：关闭该标签页、或重启浏览器后，新标签页的 ID 会变，标记无法自动对应到新标签（数据仍在本地，但显示不出来）。</p>
         </div>
 
         <!-- 标记列表（可滚动） -->
@@ -311,6 +322,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue"
 import { Plus, X, HelpCircle, GripVertical, Pencil, Trash2, ChevronDown } from "@lucide/vue"
 import ConfirmDialog from "./ConfirmDialog.vue"
 import { usePopoverManager } from "~composables/usePopoverManager"
+import { useTabManager } from "~composables/useTabManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 import { validateTag } from "~lib/tagValidate"
 
@@ -330,6 +342,13 @@ const emit = defineEmits<{
 const popover = usePopoverManager()
 const panelId = "tag-manager-panel"
 const panelTriggerRef = ref<HTMLElement | null>(null)
+
+// 标记筛选模式（multi/single）来自全局状态，TagBar 行首下拉切换
+const { tagSelectMode, setTagSelectMode } = useTabManager()
+// 模板里不能用 as 断言，包一层在 script 里
+const onModeChange = (e: Event) => {
+  setTagSelectMode((e.target as HTMLSelectElement).value as "multi" | "single")
+}
 
 // 收起态添加（空状态用）
 const showAdd = ref(false)
@@ -386,8 +405,13 @@ const panelStyle = computed(() => {
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
 
-// 筛选
+// 筛选：单选模式点已选=清空、点未选=只选它；多选=切换叠加（交集）
 const toggleTag = (tag: string) => {
+  if (tagSelectMode.value === "single") {
+    const isActive = props.activeTags.includes(tag)
+    emit("apply", isActive ? [] : [tag])
+    return
+  }
   const newActive = props.activeTags.includes(tag)
     ? props.activeTags.filter(t => t !== tag)
     : [...props.activeTags, tag]

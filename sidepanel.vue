@@ -568,6 +568,7 @@ const {
   closeUnpinned, closeOthers, closeFrozenDiscarded,
   groupTab,
   updateTreeParent, moveTabToIndex,
+  tagBoundFirstTime,
 } = useTabManager()
 
 const stats = computed(() => useTabStats(tabs).value)
@@ -1019,6 +1020,14 @@ const showToast = (msg: string) => {
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => { toastMsg.value = "" }, 2000)
 }
+
+// 首次给标签绑定标记时，提示会话级特性（标记按 tabId 绑定，重启/关标签后找不回）
+watch(tagBoundFirstTime, (v) => {
+  if (v) {
+    showToast("标记绑在当前标签页，关闭或重启浏览器后标签页变了就找不回啦")
+    tagBoundFirstTime.value = false
+  }
+})
 
 // 标签操作动作层（单标签 + 批量）：refresh/copyUrl/togglePin/close/batchClose 等
 // 必须在 showToast 定义之后调用（内部传 showToast 回调）

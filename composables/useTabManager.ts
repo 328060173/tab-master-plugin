@@ -55,6 +55,10 @@ export function useTabManager() {
   const tabLastAccessedMap = ref<Record<string, number>>({})
   const recentlyClosed = ref<ClosedTabItem[]>([])
   const treeParentMap = ref<Record<string, number>>({})
+  // 标记筛选模式：multi=多选叠加（交集），single=单选。持久化到 storage.local.tagSelectMode
+  const tagSelectMode = ref<"multi" | "single">("multi")
+  // 首次绑标记一次性触发器：用于 sidepanel 弹会话级提示 toast
+  const tagBoundFirstTime = ref(false)
 
   const switchHistory = ref<number[]>([])
   const switchIndex = ref(-1)
@@ -164,7 +168,7 @@ export function useTabManager() {
   }
   const loadLater = async () => {
     try {
-      const data = await chrome.storage.local.get(["laterTabs", "customTags", "tabTagsMap", "tabNumberMap", "recentlyClosed", "treeParentMap", "tabOpenedAtMap", "tabLastAccessedMap"])
+      const data = await chrome.storage.local.get(["laterTabs", "customTags", "tabTagsMap", "tabNumberMap", "recentlyClosed", "treeParentMap", "tabOpenedAtMap", "tabLastAccessedMap", "tagSelectMode", "tagsSessionNoticeShown"])
 
       // 诊断日志：读取到的数据
       if (!!(import.meta as any).env?.DEV) {
@@ -195,6 +199,8 @@ export function useTabManager() {
       treeParentMap.value = (data.treeParentMap && typeof data.treeParentMap === "object" && !Array.isArray(data.treeParentMap)) ? data.treeParentMap : {}
       tabOpenedAtMap.value = (data.tabOpenedAtMap && typeof data.tabOpenedAtMap === "object" && !Array.isArray(data.tabOpenedAtMap)) ? data.tabOpenedAtMap : {}
       tabLastAccessedMap.value = (data.tabLastAccessedMap && typeof data.tabLastAccessedMap === "object" && !Array.isArray(data.tabLastAccessedMap)) ? data.tabLastAccessedMap : {}
+      // 标记筛选模式：只认 'single'，其他一律兜底 'multi'
+      tagSelectMode.value = data.tagSelectMode === "single" ? "single" : "multi"
 
       // 诊断日志：处理后的数据
       if (!!(import.meta as any).env?.DEV) {
@@ -221,6 +227,7 @@ export function useTabManager() {
       treeParentMap.value = {}
       tabOpenedAtMap.value = {}
       tabLastAccessedMap.value = {}
+      tagSelectMode.value = "multi"
     }
   }
   const loadSwitchHistory = async () => {
@@ -304,6 +311,22 @@ export function useTabManager() {
         verifyTabTagsMap: verifyData.tabTagsMap
       })
     }
+
+    // 首次给标签绑定标记时，触发会话级提示（一次性，异步、不阻塞主流程）
+    if (tags.length > 0 && !tagBoundFirstTime.value) {
+      chrome.storage.local.get(["tagsSessionNoticeShown"]).then(d => {
+        if (!d.tagsSessionNoticeShown) {
+          tagBoundFirstTime.value = true
+          chrome.storage.local.set({ tagsSessionNoticeShown: true }).catch(() => {})
+        }
+      }).catch(() => {})
+    }
+  }
+
+  // 设置标记筛选模式（multi/single）并持久化
+  const setTagSelectMode = (m: "multi" | "single") => {
+    tagSelectMode.value = m
+    chrome.storage.local.set({ tagSelectMode: m }).catch(() => {})
   }
   const addCustomTag = async (tag: string): Promise<boolean> => {
     const r = validateTag(tag, customTags.value)
@@ -589,5 +612,6 @@ export function useTabManager() {
     closeUnpinned, closeOthers, closeFrozenDiscarded,
     refreshTab, duplicateTab, pinTab, muteTab, closeTabsExcept, groupTab,
     updateTreeParent, moveTabToIndex,
+    tagSelectMode, setTagSelectMode, tagBoundFirstTime,
   }
 }
