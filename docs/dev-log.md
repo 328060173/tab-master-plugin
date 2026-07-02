@@ -408,3 +408,45 @@ useTabActions 重构时误把 addCustomTag 从 useTabManager 解构删了，但�
 - 消息通知感知（PRD 已出，暂缓，将来想做时拿来实现）
 - 两个 Vue warn（data-tabid/contextmenu 透传到多根卡片）看要不要修
 - 暗色模式精修、i18n 扩展
+
+---
+
+## 2026-07-02 补记（标记不展示 + 首次绑标记 toast 修复）
+
+> 用户反馈两个 bug：① 点齿轮菜单「重新打开」后搜索栏下 TagBar 的标记 chips 不展示；② 第一次添加标记没 toast。main 协调 extension-frontend agent 实现 + 审查，已提交 `0fc4c58`。
+
+### 问题定位（main 静态分析 + 与用户确认复现路径）
+- 用户点的「重新打开」是 **齿轮菜单的「重新打开」**（HeaderMenu onReload → `window.location.reload()`），**不是** StoragePanel「清空所有缓存」→ 排除 storage.local.clear 路径
+- 标记名（`customTags`）本就持久化在 storage.local，普通刷新/重启/崩溃都不清；只有 StoragePanel 清空缓存或单项清理才会清 → 设计符合"用户添加的标记永远存在"底线
+- 对齐 `docs/tag-disappearance-analysis.md` 的 Bug2 假说：`loadLater()` catch 分支在 reload 瞬间 `storage.get` 抛异常时把内存清空 → TagBar 空白
+
+### 改动（3 文件）
+1. **`composables/useTabManager.ts`**
+   - `loadLater` catch 分支：不再清空 `customTags/tabTagsMap/...`，保留当前内存数据（守"标记名永远展示"底线）；仅 `tagSelectMode` 在 undefined/null 时兜底 "multi"
+   - `updateTabTags`：`tagsSessionNoticeShown` 旗标从 `storage.local` 改存 `storage.session`（原存 local 导致"会话级提示"一辈子只弹一次；改 session 后每次浏览器开启后首次绑标记都弹一次，名副其实）
+2. **`sidepanel.vue`**
+   - `onTagsSessionNoticeChanged` 监听改 `area === "session"`
+   - `handleAddTag` / `showToast` 加 dev-only `[tab-master:tags]` 诊断日志（协助定位"创建标记名 toast 不弹"——代码链路通，疑 stale build）
+3. **`components/StoragePanel.vue`**
+   - `__guides__` 的 keys 移除 `tagsSessionNoticeShown`（已改 session，不该在 local 存储面板显示）+ 更新 warning 文案
+
+### 防白屏清单（main 亲跑，全过）
+- ✅ compileScript（@vue/compiler-sfc@3.3.4）：265 bindings，无重复声明/解构重名
+- ✅ compileTemplate：无模板 TS 断言/复合语句
+- ✅ vue-tsc --noEmit：仅 tsconfig 既有 deprecation 警告（TS5107/TS5101），与本次改动无关，无类型错误
+- ✅ TDZ 扫描：handleAddTag(761)→showToast(1022) 是运行时事件 handler，setup 完成后才触发，无 TDZ
+- ✅ 未定义引用扫描：未删任何解构名，StoragePanel 移除的只是字符串 key，无悬空引用
+
+### 待用户验证（main 不跑扩展）
+1. `pnpm fresh`（清 .plasmo+build 绕缓存）
+2. chrome://extensions 点扩展「刷新」（⚠️ 不要移除，移除=卸载清 storage.local）
+3. Bug1：加几个标记 → 点齿轮「重新打开」→ TagBar 标记应仍在
+4. Bug2-a：完全关 Chrome 再开 → 首次绑标记 → 应弹"标记绑在当前标签页…"toast；同会话再绑不弹；下次开 Chrome 又弹
+5. Bug2-b：TagBar 空状态创建标记名 → 应弹"已添加标记「x」"。若还不弹，看侧栏 Console `[tab-master:tags]` 日志定位
+
+### 待办（明天继续）
+- 🔥 上述 5 步实测验证（重点 Bug2-b：若 pnpm fresh 后仍不弹，按 console 日志在哪一步断的继续定位）
+- 4 格矩阵实测（Chrome+Edge × macOS+Windows）
+- 批量菜单 hover「标记」交互体验确认
+- 暗色模式精修、i18n 扩展
+- 运行日志功能复活（先查官方文档）
