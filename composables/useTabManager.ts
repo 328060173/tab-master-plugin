@@ -317,6 +317,7 @@ export function useTabManager() {
       chrome.storage.local.get(["tagsSessionNoticeShown"]).then(d => {
         if (!d.tagsSessionNoticeShown) {
           tagBoundFirstTime.value = true
+          console.debug("[tab-master:tags] 首次绑标记，写 tagsSessionNoticeShown=true 触发 toast", { tabId: id, tags })
           chrome.storage.local.set({ tagsSessionNoticeShown: true }).catch(() => {})
         }
       }).catch(() => {})

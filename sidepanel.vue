@@ -569,7 +569,6 @@ const {
   closeUnpinned, closeOthers, closeFrozenDiscarded,
   groupTab,
   updateTreeParent, moveTabToIndex,
-  tagBoundFirstTime,
 } = useTabManager()
 
 const stats = computed(() => useTabStats(tabs).value)
@@ -1023,12 +1022,15 @@ const showToast = (msg: string) => {
 }
 
 // 首次给标签绑定标记时，提示会话级特性（标记按 tabId 绑定，重启/关标签后找不回）
-watch(tagBoundFirstTime, (v) => {
-  if (v) {
+// 用 storage.onChanged 监听而非 watch ref —— useTabManager 非单例，各入口（TagPicker/右键/
+// 批量/HoverCard 删除/useTabActions）调的是各自实例的 updateTabTags，ref 跨实例不共享；
+// 但都写同一个 storage key，监听 storage 才能全覆盖
+const onTagsSessionNoticeChanged = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
+  if (area !== "local" || !changes.tagsSessionNoticeShown) return
+  if (changes.tagsSessionNoticeShown.newValue === true) {
     showToast("标记绑在当前标签页，关闭或重启浏览器后标签页变了就找不回啦")
-    tagBoundFirstTime.value = false
   }
-})
+}
 
 // 标签操作动作层（单标签 + 批量）：refresh/copyUrl/togglePin/close/batchClose 等
 // 必须在 showToast 定义之后调用（内部传 showToast 回调）
@@ -1108,11 +1110,14 @@ onMounted(async () => {
   }
   // 监听标签创建事件（用于聚焦模式）
   chrome.tabs.onCreated.addListener(handleNewTabInFocus)
+  // 监听首次绑标记（storage 写入 tagsSessionNoticeShown=true）→ 弹会话级提示 toast
+  chrome.storage.onChanged.addListener(onTagsSessionNoticeChanged)
 })
 
 onUnmounted(() => {
   document.removeEventListener("keydown", onKeydown)
   chrome.tabs.onCreated.removeListener(handleNewTabInFocus)
+  chrome.storage.onChanged.removeListener(onTagsSessionNoticeChanged)
 })
 
 const scrollToActive = (activeId: number | undefined) => {
