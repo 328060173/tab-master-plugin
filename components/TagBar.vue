@@ -384,12 +384,12 @@ const deleteConfirm = ref<{ open: boolean; tag: string; count: number }>({
 const canAddMore = computed(() => props.tags.length < 15)
 const isDuplicate = computed(() => {
   const r = validateTag(newTag.value, props.tags)
-  return !r.ok && r.reason === "duplicate"
+  return r.ok === false && r.reason === "duplicate"
 })
 const canSubmitAdd = computed(() => validateTag(newTag.value, props.tags).ok)
 const isPanelDuplicate = computed(() => {
   const r = validateTag(panelNewTag.value, props.tags)
-  return !r.ok && r.reason === "duplicate"
+  return r.ok === false && r.reason === "duplicate"
 })
 const canSubmitPanelAdd = computed(() => validateTag(panelNewTag.value, props.tags).ok)
 const isEditDuplicate = computed(() => {
