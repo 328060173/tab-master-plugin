@@ -1034,11 +1034,18 @@ const showToast = (msg: string) => {
 // 用 storage.onChanged 监听而非 watch ref —— useTabManager 非单例，各入口（TagPicker/右键/
 // 批量/HoverCard 删除/useTabActions）调的是各自实例的 updateTabTags，ref 跨实例不共享；
 // 但都写同一个 storage key，监听 storage 才能全覆盖
+// tagsSessionNoticeShown 已改存 storage.local：用户首次绑标记只提示一次，清缓存才重置
 const onTagsSessionNoticeChanged = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
-  if (area !== "session" || !changes.tagsSessionNoticeShown) return
+  if (area !== "local" || !changes.tagsSessionNoticeShown) return
   if (changes.tagsSessionNoticeShown.newValue === true) {
     showToast("标记绑在当前标签页，关闭或重启浏览器后标签页变了就找不回啦")
   }
+}
+
+// [tag-debug] 抓 customTags 被 storage 改写的现场（排查重启后标记列表丢失）
+const onCustomTagsChanged = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
+  if (area !== "local" || !changes.customTags) return
+  console.log("[tag-debug] storage.onChanged customTags | oldValue:", JSON.stringify(changes.customTags.oldValue), "| newValue:", JSON.stringify(changes.customTags.newValue))
 }
 
 // 标签操作动作层（单标签 + 批量）：refresh/copyUrl/togglePin/close/batchClose 等
@@ -1109,6 +1116,7 @@ const onKeydown = (e: KeyboardEvent) => {
 }
 
 onMounted(async () => {
+  console.log("[tag-debug] sidepanel onMounted 启动，准备 loadLater/loadTabs")
   document.addEventListener("keydown", onKeydown)
   // 初始化聚焦模式
   if (SUPPORTS_FOCUS_MODE) {
@@ -1121,12 +1129,15 @@ onMounted(async () => {
   chrome.tabs.onCreated.addListener(handleNewTabInFocus)
   // 监听首次绑标记（storage 写入 tagsSessionNoticeShown=true）→ 弹会话级提示 toast
   chrome.storage.onChanged.addListener(onTagsSessionNoticeChanged)
+  // [tag-debug] 监听 customTags 变化（排查重启后标记列表丢失）
+  chrome.storage.onChanged.addListener(onCustomTagsChanged)
 })
 
 onUnmounted(() => {
   document.removeEventListener("keydown", onKeydown)
   chrome.tabs.onCreated.removeListener(handleNewTabInFocus)
   chrome.storage.onChanged.removeListener(onTagsSessionNoticeChanged)
+  chrome.storage.onChanged.removeListener(onCustomTagsChanged)
 })
 
 const scrollToActive = (activeId: number | undefined) => {

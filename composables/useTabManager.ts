@@ -161,6 +161,7 @@ export function useTabManager() {
 
       const active = raw.find(t => t.active)
       if (active) activeTabId.value = active.id
+      console.log("[tag-debug] loadTabs 完成 | tabs 数:", tabs.value.length, "| customTags 数:", customTags.value.length, "| customTags:", JSON.stringify(customTags.value))
     } catch (e) {
       console.error("[tab-master] loadTabs 异常", e)
       if (!chrome.runtime?.id) window.location.reload()
@@ -182,12 +183,16 @@ export function useTabManager() {
         })
       }
 
+      console.log("[tag-debug] loadLater: raw customTags =", JSON.stringify(data.customTags), "| type:", typeof data.customTags, "| isArray:", Array.isArray(data.customTags))
+      console.log("[tag-debug] loadLater: raw tabTagsMap keys =", Object.keys(data.tabTagsMap || {}), "| raw =", JSON.stringify(data.tabTagsMap))
+
       laterTabs.value = Array.isArray(data.laterTabs) ? data.laterTabs : []
       // customTags 防御性校验：旧版本数据 / 调试时人为塞过对象都会导致 prop 类型错（Vue 报 "Expected Array, got Object"）
       // 这里强制只接受数组里的字符串，其他一律丢弃；并自动写回 storage 治愈污染（不影响主流程）
       const rawTags = data.customTags
       const cleanTags = Array.isArray(rawTags) ? rawTags.filter((t): t is string => typeof t === "string" && t.length > 0) : []
       customTags.value = cleanTags
+      console.log("[tag-debug] loadLater: 清洗后 customTags.value =", JSON.stringify(customTags.value))
       if (rawTags !== undefined && !Array.isArray(rawTags)) {
         console.warn("[tab-master] customTags 在 storage 中被存成了非数组，已自动重置", rawTags)
         // storage.set 失败不能阻塞主流程（否则 loadTabs 永远不会被调用，UI 上所有标签消失）
@@ -307,13 +312,14 @@ export function useTabManager() {
       })
     }
 
-    // 首次给标签绑定标记时，触发会话级提示（一次性，异步、不阻塞主流程）
+    // 首次给标签绑定标记时，触发提示（一次性，异步、不阻塞主流程）
+    // 改用 storage.local 持久化：用户首次绑标记只提示一次，清缓存才重置（详见 sidepanel onTagsSessionNoticeChanged）
     if (tags.length > 0 && !tagBoundFirstTime.value) {
-      chrome.storage.session.get(["tagsSessionNoticeShown"]).then(d => {
+      chrome.storage.local.get(["tagsSessionNoticeShown"]).then(d => {
         if (!d.tagsSessionNoticeShown) {
           tagBoundFirstTime.value = true
-          console.debug("[tab-master:tags] 首次绑标记，写 session:tagsSessionNoticeShown=true 触发 toast", { tabId: id, tags })
-          chrome.storage.session.set({ tagsSessionNoticeShown: true }).catch(() => {})
+          console.log("[tag-debug] 首次绑标记，写 local:tagsSessionNoticeShown=true 触发 toast", { tabId: id, tags })
+          chrome.storage.local.set({ tagsSessionNoticeShown: true }).catch(() => {})
         }
       }).catch(() => {})
     }
@@ -325,13 +331,20 @@ export function useTabManager() {
     chrome.storage.local.set({ tagSelectMode: m }).catch(() => {})
   }
   const addCustomTag = async (tag: string): Promise<boolean> => {
+    console.log("[tag-debug] addCustomTag 收到:", tag, "| 当前 customTags:", JSON.stringify(customTags.value))
     const r = validateTag(tag, customTags.value)
+    console.log("[tag-debug] addCustomTag validateTag 结果:", r)
     if (!r.ok) return false
     customTags.value = [...customTags.value, r.name]
+    console.log("[tag-debug] addCustomTag 写入前 customTags.value:", JSON.stringify(customTags.value))
     await chrome.storage.local.set({ customTags: customTags.value })
+    console.log("[tag-debug] addCustomTag storage.local.set 已完成")
+    const _verify = await chrome.storage.local.get(["customTags"])
+    console.log("[tag-debug] addCustomTag 回读验证 storage 内 customTags:", JSON.stringify(_verify.customTags))
     return true
   }
   const removeCustomTag = async (tag: string) => {
+    console.log("[tag-debug] removeCustomTag 收到:", tag, "| 当前 customTags:", JSON.stringify(customTags.value))
     customTags.value = customTags.value.filter(t => t !== tag)
     // 从所有标签中移除该标记
     const newTagsMap: Record<string, string[]> = {}
@@ -346,8 +359,12 @@ export function useTabManager() {
       tags: t.tags.filter(tg => tg !== tag)
     }))
     await chrome.storage.local.set({ customTags: customTags.value, tabTagsMap: newTagsMap })
+    console.log("[tag-debug] removeCustomTag storage.local.set 已完成")
+    const _verify = await chrome.storage.local.get(["customTags"])
+    console.log("[tag-debug] removeCustomTag 回读验证 storage 内 customTags:", JSON.stringify(_verify.customTags))
   }
   const renameCustomTag = async (oldTag: string, newTag: string) => {
+    console.log("[tag-debug] renameCustomTag 收到: oldTag=", oldTag, "newTag=", newTag, "| 当前 customTags:", JSON.stringify(customTags.value))
     const trimmedNewTag = newTag.trim()
     if (!trimmedNewTag || trimmedNewTag.length > 15 || oldTag === trimmedNewTag) return
     if (customTags.value.includes(trimmedNewTag)) return
@@ -363,8 +380,12 @@ export function useTabManager() {
     }
     tabTagsMap.value = newTagsMap
     await chrome.storage.local.set({ customTags: customTags.value, tabTagsMap: newTagsMap })
+    console.log("[tag-debug] renameCustomTag storage.local.set 已完成")
+    const _verify = await chrome.storage.local.get(["customTags"])
+    console.log("[tag-debug] renameCustomTag 回读验证 storage 内 customTags:", JSON.stringify(_verify.customTags))
   }
   const reorderCustomTags = async (fromIndex: number, toIndex: number) => {
+    console.log("[tag-debug] reorderCustomTags 收到: fromIndex=", fromIndex, "toIndex=", toIndex, "| 当前 customTags:", JSON.stringify(customTags.value))
     if (fromIndex < 0 || fromIndex >= customTags.value.length) return
     if (toIndex < 0 || toIndex >= customTags.value.length) return
     if (fromIndex === toIndex) return
@@ -373,6 +394,9 @@ export function useTabManager() {
     newTags.splice(toIndex, 0, removed)
     customTags.value = newTags
     await chrome.storage.local.set({ customTags: customTags.value })
+    console.log("[tag-debug] reorderCustomTags storage.local.set 已完成")
+    const _verify = await chrome.storage.local.get(["customTags"])
+    console.log("[tag-debug] reorderCustomTags 回读验证 storage 内 customTags:", JSON.stringify(_verify.customTags))
   }
 
   const refreshTab = (id: number) => chrome.tabs.reload(id)
