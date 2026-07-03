@@ -469,8 +469,11 @@
     <!-- 首次绑标记告知弹窗（替代一晃没的 toast） -->
     <ConfirmDialog
       :open="tagNoticeOpen"
-      title="标记已添加"
+      :title="TAG_NOTICE_TITLE"
       :message="TAG_NOTICE_MSG"
+      :highlight="TAG_NOTICE_HIGHLIGHT"
+      :hint="TAG_NOTICE_HINT"
+      center-title
       confirm-text="知道啦"
       cancel-text="关闭"
       @cancel="tagNoticeOpen = false"
@@ -1047,18 +1050,15 @@ const showToast = (msg: string) => {
 // 但都写同一个 storage key，监听 storage 才能全覆盖
 // tagsSessionNoticeShown 存 storage.local：用户首次绑标记只提示一次，清缓存才重置
 const tagNoticeOpen = ref(false)
-const TAG_NOTICE_MSG = "你加的标记是绑在「当前这个标签页」上的。\n\n关掉浏览器再打开，标签页会变成新的，之前绑的标记就找不回啦。\n\n后续版本会改成按网址保存，到时候就不怕丢啦。"
+const TAG_NOTICE_TITLE = "标记关联提醒"
+const TAG_NOTICE_MSG = "重启浏览器、或关闭标签后重新打开同一个网页，之前绑的标记会找不到。"
+const TAG_NOTICE_HIGHLIGHT = "由于浏览器 API 规范，同一网址每次打开的标签 ID 都不同，标记无法关联到新标签。"
+const TAG_NOTICE_HINT = "后续会尝试用 URL 优化等方式改善，让标记跟着网址走。"
 const onTagsSessionNoticeChanged = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
   if (area !== "local" || !changes.tagsSessionNoticeShown) return
   if (changes.tagsSessionNoticeShown.newValue === true) {
     tagNoticeOpen.value = true
   }
-}
-
-// [tag-debug] 抓 customTags 被 storage 改写的现场（排查重启后标记列表丢失）
-const onCustomTagsChanged = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
-  if (area !== "local" || !changes.customTags) return
-  console.log("[tag-debug] storage.onChanged customTags | oldValue:", JSON.stringify(changes.customTags.oldValue), "| newValue:", JSON.stringify(changes.customTags.newValue), "| newValueIsArray:", Array.isArray(changes.customTags.newValue))
 }
 
 // 标签操作动作层（单标签 + 批量）：refresh/copyUrl/togglePin/close/batchClose 等
@@ -1129,7 +1129,6 @@ const onKeydown = (e: KeyboardEvent) => {
 }
 
 onMounted(async () => {
-  console.log("[tag-debug] sidepanel onMounted 启动，准备 loadLater/loadTabs")
   document.addEventListener("keydown", onKeydown)
   // 初始化聚焦模式
   if (SUPPORTS_FOCUS_MODE) {
@@ -1140,17 +1139,14 @@ onMounted(async () => {
   }
   // 监听标签创建事件（用于聚焦模式）
   chrome.tabs.onCreated.addListener(handleNewTabInFocus)
-  // 监听首次绑标记（storage 写入 tagsSessionNoticeShown=true）→ 弹会话级提示 toast
+  // 监听首次绑标记（storage 写入 tagsSessionNoticeShown=true）→ 弹告知确认框
   chrome.storage.onChanged.addListener(onTagsSessionNoticeChanged)
-  // [tag-debug] 监听 customTags 变化（排查重启后标记列表丢失）
-  chrome.storage.onChanged.addListener(onCustomTagsChanged)
 })
 
 onUnmounted(() => {
   document.removeEventListener("keydown", onKeydown)
   chrome.tabs.onCreated.removeListener(handleNewTabInFocus)
   chrome.storage.onChanged.removeListener(onTagsSessionNoticeChanged)
-  chrome.storage.onChanged.removeListener(onCustomTagsChanged)
 })
 
 const scrollToActive = (activeId: number | undefined) => {

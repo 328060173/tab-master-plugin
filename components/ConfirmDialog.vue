@@ -11,7 +11,7 @@
         :aria-label="title"
       >
         <!-- 标题（danger 模式带警告 emoji） -->
-        <h3 class="text-sm font-bold mb-3 text-gray-900 dark:text-gray-100">
+        <h3 :class="['text-sm font-bold mb-3 text-gray-900 dark:text-gray-100', centerTitle && 'text-center']">
           <span v-if="danger">⚠️ </span>{{ title }}
         </h3>
 
@@ -20,6 +20,14 @@
           v-if="message"
           class="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed mb-2 whitespace-pre-line"
         >{{ message }}</div>
+
+        <!-- 重点提示（强调原因等关键信息，amber 警示框，比 hint 蓝框更醒目） -->
+        <div
+          v-if="highlight"
+          class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 mt-2 mb-3"
+        >
+          <p class="text-[13px] text-amber-800 dark:text-amber-200 leading-relaxed">⚠️ {{ highlight }}</p>
+        </div>
 
         <!-- 提示框（撤销路径等关键信息） -->
         <div
@@ -69,10 +77,12 @@ const props = defineProps<{
   open: boolean
   title: string
   message?: string
+  highlight?: string
   hint?: string
   confirmText?: string
   cancelText?: string
   danger?: boolean
+  centerTitle?: boolean
 }>()
 const emit = defineEmits<{ confirm: []; cancel: [] }>()
 
