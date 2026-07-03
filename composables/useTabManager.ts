@@ -11,6 +11,10 @@ function nowTime() {
 function isProtectedUrl(url: string) {
   return url.startsWith("chrome://") || url.startsWith("edge://") || url.startsWith("about:") || url.startsWith("chrome-extension://")
 }
+// chrome.storage.local.set 内部用结构化克隆序列化参数；Vue reactive proxy 数组会被克隆成
+// 数字键对象（["工作"] → {"0":"工作"}），读回时 Array.isArray 失败被当脏数据丢弃（标记全丢）。
+// 所有写 storage 前用此函数转成纯 JSON 值，杜绝 proxy 污染。
+const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 // 清洗 tabTagsMap：外层必须是普通 object，每个 value 必须是 string 数组；坏的都丢
 // 历史脏数据（旧版本 / 调试残留）会让 tab.tags 变 Object，导致 Vue render 函数对 .tags 做 spread/迭代时全局崩溃
 function sanitizeTabTagsMap(raw: unknown): Record<string, string[]> {
@@ -298,7 +302,7 @@ export function useTabManager() {
       })
     }
 
-    await chrome.storage.local.set({ tabTagsMap: tabTagsMap.value })
+    await chrome.storage.local.set({ tabTagsMap: toPure(tabTagsMap.value) })
 
     // 诊断日志：写入后回读验证
     if (!!(import.meta as any).env?.DEV) {
@@ -337,7 +341,7 @@ export function useTabManager() {
     if (!r.ok) return false
     customTags.value = [...customTags.value, r.name]
     console.log("[tag-debug] addCustomTag 写入前 customTags.value:", JSON.stringify(customTags.value))
-    await chrome.storage.local.set({ customTags: customTags.value })
+    await chrome.storage.local.set({ customTags: toPure(customTags.value) })
     console.log("[tag-debug] addCustomTag storage.local.set 已完成")
     const _verify = await chrome.storage.local.get(["customTags"])
     console.log("[tag-debug] addCustomTag 回读验证 storage 内 customTags:", JSON.stringify(_verify.customTags))
@@ -358,7 +362,7 @@ export function useTabManager() {
       ...t,
       tags: t.tags.filter(tg => tg !== tag)
     }))
-    await chrome.storage.local.set({ customTags: customTags.value, tabTagsMap: newTagsMap })
+    await chrome.storage.local.set({ customTags: toPure(customTags.value), tabTagsMap: toPure(newTagsMap) })
     console.log("[tag-debug] removeCustomTag storage.local.set 已完成")
     const _verify = await chrome.storage.local.get(["customTags"])
     console.log("[tag-debug] removeCustomTag 回读验证 storage 内 customTags:", JSON.stringify(_verify.customTags))
@@ -379,7 +383,7 @@ export function useTabManager() {
       newTagsMap[k] = v.map(tg => tg === oldTag ? trimmedNewTag : tg)
     }
     tabTagsMap.value = newTagsMap
-    await chrome.storage.local.set({ customTags: customTags.value, tabTagsMap: newTagsMap })
+    await chrome.storage.local.set({ customTags: toPure(customTags.value), tabTagsMap: toPure(newTagsMap) })
     console.log("[tag-debug] renameCustomTag storage.local.set 已完成")
     const _verify = await chrome.storage.local.get(["customTags"])
     console.log("[tag-debug] renameCustomTag 回读验证 storage 内 customTags:", JSON.stringify(_verify.customTags))
@@ -393,7 +397,7 @@ export function useTabManager() {
     const [removed] = newTags.splice(fromIndex, 1)
     newTags.splice(toIndex, 0, removed)
     customTags.value = newTags
-    await chrome.storage.local.set({ customTags: customTags.value })
+    await chrome.storage.local.set({ customTags: toPure(customTags.value) })
     console.log("[tag-debug] reorderCustomTags storage.local.set 已完成")
     const _verify = await chrome.storage.local.get(["customTags"])
     console.log("[tag-debug] reorderCustomTags 回读验证 storage 内 customTags:", JSON.stringify(_verify.customTags))

@@ -1045,7 +1045,7 @@ const onTagsSessionNoticeChanged = (changes: { [k: string]: chrome.storage.Stora
 // [tag-debug] 抓 customTags 被 storage 改写的现场（排查重启后标记列表丢失）
 const onCustomTagsChanged = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
   if (area !== "local" || !changes.customTags) return
-  console.log("[tag-debug] storage.onChanged customTags | oldValue:", JSON.stringify(changes.customTags.oldValue), "| newValue:", JSON.stringify(changes.customTags.newValue))
+  console.log("[tag-debug] storage.onChanged customTags | oldValue:", JSON.stringify(changes.customTags.oldValue), "| newValue:", JSON.stringify(changes.customTags.newValue), "| newValueIsArray:", Array.isArray(changes.customTags.newValue))
 }
 
 // 标签操作动作层（单标签 + 批量）：refresh/copyUrl/togglePin/close/batchClose 等
