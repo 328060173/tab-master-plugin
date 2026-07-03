@@ -450,3 +450,60 @@ useTabActions 重构时误把 addCustomTag 从 useTabManager 解构删了，但�
 - 批量菜单 hover「标记」交互体验确认
 - 暗色模式精修、i18n 扩展
 - 运行日志功能复活（先查官方文档）
+
+---
+
+## 2026-07-03 标记系统修复（reactive proxy 真凶 + 提示 UX 优化）
+
+### 核心问题：标记重启浏览器后丢失 — reactive proxy 真凶
+
+**症状**：用户反馈重启浏览器后工具栏标记列表（customTags）丢失；控制台每次报 `[tab-master] customTags 在 storage 中被存成了非数组 [object Object]`。
+
+**真凶**：`customTags = ref<string[]>([])` 的 `.value` 是 Vue reactive proxy 数组。`chrome.storage.local.set({ customTags: customTags.value })` 内部用**结构化克隆**序列化参数，把 proxy 数组克隆成数字键对象（`["工作"]` → `{"0":"工作"}`）。读回时 `Array.isArray` 失败，被 `loadLater` 防御性校验当脏数据重置成 `[]` → 标记全丢。`tabTagsMap` 内层 string[] 同理变对象被 `sanitizeTabTagsMap` 丢弃。
+
+**关键误导**：`JSON.stringify(customTags.value)` 走 Array.prototype 输出数组（日志看着正常），但 storage 里实际是对象——`[tag-debug]` 日志显示数组，与 storage 实际不符。
+
+**修复**：`useTabManager.ts` 顶层加 `toPure = (x) => JSON.parse(JSON.stringify(x))` helper，所有写 storage 的 set 用 `toPure(...)` 转纯 JSON。涉及 `updateTabTags` / `addCustomTag` / `removeCustomTag` / `renameCustomTag` / `reorderCustomTags`。
+
+**memory**：[[lesson-reactive-proxy-storage-serialize]]（ref.value 是 proxy，chrome.storage.local.set 把数组克隆成数字键对象，写前必 toPure）。
+
+### tagsSessionNoticeShown 改回 storage.local + 提示改 ConfirmDialog
+
+- 2026-07-02 改 session（每会话首次绑都弹）→ 不合理，改回 **storage.local**（用户首次绑标记只提示一次，清缓存才重置）
+- toast 2 秒消失看不清 → 改 **ConfirmDialog 模态弹窗**（需点按钮才关）
+- ConfirmDialog 加 `centerTitle`（标题居中）+ `highlight`（amber 警示框）两个可选 prop
+- 文案排版分主次：标题「标记关联提醒」居中 / message=现象（灰）/ highlight=「由于浏览器 API 规范，同一网址每次打开标签 ID 不同…」amber 强调 / hint=后续 URL 优化（蓝框）
+
+### TagBar 类型收窄 + 文案 DRY
+
+- `isDuplicate` / `isPanelDuplicate`：`!r.ok && r.reason` 在 `&&` 里部分 TS 工具不收窄 → TS2339。改 `r.ok === false && r.reason`，TS 一定收窄
+- TagBar 标记绑定局限提示原在空状态帮助块(84) + panel 帮助块(158) 重复两遍 → 提取 `TAG_BIND_NOTICE` 常量复用，文案加「由于浏览器 API 限制」前置
+
+### 临时诊断日志（已清除）
+
+排查期间加的 `[tag-debug]` 日志（loadLater/addCustomTag/remove/rename/reorder/loadTabs + sidepanel onCustomTagsChanged 监听）已完成使命，全部清除（sed + 手动 Edit），保留 toPure 修复与原有 DEV 日志。
+
+### 装 ui-ux-pro-max-skill plugin（本地手动安装）
+
+`/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill` 因 SSH clone GitHub 超时失败。本地 zip 解压版无 .git，git clone 也不行。手动装：
+1. `cp -rf ~/Desktop/ui-ux-pro-max-skill-main ~/.claude/plugins/marketplaces/ui-ux-pro-max-skill`
+2. `known_marketplaces.json` 加 `local` source 条目
+
+⚠️ `source: "local"` 是推断格式（未查到官方文档确认），重启 Claude Code 后 `/plugin` 验证；不识别则改 `directory`/`path`。
+
+### 提交记录
+- `c68baf6` fix(标记): tagsSessionNoticeShown 改 local + 加诊断日志
+- `87d116c` fix(标记): 修 reactive proxy 被 storage 序列化成对象导致标记全丢（真凶）
+- `d52b8a5` feat(标记): 首次绑标记提示改确认框 + 文案通俗化
+- `53760f4` chore(标记): 去除 tag-debug 诊断日志 + 弹框文案排版优化
+- `88504ed` fix(标记): 修 TagBar isDuplicate 类型收窄
+- `4e05c65` refactor(标记): TagBar 标记绑定提示提取常量 + 加「由于浏览器 API 限制」
+
+### 防白屏清单（每步都跑，全过）
+compileScript + compileTemplate（sidepanel/ConfirmDialog/TagBar）+ vue-tsc --noEmit + TDZ 扫描 + 未定义引用扫描。
+
+### 待用户验证（重启后）
+1. `git pull` + `pnpm fresh` + chrome://extensions 刷新扩展（⚠️ 不要移除）
+2. 添加标记 → 首次绑标记弹「标记关联提醒」ConfirmDialog（amber 框强调 API 规范）
+3. 重启浏览器 → 工具栏标记**应还在**（reactive proxy 修复生效）；Console **不应再报** customTags 非数组
+4. `/plugin` 看 ui-ux-pro-max-skill marketplace 是否识别（local source 格式待验证）

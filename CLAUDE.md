@@ -103,6 +103,12 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - **聚焦模式 UI**：全屏黑罩 + 中央大红「关闭聚焦」按钮（屏幕共享样式）
 - **审查流程升级**（4 次白屏教训）：改 .vue 必跑 compileScript（不只 vue-tsc/compileTemplate）+ 扫顶层 TDZ（[[lesson-compilescript-not-just-compiletemplate]]）
 
+### 2026-07-03 完成摘要（细节看 docs/dev-log.md + git log）
+- **标记重启丢失真凶修复**：Vue reactive proxy 数组经 `chrome.storage.local.set` 被结构化克隆成数字键对象（`["工作"]`→`{"0":"工作"}`）→ 读回 `Array.isArray` 失败被当脏数据重置成 `[]`。加 `toPure = JSON.parse(JSON.stringify(x))` helper 写前转纯 JSON。记 [[lesson-reactive-proxy-storage-serialize]]
+- **首次绑标记提示 UX**：toast 改 ConfirmDialog 模态弹窗（标题「标记关联提醒」居中，amber 框强调「由于浏览器 API 规范」）；ConfirmDialog 加 `centerTitle`+`highlight` 两个可选 prop；`tagsSessionNoticeShown` 改回 storage.local 只提示一次
+- **TagBar 类型修复**：`isDuplicate`/`isPanelDuplicate` 的 `!r.ok && r.reason` 改 `r.ok === false && r.reason` 修 TS2339（&& 里 `!r.ok` 不收窄）；标记绑定局限提示提取 `TAG_BIND_NOTICE` 常量 DRY（原 84/158 两处重复）
+- **ui-ux-pro-max-skill plugin 本地装**：GitHub SSH 超时 + zip 无 .git → 手动 cp + `known_marketplaces.json` 注册 `local` source（格式待重启验证）
+
 ## 待办（2026-07-03 继续）
 > 🔥 **明天第一件事**：`pnpm fresh`（清 .plasmo+build 重新构建，绕缓存）→ 在 chrome://extensions **点扩展卡片「刷新」按钮**（⚠️ **不要移除扩展**！移除=卸载会清空 `chrome.storage.local`，标记/稍后/树关系/编号全丢。刷新不清 storage）→ 进分组页验证：① 分组页正常显示不再报错 ② 添加分组/放入正常 ③ 搜索+排序可用
 > - ⚠️ **存储持久性**（查自 `docs/googledocs/storage.md` 官方原文）：`chrome.storage.local` 在「清缓存/历史」「扩展刷新/更新」「浏览器重启」时都**不清**；**只在「移除/卸载扩展」时清空**。`storage.session` 才在刷新/重启时清。项目数据全走 `storage.local` → 刷新扩展数据不丢，移除扩展数据全丢。
