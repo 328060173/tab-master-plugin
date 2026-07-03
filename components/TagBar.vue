@@ -81,7 +81,7 @@
         <li>有标记后：点标记筛选（选多个 = 交集），点 ▾ 下拉排序/编辑/删除</li>
       </ul>
       <p>🔒 仅本地保存，不上传。最多15个，每个最多15字。</p>
-      <p>⚠️ <b>标记与标签页绑定</b>：关闭该标签页、或重启浏览器后，新标签页的 ID 会变，标记无法自动对应到新标签（数据仍在本地，但显示不出来）。</p>
+      <p>⚠️ {{ TAG_BIND_NOTICE }}</p>
     </div>
 
     <!-- 添加标记输入框（空状态触发） -->
@@ -155,7 +155,7 @@
             <li>点「全部」清除所有筛选</li>
           </ul>
           <p>🔒 仅本地保存，不上传。最多15个，每个最多15字。</p>
-          <p>⚠️ <b>标记与标签页绑定</b>：关闭该标签页、或重启浏览器后，新标签页的 ID 会变，标记无法自动对应到新标签（数据仍在本地，但显示不出来）。</p>
+          <p>⚠️ {{ TAG_BIND_NOTICE }}</p>
         </div>
 
         <!-- 标记列表（可滚动） -->
@@ -326,6 +326,9 @@ import { usePopoverManager } from "~composables/usePopoverManager"
 import { useTabManager } from "~composables/useTabManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 import { validateTag } from "~lib/tagValidate"
+
+// 标记按 tabId 绑定的局限提示（空状态帮助块 + panel 帮助块共用，避免文案重复）
+const TAG_BIND_NOTICE = "由于浏览器 API 限制，标记按标签页 ID 绑定。关闭标签页或重启浏览器后，新标签页 ID 会变，标记对应不到新标签（数据仍在本地，只是显示不出来）。"
 
 const props = defineProps<{
   tags: string[]
