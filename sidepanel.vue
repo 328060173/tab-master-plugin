@@ -466,6 +466,17 @@
       @confirm="runCleanupConfirm"
     />
 
+    <!-- 首次绑标记告知弹窗（替代一晃没的 toast） -->
+    <ConfirmDialog
+      :open="tagNoticeOpen"
+      title="标记已添加"
+      :message="TAG_NOTICE_MSG"
+      confirm-text="知道啦"
+      cancel-text="关闭"
+      @cancel="tagNoticeOpen = false"
+      @confirm="tagNoticeOpen = false"
+    />
+
     <!-- 清理菜单：检测类的预览清单 -->
     <DetectReviewDialog
       :open="!!detectDialog"
@@ -1030,15 +1041,17 @@ const showToast = (msg: string) => {
   toastTimer = setTimeout(() => { toastMsg.value = "" }, 2000)
 }
 
-// 首次给标签绑定标记时，提示会话级特性（标记按 tabId 绑定，重启/关标签后找不回）
+// 首次给标签绑定标记时，弹告知确认框（替代一晃没的 toast，文案通俗化）
 // 用 storage.onChanged 监听而非 watch ref —— useTabManager 非单例，各入口（TagPicker/右键/
 // 批量/HoverCard 删除/useTabActions）调的是各自实例的 updateTabTags，ref 跨实例不共享；
 // 但都写同一个 storage key，监听 storage 才能全覆盖
-// tagsSessionNoticeShown 已改存 storage.local：用户首次绑标记只提示一次，清缓存才重置
+// tagsSessionNoticeShown 存 storage.local：用户首次绑标记只提示一次，清缓存才重置
+const tagNoticeOpen = ref(false)
+const TAG_NOTICE_MSG = "你加的标记是绑在「当前这个标签页」上的。\n\n关掉浏览器再打开，标签页会变成新的，之前绑的标记就找不回啦。\n\n后续版本会改成按网址保存，到时候就不怕丢啦。"
 const onTagsSessionNoticeChanged = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
   if (area !== "local" || !changes.tagsSessionNoticeShown) return
   if (changes.tagsSessionNoticeShown.newValue === true) {
-    showToast("标记绑在当前标签页，关闭或重启浏览器后标签页变了就找不回啦")
+    tagNoticeOpen.value = true
   }
 }
 
