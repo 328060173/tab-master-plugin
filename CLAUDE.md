@@ -150,6 +150,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - 禁用 `(chrome.x as any)` 强转
 - 禁用 v-html（XSS）
 - **数据一致性**（底线）：派生数据不从 filteredTabs 派生（避免筛选污染数量）；onTabCreated 必须过滤窗口；跨窗口移动监听 onAttached/onDetached 兜底重载。开发+测试都要验收「插件数量=浏览器实际」。详见 [[pattern-data-consistency-with-browser]]
+- **🚨 子组件禁止直接调 `useTabManager()` 写方法**：`useTabManager()` **非单例**，每次调用 new 一组空 ref。子组件（TabHoverCard/TabListItem/...）里 `const { updateTabTags } = useTabManager()` 拿独立空实例 → `tabs=[]` findIndex 失败 UI 不更新 + `tabTagsMap={}` 的 `storage.set` 把整个标记表覆盖成只剩当前 tab（**数据破坏**）。改 emit 事件让父组件转发到 sidepanel 主实例（唯一活实例）。写方法含：updateTabTags/addCustomTag/removeCustomTag/renameCustomTag/reorderCustomTags/updateTabNumber/setTagSelectMode。详见 [[lesson-usetabmanager-not-singleton]]
 - 改完代码自行 git add/commit/push 到 master（静态校验通过后即可，2026-06-30 用户授权）
 
 ### 参考原型
