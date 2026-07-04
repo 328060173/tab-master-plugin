@@ -11,6 +11,7 @@
     @refresh="emit('refresh')" @copy="emit('copy')"
     @pin="emit('pin')" @addTag="onHoverAddTag" @later="emit('later')" @close="emit('close')"
     @updateNumber="emit('updateNumber', $event)"
+    @updateTags="emit('updateTags', $event)"
   />
     <input v-if="isBatch" type="checkbox" :checked="isChecked"
       class="absolute top-1 left-1 w-4 h-4 cursor-pointer z-10 accent-blue-600"

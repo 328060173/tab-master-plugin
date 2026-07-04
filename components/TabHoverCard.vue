@@ -71,11 +71,10 @@ import { RefreshCw, Link, Pin, Tag, Clock, X } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
 import { usePopoverManager } from "~composables/usePopoverManager"
-import { useTabManager } from "~composables/useTabManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 
 const props = defineProps<{ hoverCardId: string; item: TabItem; hideAddTag?: boolean }>()
-const emit = defineEmits<{ refresh: []; copy: []; pin: []; addTag: [anchor: HTMLElement]; later: []; close: []; updateNumber: [n: number] }>()
+const emit = defineEmits<{ refresh: []; copy: []; pin: []; addTag: [anchor: HTMLElement]; later: []; close: []; updateNumber: [n: number]; updateTags: [tags: string[]] }>()
 
 const popover = usePopoverManager()
 const CARD_WIDTH = 256
@@ -102,11 +101,11 @@ const onClickTag = (e: MouseEvent) => {
   emit('addTag', e.currentTarget as HTMLElement)
 }
 
-// 移除单个标记：直接调 updateTabTags 更新该标签的标记数组（不关 hover card，方便连续删多个）
-// 直接用 useTabManager 而非层层 emit —— 5 个视图（List/Icon/Tile/Tree/Pinned）共用此卡，统一行为
-const { updateTabTags } = useTabManager()
+// 移除单个标记：emit 给父组件，由各视图转发到 sidepanel 主实例的 updateTabTags
+// （useTabManager 非单例，这里直接调会拿到独立空实例 → UI 不更新 + storage 被覆盖）
+// 不关 hover card，方便连续删多个
 const onRemoveTag = (tag: string) => {
-  updateTabTags(props.item.id, props.item.tags.filter(t => t !== tag))
+  emit('updateTags', props.item.tags.filter(t => t !== tag))
 }
 
 const editingNumber = ref(false)

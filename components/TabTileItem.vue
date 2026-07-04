@@ -45,6 +45,7 @@
     @refresh="emit('refresh')" @copy="emit('copy')"
     @pin="emit('pin')" @addTag="onHoverAddTag" @later="emit('later')" @close="emit('close')"
     @updateNumber="emit('updateNumber', $event)"
+    @updateTags="emit('updateTags', $event)"
   />
 </template>
 

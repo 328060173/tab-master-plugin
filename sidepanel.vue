@@ -137,6 +137,7 @@
       @refresh="(id) => { if (focusMode !== 'focusing') refresh(id) }"
       @pin="(id) => { if (focusMode !== 'focusing') togglePin(id) }"
       @update-number="(id, n) => { if (focusMode !== 'focusing') { updateTabNumber(id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') } }"
+      @update-tags="(id, tags) => { if (focusMode !== 'focusing') updateTabTags(id, tags) }"
       @ctx="(e, item) => { if (focusMode !== 'focusing') onContextMenu(e, item) }"
       @move="(sourceId, targetId) => handlePinnedMove(sourceId, targetId)"
     />
@@ -726,6 +727,7 @@ provide('treeAction', (action: string, item: TabItem, data?: any) => {
     case 'refresh': refresh(item.id); break
     case 'pin': togglePin(item.id); break
     case 'updateNumber': updateTabNumber(item.id, data); showToast(data > 0 ? `编号 ${modKey}${data} 已设置` : '编号已清除'); break
+    case 'updateTags': updateTabTags(item.id, data); break
     case 'addTag': {
       // 树形视图 hover card 的「标记」：data 是标记按钮 DOM，用它的位置打开右键标记选择器
       rightClickTabId.value = item.id
