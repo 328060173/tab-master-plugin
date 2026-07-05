@@ -18,16 +18,31 @@
           </h3>
           <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">{{ summary }}</p>
 
-          <!-- 阈值切换（只有 unused 模式显示） -->
-          <div v-if="mode === 'unused'" class="flex items-center gap-2 mt-2">
+          <!-- 阈值切换（只有 unused 模式显示）：快捷 chips + 自定义输入 1-30 天 -->
+          <div v-if="mode === 'unused'" class="flex items-center gap-1.5 mt-2 flex-wrap">
             <label class="text-[11px] text-gray-600 dark:text-gray-300">阈值：</label>
-            <select
-              :value="thresholdMs"
-              @change="onThresholdSelect"
-              class="text-[11px] border border-gray-200 dark:border-gray-600 rounded px-2 py-0.5 bg-white dark:bg-gray-700 dark:text-gray-200"
-            >
-              <option v-for="opt in UNUSED_THRESHOLDS" :key="opt.ms" :value="opt.ms">{{ opt.label }}</option>
-            </select>
+            <button
+              v-for="opt in UNUSED_THRESHOLDS"
+              :key="opt.ms"
+              :class="[
+                'px-1.5 py-0.5 text-[10px] rounded border transition-colors',
+                thresholdMs === opt.ms
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-blue-400'
+              ]"
+              @click="emit('changeThreshold', opt.ms)"
+            >{{ opt.label }}</button>
+            <input
+              :value="customDays"
+              type="number"
+              min="1"
+              max="30"
+              step="1"
+              class="w-12 text-[11px] border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-700 dark:text-gray-200 text-center"
+              title="自定义天数（1-30 正整数）"
+              @change="onCustomDaysInput"
+            />
+            <span class="text-[10px] text-gray-400">天</span>
             <span class="text-[10px] text-gray-400 ml-auto">已排除固定/当前页/正播放</span>
           </div>
         </div>
@@ -202,10 +217,21 @@ const confirmClose = () => {
   if (selectedCount.value === 0) return
   emit("confirm", [...selectedIds.value])
 }
-// Vue 模板表达式不支持 TS 类型断言（`as HTMLSelectElement`），所以把事件处理拎到 setup 里
-const onThresholdSelect = (e: Event) => {
-  const v = Number((e.target as HTMLSelectElement).value)
-  emit("changeThreshold", v)
+// 自定义天数输入：1-30 正整数。非法（空/小数/<1/>30）则复位到当前 thresholdMs 对应天数
+const DAYS_MS = 24 * 60 * 60 * 1000
+const customDays = ref(1)
+watch(() => props.thresholdMs, (ms) => {
+  customDays.value = Math.round((ms || DAYS_MS) / DAYS_MS)
+}, { immediate: true })
+const onCustomDaysInput = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const raw = input.value
+  const v = Number(raw)
+  if (raw === "" || !Number.isInteger(v) || v < 1 || v > 30) {
+    input.value = String(customDays.value)
+    return
+  }
+  emit("changeThreshold", v * DAYS_MS)
 }
 
 const title = computed(() =>

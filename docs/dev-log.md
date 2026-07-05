@@ -584,3 +584,15 @@ vue-tsc --noEmit 通过（仅 tsconfig 既有弃用警告 TS5107/TS5101）。本
 ### 待用户验证（追加2）
 8. TagPicker 勾选标记（卡片 Tag 按钮）→ 立即生效
 9. 搜索结果里的标记勾选 → 正常
+
+### 2026-07-04（续3）：检测长期未用标签阈值支持自定义输入
+
+**需求**：整理菜单「检测长期未用标签」阈值原只有 1/3/7/30 四个固定 select 选项，改为也支持用户输入数字（1-30 正整数）。
+
+**实现**（`components/DetectReviewDialog.vue` 一处，sidepanel 不用改）：
+- 4 个快捷 chip（1/3/7/30 天）一键切换
+- 数字 input（type=number min=1 max=30）支持自定义；`@change` 校验：空/小数/<1/>30 自动复位到当前 thresholdMs 对应天数
+- `customDays` ref + `watch(thresholdMs)` 同步：chip 切换时 input 显示对应天数，input 输入时 emit ms 给 sidepanel 重算
+- thresholdMs 通用（ms），sidepanel `onChangeUnusedThreshold` 不变
+
+**校验**：compileScript + compileTemplate + vue-tsc 全过。
