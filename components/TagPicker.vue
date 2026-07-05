@@ -14,7 +14,7 @@
     :allTags="allTags"
     mode="single"
     placement="bottom-right"
-    @toggle="emit('update', currentTags.includes($event) ? currentTags.filter(t => t !== $event) : [...currentTags, $event])"
+    @toggle="emit('toggleTag', $event)"
     @create="handleCreate"
   />
 </template>
@@ -38,22 +38,20 @@ const props = withDefaults(defineProps<{
   iconSize: 13,
 })
 
-const emit = defineEmits<{ update: [tags: string[]]; addTag: [tag: string] }>()
+const emit = defineEmits<{ toggleTag: [tag: string]; addTag: [tag: string] }>()
 
 const popover = usePopoverManager()
 const triggerRef = ref<HTMLElement | null>(null)
 
 const popoverId = computed(() => `tag-picker-${props.tabId}`)
 
-// 创建标记：用统一校验 validateTag，通过后才 emit addTag + update
-// 避免底层 addCustomTag 失败（重复/超限）但 update 仍把标记挂到标签上 → 数据不一致
+// 创建标记：用统一校验 validateTag，通过后才 emit addTag + toggleTag
+// toggleTag 让 sidepanel 调 toggleTabTag（主实例 tabs.value 查，新标记不在则加），不依赖 props.currentTags
 const handleCreate = (tag: string) => {
   const r = validateTag(tag, props.allTags)
   if (!r.ok) return
   emit("addTag", r.name)
-  if (!props.currentTags.includes(r.name)) {
-    emit("update", [...props.currentTags, r.name])
-  }
+  emit("toggleTag", r.name)
 }
 
 // 暴露给父组件：让外部触发（如 hover 卡上的「标记」按钮）能打开此 picker

@@ -11,7 +11,7 @@
           <p class="text-[10px] text-gray-400 truncate" v-html="hl(t.url)"></p>
         </div>
         <StatusBadge :item="t" />
-        <TagPicker :tabId="t.id" :currentTags="t.tags" :allTags="customTags" @update="emit('updateTags', t.id, $event)" @addTag="emit('addTag', $event)" />
+        <TagPicker :tabId="t.id" :currentTags="t.tags" :allTags="customTags" @toggleTag="emit('toggleTag', t.id, $event)" @addTag="emit('addTag', $event)" />
         <ActionButtons @later="emit('later', t.id)" @copy="emit('copy', t.url)" @close="emit('close', t.id)" />
       </div>
     </template>
@@ -27,7 +27,7 @@
           <p class="text-[10px] text-gray-400 truncate" v-html="hl(t.url)"></p>
         </div>
         <StatusBadge :item="t" />
-        <TagPicker :tabId="t.id" :currentTags="t.tags" :allTags="customTags" @update="emit('updateTags', t.id, $event)" @addTag="emit('addTag', $event)" />
+        <TagPicker :tabId="t.id" :currentTags="t.tags" :allTags="customTags" @toggleTag="emit('toggleTag', t.id, $event)" @addTag="emit('addTag', $event)" />
         <ActionButtons @later="emit('later', t.id)" @copy="emit('copy', t.url)" @close="emit('close', t.id)" />
       </div>
     </template>
@@ -68,7 +68,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   activate: [id: number]; restore: [url: string]
   later: [id: number]; close: [id: number]; copy: [url: string]
-  updateTags: [id: number, tags: string[]]; addTag: [tag: string]
+  toggleTag: [id: number, tag: string]; addTag: [tag: string]
 }>()
 
 function escHtml(s: string) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") }

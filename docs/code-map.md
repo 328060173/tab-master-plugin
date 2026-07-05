@@ -2,7 +2,7 @@
 
 > **这是什么**：一张「改 A 必须联动改 B/C」的地图。新增功能 / 改既有功能 / 仿写类似功能前先查这里，照着把所有关联点都改到，避免"只改一半"。
 >
-> **维护规则（重要）**：每当你新引入一处**跨文件联动**（"加这个就必须同时改那个"），回来把它补进对应小节。这张表只有持续更新才有价值。Last updated: 2026-06-30。
+> **维护规则（重要）**：每当你新引入一处**跨文件联动**（"加这个就必须同时改那个"），回来把它补进对应小节。这张表只有持续更新才有价值。Last updated: 2026-07-04。
 
 ---
 
@@ -115,6 +115,37 @@ node -e "const fs=require('fs');const sfc=require('./node_modules/.pnpm/@vue+com
 - later（开 LaterDialog）/ setNumber（开 number-picker 浮层）/ addTag（开 TagSelectPopover）
 - 批量选择入口（selectThis/selectSameDomain/selectSameGroup/selectAllVisible）
 - 聚焦模式相关操作
+
+## K. 标记操作联动（增/删/切/查，最容易漏！）
+
+标记操作分散在 7+ 入口，**全部走** `useTabManager` 的**意图式 API**（内部用主实例 `tabs.value` 查当前 tags 再算，调用方只传意图不传完整数组、不依赖 props）。**禁止**用 `props.currentTags` / `props.item.tags` 计算新数组——props 经过 Teleport + 多层 computed 可能旧值，用旧值 filter/concat 会删错/加错（如删一个标记把别的也带没）。详见记忆 `lesson-usetabmanager-not-singleton`。
+
+### 意图式 API（`composables/useTabManager.ts`）
+| 函数 | 作用 | 内部实现 |
+|---|---|---|
+| `addTabTag(id, tag)` | 给标签加一个标记 | tabs.value 查 cur，去重合并 → updateTabTags |
+| `removeTabTag(id, tag)` | 从标签删一个标记 | tabs.value 查 cur，filter → updateTabTags |
+| `toggleTabTag(id, tag)` | 切换标签的标记 | tabs.value 查 cur，有则删无则加 → updateTabTags |
+| `updateTabTags(id, tags[])` | 批量设置（底层） | 直接设 tabs[idx].tags + tabTagsMap + storage（写前必 toPure） |
+
+### 入口 → emit 链路 → sidepanel handler
+| 入口 | 触发 | emit 链路 | sidepanel handler |
+|---|---|---|---|
+| TagPicker（卡片 Tag 按钮，single 模式） | 切换标记 | TagPicker `@toggle`→emit `toggleTag`→TabListItem/Icon/Tile/SearchResults 转发→`@toggle-tag` | `toggleTabTag(id, tag)` |
+| TabHoverCard 叉号 | 删单个标记 | TabHoverCard `removeTag`→5 视图（List/Icon/Tile/Tree/Pinned）转发→`@remove-tag` | `removeTabTag(id, tag)` |
+| 右键菜单「添加标记」 | 切换标记 | TabContextMenu `act('tag')`→`toggleRightClickTabTag`（已用 tabs.value 查） | `updateTabTags` |
+| 批量工具栏标记 | 加/删标记 | TagSelectPopover(batch) `apply`/`remove`→`batchApplyTag`/`batchRemoveTag` | `updateTabTags`（已用 tabs.value 查） |
+| TagBar panel 删除标记名 | 从所有标签移除 | TagBar `removeTag`→`handleRemoveTag`→`removeCustomTag` | `removeCustomTag(tag)` |
+
+### 改标记操作要联动（⚠️ 5 视图 + SearchResults 容易漏）
+1. `composables/useTabManager.ts` 的意图式 API —— 改逻辑
+2. 如改 emit 事件名：**全部 7 个文件联动**——`TagPicker` + `TagSelectPopover` + `TabListItem/Icon/Tile/Tree/Pinned` + `SearchResults` + `sidepanel.vue`
+3. 测试：TagPicker 勾选 / TabHoverCard 叉号 / 右键菜单 / 批量 / TagBar panel 删除 各跑一遍
+
+### 红线
+- 子组件**不要**用 `props.currentTags` / `props.item.tags` 算新数组再 emit —— 改用意图式 API
+- `updateTabTags` 是底层 API，只在 useTabManager 内部 + sidepanel 右键/批量（已用 tabs.value 查）用；子组件不要直接调
+- 命名注意：`toggle` 已被「批量选中」占用，标记切换用 `toggleTag`（避免冲突）
 
 ---
 

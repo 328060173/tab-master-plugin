@@ -45,7 +45,7 @@
       <button class="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="复制链接" @click.stop="emit('copy')"><Link :size="13" /></button>
       <TagPicker ref="tagPickerRef"
         :tabId="item.id" :currentTags="item.tags" :allTags="customTags"
-        @update="emit('updateTags', $event)" @addTag="emit('addTag', $event)" />
+        @toggleTag="emit('toggleTag', $event)" @addTag="emit('addTag', $event)" />
       <button class="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="稍后处理" @click.stop="emit('later')"><Clock :size="13" /></button>
       <button :class="['p-1 rounded', popover.isOpen(hoverCardId) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700']" title="更多操作" @click.stop="onMenuClick"><Menu :size="14" :stroke-width="2.25" /></button>
       <button class="p-1 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" @click.stop="emit('close')" title="关闭"><X :size="13" :stroke-width="2.5" /></button>
@@ -76,7 +76,7 @@ import { getHighestPriorityStatus } from "~lib/statusPriority"
 import { GROUP_COLOR_CLASSES, TAB_GROUP_ID_NONE } from "~composables/useTabGroups"
 
 const props = defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[]; isPrev?: boolean }>()
-const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "updateTags", "removeTag", "addTag", "updateNumber", "refresh", "pin"])
+const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "toggleTag", "removeTag", "addTag", "updateNumber", "refresh", "pin"])
 
 const popover = usePopoverManager()
 const hoverCardId = `hover-card-${props.item.id}`
