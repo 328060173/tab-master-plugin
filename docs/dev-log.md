@@ -540,3 +540,25 @@ vue-tsc --noEmit 通过（仅 tsconfig 既有弃用警告 TS5107/TS5101）。本
 3. 点固定/静音/稍后处理 → 功能正常 + UI 实时刷新
 4. 重启浏览器 → 稍后处理列表/最近关闭/树关系仍在（toPure 修复生效）
 5. ⚠️ 之前因 bug 已丢失的标记/稍后项需重新绑（代码修复不恢复已丢数据）
+
+### 2026-07-04（续）：标记架构重做——意图式 API 修删标记 bug（commit d1ea3f7）
+
+**用户反馈**：① 有多个标记的标签，叉掉一个，另一个也没了；② hover card 标记叉不掉。
+
+**根因**：`TabHoverCard.onRemoveTag` 用 `props.item.tags.filter(t => t !== tag)` 计算 newTags。props 经过 Teleport + 多层 computed 传递可能旧值，用旧值 filter 会删错（如 props 只有一个 tag 时 filter 出 `[]`，把别的 tag 也带没）。其它入口（batchRemoveTag/toggleRightClickTabTag）都用主实例 `tabs.value` 查，唯独 onRemoveTag 用 props——脆弱点。
+
+**架构 review 结论**：标记操作分散在 7+ 入口（TagBar/TagPicker/TabHoverCard/右键/批量），部分用 props 计算新数组（脆弱），部分用主实例 tabs 查（鲁棒），不统一。
+
+**修复（方案 B：意图式 API + 删除链路）**：
+- useTabManager 加 `addTabTag(id, tag)` / `removeTabTag(id, tag)` / `toggleTabTag(id, tag)`——内部用主实例 tabs.value 查当前 tags 再算，调用方只传意图不传完整数组、不依赖 props
+- TabHoverCard.onRemoveTag 改 emit('removeTag', tag)（只传 tag 名）
+- 5 视图（List/Icon/Tile/Tree/Pinned）转发 removeTag
+- sidepanel: 动态组件/PinnedBar 加 @remove-tag 调 removeTabTag；treeAction case 'updateTags' → 'removeTag'
+
+**校验**：compileScript + compileTemplate（@vue/compiler-sfc@3.3.4）+ vue-tsc 全过。
+
+**后续可选**：TagPicker toggle 仍用 props.currentTags 计算（同源风险，用户未报），可改造走 toggleTabTag 进一步消除 props 依赖（方案 C，未做）。
+
+### 待用户验证（追加）
+6. 标签列表点汉堡菜单 → 多标记标签叉掉一个 → 只删那个，其它标记保留
+7. hover card 标记叉号 → 立即生效
