@@ -34,7 +34,7 @@
       @pin="onAction('pin')"
       @later="onAction('later')"
       @updateNumber="onUpdateNumber($event)"
-      @updateTags="onUpdateTags"
+      @removeTag="onRemoveTag"
     />
   </Teleport>
 </template>
@@ -53,7 +53,7 @@ const emit = defineEmits<{
   activate: [id: number]; close: [id: number]; later: [id: number]
   copy: [url: string]; refresh: [id: number]; pin: [id: number]
   updateNumber: [id: number, n: number]; ctx: [e: MouseEvent, item: TabItem]
-  move: [sourceId: number, targetId: number]; updateTags: [id: number, tags: string[]]
+  move: [sourceId: number, targetId: number]; removeTag: [id: number, tag: string]
 }>()
 
 const popover = usePopoverManager()
@@ -76,7 +76,7 @@ const onAction = (action: 'refresh' | 'copy' | 'pin' | 'later') => {
   else emit(action, currentItem.value.id)
 }
 const onUpdateNumber = (n: number) => { if (currentItem.value) emit('updateNumber', currentItem.value.id, n) }
-const onUpdateTags = (tags: string[]) => { if (currentItem.value) emit('updateTags', currentItem.value.id, tags) }
+const onRemoveTag = (tag: string) => { if (currentItem.value) emit('removeTag', currentItem.value.id, tag) }
 
 const onDragStart = (e: DragEvent, item: TabItem) => {
   dragState.value.sourceId = item.id

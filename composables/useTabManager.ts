@@ -328,6 +328,24 @@ function useTabManagerImpl() {
     }
   }
 
+  // 意图式 API：调用方只传意图（加/删/切哪个 tag），内部用主实例 tabs.value 查当前 tags 再算。
+  // 避免调用方依赖 props.currentTags / props.item.tags 计算新数组——props 经过 Teleport + 多层
+  // computed 传递可能旧值，用旧值 filter/concat 会删错/加错（如删一个标记把别的也带没）。
+  const addTabTag = async (id: number, tag: string) => {
+    const cur = tabs.value.find(t => t.id === id)?.tags ?? []
+    if (cur.includes(tag)) return
+    await updateTabTags(id, [...cur, tag])
+  }
+  const removeTabTag = async (id: number, tag: string) => {
+    const cur = tabs.value.find(t => t.id === id)?.tags ?? []
+    await updateTabTags(id, cur.filter(t => t !== tag))
+  }
+  const toggleTabTag = async (id: number, tag: string) => {
+    const cur = tabs.value.find(t => t.id === id)?.tags ?? []
+    const next = cur.includes(tag) ? cur.filter(t => t !== tag) : [...cur, tag]
+    await updateTabTags(id, next)
+  }
+
   // 设置标记筛选模式（multi/single）并持久化
   const setTagSelectMode = (m: "multi" | "single") => {
     tagSelectMode.value = m
@@ -613,7 +631,7 @@ function useTabManagerImpl() {
     tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
     canGoBack, canGoForward, goBack, goForward,
     closeTab, activateTab, restoreTab, moveToLater, removeLater, removeRecentlyClosed,
-    updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag, reorderCustomTags,
+    updateTabNumber, updateTabTags, addTabTag, removeTabTag, toggleTabTag, addCustomTag, removeCustomTag, renameCustomTag, reorderCustomTags,
     closeUnpinned, closeOthers, closeFrozenDiscarded,
     refreshTab, duplicateTab, pinTab, muteTab, closeTabsExcept, groupTab,
     updateTreeParent, moveTabToIndex,

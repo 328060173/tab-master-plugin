@@ -137,7 +137,7 @@
       @refresh="(id) => { if (focusMode !== 'focusing') refresh(id) }"
       @pin="(id) => { if (focusMode !== 'focusing') togglePin(id) }"
       @update-number="(id, n) => { if (focusMode !== 'focusing') { updateTabNumber(id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') } }"
-      @update-tags="(id, tags) => { if (focusMode !== 'focusing') updateTabTags(id, tags) }"
+      @remove-tag="(id, tag) => { if (focusMode !== 'focusing') removeTabTag(id, tag) }"
       @ctx="(e, item) => { if (focusMode !== 'focusing') onContextMenu(e, item) }"
       @move="(sourceId, targetId) => handlePinnedMove(sourceId, targetId)"
     />
@@ -263,7 +263,7 @@
                       :item="item" :is-batch="isBatchMode" :is-checked="selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
                       @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
                       @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
-                      @update-tags="updateTabTags(item.id, $event)" @add-tag="handleAddTag"
+                      @update-tags="updateTabTags(item.id, $event)" @remove-tag="removeTabTag(item.id, $event)" @add-tag="handleAddTag"
                       @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
                       @refresh="refresh(item.id)" @pin="togglePin(item.id)"
                       @contextmenu.prevent="onContextMenu($event, item)" />
@@ -277,7 +277,7 @@
                     :item="item" :is-batch="isBatchMode" :is-checked="selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
                     @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
                     @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
-                    @update-tags="updateTabTags(item.id, $event)" @add-tag="handleAddTag"
+                    @update-tags="updateTabTags(item.id, $event)" @remove-tag="removeTabTag(item.id, $event)" @add-tag="handleAddTag"
                     @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
                     @refresh="refresh(item.id)" @pin="togglePin(item.id)"
                     @contextmenu.prevent="onContextMenu($event, item)" />
@@ -313,7 +313,7 @@
                     :item="item" :is-batch="focusMode === 'selecting' ? true : isBatchMode" :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(item.id) : selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
                     @activate="activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
                     @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
-                    @update-tags="updateTabTags(item.id, $event)" @add-tag="handleAddTag"
+                    @update-tags="updateTabTags(item.id, $event)" @remove-tag="removeTabTag(item.id, $event)" @add-tag="handleAddTag"
                     @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
                     @refresh="refresh(item.id)" @pin="togglePin(item.id)"
                     @contextmenu.prevent="onContextMenu($event, item)" />
@@ -327,7 +327,7 @@
                   :item="item" :is-batch="focusMode === 'selecting' ? true : isBatchMode" :is-checked="focusMode === 'selecting' ? focusSelectedIds.includes(item.id) : selectedIds.includes(item.id)" :custom-tags="customTags" :is-prev="item.id === prevActiveTabId"
                   @activate="activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
                   @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
-                  @update-tags="updateTabTags(item.id, $event)" @add-tag="handleAddTag"
+                  @update-tags="updateTabTags(item.id, $event)" @remove-tag="removeTabTag(item.id, $event)" @add-tag="handleAddTag"
                   @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
                   @refresh="refresh(item.id)" @pin="togglePin(item.id)"
                   @contextmenu.prevent="onContextMenu($event, item)" />
@@ -580,7 +580,7 @@ const {
   tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
   canGoBack, canGoForward, goBack, goForward,
   closeTab, activateTab, restoreTab, moveToLater, removeLater, removeRecentlyClosed,
-  updateTabNumber, updateTabTags, addCustomTag, removeCustomTag, renameCustomTag, reorderCustomTags,
+  updateTabNumber, updateTabTags, addTabTag, removeTabTag, toggleTabTag, addCustomTag, removeCustomTag, renameCustomTag, reorderCustomTags,
   closeUnpinned, closeOthers, closeFrozenDiscarded,
   groupTab,
   updateTreeParent, moveTabToIndex,
@@ -727,7 +727,7 @@ provide('treeAction', (action: string, item: TabItem, data?: any) => {
     case 'refresh': refresh(item.id); break
     case 'pin': togglePin(item.id); break
     case 'updateNumber': updateTabNumber(item.id, data); showToast(data > 0 ? `编号 ${modKey}${data} 已设置` : '编号已清除'); break
-    case 'updateTags': updateTabTags(item.id, data); break
+    case 'removeTag': removeTabTag(item.id, data); break
     case 'addTag': {
       // 树形视图 hover card 的「标记」：data 是标记按钮 DOM，用它的位置打开右键标记选择器
       rightClickTabId.value = item.id

@@ -45,7 +45,7 @@
     @refresh="emit('refresh')" @copy="emit('copy')"
     @pin="emit('pin')" @addTag="onHoverAddTag" @later="emit('later')" @close="emit('close')"
     @updateNumber="emit('updateNumber', $event)"
-    @updateTags="emit('updateTags', $event)"
+    @removeTag="emit('removeTag', $event)"
   />
 </template>
 
@@ -62,7 +62,7 @@ import { usePopoverManager } from "~composables/usePopoverManager"
 import { GROUP_COLOR_CLASSES, TAB_GROUP_ID_NONE } from "~composables/useTabGroups"
 
 const props = defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[]; isPrev?: boolean }>()
-const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "refresh", "pin", "addTag", "updateTags", "updateNumber"])
+const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "refresh", "pin", "addTag", "updateTags", "removeTag", "updateNumber"])
 
 const popover = usePopoverManager()
 const hoverCardId = `hover-card-${props.item.id}`

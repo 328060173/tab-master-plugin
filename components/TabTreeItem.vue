@@ -71,7 +71,7 @@
       @later="onLater"
       @close="onClose"
       @updateNumber="onUpdateNumber"
-      @updateTags="onUpdateTags"
+      @removeTag="onRemoveTag"
     />
   </div>
 </template>
@@ -138,7 +138,7 @@ const onClose = () => {
   }
 }
 const onUpdateNumber = (n: number) => treeAction?.("updateNumber", props.item, n)
-const onUpdateTags = (tags: string[]) => treeAction?.("updateTags", props.item, tags)
+const onRemoveTag = (tag: string) => treeAction?.("removeTag", props.item, tag)
 
 const expanded = ref(true)
 const dropPos = ref<"before" | "into" | "after" | null>(null)

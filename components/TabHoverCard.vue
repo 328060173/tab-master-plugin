@@ -74,7 +74,7 @@ import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 
 const props = defineProps<{ hoverCardId: string; item: TabItem; hideAddTag?: boolean }>()
-const emit = defineEmits<{ refresh: []; copy: []; pin: []; addTag: [anchor: HTMLElement]; later: []; close: []; updateNumber: [n: number]; updateTags: [tags: string[]] }>()
+const emit = defineEmits<{ refresh: []; copy: []; pin: []; addTag: [anchor: HTMLElement]; later: []; close: []; updateNumber: [n: number]; removeTag: [tag: string] }>()
 
 const popover = usePopoverManager()
 const CARD_WIDTH = 256
@@ -101,11 +101,12 @@ const onClickTag = (e: MouseEvent) => {
   emit('addTag', e.currentTarget as HTMLElement)
 }
 
-// 移除单个标记：emit 给父组件，由各视图转发到 sidepanel 主实例的 updateTabTags
-// （useTabManager 非单例，这里直接调会拿到独立空实例 → UI 不更新 + storage 被覆盖）
+// 移除单个标记：只 emit tag 名，由父组件转发到 sidepanel 主实例的 removeTabTag
+// （removeTabTag 内部用 tabs.value 查当前 tags 再 filter，不依赖 props.item.tags——
+//  props 经过 Teleport + 多层 computed 可能旧值，用旧值 filter 会删错，如删一个把别的也带没）
 // 不关 hover card，方便连续删多个
 const onRemoveTag = (tag: string) => {
-  emit('updateTags', props.item.tags.filter(t => t !== tag))
+  emit('removeTag', tag)
 }
 
 const editingNumber = ref(false)

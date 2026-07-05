@@ -17,7 +17,7 @@
     @refresh="emit('refresh')" @copy="emit('copy')"
     @pin="emit('pin')" @addTag="onHoverAddTag" @later="emit('later')" @close="emit('close')"
     @updateNumber="emit('updateNumber', $event)"
-    @updateTags="emit('updateTags', $event)"
+    @removeTag="emit('removeTag', $event)"
   />
     <!-- 上一个访问标记 -->
     <span v-if="isPrev" class="absolute -top-1 -left-1 text-[8px] font-semibold text-blue-600 bg-blue-100 border border-blue-200 px-1 py-px rounded leading-none z-10" title="上一个访问的标签">Prev</span>
@@ -76,7 +76,7 @@ import { getHighestPriorityStatus } from "~lib/statusPriority"
 import { GROUP_COLOR_CLASSES, TAB_GROUP_ID_NONE } from "~composables/useTabGroups"
 
 const props = defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[]; isPrev?: boolean }>()
-const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "updateTags", "addTag", "updateNumber", "refresh", "pin"])
+const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "updateTags", "removeTag", "addTag", "updateNumber", "refresh", "pin"])
 
 const popover = usePopoverManager()
 const hoverCardId = `hover-card-${props.item.id}`
