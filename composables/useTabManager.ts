@@ -46,7 +46,11 @@ function chromeTabToItem(t: chrome.tabs.Tab, savedTags: Record<string, string[]>
   }
 }
 
-export function useTabManager() {
+// 单例缓存：useTabManager 非单例会导致子组件（TagBar/useTabActions/TabHoverCard 等）
+// 拿到独立空实例 → UI 不更新 + storage 被覆盖（数据破坏）。模块级缓存让所有调用共享同一实例。
+// 见 [[lesson-usetabmanager-not-singleton]]
+let _instance: ReturnType<typeof useTabManagerImpl> | null = null
+function useTabManagerImpl() {
   const tabs = ref<TabItem[]>([])
   const currentWindowId = ref<number>(-1)
   const laterTabs = ref<LaterItem[]>([])
@@ -121,7 +125,7 @@ export function useTabManager() {
           newEntries[String(t.id!)] = new Date(baseTime - (unseenTabs.length - 1 - i) * 60000).toISOString()
         })
         tabOpenedAtMap.value = { ...tabOpenedAtMap.value, ...newEntries }
-        chrome.storage.local.set({ tabOpenedAtMap: tabOpenedAtMap.value })
+        chrome.storage.local.set({ tabOpenedAtMap: toPure(tabOpenedAtMap.value) })
       }
 
       // 父子关系回填：扩展首次安装 / 数据被清空 / 跨会话后，treeParentMap 可能没记录
@@ -137,7 +141,7 @@ export function useTabManager() {
       }
       if (Object.keys(parentBackfill).length) {
         treeParentMap.value = { ...treeParentMap.value, ...parentBackfill }
-        chrome.storage.local.set({ treeParentMap: treeParentMap.value })
+        chrome.storage.local.set({ treeParentMap: toPure(treeParentMap.value) })
       }
 
       tabs.value = raw.map((t) => {
@@ -250,16 +254,16 @@ export function useTabManager() {
     const tab = tabs.value.find(t => t.id === id)
     if (!tab) return
     laterTabs.value = [...laterTabs.value, { ...tab, laterNote: note, laterAddedAt: nowTime() }]
-    await chrome.storage.local.set({ laterTabs: laterTabs.value })
+    await chrome.storage.local.set({ laterTabs: toPure(laterTabs.value) })
     await closeTab(id)
   }
   const removeLater = async (id: number) => {
     laterTabs.value = laterTabs.value.filter(t => t.id !== id)
-    await chrome.storage.local.set({ laterTabs: laterTabs.value })
+    await chrome.storage.local.set({ laterTabs: toPure(laterTabs.value) })
   }
   const removeRecentlyClosed = async (id: number) => {
     recentlyClosed.value = recentlyClosed.value.filter(t => t.id !== id)
-    await chrome.storage.local.set({ recentlyClosed: recentlyClosed.value })
+    await chrome.storage.local.set({ recentlyClosed: toPure(recentlyClosed.value) })
   }
 
   // 编号管理：新编号唯一，冲突时旧标签编号清零
@@ -281,7 +285,7 @@ export function useTabManager() {
     tabNumberMap.value = newMap
     const idx = tabs.value.findIndex(t => t.id === id)
     if (idx !== -1) tabs.value[idx] = { ...tabs.value[idx], number: num }
-    await chrome.storage.local.set({ tabNumberMap: newMap })
+    await chrome.storage.local.set({ tabNumberMap: toPure(newMap) })
   }
 
   const updateTabTags = async (id: number, tags: string[]) => {
@@ -415,7 +419,7 @@ export function useTabManager() {
       newMap[String(tabId)] = parentId
     }
     treeParentMap.value = newMap
-    await chrome.storage.local.set({ treeParentMap: newMap })
+    await chrome.storage.local.set({ treeParentMap: toPure(newMap) })
   }
 
   // 树形拖拽：调整标签顺序（调用 Chrome API）
@@ -463,7 +467,7 @@ export function useTabManager() {
     tabOpenedAtMap.value = atMap
     storageUpdate.tabOpenedAtMap = atMap
     // 一次性写入，减少 I/O
-    chrome.storage.local.set(storageUpdate)
+    chrome.storage.local.set(toPure(storageUpdate))
     const filtered = switchHistory.value.filter(h => h !== id)
     if (filtered.length !== switchHistory.value.length) {
       switchHistory.value = filtered; switchIndex.value = Math.min(switchIndex.value, filtered.length - 1)
@@ -481,13 +485,13 @@ export function useTabManager() {
       if (!wouldCreateCycle(t.id!, t.openerTabId, treeParentMap.value)) {
         const newMap = { ...treeParentMap.value, [String(t.id!)]: t.openerTabId }
         treeParentMap.value = newMap
-        chrome.storage.local.set({ treeParentMap: newMap })
+        chrome.storage.local.set({ treeParentMap: toPure(newMap) })
       }
     }
     const sid = String(t.id!)
     const openedAt = nowTime()
     tabOpenedAtMap.value = { ...tabOpenedAtMap.value, [sid]: openedAt }
-    chrome.storage.local.set({ tabOpenedAtMap: tabOpenedAtMap.value })
+    chrome.storage.local.set({ tabOpenedAtMap: toPure(tabOpenedAtMap.value) })
     tabs.value = [...tabs.value, chromeTabToItem(t, tabTagsMap.value, tabNumberMap.value, tabOpenedAtMap.value)]
   }
   const onTabUpdated = (_: number, change: chrome.tabs.TabChangeInfo, t: chrome.tabs.Tab) => {
@@ -615,4 +619,12 @@ export function useTabManager() {
     updateTreeParent, moveTabToIndex,
     tagSelectMode, setTagSelectMode, tagBoundFirstTime,
   }
+}
+
+// 单例入口：所有 useTabManager() 调用共享同一实例，避免子组件拿到独立空实例
+// （UI 不更新 + storage 覆盖）。见 [[lesson-usetabmanager-not-singleton]]
+export function useTabManager() {
+  if (_instance) return _instance
+  _instance = useTabManagerImpl()
+  return _instance
 }
