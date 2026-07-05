@@ -507,3 +507,36 @@ compileScript + compileTemplate（sidepanel/ConfirmDialog/TagBar）+ vue-tsc --n
 2. 添加标记 → 首次绑标记弹「标记关联提醒」ConfirmDialog（amber 框强调 API 规范）
 3. 重启浏览器 → 工具栏标记**应还在**（reactive proxy 修复生效）；Console **不应再报** customTags 非数组
 4. `/plugin` 看 ui-ux-pro-max-skill marketplace 是否识别（local source 格式待验证）
+
+### 2026-07-04：标记叉号崩溃 + 全量审计修复（3 commit）
+
+**起因**：用户报「标签列表点汉堡菜单 → 标记 chip 右上角叉号点击没反应，多点几次浏览器卡崩」。
+
+**根因 1（数据破坏级）**：`TabHoverCard.onRemoveTag` 直接调 `useTabManager().updateTabTags`，但 useTabManager 非单例 → 拿独立空实例（`tabs=[]`、`tabTagsMap={}`）→ UI 不更新（"没反应"）+ `storage.set({tabTagsMap:{[id]:x}})` 把整个标记表覆盖成只剩当前 tab → 反复点击反复覆盖 + 卡顿。
+
+**修复 1**（`c0ab81b`）：TabHoverCard 改 emit `updateTags`，由 List/Icon/Tile/Tree/Pinned 五视图转发到 sidepanel 主实例。
+
+**根因 2（同源扩散 + 数据丢失）**：全量审计发现：
+- `useTabActions.ts:17`、`TagBar.vue:448` 也直接调 `useTabManager()` 拿独立实例 → `togglePin`/`moveToLater` 等功能失效 + 3 份 chrome.tabs.onXxx 监听器堆积
+- `laterTabs`/`recentlyClosed`/`tabOpenedAtMap`/`treeParentMap`/`tabNumberMap`/`storageUpdate` 写 storage 漏 `toPure` → reactive proxy 数组被结构化克隆成数字键对象 → 读回 `Array.isArray` 失败被重置 → 稍后处理/最近关闭/树关系/打开时间重启后丢失（同 [[lesson-reactive-proxy-storage-serialize]] 陷阱，tabTagsMap/customTags 已修，这几个漏网）
+
+**修复 2**（`f0aa711`）：
+- A. **useTabManager 单例化**：模块级 `_instance` 缓存，所有调用共享。onMounted/onUnmounted 只在 sidepanel 顶层第一次调用时注册。零波及其它文件。监听器 3 份→1 份，togglePin/moveToLater 等功能恢复。
+- B. **storage 写入全加 toPure**：10 处 storage.set 改用 `toPure()`。
+
+**审计范围与限制**：派 4 个 Explore agent 审计标记/搜索/聚焦/稍后/分组/历史/整理/通用基础设施，但 3 个因 API 周配额超限失败（429，2026-07-06 重置）。改用 grep 全量扫 `useTabManager` 调用点 + `storage.set` + 监听器配对，覆盖高危项。`useCleanup.ts` 检测算法健康（O(n) Map 分桶 + 异常值处理）。`background.ts` SW 健康（循环检测 + 节流）。`useFocusMode.ts` try-catch 完整。**未覆盖**（配额+时间）：搜索防抖、历史授权状态机、分组事件防抖等中低风险项；单例化间接修复了这些模块若调 useTabManager 的问题，后续可补。
+
+### 提交记录
+- `c0ab81b` fix(标记): TabHoverCard 删标记改 emit 链路，修独立实例致 UI 不更新 + storage 覆盖
+- `9103211` docs: CLAUDE.md 红线加「子组件禁直接调 useTabManager 写方法」（后由 f0aa711 单例化更新为 toPure 规则 + 单例已实现）
+- `f0aa711` fix(架构): useTabManager 单例化 + storage 写入全加 toPure
+
+### 防白屏清单
+vue-tsc --noEmit 通过（仅 tsconfig 既有弃用警告 TS5107/TS5101）。本次只改 .ts（useTabManager.ts），无 .vue 改动，compileScript/compileTemplate 不适用。
+
+### 待用户验证
+1. `git pull` + `pnpm fresh` + chrome://extensions 刷新扩展（⚠️ 不要移除）
+2. 标签列表点汉堡菜单 → 标记 chip 叉号 → 立即消失 + 其它标签标记不受影响
+3. 点固定/静音/稍后处理 → 功能正常 + UI 实时刷新
+4. 重启浏览器 → 稍后处理列表/最近关闭/树关系仍在（toPure 修复生效）
+5. ⚠️ 之前因 bug 已丢失的标记/稍后项需重新绑（代码修复不恢复已丢数据）

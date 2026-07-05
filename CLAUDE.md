@@ -150,7 +150,8 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - 禁用 `(chrome.x as any)` 强转
 - 禁用 v-html（XSS）
 - **数据一致性**（底线）：派生数据不从 filteredTabs 派生（避免筛选污染数量）；onTabCreated 必须过滤窗口；跨窗口移动监听 onAttached/onDetached 兜底重载。开发+测试都要验收「插件数量=浏览器实际」。详见 [[pattern-data-consistency-with-browser]]
-- **🚨 子组件禁止直接调 `useTabManager()` 写方法**：`useTabManager()` **非单例**，每次调用 new 一组空 ref。子组件（TabHoverCard/TabListItem/...）里 `const { updateTabTags } = useTabManager()` 拿独立空实例 → `tabs=[]` findIndex 失败 UI 不更新 + `tabTagsMap={}` 的 `storage.set` 把整个标记表覆盖成只剩当前 tab（**数据破坏**）。改 emit 事件让父组件转发到 sidepanel 主实例（唯一活实例）。写方法含：updateTabTags/addCustomTag/removeCustomTag/renameCustomTag/reorderCustomTags/updateTabNumber/setTagSelectMode。详见 [[lesson-usetabmanager-not-singleton]]
+- **🚨 storage 写入 reactive 数据必须 `toPure()`**：`chrome.storage.local.set({ key: ref.value })` 时 Vue reactive proxy 数组被结构化克隆成数字键对象（`["工作"]`→`{"0":"工作"}`），读回 `Array.isArray` 失败被当脏数据重置成 `[]` → **数据丢失**。所有写 reactive ref（数组/对象）的 `storage.set` 必须包 `toPure()`（`JSON.parse(JSON.stringify(x))`，helper 在 useTabManager.ts）。2026-07-04 修复 laterTabs/recentlyClosed/tabOpenedAtMap/treeParentMap/tabNumberMap/storageUpdate 漏网（commit f0aa711，之前只修了 tabTagsMap/customTags）。详见 [[lesson-reactive-proxy-storage-serialize]]
+- **useTabManager 已单例化**（2026-07-04 commit f0aa711）：模块级 `_instance` 缓存，所有 `useTabManager()` 调用共享同一实例，子组件可直接调（拿主实例）。⚠️ 若改回非单例，子组件会拿独立空实例 → UI 不更新 + storage 覆盖（数据破坏）——历史教训见 [[lesson-usetabmanager-not-singleton]]，**不要改回去**
 - 改完代码自行 git add/commit/push 到 master（静态校验通过后即可，2026-06-30 用户授权）
 
 ### 参考原型
