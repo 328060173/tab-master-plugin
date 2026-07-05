@@ -562,3 +562,25 @@ vue-tsc --noEmit 通过（仅 tsconfig 既有弃用警告 TS5107/TS5101）。本
 ### 待用户验证（追加）
 6. 标签列表点汉堡菜单 → 多标记标签叉掉一个 → 只删那个，其它标记保留
 7. hover card 标记叉号 → 立即生效
+
+### 2026-07-04（续2）：方案 C——TagPicker toggle 改意图式（commit f44cf72）
+
+**用户反馈**：鲁棒性差，改一个功能影响别的；一个功能多个地方少改；code-map 没更新。
+
+**根因**：TagPicker 的 toggle 用 `props.currentTags` 计算新数组（同 onRemoveTag 的 props 依赖根因，props 旧值会算错）。5 处 TagPicker 使用点（TabListItem/Icon/Tile + SearchResults×2）。
+
+**修复（方案 C）**：
+- TagPicker: emit `update` → `toggleTag`；@toggle 转发不计算；handleCreate 改 toggleTag
+- 5 视图 + SearchResults: @update → @toggleTag + emit updateTags → toggleTag
+- sidepanel: @update-tags → @toggle-tag 调 toggleTabTag
+- 命名：`toggle` 已被「批量选中」占用，标记切换用 `toggleTag` 避免冲突
+
+**遗漏检查**：grep emit update / @update / @updateTags / @update-tags 全空，无遗留。
+
+**code-map 更新**：`docs/code-map.md` 加 K 节「标记操作联动」——记录标记操作全部入口 + 意图式 API + 联动文件清单（5 视图 + SearchResults 容易漏），避免后续少改。
+
+**校验**：compileScript + compileTemplate（9 .vue）+ vue-tsc 全过。
+
+### 待用户验证（追加2）
+8. TagPicker 勾选标记（卡片 Tag 按钮）→ 立即生效
+9. 搜索结果里的标记勾选 → 正常
