@@ -195,9 +195,9 @@ const VIEW_OPTIONS = [
 ]
 const SORT_OPTIONS = [
   { value: "domain", label: "按域名" },
-  { value: "lastAccessed", label: "按访问时间" },
-  { value: "timeAsc", label: "时间正序" },
-  { value: "timeDesc", label: "时间倒序" },
+  { value: "lastAccessed", label: "最新访问优先" },
+  { value: "timeAsc", label: "按打开时间正序" },
+  { value: "timeDesc", label: "按打开时间倒序" },
 ]
 const currentView = computed(() => VIEW_OPTIONS.find(o => o.value === props.viewMode) || VIEW_OPTIONS[1])
 </script>
