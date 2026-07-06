@@ -3,7 +3,7 @@
     <div
       v-if="open"
       class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center"
-      @click.self="emit('cancel')"
+      @click="onMaskClick"
     >
       <div
         class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-[360px] p-5"
@@ -85,6 +85,13 @@ const props = defineProps<{
   centerTitle?: boolean
 }>()
 const emit = defineEmits<{ confirm: []; cancel: [] }>()
+
+// 遮罩点击：阻止冒泡到 document，避免触发 PopoverManager 全局 closeAll（误关下层 popover，如「管理标记」panel）；
+// 只有点遮罩自身才取消（点内部按钮由按钮各自 emit，不重复取消）
+const onMaskClick = (e: MouseEvent) => {
+  e.stopPropagation()
+  if (e.target === e.currentTarget) emit("cancel")
+}
 
 // ESC 关闭：弹窗打开时挂全局监听，关闭时摘掉（避免影响其他组件）
 const onKey = (e: KeyboardEvent) => {
