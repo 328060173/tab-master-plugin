@@ -67,11 +67,11 @@
           v-for="tag in tags"
           :key="`measure-${tag}`"
           data-chip
-          class="px-2 py-0.5 text-xs rounded-full border flex items-center gap-1">
+          class="shrink-0 px-2 py-0.5 text-xs rounded-full border flex items-center gap-1">
           <span class="truncate max-w-[80px]">{{ tag }}</span>
           <span class="opacity-60">{{ tabCountByTag[tag] ?? 0 }}</span>
         </span>
-        <span data-more class="px-2 py-0.5 text-xs rounded-full border flex items-center gap-1">
+        <span data-more class="shrink-0 px-2 py-0.5 text-xs rounded-full border flex items-center gap-1">
           更多 ▾
         </span>
       </div>
