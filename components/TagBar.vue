@@ -31,9 +31,9 @@
     </div>
 
     <!-- 有标记状态：收起态 -->
-    <div v-else class="flex items-center gap-2">
+    <div v-else class="flex items-start gap-2">
       <!-- 行首 label + 筛选模式切换 -->
-      <span class="shrink-0 text-[11px] text-gray-400 dark:text-gray-500"
+      <span class="shrink-0 text-[11px] text-gray-400 dark:text-gray-500 pt-0.5"
         >标记:</span
       >
       <select
@@ -58,10 +58,31 @@
         <span class="opacity-60">{{ totalCount }}</span>
       </button>
 
-      <!-- 标记 chips：单行溢出隐藏（不滚动），溢出部分进下拉 panel 看 -->
-      <div class="flex-1 min-w-0 overflow-hidden flex items-center gap-1.5">
-        <button
+      <!-- 隐藏测量层：绝对定位、不可见，用于计算换行和可见数量 -->
+      <div
+        ref="measureRef"
+        class="absolute -z-50 invisible flex flex-wrap gap-1.5 pointer-events-none"
+        :style="{ width: `${containerWidth}px`, left: '-9999px', top: 0 }">
+        <span
           v-for="tag in tags"
+          :key="`measure-${tag}`"
+          data-chip
+          class="px-2 py-0.5 text-xs rounded-full border flex items-center gap-1">
+          <span class="truncate max-w-[80px]">{{ tag }}</span>
+          <span class="opacity-60">{{ tabCountByTag[tag] ?? 0 }}</span>
+        </span>
+        <span data-more class="px-2 py-0.5 text-xs rounded-full border flex items-center gap-1">
+          更多 ▾
+        </span>
+      </div>
+
+      <!-- 标记 chips：最多3行，超出截断 -->
+      <div
+        ref="containerRef"
+        class="flex-1 min-w-0 flex flex-wrap gap-1.5 overflow-hidden"
+        :style="{ maxHeight: maxHeight }">
+        <button
+          v-for="tag in visibleTags"
           :key="tag"
           :title="tag"
           :class="[
@@ -73,6 +94,15 @@
           @click="toggleTag(tag)">
           <span class="truncate max-w-[80px]">{{ tag }}</span>
           <span class="opacity-60">{{ tabCountByTag[tag] ?? 0 }}</span>
+        </button>
+
+        <!-- 更多按钮 -->
+        <button
+          v-if="hasMore"
+          ref="moreTriggerRef"
+          class="shrink-0 px-2 py-0.5 text-xs rounded-full border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          @click.stop="toggleMorePopover">
+          更多 ▾
         </button>
       </div>
 
@@ -380,6 +410,35 @@
       </div>
     </Teleport>
 
+    <!-- 更多标记弹出层 -->
+    <Teleport to="body">
+      <div
+        v-if="popover.isOpen(morePopoverId)"
+        :style="morePopoverStyle"
+        class="fixed z-[80] min-w-[160px] max-w-[240px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl"
+        @click.stop>
+        <div class="p-2">
+          <div class="text-[11px] text-gray-400 dark:text-gray-500 px-2 py-1">更多标记</div>
+          <div class="mt-1 flex flex-wrap gap-1.5">
+            <button
+              v-for="tag in hiddenTags"
+              :key="tag"
+              :title="tag"
+              :class="[
+                'px-2 py-0.5 text-xs rounded-full border transition-colors flex items-center gap-1',
+                activeTags.includes(tag)
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+              ]"
+              @click="toggleMoreTag(tag)">
+              <span class="truncate max-w-[100px]">{{ tag }}</span>
+              <span class="opacity-60">{{ tabCountByTag[tag] ?? 0 }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- 删除确认对话框 -->
     <ConfirmDialog
       :open="deleteConfirm.open"
@@ -398,7 +457,7 @@
  * 标记栏：筛选 chips（收起态） + 下拉管理 panel（排序/编辑/删除/添加）。
  *
  * 设计（2026-07-01 修订）：
- * - 收起态：单行 chips 溢出隐藏（不滚动），点 chip = 筛选（交集）
+ * - 收起态：最多3行 chips，超出截断，末尾显示「更多」按钮
  * - 下拉 panel（点 ▾ 展开）：每行 [⠿手柄][名称][计数][✏][🗑]，
  *   拖动排序、编辑、删除、添加都在 panel 里完成
  * - 横滚栏标记多时不好操作 + 编辑删除入口隐蔽 → 归拢到 panel
@@ -420,6 +479,9 @@ import { computePopoverPos } from "~lib/popoverPosition"
 import { validateTag } from "~lib/tagValidate"
 
 import ConfirmDialog from "./ConfirmDialog.vue"
+
+const MAX_ROWS = 3
+const GAP = 6 // gap-1.5 = 6px
 
 // 标记按 tabId 绑定的局限提示（空状态帮助块 + panel 帮助块共用，避免文案重复）
 const TAG_BIND_NOTICE =
@@ -443,6 +505,125 @@ const emit = defineEmits<{
 const popover = usePopoverManager()
 const panelId = "tag-manager-panel"
 const panelTriggerRef = ref<HTMLElement | null>(null)
+
+// 更多标记弹出层
+const morePopoverId = "tag-more-popover"
+const moreTriggerRef = ref<HTMLElement | null>(null)
+
+// 多行测量相关
+const containerRef = ref<HTMLElement | null>(null)
+const measureRef = ref<HTMLElement | null>(null)
+const containerWidth = ref(0)
+const visibleCount = ref(props.tags.length)
+const hasMore = ref(false)
+const rowHeight = ref(24) // 默认行高，测量后更新
+
+// 计算属性
+const visibleTags = computed(() => props.tags.slice(0, visibleCount.value))
+const hiddenTags = computed(() => props.tags.slice(visibleCount.value))
+
+const morePopoverStyle = computed(() => {
+  if (!popover.isOpen(morePopoverId) || !popover.activeAnchorRect.value)
+    return { left: "0px", top: "0px" }
+  const p = computePopoverPos(
+    popover.activeAnchorRect.value,
+    { width: 200, height: 100 },
+    "bottom-right"
+  )
+  return { left: `${p.left}px`, top: `${p.top}px` }
+})
+
+// 最大高度
+const maxHeight = computed(() => `${rowHeight.value * MAX_ROWS + GAP * (MAX_ROWS - 1)}px`)
+
+// ResizeObserver + rAF 防抖
+let rafId = 0
+let resizeObserver: ResizeObserver | null = null
+
+const measure = () => {
+  const measureEl = measureRef.value
+  const containerEl = containerRef.value
+  if (!measureEl || !containerEl) return
+
+  const cw = containerEl.clientWidth
+  if (cw === 0) return // 容器未渲染好，跳过
+  containerWidth.value = cw
+
+  // 读取测量层元素
+  const chipEls = Array.from(measureEl.querySelectorAll("[data-chip]")) as HTMLElement[]
+  const moreEl = measureEl.querySelector("[data-more]") as HTMLElement | null
+
+  if (chipEls.length === 0) {
+    visibleCount.value = 0
+    hasMore.value = false
+    return
+  }
+
+  // 更新行高（用第一个 chip 的高度）
+  const firstChip = chipEls[0]
+  if (firstChip) {
+    rowHeight.value = firstChip.offsetHeight
+  }
+
+  // 计算全显需要多少行
+  let totalRows = 1
+  let currentRowWidth = 0
+  for (let i = 0; i < chipEls.length; i++) {
+    const w = chipEls[i].offsetWidth + GAP
+    if (currentRowWidth + w > cw && currentRowWidth > 0) {
+      totalRows++
+      currentRowWidth = w
+    } else {
+      currentRowWidth += w
+    }
+  }
+
+  // 如果不超过 MAX_ROWS，全显
+  if (totalRows <= MAX_ROWS) {
+    visibleCount.value = props.tags.length
+    hasMore.value = false
+    return
+  }
+
+  // 超过 MAX_ROWS，计算能放下多少个（留位置给「更多」）
+  const moreWidth = moreEl ? moreEl.offsetWidth + GAP : 60
+  let row = 1
+  let rw = 0
+  let count = 0
+
+  for (let i = 0; i < chipEls.length; i++) {
+    const w = chipEls[i].offsetWidth + GAP
+    const availWidth = row === MAX_ROWS ? cw - moreWidth : cw
+
+    if (rw + w > availWidth) {
+      if (row === MAX_ROWS) break
+      row++
+      rw = w
+    } else {
+      rw += w
+    }
+    count = i + 1
+  }
+
+  visibleCount.value = Math.max(1, count) // 兜底至少1个
+  hasMore.value = visibleCount.value < props.tags.length
+}
+
+const scheduleMeasure = () => {
+  cancelAnimationFrame(rafId)
+  rafId = requestAnimationFrame(() => measure())
+}
+
+// 更多弹出层操作
+const toggleMorePopover = (e: MouseEvent) => {
+  popover.toggle(morePopoverId, e.currentTarget as HTMLElement)
+}
+
+const toggleMoreTag = (tag: string) => {
+  toggleTag(tag)
+  // 保持弹出层打开（用户可能想继续操作）
+  // 如果需要自动关闭，可以在这里加 popover.close(morePopoverId)
+}
 
 // 标记筛选模式（multi/single）来自全局状态，TagBar 行首下拉切换
 const { tagSelectMode, setTagSelectMode } = useTabManager()
@@ -643,6 +824,41 @@ watch(showAdd, async (val) => {
 const onKeydown = (e: KeyboardEvent) => {
   if (e.key === "Escape" && popover.isOpen(panelId)) closePanel()
 }
-onMounted(() => document.addEventListener("keydown", onKeydown))
-onUnmounted(() => document.removeEventListener("keydown", onKeydown))
+
+// 初始化测量
+onMounted(() => {
+  document.addEventListener("keydown", onKeydown)
+
+  // 先设置初始值全显
+  visibleCount.value = props.tags.length
+  hasMore.value = false
+
+  // 等待 DOM 渲染后测量
+  nextTick(() => {
+    measure()
+
+    // 设置 ResizeObserver
+    if (containerRef.value && typeof ResizeObserver === "function") {
+      resizeObserver = new ResizeObserver(() => scheduleMeasure())
+      resizeObserver.observe(containerRef.value)
+    }
+  })
+})
+
+onUnmounted(() => {
+  document.removeEventListener("keydown", onKeydown)
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
+  cancelAnimationFrame(rafId)
+})
+
+// 监听 tags 变化和计数变化重新测量
+watch(
+  () => [props.tags.length, JSON.stringify(props.tabCountByTag)],
+  () => {
+    nextTick(() => scheduleMeasure())
+  }
+)
 </script>
