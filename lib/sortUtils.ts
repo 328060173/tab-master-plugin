@@ -16,7 +16,7 @@ export function sortTabs(tabs: TabItem[], mode: string): TabItem[] {
   const s = [...tabs]
   if (mode === "domain") {
     // 按 eTLD+1 排序，让 www.volcengine.com / console.volcengine.com 相邻
-    // 同一注册域内再按完整 host 子排序（让同子域的标签也聚拢），最后按打开时间倒序
+    // 同一注册域内再按完整 host 子排序（让同子域的标签也聚拢），最后按打开时间正序（新打开的在后）
     return s.sort((a, b) => {
       const ra = getRegistrableDomain(a.domain)
       const rb = getRegistrableDomain(b.domain)
@@ -24,7 +24,7 @@ export function sortTabs(tabs: TabItem[], mode: string): TabItem[] {
       if (d1 !== 0) return d1
       const d2 = a.domain.toLowerCase().localeCompare(b.domain.toLowerCase())
       if (d2 !== 0) return d2
-      return parseTime(b.openedAt) - parseTime(a.openedAt)
+      return parseTime(a.openedAt) - parseTime(b.openedAt)
     })
   }
   if (mode === "timeAsc") return s.sort((a, b) => parseTime(a.openedAt) - parseTime(b.openedAt))
