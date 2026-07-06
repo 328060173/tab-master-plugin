@@ -118,7 +118,7 @@
       v-if="(activeNav === 'home' && focusMode === 'normal') || focusMode === 'selecting'"
       :is-later-page="false"
       :view-mode="viewMode" :sort-mode="sortMode" :can-go-back="canGoBack" :can-go-forward="canGoForward"
-      @view-change="setViewMode" @sort-change="sortMode = $event"
+      @view-change="setViewMode" @sort-change="setSortMode"
       @close-unpinned="openCleanupUnpinned" @close-others="openCleanupOthers" @close-frozen-discarded="openCleanupFrozenDiscarded"
       @detect-duplicates="openDetectDuplicates" @detect-unused="openDetectUnused"
       @go-back="goBack" @go-forward="goForward"
@@ -755,7 +755,7 @@ provide('treeDrag', (dragId: number, targetId: number, pos: 'before' | 'into' | 
 
 const activeNav = ref("home")
 const viewMode = ref(localStorage.getItem("viewMode") || "list")
-const sortMode = ref("domain")
+const sortMode = ref(localStorage.getItem("sortMode") || "domain")
 const search = ref("")
 const isBatchMode = ref(false)
 const selectedIds = ref<number[]>([])
@@ -1092,6 +1092,10 @@ const setViewMode = (v: string) => {
     treeGuideShown.value = true
     chrome.storage.local.set({ treeGuideShown: true })
   }
+}
+const setSortMode = (v: string) => {
+  sortMode.value = v
+  localStorage.setItem("sortMode", v)
 }
 
 // 树形视图引导：黄条点击/首次切换自动打开

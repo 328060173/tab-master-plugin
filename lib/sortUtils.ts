@@ -1,6 +1,7 @@
 import type { TabItem } from "~types/tab"
 import { getDomainLabel } from "~lib/domainNames"
 import { getRegistrableDomain } from "~lib/registrableDomain"
+import { getEffectiveAccessTime } from "~composables/useCleanup"
 
 // ISO 字符串或遗留 HH:mm 字符串 → 可比较的时间戳
 export function parseTime(t: string): number {
@@ -25,6 +26,14 @@ export function sortTabs(tabs: TabItem[], mode: string): TabItem[] {
       const d2 = a.domain.toLowerCase().localeCompare(b.domain.toLowerCase())
       if (d2 !== 0) return d2
       return parseTime(a.openedAt) - parseTime(b.openedAt)
+    })
+  }
+  if (mode === "lastAccessed") {
+    // 按访问时间倒序（最新访问的在最上面），缺失时降级用 openedAt 倒序
+    return s.sort((a, b) => {
+      const ta = getEffectiveAccessTime(a) ?? 0
+      const tb = getEffectiveAccessTime(b) ?? 0
+      return tb - ta
     })
   }
   if (mode === "timeAsc") return s.sort((a, b) => parseTime(a.openedAt) - parseTime(b.openedAt))
