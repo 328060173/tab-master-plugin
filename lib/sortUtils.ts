@@ -1,7 +1,6 @@
 import type { TabItem } from "~types/tab"
 import { getDomainLabel } from "~lib/domainNames"
 import { getRegistrableDomain } from "~lib/registrableDomain"
-import { getEffectiveAccessTime } from "~composables/useCleanup"
 
 // ISO 字符串或遗留 HH:mm 字符串 → 可比较的时间戳
 export function parseTime(t: string): number {
@@ -11,6 +10,22 @@ export function parseTime(t: string): number {
   // 兼容旧 HH:mm 格式
   const [h, m] = t.split(":").map(Number)
   return (h * 60 + m) * 60000
+}
+
+/**
+ * 获取标签的"有效访问时间"，按优先级回退：
+ * 1. lastAccessed（原生 Chrome 121+ / SW 采集）
+ * 2. openedAt 解析（首次打开时间）—— 最差兜底，语义偏弱
+ *
+ * 返回 undefined 表示完全没有时间信息（应慎重对待，UI 层默认不勾选）。
+ * 放在 sortUtils 而非 useCleanup：时间工具同源，且避免 sortUtils↔useCleanup 循环依赖。
+ */
+export function getEffectiveAccessTime(tab: TabItem): number | undefined {
+  if (typeof tab.lastAccessed === "number" && tab.lastAccessed > 0) {
+    return tab.lastAccessed
+  }
+  const opened = parseTime(tab.openedAt)
+  return opened > 0 ? opened : undefined
 }
 
 export function sortTabs(tabs: TabItem[], mode: string): TabItem[] {

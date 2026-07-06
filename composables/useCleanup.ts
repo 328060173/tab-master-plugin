@@ -1,5 +1,5 @@
 import type { TabItem } from "~types/tab"
-import { parseTime } from "~lib/sortUtils"
+import { parseTime, getEffectiveAccessTime } from "~lib/sortUtils"
 
 /**
  * 清理菜单业务逻辑：重复检测、长期未用检测、阈值常量。
@@ -32,21 +32,6 @@ export const UNUSED_THRESHOLDS = [
 ] as const
 
 export type UnusedThresholdMs = typeof UNUSED_THRESHOLDS[number]["ms"]
-
-/**
- * 获取标签的"有效访问时间"，按优先级回退：
- * 1. lastAccessed（原生 Chrome 121+ / SW 采集）
- * 2. openedAt 解析（首次打开时间）—— 最差兜底，语义偏弱
- *
- * 返回 undefined 表示完全没有时间信息（应慎重对待，UI 层默认不勾选）
- */
-export function getEffectiveAccessTime(tab: TabItem): number | undefined {
-  if (typeof tab.lastAccessed === "number" && tab.lastAccessed > 0) {
-    return tab.lastAccessed
-  }
-  const opened = parseTime(tab.openedAt)
-  return opened > 0 ? opened : undefined
-}
 
 /**
  * 检测重复标签：按 URL 完全相同分桶。

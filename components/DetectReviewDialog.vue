@@ -146,9 +146,9 @@ import type { TabItem } from "~types/tab"
 import {
   UNUSED_THRESHOLDS,
   formatUnusedDuration,
-  getEffectiveAccessTime,
   type DuplicateGroup,
 } from "~composables/useCleanup"
+import { getEffectiveAccessTime } from "~lib/sortUtils"
 import FavIcon from "./FavIcon.vue"
 
 const props = defineProps<{
