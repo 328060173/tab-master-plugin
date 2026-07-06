@@ -60,7 +60,7 @@
         <div class="flex-1 overflow-y-auto px-3 py-2">
           <!-- 空状态（理论上 sidepanel 已拦截，但兜底） -->
           <div v-if="totalCount === 0" class="text-center py-8 text-xs text-gray-400">
-            {{ mode === 'duplicates' ? '未检测到重复标签' : '未检测到长期未用标签' }}
+            {{ mode === 'duplicates' ? '未检测到重复标签' : `暂无超过 ${customDays} 天未使用标签` }}
           </div>
 
           <!-- duplicates 模式：按 URL 分组 -->
@@ -237,7 +237,9 @@ const onCustomDaysInput = (e: Event) => {
 const title = computed(() =>
   props.mode === "duplicates"
     ? `检测到 ${props.groups?.length || 0} 组重复 · 共 ${totalCount.value} 个标签`
-    : `检测到 ${totalCount.value} 个长期未用标签`,
+    : totalCount.value === 0
+      ? `暂无超过 ${customDays.value} 天未使用标签`
+      : `检测到 ${totalCount.value} 个长期未用标签`,
 )
 const summary = computed(() =>
   props.mode === "duplicates"

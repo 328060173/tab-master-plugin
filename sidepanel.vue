@@ -1006,7 +1006,6 @@ const openDetectDuplicates = () => {
 const openDetectUnused = () => {
   const defaultMs = UNUSED_THRESHOLDS[0].ms // 默认 1 天
   const items = detectUnusedFn(tabs.value, defaultMs)
-  if (!items.length) { showToast("未检测到长期未用标签"); return }
   detectDialog.value = { mode: "unused", items, thresholdMs: defaultMs }
 }
 // 用户切换阈值时重新筛选
