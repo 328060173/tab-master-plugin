@@ -45,24 +45,15 @@
         <option value="single">单选</option>
       </select>
 
-      <!-- 全部按钮 -->
-      <button
-        :class="[
-          'shrink-0 px-2 py-0.5 text-xs rounded-full border transition-colors flex items-center gap-1',
-          activeTags.length === 0
-            ? 'bg-blue-600 text-white border-blue-600'
-            : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-        ]"
-        @click="emit('apply', [])">
-        <span>全部</span>
-        <span class="opacity-60">{{ totalCount }}</span>
-      </button>
-
       <!-- 隐藏测量层：绝对定位、不可见，用于计算换行和可见数量 -->
       <div
         ref="measureRef"
         class="absolute -z-50 invisible flex flex-wrap gap-1.5 pointer-events-none"
         :style="{ width: `${containerWidth}px`, left: '-9999px', top: 0 }">
+        <span data-all class="shrink-0 px-2 py-0.5 text-xs rounded-full border flex items-center gap-1">
+          <span>全部</span>
+          <span class="opacity-60">{{ totalCount }}</span>
+        </span>
         <span
           v-for="tag in tags"
           :key="`measure-${tag}`"
@@ -81,6 +72,18 @@
         ref="containerRef"
         class="flex-1 min-w-0 flex flex-wrap gap-1.5 overflow-hidden"
         :style="{ maxHeight: maxHeight }">
+        <!-- 全部按钮（chips 行首，参与折行，第二行对齐到下拉框右侧） -->
+        <button
+          :class="[
+            'shrink-0 px-2 py-0.5 text-xs rounded-full border transition-colors flex items-center gap-1',
+            activeTags.length === 0
+              ? 'bg-blue-600 text-white border-blue-600'
+              : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+          ]"
+          @click="emit('apply', [])">
+          <span>全部</span>
+          <span class="opacity-60">{{ totalCount }}</span>
+        </button>
         <button
           v-for="tag in visibleTags"
           :key="tag"
@@ -551,7 +554,9 @@ const measure = () => {
 
   // 读取测量层元素
   const chipEls = Array.from(measureEl.querySelectorAll("[data-chip]")) as HTMLElement[]
+  const allEl = measureEl.querySelector("[data-all]") as HTMLElement | null
   const moreEl = measureEl.querySelector("[data-more]") as HTMLElement | null
+  const allWidth = allEl ? allEl.offsetWidth + GAP : 0
 
   if (chipEls.length === 0) {
     visibleCount.value = 0
@@ -567,7 +572,7 @@ const measure = () => {
 
   // 计算全显需要多少行
   let totalRows = 1
-  let currentRowWidth = 0
+  let currentRowWidth = allWidth // 第一行「全部」按钮占位
   for (let i = 0; i < chipEls.length; i++) {
     const w = chipEls[i].offsetWidth + GAP
     if (currentRowWidth + w > cw && currentRowWidth > 0) {
@@ -588,7 +593,7 @@ const measure = () => {
   // 超过 MAX_ROWS，计算能放下多少个（留位置给「更多」）
   const moreWidth = moreEl ? moreEl.offsetWidth + GAP : 60
   let row = 1
-  let rw = 0
+  let rw = allWidth // 第一行「全部」按钮占位
   let count = 0
 
   for (let i = 0; i < chipEls.length; i++) {
