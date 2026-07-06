@@ -105,7 +105,6 @@
 
         <!-- 底部操作 -->
         <div class="px-5 py-3 border-t border-gray-100 dark:border-gray-700 flex gap-2 justify-end items-center">
-          <p class="text-[10px] text-gray-400 mr-auto">💡 可用 Ctrl+Shift+T 逐个恢复</p>
           <button
             class="px-4 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
             @click="emit('cancel')"

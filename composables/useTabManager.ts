@@ -64,7 +64,7 @@ function useTabManagerImpl() {
   const recentlyClosed = ref<ClosedTabItem[]>([])
   const treeParentMap = ref<Record<string, number>>({})
   // 标记筛选模式：multi=多选叠加（交集），single=单选。持久化到 storage.local.tagSelectMode
-  const tagSelectMode = ref<"multi" | "single">("multi")
+  const tagSelectMode = ref<"multi" | "single">("single")
   // 首次绑标记一次性触发器：用于 sidepanel 弹会话级提示 toast
   const tagBoundFirstTime = ref(false)
 
@@ -208,8 +208,8 @@ function useTabManagerImpl() {
       treeParentMap.value = (data.treeParentMap && typeof data.treeParentMap === "object" && !Array.isArray(data.treeParentMap)) ? data.treeParentMap : {}
       tabOpenedAtMap.value = (data.tabOpenedAtMap && typeof data.tabOpenedAtMap === "object" && !Array.isArray(data.tabOpenedAtMap)) ? data.tabOpenedAtMap : {}
       tabLastAccessedMap.value = (data.tabLastAccessedMap && typeof data.tabLastAccessedMap === "object" && !Array.isArray(data.tabLastAccessedMap)) ? data.tabLastAccessedMap : {}
-      // 标记筛选模式：只认 'single'，其他一律兜底 'multi'
-      tagSelectMode.value = data.tagSelectMode === "single" ? "single" : "multi"
+      // 标记筛选模式：只认 'multi'，其他一律兜底 'single'（默认单选）
+      tagSelectMode.value = data.tagSelectMode === "multi" ? "multi" : "single"
 
       // 诊断日志：处理后的数据
       if (!!(import.meta as any).env?.DEV) {
@@ -230,7 +230,7 @@ function useTabManagerImpl() {
       // 不重置内存状态，保留已有数据（标记名称永远展示）
       // 仅 tagSelectMode 给兜底值，防止 undefined 导致筛选逻辑异常
       if (tagSelectMode.value === undefined || tagSelectMode.value === null) {
-        tagSelectMode.value = "multi"
+        tagSelectMode.value = "single"
       }
     }
   }
