@@ -58,7 +58,7 @@
 
         <!-- 列表主体（可滚动） -->
         <div class="flex-1 overflow-y-auto px-3 py-2">
-          <!-- 空状态（理论上 sidepanel 已拦截，但兜底） -->
+          <!-- 空状态：当前阈值下无命中，用户可切换 1/3/7/30 天或自定义天数再看 -->
           <div v-if="totalCount === 0" class="text-center py-8 text-xs text-gray-400">
             {{ mode === 'duplicates' ? '未检测到重复标签' : `暂无超过 ${customDays} 天未使用标签` }}
           </div>
