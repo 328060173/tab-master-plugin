@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center gap-1 px-3 py-1.5 border-b border-gray-100 flex-wrap">
+  <div class="flex items-center gap-1 px-3 py-1.5 border-b border-gray-100">
     <template v-if="!isLaterPage">
       <button class="p-1 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900" title="新建标签" @click="emit('newTab')">
         <Plus :size="15" :stroke-width="2.5" />
@@ -13,7 +13,7 @@
       <!-- 视图切换 -->
       <button
         ref="viewTriggerRef"
-        :class="['ml-auto flex items-center gap-1 px-2 py-1 text-xs border rounded transition-colors',
+        :class="['ml-1 flex items-center gap-1 px-2 py-1 text-xs border rounded transition-colors',
           popover.isOpen('toolbar-view') ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 hover:bg-gray-50']"
         @click.stop="onViewTriggerClick">
         <component :is="currentView.icon" :size="12" />{{ currentView.label }}<ChevronDown :size="10" class="text-gray-400" />
