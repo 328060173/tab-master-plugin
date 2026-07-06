@@ -109,40 +109,36 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - **TagBar 类型修复**：`isDuplicate`/`isPanelDuplicate` 的 `!r.ok && r.reason` 改 `r.ok === false && r.reason` 修 TS2339（&& 里 `!r.ok` 不收窄）；标记绑定局限提示提取 `TAG_BIND_NOTICE` 常量 DRY（原 84/158 两处重复）
 - **ui-ux-pro-max-skill plugin 本地装**：GitHub SSH 超时 + zip 无 .git → 手动 cp + `known_marketplaces.json` 注册 `local` source（格式待重启验证）
 
-## 待办（2026-07-05 继续）
+## 待办（2026-07-07 继续）
 
-### 2026-07-04 完成（标记架构重做 + 鲁棒性，10 commit）
-- **标记叉号崩溃 bug 修复链**：
-  - `c0ab81b` TabHoverCard.onRemoveTag 改 emit（修独立空实例 → UI 不更新 + storage 覆盖）
-  - `f0aa711` useTabManager 单例化（模块级 `_instance`）+ storage 写入全加 toPure（修 laterTabs/recentlyClosed/tabOpenedAtMap/treeParentMap/tabNumberMap/storageUpdate 漏 toPure → 重启丢失）
-  - `d1ea3f7` 方案 B：onRemoveTag 改意图式 `removeTabTag`（修 props.item.tags 旧值 → 删一个把别的带没）
-  - `f44cf72` 方案 C：TagPicker toggle 改意图式 `toggleTabTag`（消除 props.currentTags 依赖）+ code-map 加 K 节
-- **架构资产**：
-  - useTabManager 意图式 API：`addTabTag`/`removeTabTag`/`toggleTabTag`（内部用主实例 tabs.value 查，不依赖 props）
-  - `docs/code-map.md` K 节「标记操作联动」——全部入口 + 联动文件清单（5 视图 + SearchResults 容易漏）
-  - CLAUDE.md 红线：storage 写入必须 toPure / useTabManager 已单例化不要改回 / 8 类崩溃陷阱速查（指向 reference-extension-crash-pitfalls）
-  - memory：`lesson-usetabmanager-not-singleton`（非单例坑 + 意图式 API）+ `reference-extension-crash-pitfalls`（9 类陷阱 + grep 审计速查表）
-- **小优化**：`2fb1b9f` 检测长期未用标签阈值支持自定义输入（1-30 天正整数，chips + input）
+### 2026-07-06 完成（整理菜单 + 排序 + TagBar 标记栏，12 commit，细节看 docs/dev-log.md + git log）
+- **整理菜单**：① 检测长期未用空结果直接打开弹窗 + 空状态「暂无超过 X 天未使用标签」（bf70316）② 弹窗去恢复提示避让按钮 + 标记筛选模式默认改单选（1f4ac35）
+- **排序**：① 域名排序同 host 内改打开时间正序（29d819a）② 新增「最新访问优先」排序 + sortMode 持久化（PM PRD `docs/prd/recent-activity.md` → 5cba3d7）③ getEffectiveAccessTime 移至 sortUtils 打破循环依赖（0dfb087）④ label 改名：最新访问优先 / 按打开时间正序 / 按打开时间倒序（5987499）
+- **TagBar 标记栏**：① 删除标记确认后保持「管理标记」panel 不关（ConfirmDialog stopPropagation 修根因，0a66a49）② chips 最多 3 行 + 超出截断「更多」按钮（11cbe06）+ 修测量层 shrink-0（a9ff771）③ 全部按钮移进 chips 行，折行对齐下拉框右侧（a595da9）
+- **过程教训**：agent 多次超范围引入 bug（about:// / reorderCustomTag 重命名 / 循环依赖 / 漏 shrink-0）+ 没 commit 却报告完成 → 已更新 memory `feedback-multiagent-and-no-regression` 审查三步。HMR 缓存不一致致 Vue warn → pnpm fresh 解决
 
-### 🔥 明天第一件事（用户验证）
-`git pull` + `pnpm fresh` + chrome://extensions **刷新扩展**（⚠️ **不要移除**！移除会清空 `chrome.storage.local`，全丢；刷新不清 storage）→ 验证：
-1. 标签列表点汉堡菜单 → 多标记标签叉掉一个 → **只删那个，其它保留**
-2. TagPicker 勾选（卡片 Tag 按钮）/ 搜索结果勾选 / 右键添加标记 / 批量加删 / TagBar panel 删标记名 → 全正常
-3. 点固定/静音/稍后处理 → 功能正常 + UI 实时刷新（单例化验证）
-4. 重启浏览器 → 稍后/最近关闭/树关系/标记都在（toPure 验证）
-5. 整理 ▾ → 检测长期未使用标签 → chip 切换 + 自定义输入 5/0/31/1.5 看校验
-- ⚠️ 之前因 bug 已丢失的标记/稍后项需重新绑（代码修复不恢复已丢数据）
-- ⚠️ 存储持久性（查自 `docs/googledocs/storage.md`）：`chrome.storage.local` 在「清缓存/历史」「扩展刷新/更新」「浏览器重启」时都**不清**；**只在「移除/卸载扩展」时清空**。刷新扩展数据不丢，移除扩展数据全丢。
+### 🔥 明天第一件事（用户验证 2026-07-06 改动）
+`git pull` + `pnpm fresh` + chrome://extensions **刷新扩展**（不要移除）→ 验证：
+1. 排序「最新访问优先」→ 切标签自动升顶 + 刷新扩展保持选择
+2. 排序下拉新文案：最新访问优先 / 按打开时间正序 / 按打开时间倒序
+3. 标记栏 >3 行 → 前 3 行 + 末尾「更多 ▾」→ 拖 sidepanel 宽度自适应
+4. 删除标记确认/取消/遮罩 → 「管理标记」panel 保持 + 列表刷新
+5. 域名排序同 host → 新打开的标签在后
+6. 检测长期未用空结果 → 直接弹窗 + 「暂无超过 X 天」+ 无恢复提示
+7. 标记筛选下拉 → 新用户/重置后默认「单选」
+8. 清理菜单危险项确认后 → 整理 popover 保持
 
 ### 待办（未完成）
-- **运行日志功能：暂缓**（sidepanel 写 storage.local 时序问题未搞定，未查官方文档靠猜）。代码保留（useLogger.ts / tabs/logs.vue / StoragePanel 的 tabMasterLogs 项）但不调用。复活前必须先查官方文档 + 最佳实践，查不了让用户给 .md
-  - 需求：捕获所有日志（console.error/warn 拦截 + Vue errorHandler + onErrorCaptured + window.error + unhandledrejection）写入 storage.local key `tabMasterLogs`，设置页可查看/清空
-- **聚焦态内容区补 ErrorBoundary**（2026-07-01 核实缺口）：sidepanel.vue 聚焦态分支（`focusMode === 'focusing'` 的 v-else 内容区）未包 ErrorBoundary。见 [[pattern-unified-error-handling]]
+- **🔥 TagBar 管理按钮内联方案（用户搁置，待确认需求方向）**：用户提出把 ▾管理按钮放最后一个可见 chip 后面（参与 flex-wrap，最多 2 行，3 行不展示），但和已实现的方案 A（3 行 + 行外按钮）冲突，且需求有歧义（占满时按钮放哪、超 2 行是否展示前 2 行+按钮）。用户说"先不动了"。明天确认：① 最多 2 行还是 3 行 ② 占满时按钮位置 ③ 超 2 行是否显示前 2 行 + 按钮
+- **🔥 打包给别人测试（待执行）**：用户要打包发别人。正确做法 `pnpm build`（生产构建 `build/chrome-mv3-prod/`，JS 压缩）+ `pnpm package`（打 zip）。⚠️ `build/chrome-mv3-dev` 是 dev 构建未压缩不能发。对方拿到 zip 解压 → chrome://extensions 开开发者模式 → 加载已解压的扩展程序 → 选文件夹（不是 zip）
+- **默认排序是否改「最新访问优先」**：PM 建议不改（保持按域名），用户未明确，待定
+- **运行日志功能：暂缓**（sidepanel 写 storage.local 时序问题未搞定，未查官方文档靠猜）。代码保留但不调用。复活前必须先查官方文档 + 最佳实践
+- **聚焦态内容区补 ErrorBoundary**（2026-07-01 核实缺口）：sidepanel.vue 聚焦态分支未包 ErrorBoundary。见 [[pattern-unified-error-handling]]
 - 分组页交互实测（搜索/排序/放入/新建）确认顺
 - **4 格矩阵实测**（Chrome+Edge × macOS+Windows）这几天积累的全部改动
 - **暗色模式精修**：少数品牌色类深色对比度不足，碰到一处改一处
 - **i18n 扩展**（优先级低）
-- **审计未覆盖**（2026-07-04 配额超限 429，7-06 重置）：搜索防抖、历史授权状态机、分组事件防抖等中低风险项未深入。单例化间接修复了这些模块若调 useTabManager 的问题，但可补审
+- **审计未覆盖**（2026-07-04 配额超限 429，7-06 重置）：搜索防抖、历史授权状态机、分组事件防抖等中低风险项未深入
 - 功能性（等拍板）：客服消息提醒 / 智能标签冬眠 / 快照（需后端）/ AI 总结归类 / 树形视图精修
 - 后端相关（登录 / 云同步）→ 等后端就绪，见 [[project-defer-backend-features]]
 - ⚠️ build hash 卡死信号：遇"改了像旧代码"先 `pnpm fresh`

@@ -596,3 +596,81 @@ vue-tsc --noEmit 通过（仅 tsconfig 既有弃用警告 TS5107/TS5101）。本
 - thresholdMs 通用（ms），sidepanel `onChangeUnusedThreshold` 不变
 
 **校验**：compileScript + compileTemplate + vue-tsc 全过。
+
+---
+
+## 2026-07-06 完成（整理菜单 + 排序 + TagBar 标记栏，12 commit）
+
+### 整理菜单优化（3 commit）
+
+**bf70316 检测长期未用标签空结果直接打开弹窗**
+- 需求：原点击「检测长期未使用标签」若默认 1 天无命中，弹 toast「未检测到长期未用标签」不弹窗。用户嫌「长期」模糊、且想直接看到天数选项
+- 改：`sidepanel.vue openDetectUnused` 删空结果 toast 拦截，无论命中与否都打开弹窗
+- `DetectReviewDialog.vue` 空状态文案改「暂无超过 X 天未使用标签」（用 `customDays` ref，随阈值切换/自定义输入更新）；title 空结果时同文案
+- cac5d95 同步修过时注释（原「sidepanel 已拦截」过时）
+
+**1f4ac35 检测弹窗去恢复提示 + 标记筛选模式默认改单选**
+- `DetectReviewDialog.vue` 删底部「💡 Ctrl+Shift+T 逐个恢复」提示（挤占按钮空间）
+- `useTabManager.ts` `tagSelectMode` 默认 `multi`→`single`（默认值 + storage 读取兜底 + 异常兜底，3 处）；`StoragePanel.vue` 重置提示文案联动「单选」
+- ⚠️ 老用户已存 multi 不会自动变（只影响无 key 的新用户/重置后）
+
+### 排序功能（4 commit）
+
+**29d819a 域名排序同 host 内改打开时间正序**
+- `lib/sortUtils.ts` domain 分支第三级（同完整 host 内）从倒序改正序，新打开的在后
+- 排序入口唯一（sortTabs 只在 sidepanel.vue:1215 调一次），list/tile/icon 三视图共用 sortedNormalItems，groupByDomain 组内继承传入数组——改 1 处全联动，无需抽象
+
+**5cba3d7 新增「最新访问优先」排序 + sortMode 持久化**（PM PRD → 开发）
+- PM agent 出 PRD `docs/prd/recent-activity.md`：三方案对比后选方案 3（排序选项），否决新 tab / 首页折叠区
+- `sortUtils.ts` `sortTabs` 加 `lastAccessed` 分支：按 `getEffectiveAccessTime` 倒序（最新访问在最上），缺失降级 `openedAt`
+- `AppToolbar.vue` `SORT_OPTIONS` 第二位加 `{ value: "lastAccessed", label: "最新访问优先" }`
+- `sidepanel.vue` `sortMode` 持久化（localStorage，和 viewMode 一致）+ `setSortMode` 函数；`@sort-change` 改调函数（原内联 `sortMode = $event`）
+- 切标签自动升顶：`onTabActivated`（useTabManager.ts:548）已更新 `lastAccessed = Date.now()` → `sortedNormalItems` computed 自动重算，无需改 onTabActivated
+- 默认排序保持「按域名」（PM 决策，不改老用户体验）
+
+**0dfb087 getEffectiveAccessTime 移至 sortUtils 打破循环依赖**
+- 5cba3d7 让 sortUtils import useCleanup 的 getEffectiveAccessTime，但 useCleanup 已 import sortUtils 的 parseTime → 循环依赖（vue-tsc 查不出，运行时隐患）
+- 修：getEffectiveAccessTime 从 useCleanup 搬到 sortUtils（时间工具同源），useCleanup 改为从 sortUtils import。依赖变单向 useCleanup→sortUtils。DetectReviewDialog import 路径同步
+
+**5987499 排序 label 改名**
+- 按访问时间 → **最新访问优先**（明确"最新置顶"语义）
+- 时间正序 → **按打开时间正序**；时间倒序 → **按打开时间倒序**（加"打开"区分"访问"）
+- value 不变，仅 label
+
+### TagBar 标记栏（4 commit）
+
+**0a66a49 删除标记确认后保持「管理标记」panel 不关**
+- 需求：点「确认删除」后想回到「管理标记」页面且刷新数据，不要收起
+- 根因：不是 doDelete 关了 panel，而是 ConfirmDialog 按钮 click 冒泡到 document，触发 PopoverManager 全局 closeAll 误关下层 panel
+- 修：`ConfirmDialog.vue` 遮罩改 `onMaskClick`（`stopPropagation` + `target===currentTarget` 判断），阻止内部 click 冒泡。确认/取消/遮罩后 panel 保持，`props.tags` reactive 自动刷新
+- 附带影响（非破坏）：清理菜单 ConfirmDialog 确认后「整理 ▾」popover 改前被意外关、改后保持（修正副作用）
+
+**11cbe06 + a9ff771 TagBar chips 最多 3 行 + 超出截断「更多」按钮**
+- 需求：原单行溢出隐藏，超 1 行的标记看不到。改为最多 3 行，超出截断 + 末尾「更多」按钮
+- 实现：隐藏测量层（`invisible` 绝对定位）渲染所有 chip + 更多按钮测宽度，模拟换行算 `visibleCount`；真实容器只渲染前 N 个 + 更多按钮
+- 触发重算：onMounted + watch tags.length/tabCountByTag + ResizeObserver（rAF 防抖）
+- 「更多」popover 显示剩余标记，复用 `toggleTag` 筛选，保持弹层可连选
+- **a9ff771 修 agent 漏的 bug**：测量层 chip 用 `<span>` 缺 `shrink-0`，首次测量时 containerWidth=0、DOM 未同步，span 默认 flex-shrink:1 被 shrink 到 0 → offsetWidth=0 → 算成 1 行 → 全显无更多按钮 → 第 4 行+被截断的标记看不到也无入口。加 shrink-0 与真实 chip 一致
+
+**a595da9 全部按钮移进 chips 行，折行对齐下拉框右侧**
+- 需求：原布局 `[标记:][单选▾][全部][chips容器 flex-1][▾]`，chips 容器在「全部」右侧，折行第二行对齐到「全部」下方，左边「标记:/单选▾/全部」下方空一大排
+- 改：「全部」按钮从独立位置移进 chips 容器作为首元素（参与 flex-wrap），chips 容器紧跟 select。第二行对齐到全部按钮 = 下拉框右侧
+- 测量同步：测量层加 `data-all`，`measure()` 第一行起始宽度算上 `allWidth`（全部按钮占位），避免 visibleCount 偏大
+
+### 过程教训（已沉淀 memory）
+
+- **agent 多次超范围引入 bug**：本会话 extension-frontend agent 多次超范围改动——把 `isProtectedUrl` 的 `about:` 改成 `about://`（保护页识别失效）、把 `reorderCustomTags` 重命名成 `reorderCustomTag`（调用方引用失败）、引入 sortUtils↔useCleanup 循环依赖、漏加测量层 shrink-0。还出现 agent **没 commit 却报告"已完成"**。main 审查靠 `git diff` 全文 + `git log` 确认 commit 才发现。已更新 memory `feedback-multiagent-and-no-regression` 加"审查三步：diff 全文 → git log 确认 commit → 防白屏清单"
+- **HMR 缓存不一致**：用户遇 Vue warn（`morePopoverId`/`visibleTags` 等未定义），源码 + compileScript bindings 全正常。判断是 Plasmo/Parcel HMR 累积局部更新导致 template（新）和 script setup（旧缓存）不一致 → `pnpm fresh` 解决
+
+### 待用户验证（2026-07-06）
+1. 排序选「最新访问优先」→ 最新访问的标签在最上；切标签 → 该标签自动升顶
+2. 刷新扩展 → 排序选择保持（localStorage 持久化）
+3. 排序下拉显示新文案：最新访问优先 / 按打开时间正序 / 按打开时间倒序
+4. 标记栏多标记（>3 行）→ 前 3 行 + 末尾「更多 ▾」；点更多看剩余标记可筛选
+5. 拖动 sidepanel 宽度 → chips 自适应重排
+6. 删除标记：确认/取消/遮罩后「管理标记」panel 保持 + 列表刷新
+7. 域名排序同 host 内 → 新打开的标签在后
+8. 检测长期未用标签：空结果直接弹窗 + 「暂无超过 X 天未使用标签」+ 无恢复提示
+9. 标记筛选下拉框 → 新用户/重置后默认「单选」
+10. 清理菜单危险项确认后 → 整理 popover 保持（点空白可关）
+
