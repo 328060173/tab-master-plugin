@@ -30,7 +30,6 @@
 
       <!-- 视图切换 -->
       <button
-        ref="viewTriggerRef"
         :class="[
           'ml-1 flex items-center gap-1 px-2 py-1 text-xs border rounded transition-colors',
           popover.isOpen('toolbar-view')
@@ -44,7 +43,6 @@
 
       <!-- 排序切换 -->
       <button
-        ref="sortTriggerRef"
         :disabled="viewMode === 'tree'"
         :class="[
           'flex items-center gap-1 px-2 py-1 text-xs border rounded transition-colors',
@@ -63,7 +61,6 @@
 
       <!-- 整理（点开是一组整理工具菜单，▾ 提示可展开，不是一键删除）-->
       <button
-        ref="cleanTriggerRef"
         :class="[
           'flex items-center gap-1 px-2 py-1 text-xs border rounded transition-colors',
           popover.isOpen('toolbar-clean')
@@ -191,7 +188,7 @@ import {
   Snowflake,
   X
 } from "@lucide/vue"
-import { computed, ref, watch } from "vue"
+import { computed, watch } from "vue"
 
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
@@ -219,10 +216,6 @@ const emit = defineEmits<{
 }>()
 
 const popover = usePopoverManager()
-
-const viewTriggerRef = ref<HTMLElement | null>(null)
-const sortTriggerRef = ref<HTMLElement | null>(null)
-const cleanTriggerRef = ref<HTMLElement | null>(null)
 
 // fixed 定位计算
 const viewPos = computed(() => {
@@ -286,7 +279,24 @@ const onCleanOptionClick = (
     | "detectDuplicates"
     | "detectUnused"
 ) => {
-  emit(action)
+  // 逐个 emit，避免联合类型无法匹配 emit 重载
+  switch (action) {
+    case "closeUnpinned":
+      emit("closeUnpinned")
+      break
+    case "closeOthers":
+      emit("closeOthers")
+      break
+    case "closeFrozenDiscarded":
+      emit("closeFrozenDiscarded")
+      break
+    case "detectDuplicates":
+      emit("detectDuplicates")
+      break
+    case "detectUnused":
+      emit("detectUnused")
+      break
+  }
   popover.close("toolbar-clean")
 }
 
