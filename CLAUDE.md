@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **🔔 hub 已建立（2026-07-08）**：本仓的研发 agent（`product-manager` / `extension-frontend` / `backend-ruoyi`）已重组并迁至协调 hub：`/Users/yuyany/hub/hub_plugin-master/.claude/agents/`，更名为 `plugs-pm` / `plugs-fe` / `api-backend`，并新增 `web-pm` / `web-fe` / `product-master`。**研发协调请从 hub 启动 claude**：`cd /Users/yuyany/hub/hub_plugin-master && claude`。本 CLAUDE.md 仍为插件规范基准，agent 动工前必读；跨仓协调见 hub `CLAUDE.md` + `docs/agent-roster.md` + `docs/project-map.md`。
+
 ## Commands
 
 ```bash
@@ -61,14 +63,14 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 
 
 ## 协作协议（务必遵守）
-- **研发工作必须用研发 agent**：实质性前端开发派 `extension-frontend` agent 实现，main 只协调+审查+提交，不要自己瞎写。没把握/不确定的先查资料和最佳实践（`docs/googledocs/` + 网上），**不要靠猜**；查不了（网络限制）就明确告诉用户需要哪份资料、让用户查完生成 .md 给我。详见 [[feedback-rnd-via-agent-and-research-first]]
-- **多 agent 分工**：实质需求 → `product-manager` 出 PRD（docs/prd/）→ `extension-frontend` 实现 → main 协调+审查。详见 [[feedback-multiagent-and-no-regression]]
+- **研发工作必须用研发 agent**：实质性前端开发派 `plugs-fe` agent 实现，main 只协调+审查+提交，不要自己瞎写。没把握/不确定的先查资料和最佳实践（`docs/googledocs/` + 网上），**不要靠猜**；查不了（网络限制）就明确告诉用户需要哪份资料、让用户查完生成 .md 给我。详见 [[feedback-rnd-via-agent-and-research-first]]
+- **多 agent 分工**：实质需求 → `plugs-pm` 出 PRD（docs/prd/）→ `plugs-fe` 实现 → main 协调+审查。详见 [[feedback-multiagent-and-no-regression]]
 - **不跑 build/dev**：用户自己跑 `pnpm dev:safe`（产物 `build/chrome-mv3-dev/`）。main 跑 build 会抢 Parcel 缓存 → "改了没生效"。详见 [[feedback-no-build-user-runs-dev]]
 - **审查 .vue 必查**：① 模板复合语句 `@click="fn; x()"` ② 模板内 TS 语法 `as X` / `!` 非空断言 / 泛型 ③ HTML 转义（grep `&lt;`）+ 多个 `<script setup>` 块 ④ 是否波及既有功能。⚠️ **`vue-tsc` 检不出模板内 TS 断言，也查不出重复解构声明**——必须用 Plasmo 同款 `@vue/compiler-sfc@3.3.4` 跑 **`compileScript`**（不只 `compileTemplate`！compileScript 才解析 script setup、抓重复 `const`/解构重名）复核（见 [[lesson-vue-mustache-no-components]]）。改 sidepanel 等大文件后**必跑 compileScript**，否则 Plasmo 实构建会白屏/失败
 - **🚨 提交前防白屏清单（4 次白屏教训，每次改完必跑，不许跳过）**：① compileScript（抓重复声明/解构重名）② compileTemplate（抓模板 TS 断言/复合语句）③ `npx vue-tsc --noEmit`（抓类型）④ 顶层 TDZ 扫描（`useXxx({ident})` 的 ident 是否在调用前定义）⑤ 未定义引用扫描（改解构后 grep 模板用到的函数是否还在解构里）。详见 [[lesson-precommit-checklist-after-bugs]]。**绝不能只跑 vue-tsc 就提交**——它查不出 TDZ/重复声明
 - **新功能不碰老功能；重构/统一既有代码需先经用户批准**
 - **改动 / 新增功能前先查 `docs/code-map.md`（代码地图）**——它列了"改 A 必须联动改 B/C"（如：加 storage key 必须同步 `StoragePanel.vue`）；引入新的跨文件联动后**回去更新这张表**
-- **改完代码自行 `git add`/`commit`/`push` 到 master**（2026-06-30 用户授权，静态校验通过后即可提交，不必逐次问）→ [[feedback-no-auto-commit]]
+- **所有改动基于 `test` 分支开发/commit/push**（2026-07-08 起改 test 流程）：在 `test` 分支上 `git add`/`commit`/`push`，静态校验（防白屏 5 步）通过后即可提交，不必逐次问。⚠️ **未经用户允许不准把 test 合并到 master，也不准直接改/commit/push master 分支** -> [[feedback-no-auto-commit]]
 
 ## 官方文档（改 manifest / 调 chrome.* 前必查）
 - 本地权威副本：`docs/googledocs/`（76 个 Chrome 扩展 API 的 `.md` + `INDEX.md` 索引，每文件头带官方 URL）。重抓脚本：`docs/googledocs/fetch-chrome-docs.sh`
@@ -91,7 +93,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - **`pnpm fresh`**：杀全部 plasmo→清 .plasmo+build→重启（任何怪问题无脑跑）
 - **分组交互重设计**（2026-07-01，PM PRD→落地）：未分组复选框常显 + 顶部「已选 N 个」+「新建分组」+ 已有分组「← 放入」一气呵成；加搜索 + 排序（时间/ID 倒序）
 - **分组 bug 修复**（`e30c4cc`）：`GroupItem` 的 `selectedIds` 未传 → `.includes` 崩 → 触发 ErrorBoundary（这才是"添加分组报错"真凶，跟 Proxy 无关）。已加 `withDefaults(()=>[])`
-- **错误处理重做**（`3b51277`，extension-frontend agent 实现）：每页独立 ErrorBoundary（later/groups/history/home 各一个 scope）—— 一页崩不波及其它；统一降级 UI「⚠️ 此区域出错了 / 其它功能不受影响。可以重试，或在『设置』里点『重新打开』尝试恢复」+ [重试此区域][去设置重新打开] 两按钮
+- **错误处理重做**（`3b51277`，plugs-fe agent 实现）：每页独立 ErrorBoundary（later/groups/history/home 各一个 scope）—— 一页崩不波及其它；统一降级 UI「⚠️ 此区域出错了 / 其它功能不受影响。可以重试，或在『设置』里点『重新打开』尝试恢复」+ [重试此区域][去设置重新打开] 两按钮
 
 ### 2026-07-01 完成摘要（细节看 docs/dev-log.md + git log）
 - **聚焦态补 ErrorBoundary**（scope=focus）+ 立统一错误处理规矩（[[pattern-unified-error-handling]] + agent 红线 F）
@@ -173,7 +175,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - **🚨 storage 写入 reactive 数据必须 `toPure()`**：`chrome.storage.local.set({ key: ref.value })` 时 Vue reactive proxy 数组被结构化克隆成数字键对象（`["工作"]`→`{"0":"工作"}`），读回 `Array.isArray` 失败被当脏数据重置成 `[]` → **数据丢失**。所有写 reactive ref（数组/对象）的 `storage.set` 必须包 `toPure()`（`JSON.parse(JSON.stringify(x))`，helper 在 useTabManager.ts）。2026-07-04 修复 laterTabs/recentlyClosed/tabOpenedAtMap/treeParentMap/tabNumberMap/storageUpdate 漏网（commit f0aa711，之前只修了 tabTagsMap/customTags）。详见 [[lesson-reactive-proxy-storage-serialize]]
 - **useTabManager 已单例化**（2026-07-04 commit f0aa711）：模块级 `_instance` 缓存，所有 `useTabManager()` 调用共享同一实例，子组件可直接调（拿主实例）。⚠️ 若改回非单例，子组件会拿独立空实例 → UI 不更新 + storage 覆盖（数据破坏）——历史教训见 [[lesson-usetabmanager-not-singleton]]，**不要改回去**
 - **🚨 改核心功能前必查「崩溃/卡死/数据破坏 8 类陷阱」**：reactive proxy storage 序列化 / composable 非单例 / 监听器泄漏 / storage 覆盖 / async 未 catch / SW 重启丢状态 / watch 无限触发 / 同步阻塞主线程。完整说明 + grep 审计速查表见 [[reference-extension-crash-pitfalls]]，改前对照 grep 一遍
-- 改完代码自行 git add/commit/push 到 master（静态校验通过后即可，2026-06-30 用户授权）
+- 所有改动基于 `test` 分支开发/commit/push（2026-07-08 起）。⚠️ 未经用户允许不准 merge test->master，不准直接改/commit/push master 分支
 
 ### 参考原型
 交互原型在 `/Users/yuyany/web_space/tab-master-demo`（React + shadcn/ui），已迁移核心功能到本项目。
