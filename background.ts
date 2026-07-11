@@ -138,9 +138,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // SW 在没有任何事件的初始化路径上也需要拿到 map（如热重载后第一个事件触发前）
 loadMap()
 
-// 快捷键切换标签：chrome.commands 全局捕获（不依赖 sidepanel 焦点）
-// Chrome 限制最多 4 个 suggested shortcuts，故只注册编号 1-4（Command/Ctrl+Shift+1~4）
-// 编号 5-9 无全局快捷键，用户可在列表点编号位激活
+// 快捷键切换标签：chrome.commands global 全局捕获（不依赖 sidepanel/sidepanel 焦点，浏览器无焦点也触发）
+// Chrome 限制最多 4 个 suggested shortcuts + global 只能 Ctrl+Shift+[0..9]，故只注册编号 1-4
+// 跨平台统一 Ctrl+Shift+N（Mac/Win/Linux/Edge/Chrome 一致）
 // 收到命令 -> 读 storage.local.tabNumberMap -> 找到该编号的 tabId -> 激活
 // tabNumberMap 由 sidepanel 的 useTabManager.updateTabNumber 写入，key=String(tabId), value=编号
 // [shortcut] onCommand 监听器注册（这条在 SW 启动时执行，确认监听器已挂上）
