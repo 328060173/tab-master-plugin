@@ -856,9 +856,7 @@ const numberPickerStyle = computed(() => {
 const confirmNumberPicker = () => {
   if (rightClickTabId.value === null) return
   const n = parseInt(numberPickerDraft.value)
-  console.log("[shortcut] confirmNumberPicker", { 输入值: numberPickerDraft.value, 解析: n, tabId: rightClickTabId.value })
   const val = !isNaN(n) && n >= 1 && n <= 4 ? n : 0
-  console.log("[shortcut] confirmNumberPicker 最终值:", val, val > 0 ? "将设置" : "无效或清除")
   updateTabNumber(rightClickTabId.value, val)
   onNumberSet(val)
   popover.close('number-picker')
