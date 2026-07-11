@@ -651,14 +651,11 @@ function useTabManagerImpl() {
     if (reconcileTimer) return
     if (!settings.value.autoReconcile) return
     reconcileTimer = setInterval(() => {
-      console.log('[tab-manager] 60s 定时对账触发')
       scheduleResync()
     }, 60000)
-    console.log('[tab-manager] 60s 定时对账已开启')
   }
   const stopReconcileTimer = () => {
     if (reconcileTimer) { clearInterval(reconcileTimer); reconcileTimer = null }
-    console.log('[tab-manager] 60s 定时对账已关闭')
   }
 
   // 睡眠唤醒/锁屏解锁时：优先检测扩展上下文是否仍有效，失效则整页重载（保证所有功能正常）
@@ -710,7 +707,6 @@ function useTabManagerImpl() {
   startReconcileTimer()
   // 监听设置变化，动态启停定时器
   watch(() => settings.value.autoReconcile, (on) => {
-    console.log('[tab-manager] 监听到 autoReconcile 变化 =', on)
     on ? startReconcileTimer() : stopReconcileTimer()
   })
 

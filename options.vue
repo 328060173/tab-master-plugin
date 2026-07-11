@@ -115,7 +115,7 @@
               type="button"
               role="switch"
               :aria-checked="settings.autoReconcile"
-              @click="toggleAutoReconcile"
+              @click="updateSetting('autoReconcile', !settings.autoReconcile)"
               :class="toggleCls(settings.autoReconcile)"
             >
               <span :class="toggleKnobCls(settings.autoReconcile)"></span>
@@ -165,14 +165,6 @@ import { useSettings } from "~composables/useSettings"
 
 const { settings, updateSetting } = useSettings()
 const showReconcileHelp = ref(false)
-
-// [调试] 自动数据校正开关点击日志（验证开关生效）
-const toggleAutoReconcile = () => {
-  const oldVal = settings.value.autoReconcile
-  const newVal = !oldVal
-  console.log('[tab-master:settings] 点击自动数据校正开关', { 旧值: oldVal, 新值: newVal })
-  updateSetting('autoReconcile', newVal)
-}
 
 const viewOptions = [
   { value: 'tile' as const, label: '平铺' },
