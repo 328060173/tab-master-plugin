@@ -1074,15 +1074,16 @@ const TAG_NOTICE_HINT = "后续会尝试用 URL 优化等方式改善，让标�
 const numberSetNotice = ref<{ title: string; message: string; highlight?: string } | null>(null)
 const onNumberSet = (n: number) => {
   if (n > 0) {
+    const hasShortcut = n <= 4
     const howTo = isMac
       ? `Mac 电脑：同时按住「Command ⌘」键和「Shift ⇧」键不放，再按数字「${n}」`
       : `Windows 电脑：同时按住「Ctrl」键和「Shift」键不放，再按数字「${n}」`
-    const tip = isMac
-      ? `三个键要一起按住，在任何页面都能触发（不必先点插件）。`
-      : `三个键要一起按住，在任何页面都能触发（不必先点插件）。`
+    const message = hasShortcut
+      ? `已为该标签设置编号 ${n}。\n\n${howTo}，即可快速切换到该标签。\n\n三个键要一起按住，在任何页面都能触发（不必先点插件）。`
+      : `已为该标签设置编号 ${n}。\n\n编号 5-9 受浏览器限制未绑定全局快捷键，请在标签列表中直接点击该标签右上角的编号徽章来切换。`
     numberSetNotice.value = {
       title: `快捷键编号 ${n} 已设置`,
-      message: `已为该标签设置编号 ${n}。\n\n${howTo}，即可快速切换到该标签。\n\n${tip}`,
+      message,
     }
   } else {
     showToast('编号已清除')

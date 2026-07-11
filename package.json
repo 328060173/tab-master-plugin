@@ -70,41 +70,6 @@
           "mac": "Command+Shift+4"
         },
         "description": "切换到编号 4 的标签"
-      },
-      "switch-tab-5": {
-        "suggested_key": {
-          "default": "Ctrl+Shift+5",
-          "mac": "Command+Shift+5"
-        },
-        "description": "切换到编号 5 的标签"
-      },
-      "switch-tab-6": {
-        "suggested_key": {
-          "default": "Ctrl+Shift+6",
-          "mac": "Command+Shift+6"
-        },
-        "description": "切换到编号 6 的标签"
-      },
-      "switch-tab-7": {
-        "suggested_key": {
-          "default": "Ctrl+Shift+7",
-          "mac": "Command+Shift+7"
-        },
-        "description": "切换到编号 7 的标签"
-      },
-      "switch-tab-8": {
-        "suggested_key": {
-          "default": "Ctrl+Shift+8",
-          "mac": "Command+Shift+8"
-        },
-        "description": "切换到编号 8 的标签"
-      },
-      "switch-tab-9": {
-        "suggested_key": {
-          "default": "Ctrl+Shift+9",
-          "mac": "Command+Shift+9"
-        },
-        "description": "切换到编号 9 的标签"
       }
     }
   }

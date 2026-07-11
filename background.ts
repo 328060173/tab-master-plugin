@@ -136,11 +136,12 @@ chrome.storage.onChanged.addListener((changes, area) => {
 loadMap()
 
 // 快捷键切换标签：chrome.commands 全局捕获（不依赖 sidepanel 焦点）
-// manifest 声明了 switch-tab-1 ~ switch-tab-9（Ctrl/Command+Shift+1~9）
+// Chrome 限制最多 4 个 suggested shortcuts，故只注册编号 1-4（Command/Ctrl+Shift+1~4）
+// 编号 5-9 无全局快捷键，用户可在列表点编号位激活
 // 收到命令 -> 读 storage.local.tabNumberMap -> 找到该编号的 tabId -> 激活
 // tabNumberMap 由 sidepanel 的 useTabManager.updateTabNumber 写入，key=String(tabId), value=编号
 chrome.commands.onCommand.addListener(async (command) => {
-  const m = /^switch-tab-([1-9])$/.exec(command)
+  const m = /^switch-tab-([1-4])$/.exec(command)
   if (!m) return
   const targetNum = parseInt(m[1])
   try {
