@@ -1,4 +1,4 @@
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch } from 'vue'
 import type { TabMasterSettings } from '~types/settings'
 import { DEFAULT_SETTINGS } from '~types/settings'
 
@@ -182,16 +182,8 @@ export function useSettings() {
     settings.value = { ...DEFAULT_SETTINGS }
   }
 
-  onMounted(() => {
-    init()
-  })
-
-  onUnmounted(() => {
-    if (darkModeMediaQuery && systemThemeChangeListener) {
-      darkModeMediaQuery.removeEventListener('change', systemThemeChangeListener)
-    }
-    chrome.storage.onChanged.removeListener(handleStorageChange)
-  })
+  // 模块级首次调用时立即初始化（有 initialized 守卫，重复调用安全）
+  init()
 
   return {
     settings,

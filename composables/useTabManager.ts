@@ -685,6 +685,10 @@ function useTabManagerImpl() {
   const onTabDetached = () => {
     scheduleResync()
   }
+  // 预渲染替换 tab（oldId -> newId）：oldId 失效，触发对账消除幽灵 tab
+  const onTabReplaced = (_newId: number, _oldId: number) => {
+    scheduleResync()
+  }
 
   // 监听器直接在实例创建时立即注册（不依赖组件生命周期）
   chrome.tabs.onRemoved.addListener(onTabRemoved)
@@ -694,6 +698,7 @@ function useTabManagerImpl() {
   chrome.tabs.onMoved.addListener(onTabMoved)
   chrome.tabs.onAttached.addListener(onTabAttached)
   chrome.tabs.onDetached.addListener(onTabDetached)
+  chrome.tabs.onReplaced.addListener(onTabReplaced)
   chrome.storage.onChanged.addListener(onStorageChanged)
   document.addEventListener('visibilitychange', onVisibilityChange)
   // 60s 定时对账安全网（受设置控制）
