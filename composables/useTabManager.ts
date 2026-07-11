@@ -650,10 +650,15 @@ function useTabManagerImpl() {
   const startReconcileTimer = () => {
     if (reconcileTimer) return
     if (!settings.value.autoReconcile) return
-    reconcileTimer = setInterval(() => scheduleResync(), 60000)
+    reconcileTimer = setInterval(() => {
+      if (!!(import.meta as any).env?.DEV) console.debug('[tab-master] 60s 定时对账触发')
+      scheduleResync()
+    }, 60000)
+    if (!!(import.meta as any).env?.DEV) console.debug('[tab-master] 60s 定时对账已开启')
   }
   const stopReconcileTimer = () => {
     if (reconcileTimer) { clearInterval(reconcileTimer); reconcileTimer = null }
+    if (!!(import.meta as any).env?.DEV) console.debug('[tab-master] 60s 定时对账已关闭')
   }
 
   // 睡眠唤醒/锁屏解锁时：优先检测扩展上下文是否仍有效，失效则整页重载（保证所有功能正常）

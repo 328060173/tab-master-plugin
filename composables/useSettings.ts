@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import type { TabMasterSettings } from '~types/settings'
 import { DEFAULT_SETTINGS } from '~types/settings'
 
@@ -182,8 +182,12 @@ export function useSettings() {
     settings.value = { ...DEFAULT_SETTINGS }
   }
 
-  // 模块级首次调用时立即初始化（有 initialized 守卫，重复调用安全）
-  init()
+  // init 在 onMounted 执行（保持原有正常时机）。不在此处 onUnmounted 移除监听器：
+  // useSettings 可能被单例/多个组件调用，onUnmounted 移除后不会重新注册，
+  // 会导致 storage 变化不同步。监听器随页面生命周期 GC，无需手动移除。
+  onMounted(() => {
+    init()
+  })
 
   return {
     settings,
