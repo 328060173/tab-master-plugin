@@ -1,3 +1,6 @@
+// [shortcut] SW 启动/唤醒（每次 SW 活化都打这条，确认 SW 是否活着）
+console.log("[shortcut] background SW 已启动", new Date().toISOString())
+
 /**
  * Tab Master Pro - Service Worker
  *
@@ -140,6 +143,8 @@ loadMap()
 // 编号 5-9 无全局快捷键，用户可在列表点编号位激活
 // 收到命令 -> 读 storage.local.tabNumberMap -> 找到该编号的 tabId -> 激活
 // tabNumberMap 由 sidepanel 的 useTabManager.updateTabNumber 写入，key=String(tabId), value=编号
+// [shortcut] onCommand 监听器注册（这条在 SW 启动时执行，确认监听器已挂上）
+console.log("[shortcut] onCommand 监听器已注册")
 chrome.commands.onCommand.addListener(async (command) => {
   console.log("[shortcut] background 收到 command:", command)
   const m = /^switch-tab-([1-4])$/.exec(command)
