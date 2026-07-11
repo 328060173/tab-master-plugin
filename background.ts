@@ -141,21 +141,32 @@ loadMap()
 // 收到命令 -> 读 storage.local.tabNumberMap -> 找到该编号的 tabId -> 激活
 // tabNumberMap 由 sidepanel 的 useTabManager.updateTabNumber 写入，key=String(tabId), value=编号
 chrome.commands.onCommand.addListener(async (command) => {
+  console.log("[shortcut] background 收到 command:", command)
   const m = /^switch-tab-([1-4])$/.exec(command)
-  if (!m) return
+  if (!m) {
+    console.log("[shortcut] command 不匹配 switch-tab-1~4，跳过:", command)
+    return
+  }
   const targetNum = parseInt(m[1])
+  console.log("[shortcut] 目标编号:", targetNum)
   try {
     const data = await chrome.storage.local.get("tabNumberMap")
     const numberMap: Record<string, number> = (data.tabNumberMap && typeof data.tabNumberMap === "object" && !Array.isArray(data.tabNumberMap)) ? data.tabNumberMap : {}
+    console.log("[shortcut] tabNumberMap:", JSON.stringify(numberMap))
     // 找到编号对应的 tabId
     let targetTabId: number | null = null
     for (const [k, v] of Object.entries(numberMap)) {
       if (v === targetNum) { targetTabId = parseInt(k); break }
     }
-    if (targetTabId === null) return
+    if (targetTabId === null) {
+      console.log("[shortcut] 没找到编号", targetNum, "对应的 tab")
+      return
+    }
+    console.log("[shortcut] 找到 tabId:", targetTabId, "准备激活")
     // 激活该 tab（chrome.tabs.update 会自动切到 tab 所在窗口并激活）
     await chrome.tabs.update(targetTabId, { active: true })
+    console.log("[shortcut] 已激活 tabId:", targetTabId)
   } catch (e) {
-    // tab 可能已关闭，静默
+    console.log("[shortcut] 激活失败:", e)
   }
 })
