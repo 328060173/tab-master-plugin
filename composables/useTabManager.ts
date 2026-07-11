@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted } from "vue"
+import { ref } from "vue"
 import type { TabItem, LaterItem, ClosedTabItem } from "~types/tab"
 import { validateTag } from "~lib/tagValidate"
 
@@ -246,7 +246,16 @@ function useTabManagerImpl() {
   }
 
   // 只调 API，让 onTabRemoved 作为唯一数据源，避免双重 Vue 更新
-  const closeTab = async (id: number) => { await chrome.tabs.remove(id) }
+  const closeTab = async (id: number) => {
+    try {
+      await chrome.tabs.remove(id)
+    } catch (e) {
+      // 标签可能已被关闭/不存在（幽灵 tab），不抛错避免 ErrorBoundary 降级；
+      // 触发带防抖的全量对账，让列表与浏览器实际状态一致
+      console.warn('[tab-manager] closeTab failed, scheduling resync:', e)
+      scheduleResync()
+    }
+  }
   const activateTab = async (id: number) => { await chrome.tabs.update(id, { active: true }) }
   const restoreTab = async (url: string) => { await chrome.tabs.create({ url }) }
 
@@ -600,32 +609,23 @@ function useTabManagerImpl() {
     scheduleResync()
   }
 
-  onMounted(async () => {
+  // 监听器直接在实例创建时立即注册（不依赖组件生命周期）
+  chrome.tabs.onRemoved.addListener(onTabRemoved)
+  chrome.tabs.onCreated.addListener(onTabCreated)
+  chrome.tabs.onUpdated.addListener(onTabUpdated)
+  chrome.tabs.onActivated.addListener(onTabActivated)
+  chrome.tabs.onMoved.addListener(onTabMoved)
+  chrome.tabs.onAttached.addListener(onTabAttached)
+  chrome.tabs.onDetached.addListener(onTabDetached)
+  chrome.storage.onChanged.addListener(onStorageChanged)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+
+  // 初始化数据（异步执行不阻塞实例创建）
+  ;(async () => {
     // loadLater 用 try-catch 单独抓 —— 即使它整个崩了也不阻塞 loadTabs，避免 UI 上所有标签消失
     try { await loadLater() } catch (e) { console.error("[tab-master] loadLater fatal:", e) }
     try { await Promise.all([loadTabs(), loadSwitchHistory()]) } catch (e) { console.error("[tab-master] loadTabs/loadSwitchHistory fatal:", e) }
-    chrome.tabs.onRemoved.addListener(onTabRemoved)
-    chrome.tabs.onCreated.addListener(onTabCreated)
-    chrome.tabs.onUpdated.addListener(onTabUpdated)
-    chrome.tabs.onActivated.addListener(onTabActivated)
-    chrome.tabs.onMoved.addListener(onTabMoved)
-    chrome.tabs.onAttached.addListener(onTabAttached)
-    chrome.tabs.onDetached.addListener(onTabDetached)
-    chrome.storage.onChanged.addListener(onStorageChanged)
-    document.addEventListener('visibilitychange', onVisibilityChange)
-  })
-  onUnmounted(() => {
-    chrome.tabs.onRemoved.removeListener(onTabRemoved)
-    chrome.tabs.onCreated.removeListener(onTabCreated)
-    chrome.tabs.onUpdated.removeListener(onTabUpdated)
-    chrome.tabs.onActivated.removeListener(onTabActivated)
-    chrome.tabs.onMoved.removeListener(onTabMoved)
-    chrome.tabs.onAttached.removeListener(onTabAttached)
-    chrome.tabs.onDetached.removeListener(onTabDetached)
-    chrome.storage.onChanged.removeListener(onStorageChanged)
-    document.removeEventListener('visibilitychange', onVisibilityChange)
-    if (resyncTimer) clearTimeout(resyncTimer)
-  })
+  })()
 
   return {
     tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
