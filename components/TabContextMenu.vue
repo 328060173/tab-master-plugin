@@ -13,15 +13,16 @@
         </button>
         <hr class="my-1 border-gray-100" />
         <!-- 移到分组子菜单 -->
-        <div v-if="SUPPORTS_TAB_GROUPS" class="relative group/submenu">
-          <button :class="btn" @click="">
+        <div v-if="SUPPORTS_TAB_GROUPS" class="relative">
+          <button :class="btn" @click="groupSubmenuOpen = !groupSubmenuOpen">
             <FolderPlus :size="12" />移到分组
-            <ChevronRight :size="12" class="ml-auto" />
+            <ChevronRight :size="12" class="ml-auto" :class="groupSubmenuOpen ? 'rotate-90' : ''" />
           </button>
           <div
+            v-if="groupSubmenuOpen"
             :class="[
               submenuOpensLeft ? 'right-full mr-0.5' : 'left-full ml-0.5',
-              'absolute top-0 bg-white border border-gray-200 rounded-lg shadow-xl py-1 w-48 hidden group-hover/submenu:block'
+              'absolute top-0 bg-white border border-gray-200 rounded-lg shadow-xl py-1 w-48'
             ]"
           >
             <button :class="btn" @click="act('newGroup')"><FolderPlus :size="12" />新建分组...</button>
@@ -30,7 +31,7 @@
               :class="[btn, tab.groupId === g.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium' : '']"
               @click="act('addToGroup', g.id)">
               <span :class="[colorClass(g.color), 'w-3 h-3 rounded-full']"></span>
-              {{ g.title || '未命名分组' }}
+              <span class="truncate" :title="g.title || '未命名分组'">{{ g.title || '未命名分组' }}</span>
               <Check v-if="tab.groupId === g.id" :size="12" class="ml-auto" />
             </button>
             <hr v-if="tab.groupId !== TAB_GROUP_ID_NONE" class="my-1 border-gray-100" />
@@ -77,6 +78,7 @@ const pos = ref({ x: 0, y: 0 })
 // 二级子菜单（移到分组）向左还是向右弹：右键菜单常被 clamp 到面板右缘，
 // 此时 left-full（向右）会冲出窄面板 → 改为 right-full（向左）
 const submenuOpensLeft = ref(false)
+const groupSubmenuOpen = ref(false)
 
 // 注入分组列表
 const groups = inject<chrome.tabGroups.TabGroup[]>("tabGroups", [])
@@ -86,7 +88,12 @@ const colorClass = (color: string) => {
 }
 
 watch([() => props.tab, () => props.x, () => props.y], async () => {
-  if (!props.tab) return
+  if (!props.tab) {
+    groupSubmenuOpen.value = false
+    return
+  }
+  // 每次打开右键菜单时重置子菜单状态
+  groupSubmenuOpen.value = false
   await nextTick()
   if (!menuRef.value) return
   const w = menuRef.value.offsetWidth, h = menuRef.value.offsetHeight

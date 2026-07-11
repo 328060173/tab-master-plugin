@@ -1124,12 +1124,12 @@ const scrollToTop = () => {
 }
 
 const onKeydown = (e: KeyboardEvent) => {
-  if (!e.altKey || e.ctrlKey || e.shiftKey || e.metaKey) return
+  if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return
   const n = parseInt(e.key)
   if (n >= 1 && n <= 9) {
     const tab = tabs.value.find(t => t.number === n)
-    if (tab) { e.preventDefault(); activateTab(tab.id); showToast(`${modKey}${n} → ${tab.title.slice(0, 20)}`) }
-    else showToast(`${modKey}${n} — 暂无对应编号的标签`)
+    if (tab) { e.preventDefault(); activateTab(tab.id); showToast(`${modKey}⇧${n} → ${tab.title.slice(0, 20)}`) }
+    else showToast(`${modKey}⇧${n} — 暂无对应编号的标签`)
   }
 }
 

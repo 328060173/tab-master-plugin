@@ -21,11 +21,14 @@
   />
     <!-- 上一个访问标记 -->
     <span v-if="isPrev" class="absolute -top-1 -left-1 text-[8px] font-semibold text-blue-600 bg-blue-100 border border-blue-200 px-1 py-px rounded leading-none z-10" title="上一个访问的标签">Prev</span>
+    <!-- 编号标记 -->
+    <div v-if="item.number" class="absolute -top-1 -right-1 z-10">
+      <TabNumber :num="item.number" :is-active="item.active" @update="emit('updateNumber', $event)" />
+    </div>
     <!-- 批量态 checkbox：仅多加一个，卡片其他视觉/交互完全保留 -->
     <input v-if="isBatch" type="checkbox" :checked="isChecked"
       class="w-4 h-4 cursor-pointer shrink-0 accent-blue-600"
       @click.stop @change.stop="emit('toggle')" />
-    <TabNumber :num="item.number" :is-active="item.active" @update="emit('updateNumber', $event)" />
     <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" :badge="statusBadge" />
     <div class="flex-1 min-w-0 flex flex-col gap-0.5">
       <div class="flex items-center gap-1.5">
