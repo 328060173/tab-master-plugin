@@ -1124,13 +1124,20 @@ const scrollToTop = () => {
 }
 
 const onKeydown = (e: KeyboardEvent) => {
-  if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return
-  const n = parseInt(e.key)
-  if (n >= 1 && n <= 9) {
-    const tab = tabs.value.find(t => t.number === n)
-    if (tab) { e.preventDefault(); activateTab(tab.id); showToast(`${shortcutHint(n)} → ${tab.title.slice(0, 20)}`) }
-    else showToast(`${shortcutHint(n)} — 暂无对应编号的标签`)
+  console.log("[shortcut] keydown 收到", { key: e.key, alt: e.altKey, shift: e.shiftKey, ctrl: e.ctrlKey, meta: e.metaKey })
+  if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) {
+    console.log("[shortcut] 修饰键不满足，跳过", { 实际alt: e.altKey, 实际shift: e.shiftKey, ctrl会拒: e.ctrlKey, meta会拒: e.metaKey })
+    return
   }
+  const n = parseInt(e.key)
+  if (!(n >= 1 && n <= 9)) {
+    console.log("[shortcut] 非数字1-9，跳过", { key: e.key, parseInt: n })
+    return
+  }
+  const tab = tabs.value.find(t => t.number === n)
+  console.log("[shortcut] 查找编号", n, "找到tab:", tab ? { id: tab.id, title: tab.title.slice(0, 20) } : "无")
+  if (tab) { e.preventDefault(); activateTab(tab.id); showToast(`${shortcutHint(n)} → ${tab.title.slice(0, 20)}`) }
+  else showToast(`${shortcutHint(n)} — 暂无对应编号的标签`)
 }
 
 onMounted(async () => {
