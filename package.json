@@ -45,43 +45,39 @@
     "commands": {
       "switch-tab-1": {
         "suggested_key": {
-          "default": "Ctrl+Shift+1",
-          "mac": "Ctrl+Shift+1",
-          "windows": "Ctrl+Shift+1",
-          "linux": "Ctrl+Shift+1"
+          "default": "Alt+Shift+1",
+          "mac": "Alt+Shift+1",
+          "windows": "Alt+Shift+1",
+          "linux": "Alt+Shift+1"
         },
-        "description": "切换到编号 1 的标签",
-        "global": true
+        "description": "切换到编号 1 的标签"
       },
       "switch-tab-2": {
         "suggested_key": {
-          "default": "Ctrl+Shift+2",
-          "mac": "Ctrl+Shift+2",
-          "windows": "Ctrl+Shift+2",
-          "linux": "Ctrl+Shift+2"
+          "default": "Alt+Shift+2",
+          "mac": "Alt+Shift+2",
+          "windows": "Alt+Shift+2",
+          "linux": "Alt+Shift+2"
         },
-        "description": "切换到编号 2 的标签",
-        "global": true
+        "description": "切换到编号 2 的标签"
       },
       "switch-tab-3": {
         "suggested_key": {
-          "default": "Ctrl+Shift+3",
-          "mac": "Ctrl+Shift+3",
-          "windows": "Ctrl+Shift+3",
-          "linux": "Ctrl+Shift+3"
+          "default": "Alt+Shift+3",
+          "mac": "Alt+Shift+3",
+          "windows": "Alt+Shift+3",
+          "linux": "Alt+Shift+3"
         },
-        "description": "切换到编号 3 的标签",
-        "global": true
+        "description": "切换到编号 3 的标签"
       },
       "switch-tab-4": {
         "suggested_key": {
-          "default": "Ctrl+Shift+4",
-          "mac": "Ctrl+Shift+4",
-          "windows": "Ctrl+Shift+4",
-          "linux": "Ctrl+Shift+4"
+          "default": "Alt+Shift+4",
+          "mac": "Alt+Shift+4",
+          "windows": "Alt+Shift+4",
+          "linux": "Alt+Shift+4"
         },
-        "description": "切换到编号 4 的标签",
-        "global": true
+        "description": "切换到编号 4 的标签"
       }
     }
   }

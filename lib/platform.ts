@@ -3,7 +3,8 @@ export const modKey = isMac ? '⌥' : 'Alt+'
 
 /**
  * 快捷键编号的完整提示文案。
- * 用 chrome.commands API global 注册：统一 Ctrl+Shift+N（跨平台）。
- * global 命令限制只能 Ctrl+Shift+[0..9]（不能用 Command），且浏览器无焦点也触发。
+ * chrome.commands 注册 Alt+Shift+N（跨平台统一：Mac=Option⌥+Shift⇧+N，Win=Alt+Shift+N）。
+ * 浏览器层捕获（不走 keydown），不受 Mac Option 特殊字符影响。
+ * 浏览器有焦点时触发（非 global，但用户在浏览器里用标签，够用）。
  */
-export const shortcutHint = (n: number | string) => `Ctrl+Shift+${n}`
+export const shortcutHint = (n: number | string) => isMac ? `⌥⇧${n}` : `Alt+Shift+${n}`
