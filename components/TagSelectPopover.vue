@@ -2,6 +2,7 @@
   <Teleport to="body">
     <div
       v-if="popover.isOpen(props.id)"
+      ref="popoverRootRef"
       :style="popoverStyle"
       class="fixed z-[85] w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl"
       @click.stop>
@@ -86,15 +87,25 @@ const emit = defineEmits<{
 const popover = usePopoverManager()
 const newTag = ref("")
 const newTagInputRef = ref<HTMLInputElement | null>(null)
+const popoverRootRef = ref<HTMLElement | null>(null)
+// 弹框实际高度：打开后测量，用于翻转/clamp 判断
+// 写死 320 会在标记少时误翻转——实际只有 ~120px，却按 320 触发翻转到按钮上方很远，视觉上"飘到最上面"
+const measuredHeight = ref(0)
 
-// 自动聚焦输入框
-watch(() => popover.isOpen(props.id), (isOpen) => {
+// 自动聚焦输入框 + 测量实际高度
+watch(() => popover.isOpen(props.id), async (isOpen) => {
   if (isOpen) {
     nextTick(() => {
       newTagInputRef.value?.focus()
     })
+    // 等渲染完成测量实际高度，让 popoverStyle 的翻转判断用真实值而非写死的 320
+    await nextTick()
+    if (popoverRootRef.value) {
+      measuredHeight.value = popoverRootRef.value.offsetHeight
+    }
   } else {
     newTag.value = ""
+    measuredHeight.value = 0
   }
 })
 
@@ -163,7 +174,9 @@ const handleCreate = () => {
 // 浮层位置计算
 const popoverStyle = computed(() => {
   if (!popover.isOpen(props.id) || !popover.activeAnchorRect.value) return { left: "0px", top: "0px" }
-  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 288, height: 320 }, props.placement)
+  // 首次未测量到高度前回退 320（最大估值），测量到后用实际值——避免标记少时误翻转
+  const h = measuredHeight.value || 320
+  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 288, height: h }, props.placement)
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
 </script>
