@@ -1,4 +1,5 @@
-import { ref } from "vue"
+import { ref, watch } from "vue"
+import { useSettings } from "~composables/useSettings"
 import type { TabItem, LaterItem, ClosedTabItem } from "~types/tab"
 import { validateTag } from "~lib/tagValidate"
 
@@ -51,6 +52,7 @@ function chromeTabToItem(t: chrome.tabs.Tab, savedTags: Record<string, string[]>
 // 见 [[lesson-usetabmanager-not-singleton]]
 let _instance: ReturnType<typeof useTabManagerImpl> | null = null
 function useTabManagerImpl() {
+  const { settings } = useSettings()
   const tabs = ref<TabItem[]>([])
   const currentWindowId = ref<number>(-1)
   const laterTabs = ref<LaterItem[]>([])
@@ -256,7 +258,14 @@ function useTabManagerImpl() {
       scheduleResync()
     }
   }
-  const activateTab = async (id: number) => { await chrome.tabs.update(id, { active: true }) }
+  const activateTab = async (id: number) => {
+    try {
+      await chrome.tabs.update(id, { active: true })
+    } catch (e) {
+      console.warn('[tab-manager] activateTab failed, scheduling resync:', e)
+      scheduleResync()
+    }
+  }
   const restoreTab = async (url: string) => { await chrome.tabs.create({ url }) }
 
   const moveToLater = async (id: number, note: string) => {
@@ -411,22 +420,52 @@ function useTabManagerImpl() {
     await chrome.storage.local.set({ customTags: toPure(customTags.value) })
   }
 
-  const refreshTab = (id: number) => chrome.tabs.reload(id)
-  const duplicateTab = (id: number) => chrome.tabs.duplicate(id)
+  const refreshTab = async (id: number) => {
+    try {
+      await chrome.tabs.reload(id)
+    } catch (e) {
+      console.warn('[tab-manager] refreshTab failed, scheduling resync:', e)
+      scheduleResync()
+    }
+  }
+  const duplicateTab = async (id: number) => {
+    try {
+      await chrome.tabs.duplicate(id)
+    } catch (e) {
+      console.warn('[tab-manager] duplicateTab failed, scheduling resync:', e)
+      scheduleResync()
+    }
+  }
   const pinTab = async (id: number, pinned: boolean) => {
-    await chrome.tabs.update(id, { pinned })
-    const idx = tabs.value.findIndex(t => t.id === id)
-    if (idx !== -1) tabs.value[idx] = { ...tabs.value[idx], pinned }
+    try {
+      await chrome.tabs.update(id, { pinned })
+      const idx = tabs.value.findIndex(t => t.id === id)
+      if (idx !== -1) tabs.value[idx] = { ...tabs.value[idx], pinned }
+    } catch (e) {
+      console.warn('[tab-manager] pinTab failed, scheduling resync:', e)
+      scheduleResync()
+    }
   }
   const muteTab = async (id: number, muted: boolean) => {
-    await chrome.tabs.update(id, { muted })
-    const idx = tabs.value.findIndex(t => t.id === id)
-    if (idx !== -1) tabs.value[idx] = { ...tabs.value[idx], muted }
+    try {
+      await chrome.tabs.update(id, { muted })
+      const idx = tabs.value.findIndex(t => t.id === id)
+      if (idx !== -1) tabs.value[idx] = { ...tabs.value[idx], muted }
+    } catch (e) {
+      console.warn('[tab-manager] muteTab failed, scheduling resync:', e)
+      scheduleResync()
+    }
   }
   const closeTabsExcept = async (id: number) => {
     const ids = tabs.value.filter(t => t.id !== id).map(t => t.id)
-    if (ids.length) await chrome.tabs.remove(ids)
-    tabs.value = tabs.value.filter(t => t.id === id)
+    if (!ids.length) return
+    try {
+      await chrome.tabs.remove(ids)
+      tabs.value = tabs.value.filter(t => t.id === id)
+    } catch (e) {
+      console.warn('[tab-manager] closeTabsExcept failed, scheduling resync:', e)
+      scheduleResync()
+    }
   }
   const groupTab = async (id: number) => {
     // chrome.tabs.group 仅在 Chrome 89+ / Edge 89+ 支持；包了 try 兜底，老版本静默忽略
@@ -461,14 +500,40 @@ function useTabManagerImpl() {
   const goBack = async () => {
     if (!canGoBack.value) return
     switchIndex.value--; isNavigating.value = true
-    await chrome.tabs.update(switchHistory.value[switchIndex.value], { active: true })
-    saveSwitchHistory(); updateNavState(); isNavigating.value = false
+    const targetId = switchHistory.value[switchIndex.value]
+    try {
+      await chrome.tabs.update(targetId, { active: true })
+      saveSwitchHistory(); updateNavState(); isNavigating.value = false
+    } catch (e) {
+      console.warn('[tab-manager] goBack failed, cleaning invalid id and scheduling resync:', e)
+      // 回滚状态
+      switchIndex.value++
+      isNavigating.value = false
+      // 清理无效 id
+      switchHistory.value = switchHistory.value.filter(h => h !== targetId)
+      switchIndex.value = Math.min(switchIndex.value, switchHistory.value.length - 1)
+      saveSwitchHistory(); updateNavState()
+      scheduleResync()
+    }
   }
   const goForward = async () => {
     if (!canGoForward.value) return
     switchIndex.value++; isNavigating.value = true
-    await chrome.tabs.update(switchHistory.value[switchIndex.value], { active: true })
-    saveSwitchHistory(); updateNavState(); isNavigating.value = false
+    const targetId = switchHistory.value[switchIndex.value]
+    try {
+      await chrome.tabs.update(targetId, { active: true })
+      saveSwitchHistory(); updateNavState(); isNavigating.value = false
+    } catch (e) {
+      console.warn('[tab-manager] goForward failed, cleaning invalid id and scheduling resync:', e)
+      // 回滚状态
+      switchIndex.value--
+      isNavigating.value = false
+      // 清理无效 id
+      switchHistory.value = switchHistory.value.filter(h => h !== targetId)
+      switchIndex.value = Math.min(switchIndex.value, switchHistory.value.length - 1)
+      saveSwitchHistory(); updateNavState()
+      scheduleResync()
+    }
   }
 
   const onTabRemoved = (id: number) => {
@@ -578,6 +643,18 @@ function useTabManagerImpl() {
     if (resyncTimer) clearTimeout(resyncTimer)
     resyncTimer = setTimeout(() => { loadTabs() }, 200)
   }
+  // 60s 定时对账安全网：即使所有事件都丢失，也能保证 60s 内自愈一次
+  let reconcileTimer: ReturnType<typeof setInterval> | null = null
+
+  // 控制定时对账的启动与停止
+  const startReconcileTimer = () => {
+    if (reconcileTimer) return
+    if (!settings.value.autoReconcile) return
+    reconcileTimer = setInterval(() => scheduleResync(), 60000)
+  }
+  const stopReconcileTimer = () => {
+    if (reconcileTimer) { clearInterval(reconcileTimer); reconcileTimer = null }
+  }
 
   // 睡眠唤醒/锁屏解锁时：优先检测扩展上下文是否仍有效，失效则整页重载（保证所有功能正常）
   const onVisibilityChange = () => {
@@ -619,6 +696,12 @@ function useTabManagerImpl() {
   chrome.tabs.onDetached.addListener(onTabDetached)
   chrome.storage.onChanged.addListener(onStorageChanged)
   document.addEventListener('visibilitychange', onVisibilityChange)
+  // 60s 定时对账安全网（受设置控制）
+  startReconcileTimer()
+  // 监听设置变化，动态启停定时器
+  watch(() => settings.value.autoReconcile, (on) => {
+    on ? startReconcileTimer() : stopReconcileTimer()
+  })
 
   // 初始化数据（异步执行不阻塞实例创建）
   ;(async () => {

@@ -17,6 +17,8 @@ export interface TabMasterSettings {
   defaultView: 'tile' | 'list' | 'icon' | 'tree'
   defaultSort: 'domain' | 'time-asc' | 'time-desc'
   cardDensity: 'compact' | 'normal' | 'loose'
+  /** 自动数据校正：每 60s 全量校正标签列表与浏览器实际状态，兜底事件丢失。默认开启，用户可在设置-更多设置关闭 */
+  autoReconcile: boolean
 }
 
 export const DEFAULT_SETTINGS: TabMasterSettings = {
@@ -26,4 +28,5 @@ export const DEFAULT_SETTINGS: TabMasterSettings = {
   defaultView: 'tile',
   defaultSort: 'time-desc',
   cardDensity: 'normal',
+  autoReconcile: true,
 }

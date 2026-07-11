@@ -93,6 +93,45 @@
         </div>
       </section>
 
+      <!-- 更多设置 -->
+      <section>
+        <h2 class="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">更多设置</h2>
+        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-700">
+          <!-- 自动数据校正 -->
+          <div class="px-5 py-4 flex items-center justify-between gap-4">
+            <div class="flex items-start gap-1.5">
+              <div>
+                <p class="text-sm font-medium flex items-center gap-1.5">
+                  自动数据校正
+                  <button type="button" class="help-trigger" @click="showReconcileHelp = !showReconcileHelp" aria-label="了解自动数据校正">
+                    <HelpCircle :size="14" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+                  </button>
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">定期同步标签列表与浏览器实际状态</p>
+              </div>
+            </div>
+            <!-- toggle 开关 -->
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="settings.autoReconcile"
+              @click="updateSetting('autoReconcile', !settings.autoReconcile)"
+              :class="toggleCls(settings.autoReconcile)"
+            >
+              <span :class="toggleKnobCls(settings.autoReconcile)"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 问号弹窗（点击问号图标切换显示） -->
+        <div v-if="showReconcileHelp" class="mt-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+          <p class="font-medium text-blue-700 dark:text-blue-300 mb-2">自动数据校正</p>
+          <p class="mb-2">由于网络环境、计算机运行不稳定或浏览器自身机制，标签列表可能偶尔与实际状态不一致。</p>
+          <p class="mb-2">开启后，每 60 秒自动校正一次，保证列表始终准确反映浏览器真实标签。</p>
+          <p>校正仅读取本地数据，不联网、不消耗流量，推荐保持开启。</p>
+        </div>
+      </section>
+
       <!-- 关于 -->
       <section>
         <h2 class="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">关于</h2>
@@ -120,11 +159,12 @@
  *
  * 触发方式：sidepanel HeaderMenu "设置..." → chrome.runtime.openOptionsPage()
  */
-import { computed } from "vue"
-import { Sliders, Cloud, Camera, LogIn } from "@lucide/vue"
+import { computed, ref } from "vue"
+import { Sliders, Cloud, Camera, LogIn, HelpCircle } from "@lucide/vue"
 import { useSettings } from "~composables/useSettings"
 
 const { settings, updateSetting } = useSettings()
+const showReconcileHelp = ref(false)
 
 const viewOptions = [
   { value: 'tile' as const, label: '平铺' },
@@ -163,6 +203,15 @@ const optBtnCls = (active: boolean) => [
     ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:border-blue-400 dark:text-blue-300'
     : 'border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700',
 ]
+// 切换开关 class
+const toggleCls = (on: boolean) => [
+  'relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors',
+  on ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
+]
+const toggleKnobCls = (on: boolean) => [
+  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform translate-y-0.5',
+  on ? 'translate-x-4' : 'translate-x-0.5'
+]
 </script>
 
 <style>
@@ -177,4 +226,5 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 :root.fs-large   { font-size: 17.5px; }
 :root.fs-xlarge  { font-size: 19px; }
 :root.font-mono body { font-family: 'SF Mono', 'Cascadia Code', Consolas, Monaco, monospace; }
+.help-trigger { background: transparent; border: none; padding: 0; cursor: help; display: inline-flex; }
 </style>
