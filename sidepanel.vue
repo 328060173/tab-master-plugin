@@ -516,9 +516,9 @@
     <!-- 编号选择浮层（右键→设置编号） -->
     <div v-if="popover.isOpen('number-picker') && numberPickerTab" class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-44 p-2.5"
       :style="numberPickerStyle" @click.stop>
-      <p class="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-2">设置快捷键编号 (1-9)</p>
+      <p class="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-2">设置快捷键编号 (1-4)</p>
       <div class="flex gap-1.5">
-        <input v-model="numberPickerDraft" type="number" min="1" max="9" placeholder="1-9"
+        <input v-model="numberPickerDraft" type="number" min="1" max="4" placeholder="1-4"
           class="flex-1 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-400"
           @keyup.enter="confirmNumberPicker" @keyup.escape="popover.close('number-picker')" />
         <button class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700" @click="confirmNumberPicker">确定</button>
@@ -856,7 +856,9 @@ const numberPickerStyle = computed(() => {
 const confirmNumberPicker = () => {
   if (rightClickTabId.value === null) return
   const n = parseInt(numberPickerDraft.value)
-  const val = !isNaN(n) && n >= 1 && n <= 9 ? n : 0
+  console.log("[shortcut] confirmNumberPicker", { 输入值: numberPickerDraft.value, 解析: n, tabId: rightClickTabId.value })
+  const val = !isNaN(n) && n >= 1 && n <= 4 ? n : 0
+  console.log("[shortcut] confirmNumberPicker 最终值:", val, val > 0 ? "将设置" : "无效或清除")
   updateTabNumber(rightClickTabId.value, val)
   onNumberSet(val)
   popover.close('number-picker')
@@ -1074,16 +1076,12 @@ const TAG_NOTICE_HINT = "后续会尝试用 URL 优化等方式改善，让标�
 const numberSetNotice = ref<{ title: string; message: string; highlight?: string } | null>(null)
 const onNumberSet = (n: number) => {
   if (n > 0) {
-    const hasShortcut = n <= 4
     const howTo = isMac
       ? `Mac 电脑：同时按住「Command ⌘」键和「Shift ⇧」键不放，再按数字「${n}」`
       : `Windows 电脑：同时按住「Ctrl」键和「Shift」键不放，再按数字「${n}」`
-    const message = hasShortcut
-      ? `已为该标签设置编号 ${n}。\n\n${howTo}，即可快速切换到该标签。\n\n三个键要一起按住，在任何页面都能触发（不必先点插件）。`
-      : `已为该标签设置编号 ${n}。\n\n编号 5-9 受浏览器限制未绑定全局快捷键，请在标签列表中直接点击该标签右上角的编号徽章来切换。`
     numberSetNotice.value = {
       title: `快捷键编号 ${n} 已设置`,
-      message,
+      message: `已为该标签设置编号 ${n}。\n\n${howTo}，即可快速切换到该标签。\n\n三个键要一起按住，在任何页面都能触发（不必先点插件）。编号仅支持 1-4。`,
     }
   } else {
     showToast('编号已清除')

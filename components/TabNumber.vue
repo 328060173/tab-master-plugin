@@ -3,7 +3,7 @@
     <!-- 编辑态 -->
     <input
       v-if="editing" ref="inputRef"
-      v-model="draft" type="number" min="1" max="9"
+      v-model="draft" type="number" min="1" max="4"
       class="w-6 h-5 text-[10px] font-mono text-center border border-blue-400 rounded outline-none bg-white"
       @keyup.enter="confirm" @keyup.escape="cancel" @blur="confirm"
     />
@@ -51,7 +51,7 @@ const startEdit = () => {
 const confirm = () => {
   editing.value = false
   const n = parseInt(draft.value)
-  if (!isNaN(n) && n >= 1 && n <= 9) emit("update", n)
+  if (!isNaN(n) && n >= 1 && n <= 4) emit("update", n)
   else if (!draft.value.trim()) emit("update", 0)
 }
 const cancel = () => { editing.value = false }

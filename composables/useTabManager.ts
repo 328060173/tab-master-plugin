@@ -286,6 +286,7 @@ function useTabManagerImpl() {
 
   // 编号管理：新编号唯一，冲突时旧标签编号清零
   const updateTabNumber = async (id: number, num: number) => {
+    console.log("[shortcut] updateTabNumber 调用", { id, num })
     const newMap = { ...tabNumberMap.value }
     if (num > 0) {
       // 清除已有相同编号
@@ -304,6 +305,7 @@ function useTabManagerImpl() {
     const idx = tabs.value.findIndex(t => t.id === id)
     if (idx !== -1) tabs.value[idx] = { ...tabs.value[idx], number: num }
     await chrome.storage.local.set({ tabNumberMap: toPure(newMap) })
+    console.log("[shortcut] tabNumberMap 已写入 storage:", JSON.stringify(newMap))
   }
 
   const updateTabTags = async (id: number, tags: string[]) => {
