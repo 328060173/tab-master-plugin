@@ -136,7 +136,7 @@
       @copy="(url) => { if (focusMode !== 'focusing') copyUrl(url) }"
       @refresh="(id) => { if (focusMode !== 'focusing') refresh(id) }"
       @pin="(id) => { if (focusMode !== 'focusing') togglePin(id) }"
-      @update-number="(id, n) => { if (focusMode !== 'focusing') { updateTabNumber(id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') } }"
+      @update-number="(id, n) => { if (focusMode !== 'focusing') { updateTabNumber(id, n); showToast(n > 0 ? `编号 ${shortcutHint(n)} 已设置，按 ${shortcutHint(n)} 可快速跳转` : '编号已清除') } }"
       @remove-tag="(id, tag) => { if (focusMode !== 'focusing') removeTabTag(id, tag) }"
       @ctx="(e, item) => { if (focusMode !== 'focusing') onContextMenu(e, item) }"
       @move="(sourceId, targetId) => handlePinnedMove(sourceId, targetId)"
@@ -264,7 +264,7 @@
                       @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
                       @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
                       @toggle-tag="toggleTabTag(item.id, $event)" @remove-tag="removeTabTag(item.id, $event)" @add-tag="handleAddTag"
-                      @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
+                      @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${shortcutHint(n)} 已设置，按 ${shortcutHint(n)} 可快速跳转` : '编号已清除') }"
                       @refresh="refresh(item.id)" @pin="togglePin(item.id)"
                       @contextmenu.prevent="onContextMenu($event, item)" />
                   </div>
@@ -278,7 +278,7 @@
                     @activate="activateTab(item.id)" @toggle="toggleSelect(item.id)"
                     @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
                     @toggle-tag="toggleTabTag(item.id, $event)" @remove-tag="removeTabTag(item.id, $event)" @add-tag="handleAddTag"
-                    @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
+                    @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${shortcutHint(n)} 已设置，按 ${shortcutHint(n)} 可快速跳转` : '编号已清除') }"
                     @refresh="refresh(item.id)" @pin="togglePin(item.id)"
                     @contextmenu.prevent="onContextMenu($event, item)" />
                 </div>
@@ -314,7 +314,7 @@
                     @activate="activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
                     @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
                     @toggle-tag="toggleTabTag(item.id, $event)" @remove-tag="removeTabTag(item.id, $event)" @add-tag="handleAddTag"
-                    @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
+                    @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${shortcutHint(n)} 已设置，按 ${shortcutHint(n)} 可快速跳转` : '编号已清除') }"
                     @refresh="refresh(item.id)" @pin="togglePin(item.id)"
                     @contextmenu.prevent="onContextMenu($event, item)" />
                 </div>
@@ -328,7 +328,7 @@
                   @activate="activateTab(item.id)" @toggle="focusMode === 'selecting' ? toggleSelectFocusTab(item.id) : toggleSelect(item.id)"
                   @later="openLater(item.id)" @close="closeAction(item.id)" @copy="copyUrl(item.url)"
                   @toggle-tag="toggleTabTag(item.id, $event)" @remove-tag="removeTabTag(item.id, $event)" @add-tag="handleAddTag"
-                  @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${modKey}${n} 已设置，按 ${modKey}${n} 可快速跳转` : '编号已清除') }"
+                  @update-number="(n) => { updateTabNumber(item.id, n); showToast(n > 0 ? `编号 ${shortcutHint(n)} 已设置，按 ${shortcutHint(n)} 可快速跳转` : '编号已清除') }"
                   @refresh="refresh(item.id)" @pin="togglePin(item.id)"
                   @contextmenu.prevent="onContextMenu($event, item)" />
               </div>
@@ -574,7 +574,7 @@ import GroupBadge from "~components/GroupBadge.vue"
 import HistoryList from "~components/HistoryList.vue"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
 import type { TabItem } from "~types/tab"
-import { modKey } from "~lib/platform"
+import { shortcutHint } from "~lib/platform"
 
 const {
   tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
@@ -726,7 +726,7 @@ provide('treeAction', (action: string, item: TabItem, data?: any) => {
     case 'copy': copyUrl(item.url); break
     case 'refresh': refresh(item.id); break
     case 'pin': togglePin(item.id); break
-    case 'updateNumber': updateTabNumber(item.id, data); showToast(data > 0 ? `编号 ${modKey}${data} 已设置` : '编号已清除'); break
+    case 'updateNumber': updateTabNumber(item.id, data); showToast(data > 0 ? `编号 ${shortcutHint(data)} 已设置` : '编号已清除'); break
     case 'removeTag': removeTabTag(item.id, data); break
     case 'addTag': {
       // 树形视图 hover card 的「标记」：data 是标记按钮 DOM，用它的位置打开右键标记选择器
@@ -845,7 +845,7 @@ const confirmNumberPicker = () => {
   const n = parseInt(numberPickerDraft.value)
   const val = !isNaN(n) && n >= 1 && n <= 9 ? n : 0
   updateTabNumber(rightClickTabId.value, val)
-  showToast(val > 0 ? `编号已设置 ${modKey}${val}` : '编号已清除')
+  showToast(val > 0 ? `编号已设置 ${shortcutHint(val)}` : '编号已清除')
   popover.close('number-picker')
   rightClickTabId.value = null
 }
@@ -1068,7 +1068,7 @@ const {
   refresh, copyUrl, togglePin, toggleMute, duplicate, close: closeAction, closeOthers: closeOthersAction,
   addToGroupSingle, removeFromGroupSingle, newGroupSingle,
   batchClose, batchLater, batchAddToGroup, batchNewGroup,
-} = useTabActions({ showToast })
+} = useTabActions({ showToast, addToGroup, removeFromGroup, createGroup })
 // 分组：创建/加入后给 toast 反馈（可感知原则·事后）
 const onGroupCreate = async (tabIds: number[], name: string, color: string) => {
   const id = await createGroup(tabIds, name, color)
@@ -1128,8 +1128,8 @@ const onKeydown = (e: KeyboardEvent) => {
   const n = parseInt(e.key)
   if (n >= 1 && n <= 9) {
     const tab = tabs.value.find(t => t.number === n)
-    if (tab) { e.preventDefault(); activateTab(tab.id); showToast(`${modKey}⇧${n} → ${tab.title.slice(0, 20)}`) }
-    else showToast(`${modKey}⇧${n} — 暂无对应编号的标签`)
+    if (tab) { e.preventDefault(); activateTab(tab.id); showToast(`${shortcutHint(n)} → ${tab.title.slice(0, 20)}`) }
+    else showToast(`${shortcutHint(n)} — 暂无对应编号的标签`)
   }
 }
 

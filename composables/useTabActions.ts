@@ -1,6 +1,13 @@
 import { useTabManager } from "./useTabManager"
 
-export function useTabActions(options: { showToast: (msg: string) => void }) {
+export function useTabActions(options: {
+  showToast: (msg: string) => void
+  // 分组操作由 useTabGroups 提供（非单例，须由 sidepanel 传入同一实例的函数，
+  // 否则从 useTabManager 解构会拿到 undefined -> "addToGroup is not a function"）
+  addToGroup: (tabIds: number[], groupId: number) => Promise<void> | void
+  removeFromGroup: (tabIds: number[]) => Promise<void> | void
+  createGroup: (tabIds: number[], title?: string, color?: string) => Promise<number | null>
+}) {
   const { showToast } = options
   const {
     tabs,
@@ -14,7 +21,7 @@ export function useTabActions(options: { showToast: (msg: string) => void }) {
     addToGroup,
     removeFromGroup,
     createGroup,
-  } = useTabManager()
+  } = { ...useTabManager(), ...options }
 
   // ========== 单标签操作 ==========
   const refresh = (id: number) => {

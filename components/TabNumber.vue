@@ -11,7 +11,7 @@
     <button v-else-if="num"
       :class="['w-6 h-5 text-[10px] font-mono rounded flex items-center justify-center transition-colors',
         isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-500']"
-      :title="`${modKey}${num} 快速切换，点击修改`"
+      :title="`${shortcutHint(num)} 快速切换，点击修改`"
       @click="startEdit"
     >{{ num }}</button>
     <!-- 无编号：hover 时显示键盘图标 -->
@@ -23,7 +23,7 @@
     <!-- tooltip：有编号时显示快捷键提示 -->
     <div v-if="!editing && num"
       class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-[10px] bg-gray-800 text-white rounded whitespace-nowrap pointer-events-none opacity-0 group-hover/num:opacity-100 z-50 transition-opacity">
-      {{ modKey }}{{ num }}
+      {{ shortcutHint(num) }}
     </div>
   </div>
 </template>
@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from "vue"
 import { Keyboard } from "@lucide/vue"
-import { modKey } from "~lib/platform"
+import { shortcutHint } from "~lib/platform"
 
 const props = defineProps<{ num: number; isActive: boolean }>()
 const emit = defineEmits<{ update: [n: number] }>()
