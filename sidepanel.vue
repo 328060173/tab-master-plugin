@@ -1074,14 +1074,15 @@ const TAG_NOTICE_HINT = "后续会尝试用 URL 优化等方式改善，让标�
 const numberSetNotice = ref<{ title: string; message: string; highlight?: string } | null>(null)
 const onNumberSet = (n: number) => {
   if (n > 0) {
-    const key = shortcutHint(n)
     const howTo = isMac
-      ? `同时按住 Option(⌥) + Shift(⇧) + 数字 ${n} 即可快速切换到该标签`
-      : `同时按住 Alt + Shift + 数字 ${n} 即可快速切换到该标签`
+      ? `Mac 电脑：同时按住「Option ⌥」键和「Shift ⇧」键不放，再按数字「${n}」`
+      : `Windows 电脑：同时按住「Alt」键和「Shift」键不放，再按数字「${n}」`
+    const tip = isMac
+      ? `三个键要一起按住。只按 Option+数字 会打出特殊符号（如 °），无法切换。`
+      : `三个键要一起按住，松开即切换到该标签。`
     numberSetNotice.value = {
       title: `快捷键编号 ${n} 已设置`,
-      message: `已为该标签设置编号 ${n}。${howTo}。`,
-      highlight: `注意：必须同时按住 Option/Alt 和 Shift，再按数字。单独按 Option+数字 在 Mac 上会打出特殊字符，无法触发。`,
+      message: `已为该标签设置编号 ${n}。\n\n${howTo}，即可快速切换到该标签。\n\n${tip}`,
     }
   } else {
     showToast('编号已清除')
@@ -1156,13 +1157,19 @@ const scrollToTop = () => {
 }
 
 const onKeydown = (e: KeyboardEvent) => {
-  // Alt+Shift+数字：用 e.code（物理键 Digit1~9）解析，避免 Mac 上 Option+Shift 把数字转成特殊字符（° * 等）导致 e.key 不是数字
-  if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return
-  // e.code 形如 "Digit8"；Shift/Alt 等修饰键本身的 e.code 不是 Digit*，会安全跳过
+  console.log("[shortcut] keydown", { key: e.key, code: e.code, alt: e.altKey, shift: e.shiftKey, ctrl: e.ctrlKey, meta: e.metaKey })
+  if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) {
+    console.log("[shortcut] 修饰键不满足，跳过", { alt: e.altKey, shift: e.shiftKey, ctrl: e.ctrlKey, meta: e.metaKey })
+    return
+  }
   const m = /^Digit([1-9])$/.exec(e.code)
-  if (!m) return
+  if (!m) {
+    console.log("[shortcut] e.code 非 Digit1-9，跳过", { code: e.code })
+    return
+  }
   const n = parseInt(m[1])
   const tab = tabs.value.find(t => t.number === n)
+  console.log("[shortcut] 命中", n, "tab:", tab ? tab.id : "无")
   if (tab) { e.preventDefault(); activateTab(tab.id); showToast(`${shortcutHint(n)} -> ${tab.title.slice(0, 20)}`) }
   else showToast(`${shortcutHint(n)} - 暂无对应编号的标签`)
 }
