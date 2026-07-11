@@ -17,6 +17,7 @@ function handleStorageChange(changes: { [key: string]: chrome.storage.StorageCha
   if (areaName === 'local' && changes[STORAGE_KEY]) {
     const newSettings = changes[STORAGE_KEY].newValue
     if (newSettings) {
+      console.log('[tab-master:settings] 收到 storage 变化，autoReconcile =', newSettings.autoReconcile)
       settings.value = { ...DEFAULT_SETTINGS, ...newSettings }
     }
   }
@@ -70,6 +71,7 @@ function applyCardDensity(density: 'compact' | 'normal' | 'loose') {
 async function saveSettings() {
   try {
     await chrome.storage.local.set({ [STORAGE_KEY]: settings.value })
+    console.log('[tab-master:settings] 已写入 storage，autoReconcile =', settings.value.autoReconcile)
   } catch (e) {
     console.warn('Failed to save settings:', e)
   }
