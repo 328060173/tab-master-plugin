@@ -1077,11 +1077,11 @@ const numberSetNotice = ref<{ title: string; message: string; highlight?: string
 const onNumberSet = (n: number) => {
   if (n > 0) {
     const howTo = isMac
-      ? `Mac 电脑：同时按住「Command ⌘」键和「Shift ⇧」键不放，再按数字「${n}」`
+      ? `Mac 电脑：同时按住「Control ⌃」键和「Shift ⇧」键不放，再按数字「${n}」`
       : `Windows 电脑：同时按住「Ctrl」键和「Shift」键不放，再按数字「${n}」`
     numberSetNotice.value = {
       title: `快捷键编号 ${n} 已设置`,
-      message: `已为该标签设置编号 ${n}。\n\n${howTo}，即可快速切换到该标签。\n\n三个键要一起按住，在任何页面都能触发（不必先点插件）。编号仅支持 1-4。`,
+      message: `已为该标签设置编号 ${n}。\n\n${howTo}，即可快速切换到该标签。\n\n三个键要一起按住，在任何页面、任何应用下都能触发（即使浏览器不在最前也能触发）。编号仅支持 1-4。`,
     }
   } else {
     showToast('编号已清除')

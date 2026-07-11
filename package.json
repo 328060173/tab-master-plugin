@@ -46,30 +46,42 @@
       "switch-tab-1": {
         "suggested_key": {
           "default": "Ctrl+Shift+1",
-          "mac": "Command+Shift+1"
+          "mac": "Ctrl+Shift+1",
+          "windows": "Ctrl+Shift+1",
+          "linux": "Ctrl+Shift+1"
         },
-        "description": "切换到编号 1 的标签"
+        "description": "切换到编号 1 的标签",
+        "global": true
       },
       "switch-tab-2": {
         "suggested_key": {
           "default": "Ctrl+Shift+2",
-          "mac": "Command+Shift+2"
+          "mac": "Ctrl+Shift+2",
+          "windows": "Ctrl+Shift+2",
+          "linux": "Ctrl+Shift+2"
         },
-        "description": "切换到编号 2 的标签"
+        "description": "切换到编号 2 的标签",
+        "global": true
       },
       "switch-tab-3": {
         "suggested_key": {
           "default": "Ctrl+Shift+3",
-          "mac": "Command+Shift+3"
+          "mac": "Ctrl+Shift+3",
+          "windows": "Ctrl+Shift+3",
+          "linux": "Ctrl+Shift+3"
         },
-        "description": "切换到编号 3 的标签"
+        "description": "切换到编号 3 的标签",
+        "global": true
       },
       "switch-tab-4": {
         "suggested_key": {
           "default": "Ctrl+Shift+4",
-          "mac": "Command+Shift+4"
+          "mac": "Ctrl+Shift+4",
+          "windows": "Ctrl+Shift+4",
+          "linux": "Ctrl+Shift+4"
         },
-        "description": "切换到编号 4 的标签"
+        "description": "切换到编号 4 的标签",
+        "global": true
       }
     }
   }
