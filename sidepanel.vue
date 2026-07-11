@@ -587,7 +587,7 @@ import GroupBadge from "~components/GroupBadge.vue"
 import HistoryList from "~components/HistoryList.vue"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
 import type { TabItem } from "~types/tab"
-import { shortcutHint, isMac } from "~lib/platform"
+import { isMac } from "~lib/platform"
 
 const {
   tabs, laterTabs, customTags, recentlyClosed, treeParentMap, prevActiveTabId, activeTabId,
@@ -1075,11 +1075,11 @@ const numberSetNotice = ref<{ title: string; message: string; highlight?: string
 const onNumberSet = (n: number) => {
   if (n > 0) {
     const howTo = isMac
-      ? `Mac 电脑：同时按住「Option ⌥」键和「Shift ⇧」键不放，再按数字「${n}」`
-      : `Windows 电脑：同时按住「Alt」键和「Shift」键不放，再按数字「${n}」`
+      ? `Mac 电脑：同时按住「Command ⌘」键和「Shift ⇧」键不放，再按数字「${n}」`
+      : `Windows 电脑：同时按住「Ctrl」键和「Shift」键不放，再按数字「${n}」`
     const tip = isMac
-      ? `三个键要一起按住。只按 Option+数字 会打出特殊符号（如 °），无法切换。`
-      : `三个键要一起按住，松开即切换到该标签。`
+      ? `三个键要一起按住，在任何页面都能触发（不必先点插件）。`
+      : `三个键要一起按住，在任何页面都能触发（不必先点插件）。`
     numberSetNotice.value = {
       title: `快捷键编号 ${n} 已设置`,
       message: `已为该标签设置编号 ${n}。\n\n${howTo}，即可快速切换到该标签。\n\n${tip}`,
@@ -1156,26 +1156,7 @@ const scrollToTop = () => {
   target?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-const onKeydown = (e: KeyboardEvent) => {
-  console.log("[shortcut] keydown", { key: e.key, code: e.code, alt: e.altKey, shift: e.shiftKey, ctrl: e.ctrlKey, meta: e.metaKey })
-  if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) {
-    console.log("[shortcut] 修饰键不满足，跳过", { alt: e.altKey, shift: e.shiftKey, ctrl: e.ctrlKey, meta: e.metaKey })
-    return
-  }
-  const m = /^Digit([1-9])$/.exec(e.code)
-  if (!m) {
-    console.log("[shortcut] e.code 非 Digit1-9，跳过", { code: e.code })
-    return
-  }
-  const n = parseInt(m[1])
-  const tab = tabs.value.find(t => t.number === n)
-  console.log("[shortcut] 命中", n, "tab:", tab ? tab.id : "无")
-  if (tab) { e.preventDefault(); activateTab(tab.id); showToast(`${shortcutHint(n)} -> ${tab.title.slice(0, 20)}`) }
-  else showToast(`${shortcutHint(n)} - 暂无对应编号的标签`)
-}
-
 onMounted(async () => {
-  document.addEventListener("keydown", onKeydown)
   // 初始化聚焦模式
   if (SUPPORTS_FOCUS_MODE) {
     const result = await restoreFocusState()
@@ -1190,7 +1171,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  document.removeEventListener("keydown", onKeydown)
   chrome.tabs.onCreated.removeListener(handleNewTabInFocus)
   chrome.storage.onChanged.removeListener(onTagsSessionNoticeChanged)
 })

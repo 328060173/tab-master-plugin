@@ -134,3 +134,27 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 // SW 在没有任何事件的初始化路径上也需要拿到 map（如热重载后第一个事件触发前）
 loadMap()
+
+// 快捷键切换标签：chrome.commands 全局捕获（不依赖 sidepanel 焦点）
+// manifest 声明了 switch-tab-1 ~ switch-tab-9（Ctrl/Command+Shift+1~9）
+// 收到命令 -> 读 storage.local.tabNumberMap -> 找到该编号的 tabId -> 激活
+// tabNumberMap 由 sidepanel 的 useTabManager.updateTabNumber 写入，key=String(tabId), value=编号
+chrome.commands.onCommand.addListener(async (command) => {
+  const m = /^switch-tab-([1-9])$/.exec(command)
+  if (!m) return
+  const targetNum = parseInt(m[1])
+  try {
+    const data = await chrome.storage.local.get("tabNumberMap")
+    const numberMap: Record<string, number> = (data.tabNumberMap && typeof data.tabNumberMap === "object" && !Array.isArray(data.tabNumberMap)) ? data.tabNumberMap : {}
+    // 找到编号对应的 tabId
+    let targetTabId: number | null = null
+    for (const [k, v] of Object.entries(numberMap)) {
+      if (v === targetNum) { targetTabId = parseInt(k); break }
+    }
+    if (targetTabId === null) return
+    // 激活该 tab（chrome.tabs.update 会自动切到 tab 所在窗口并激活）
+    await chrome.tabs.update(targetTabId, { active: true })
+  } catch (e) {
+    // tab 可能已关闭，静默
+  }
+})

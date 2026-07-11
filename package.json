@@ -30,8 +30,82 @@
     "typescript": "5.3.3"
   },
   "manifest": {
-    "host_permissions": ["https://*/*"],
-    "permissions": ["tabs", "tabGroups", "storage", "sidePanel"],
-    "optional_permissions": ["history"]
+    "host_permissions": [
+      "https://*/*"
+    ],
+    "permissions": [
+      "tabs",
+      "tabGroups",
+      "storage",
+      "sidePanel"
+    ],
+    "optional_permissions": [
+      "history"
+    ],
+    "commands": {
+      "switch-tab-1": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+1",
+          "mac": "Command+Shift+1"
+        },
+        "description": "切换到编号 1 的标签"
+      },
+      "switch-tab-2": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+2",
+          "mac": "Command+Shift+2"
+        },
+        "description": "切换到编号 2 的标签"
+      },
+      "switch-tab-3": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+3",
+          "mac": "Command+Shift+3"
+        },
+        "description": "切换到编号 3 的标签"
+      },
+      "switch-tab-4": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+4",
+          "mac": "Command+Shift+4"
+        },
+        "description": "切换到编号 4 的标签"
+      },
+      "switch-tab-5": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+5",
+          "mac": "Command+Shift+5"
+        },
+        "description": "切换到编号 5 的标签"
+      },
+      "switch-tab-6": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+6",
+          "mac": "Command+Shift+6"
+        },
+        "description": "切换到编号 6 的标签"
+      },
+      "switch-tab-7": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+7",
+          "mac": "Command+Shift+7"
+        },
+        "description": "切换到编号 7 的标签"
+      },
+      "switch-tab-8": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+8",
+          "mac": "Command+Shift+8"
+        },
+        "description": "切换到编号 8 的标签"
+      },
+      "switch-tab-9": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+9",
+          "mac": "Command+Shift+9"
+        },
+        "description": "切换到编号 9 的标签"
+      }
+    }
   }
 }
