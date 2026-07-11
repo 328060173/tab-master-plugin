@@ -26,9 +26,12 @@
           >
             <button :class="btn" @click="act('newGroup')"><FolderPlus :size="12" />新建分组...</button>
             <hr v-if="groups.length" class="my-1 border-gray-100" />
-            <button v-for="g in groups" :key="g.id" :class="btn" @click="act('addToGroup', g.id)">
+            <button v-for="g in groups" :key="g.id"
+              :class="[btn, tab.groupId === g.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium' : '']"
+              @click="act('addToGroup', g.id)">
               <span :class="[colorClass(g.color), 'w-3 h-3 rounded-full']"></span>
               {{ g.title || '未命名分组' }}
+              <Check v-if="tab.groupId === g.id" :size="12" class="ml-auto" />
             </button>
             <hr v-if="tab.groupId !== TAB_GROUP_ID_NONE" class="my-1 border-gray-100" />
             <button v-if="tab.groupId !== TAB_GROUP_ID_NONE"
@@ -61,7 +64,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, inject } from "vue"
-import { RefreshCw, Copy, Pin, Volume2, VolumeX, FolderPlus, FolderMinus, Tag, Clock, Link, X, Hash, ChevronRight, CheckSquare } from "@lucide/vue"
+import { RefreshCw, Copy, Pin, Volume2, VolumeX, FolderPlus, FolderMinus, Tag, Clock, Link, X, Hash, ChevronRight, CheckSquare, Check } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import { SUPPORTS_TAB_GROUPS, GROUP_COLOR_CLASSES, TAB_GROUP_ID_NONE } from "~composables/useTabGroups"
 

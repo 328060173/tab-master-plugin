@@ -25,6 +25,7 @@
     <input v-if="isBatch" type="checkbox" :checked="isChecked"
       class="w-4 h-4 cursor-pointer shrink-0 accent-blue-600"
       @click.stop @change.stop="emit('toggle')" />
+    <TabNumber :num="item.number" :is-active="item.active" @update="emit('updateNumber', $event)" />
     <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" :badge="statusBadge" />
     <div class="flex-1 min-w-0 flex flex-col gap-0.5">
       <div class="flex items-center gap-1.5">
@@ -71,6 +72,7 @@ import StatusBadge from "./StatusBadge.vue"
 import TabHoverCard from "./TabHoverCard.vue"
 import GroupBadge from "./GroupBadge.vue"
 import TagPicker from "./TagPicker.vue"
+import TabNumber from "./TabNumber.vue"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { getHighestPriorityStatus } from "~lib/statusPriority"
 import { GROUP_COLOR_CLASSES, TAB_GROUP_ID_NONE } from "~composables/useTabGroups"
