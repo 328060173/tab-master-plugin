@@ -17,6 +17,7 @@ import { ref, computed } from 'vue'
 import { get } from '~lib/api'
 import { API_URIS } from '~lib/api-config'
 import { BUSINESS_CONFIG } from '~config/app-config'
+import { useAuth } from '~composables/useAuth'
 
 const AD_KEY = 'tabMasterAdState'
 const MAX_SHOW_PER_DAY = BUSINESS_CONFIG.adMaxShowPerDay  // 每天最多展示次数（配置中心，后续后端下发）
@@ -129,6 +130,13 @@ function useAdImpl() {
    */
   async function fetchAd() {
     if (isFetching.value) return
+    // 登录用户不显示广告（登录享受无广告体验；后端 getAdList 也会按 customerType 兜底返回空）
+    const { isLoggedIn } = useAuth()
+    if (isLoggedIn.value) {
+      console.log('[ad] 用户已登录，不展示广告')
+      currentAd.value = null
+      return
+    }
     // 频率上限：当天已达上限不再拉
     if (!canShowMore.value) {
       console.log(`[ad] 当天已展示 ${state.value.shownCount} 次，达上限 ${MAX_SHOW_PER_DAY}，不再展示`)
