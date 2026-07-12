@@ -563,12 +563,17 @@
       </button>
     </div>
 
+    <!-- 登录弹窗 -->
+    <LoginDialog :open="showLoginDialog" @close="showLoginDialog = false" @success="onLoginSuccess" />
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn } from "@lucide/vue"
+import LoginDialog from "~components/LoginDialog.vue"
+import { useAuth } from "~composables/useAuth"
 import TagSelectPopover from "~components/TagSelectPopover.vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabActions } from "~composables/useTabActions"
@@ -624,10 +629,9 @@ const {
 } = useTabManager()
 
 // ========== 登录引导 Banner 逻辑 ==========
-// 为简化样板实现，我们内联逻辑，避免多文件跳转
 const showLoginBanner = ref(false)
-// 模拟登录状态 - 待 useAuth 接入
-const isLoggedIn = ref(false)
+const showLoginDialog = ref(false)
+const { isLoggedIn } = useAuth()
 
 // 加载 Banner 状态
 async function loadBannerState() {
@@ -648,10 +652,9 @@ async function loadBannerState() {
   }
 }
 
-// 点击 Banner
+// 点击 Banner - 打开登录弹窗
 function handleLoginBannerClick() {
-  console.log("[LoginBanner] 登录功能即将开放")
-  showToast(t('loginBanner.comingSoon'))
+  showLoginDialog.value = true
 }
 
 // 关闭 Banner
@@ -661,6 +664,21 @@ async function handleLoginBannerDismiss() {
     tabMasterBannerState: { dismissedAt: Date.now() },
   })
 }
+
+// 登录成功回调
+function onLoginSuccess(email: string) {
+  showToast(t('login.success'))
+  // isLoggedIn 变 true 后 watch 会自动隐藏 banner
+}
+
+// 登录状态变化 -> 同步 banner 显示（登录后隐藏，退出后按频控重新判断）
+watch(isLoggedIn, (loggedIn) => {
+  if (loggedIn) {
+    showLoginBanner.value = false
+  } else {
+    loadBannerState()
+  }
+})
 
 const stats = computed(() => useTabStats(tabs).value)
 

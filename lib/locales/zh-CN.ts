@@ -137,4 +137,17 @@ export default {
 
   // 验证码
   'captcha.placeholder': '验证码',
+
+  // 登录弹窗
+  'login.title': '登录 / 注册',
+  'login.email': '邮箱地址',
+  'login.emailPlaceholder': '请输入邮箱',
+  'login.captcha': '图形验证码',
+  'login.emailCode': '邮箱验证码',
+  'login.emailCodePlaceholder': '请输入验证码',
+  'login.getCode': '获取验证码',
+  'login.submit': '登录 / 注册',
+  'login.success': '登录成功',
+  'login.codeSent': '验证码已发送',
+  'login.agree': '登录即表示同意用户协议',
 }

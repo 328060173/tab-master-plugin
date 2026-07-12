@@ -133,4 +133,17 @@ export default {
 
   // Captcha
   'captcha.placeholder': 'Captcha',
+
+  // Login Dialog
+  'login.title': 'Login / Register',
+  'login.email': 'Email',
+  'login.emailPlaceholder': 'Enter your email',
+  'login.captcha': 'Captcha',
+  'login.emailCode': 'Email Code',
+  'login.emailCodePlaceholder': 'Enter code',
+  'login.getCode': 'Get Code',
+  'login.submit': 'Login / Register',
+  'login.success': 'Login successful',
+  'login.codeSent': 'Code sent',
+  'login.agree': 'By logging in, you agree to the User Agreement',
 }
