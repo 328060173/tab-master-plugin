@@ -22,9 +22,34 @@ export default {
   'menu.fontFamily.mono': '等宽',
   'menu.displayPosition': '显示位置',
   'menu.cloudSync': '云同步',
+  'menu.cloudSync.loginRequired': '需登录',
+  'menu.cloudSync.comingSoon': '云同步即将开放',
   'menu.snapshot': '快照',
+  'menu.snapshot.vipRequired': 'VIP',
+  'menu.snapshot.comingSoon': '快照功能即将开放',
   'menu.storage': '存储空间',
-  'menu.settings': '设置...',
+  'menu.settings': '更多设置...',
+  'menu.logs': '运行日志',
+
+  // 账号相关
+  'menu.register': '注册',
+  'menu.login': '登录',
+  'menu.logout': '退出登录',
+  'menu.loggedOut': '已退出登录',
+
+  // 帮助/支持
+  'menu.contact': '加群 & 联系我们',
+  'menu.feedback': '意见 & 需求反馈',
+  'menu.feedback.comingSoon': '反馈功能即将开放',
+  'menu.feedback.loginRequired': '需登录',
+  'menu.guide': '操作说明',
+  'menu.donate': '请作者喝杯咖啡',
+
+  // 分组标题
+  'menu.group.account': '账号',
+  'menu.group.interface': '界面',
+  'menu.group.data': '数据',
+  'menu.group.help': '帮助',
 
   // 灰显提示
   'menu.backendRequired': '需要后端服务，敬请期待',

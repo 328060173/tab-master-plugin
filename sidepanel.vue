@@ -26,6 +26,8 @@
         <HeaderMenu
           @open-storage="showStorage = true"
           @reload="reloadPanel"
+          @open-login="showLoginDialog = true"
+          @show-toast="showToast"
         />
       </div>
     </div>
@@ -61,6 +63,8 @@
         <HeaderMenu
           @open-storage="showStorage = true"
           @reload="reloadPanel"
+          @open-login="showLoginDialog = true"
+          @show-toast="showToast"
         />
       </div>
     </div>
@@ -657,18 +661,17 @@ function handleLoginBannerClick() {
   showLoginDialog.value = true
 }
 
+// 登录成功
+function onLoginSuccess(email: string) {
+  showToast(t('login.success'))
+}
+
 // 关闭 Banner
 async function handleLoginBannerDismiss() {
   showLoginBanner.value = false
   await chrome.storage.local.set({
     tabMasterBannerState: { dismissedAt: Date.now() },
   })
-}
-
-// 登录成功回调
-function onLoginSuccess(email: string) {
-  showToast(t('login.success'))
-  // isLoggedIn 变 true 后 watch 会自动隐藏 banner
 }
 
 // 登录状态变化 -> 同步 banner 显示（登录后隐藏，退出后按频控重新判断）

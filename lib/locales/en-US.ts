@@ -22,9 +22,34 @@ export default {
   'menu.fontFamily.mono': 'Monospace',
   'menu.displayPosition': 'Display Position',
   'menu.cloudSync': 'Cloud Sync',
+  'menu.cloudSync.loginRequired': 'Login required',
+  'menu.cloudSync.comingSoon': 'Cloud sync coming soon',
   'menu.snapshot': 'Snapshot',
+  'menu.snapshot.vipRequired': 'VIP required',
+  'menu.snapshot.comingSoon': 'Snapshot coming soon',
   'menu.storage': 'Storage',
-  'menu.settings': 'Settings...',
+  'menu.settings': 'More Settings...',
+  'menu.logs': 'Logs',
+
+  // 账号相关
+  'menu.register': 'Register',
+  'menu.login': 'Login',
+  'menu.logout': 'Logout',
+  'menu.loggedOut': 'Logged out',
+
+  // 帮助/支持
+  'menu.contact': 'Contact Us',
+  'menu.feedback': 'Feedback',
+  'menu.feedback.comingSoon': 'Feedback coming soon',
+  'menu.feedback.loginRequired': 'Login required',
+  'menu.guide': 'Guide',
+  'menu.donate': 'Buy Me a Coffee',
+
+  // 分组标题
+  'menu.group.account': 'Account',
+  'menu.group.interface': 'Interface',
+  'menu.group.data': 'Data',
+  'menu.group.help': 'Help',
 
   // 灰显提示
   'menu.backendRequired': 'Backend service required, coming soon',
