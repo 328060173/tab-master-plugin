@@ -35,7 +35,8 @@ export const API_URIS = {
   adList: '/ad/list',
   checkVersion: '/version/check-version',
   customerMy: '/customer/my',
-  noticePageList: '/notice/page-list'
+  noticePageList: '/notice/page-list',
+  logout: '/logout'
 } as const
 
 // 产品 appCode 注册表（值由后端分配）

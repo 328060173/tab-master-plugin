@@ -12,7 +12,8 @@
  */
 
 import { ref, computed } from 'vue'
-import { setTokenGetter, setLoggedInGetter, setAuthExpiredHandler } from '~lib/api'
+import { setTokenGetter, setLoggedInGetter, setAuthExpiredHandler, post } from '~lib/api'
+import { API_URIS } from '~lib/api-config'
 
 // storage key
 const AUTH_KEY = 'tabMasterAuth'
@@ -119,7 +120,15 @@ function useAuthImpl() {
   }
 
   // 退出登录（主动，非过期）
+  // 先调后端 /logout 让 token 失效，无论成败都清前端（保证用户能退出）
   async function logout() {
+    console.log('[auth] 退出登录')
+    try {
+      await post(API_URIS.logout, undefined, { timeout: 5000, silent: true })
+    } catch (e) {
+      // 后端退出失败也清前端（token 前端删了，后端缓存自然过期）
+      console.warn('[auth] 后端退出失败，仍清前端', e)
+    }
     auth.value = { ...DEFAULT_AUTH }
     sessionExpired.value = false
     await chrome.storage.local.remove(AUTH_KEY)

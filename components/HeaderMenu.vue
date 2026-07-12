@@ -49,6 +49,14 @@
               </template>
             </span>
           </button>
+          <!-- 退出登录（登录后才显示）-->
+          <button
+            class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-red-600 dark:text-red-400 text-left"
+            @mouseenter="activeSubmenu = null"
+            @click="onLogout"
+          >
+            <LogOut :size="13" />{{ t('menu.logout') }}
+          </button>
         </template>
 
         <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
