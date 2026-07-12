@@ -119,6 +119,7 @@ import { X, Mail } from '@lucide/vue'
 import { t } from '~lib/i18n'
 import { post } from '~lib/api'
 import { API_URIS, APP_HEADERS } from '~lib/api-config'
+import { collectDeviceInfo, ACCESS_LOC } from '~lib/device-info'
 import { useAuth } from '~composables/useAuth'
 import CaptchaInput from './CaptchaInput.vue'
 
@@ -225,7 +226,12 @@ async function handleLogin() {
       email: email.value,
       code: emailCode.value,
       captchaUuid: captchaUuid.value,
-      captchaCode: captchaCode.value
+      captchaCode: captchaCode.value,
+      // 设备信息 + 版本 + 登录类型（后端 LoginEmailRequest 字段，记录登录设备）
+      accessDeviceInfo: collectDeviceInfo(),
+      accessLoc: ACCESS_LOC,
+      versionCode: APP_HEADERS.versionCode,
+      loginType: 2  // 1=未登录 2=已登录（此处是登录动作，后端约定）
     })
 
     // 登录成功
