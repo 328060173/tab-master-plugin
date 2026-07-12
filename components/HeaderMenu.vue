@@ -27,11 +27,8 @@
         <!-- 账号分组 -->
         <p class="px-3 py-1 text-[10px] text-gray-400 uppercase tracking-wide">{{ t('menu.group.account') }}</p>
 
-        <!-- 未登录：显示注册/登录 -->
+        <!-- 未登录：登录/注册合并为一项（邮箱验证码登录即注册：邮箱存在直接登录，不存在自动注册） -->
         <template v-if="!isLoggedIn">
-          <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left" @mouseenter="activeSubmenu = null" @click="onRegister">
-            <LogIn :size="13" />{{ t('menu.register') }}
-          </button>
           <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left" @mouseenter="activeSubmenu = null" @click="onLogin">
             <LogIn :size="13" />{{ t('menu.login') }}
           </button>
@@ -366,10 +363,6 @@ const onPickFontSize = (v: "normal" | "large" | "xlarge") => {
 }
 
 // 账号相关
-const onRegister = () => {
-  popover.close("header-menu")
-  emit("open-login")
-}
 const onLogin = () => {
   popover.close("header-menu")
   emit("open-login")

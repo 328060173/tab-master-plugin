@@ -8,11 +8,14 @@
 // - 生产环境：api.ouu365.com
 // /ouu-api 是后端 context-path 前缀（Controller 路径无此前缀，必须放在 baseURL）
 // 与官网 ouu-web-official 配置一致
-// 如需切换环境，可直接修改下方常量；或用 PLASMO_PUBLIC_API_BASE 环境变量覆盖
+//
+// 用 process.env.NODE_ENV 判断（Plasmo 构建时静态替换：dev=development，prod=production）
+// 不用 import.meta.env.DEV（Plasmo 里行为不稳定，曾导致 dev 构建走 prod 地址）
+// 优先级：PLASMO_PUBLIC_API_BASE 环境变量 > NODE_ENV 判断
 const ENV_API_BASE = (import.meta.env?.PLASMO_PUBLIC_API_BASE as string | undefined) ?? ''
 
 export const API_BASE_URL = ENV_API_BASE
-  || (import.meta.env?.DEV
+  || (process.env.NODE_ENV === 'development'
     ? 'http://localhost:8080/ouu-api'
     : 'https://api.ouu365.com/ouu-api')
 

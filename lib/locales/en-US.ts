@@ -33,7 +33,7 @@ export default {
 
   // 账号相关
   'menu.register': 'Register',
-  'menu.login': 'Login',
+  'menu.login': 'Log in / Sign up',
   'menu.logout': 'Logout',
   'menu.loggedOut': 'Logged out',
 

@@ -33,7 +33,7 @@ export default {
 
   // 账号相关
   'menu.register': '注册',
-  'menu.login': '登录',
+  'menu.login': '登录 / 注册',
   'menu.logout': '退出登录',
   'menu.loggedOut': '已退出登录',
 
