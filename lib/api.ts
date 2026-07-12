@@ -82,19 +82,26 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
 /**
  * 通用请求函数
  * 返回完整响应体（不自动取 .data），调用方按接口实际结构取字段
+ *
+ * 统一日志：所有请求自动打 [api] 日志（方法/url/状态/耗时），方便调试确认接口是否发出。
+ * 静默失败场景（版本检查/广告）由调用方传 silent:true 抑制错误日志（但仍打一行请求日志）。
  */
 async function request<T extends BaseResponse = BaseResponse>({
   method,
   uri,
   body,
   extraHeaders,
-  timeout = DEFAULT_TIMEOUT
-}: RequestOptions): Promise<T> {
+  timeout = DEFAULT_TIMEOUT,
+  silent = false
+}: RequestOptions & { silent?: boolean }): Promise<T> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeout)
+  const url = `${API_BASE_URL}${uri}`
+  const startedAt = Date.now()
+  // 请求发出日志（让用户能在控制台看到接口确实发了）
+  console.log(`[api] → ${method} ${uri}`, body ? { body } : '')
 
   try {
-    const url = `${API_BASE_URL}${uri}`
     const headers = buildHeaders(extraHeaders)
 
     const response = await fetch(url, {
@@ -107,6 +114,7 @@ async function request<T extends BaseResponse = BaseResponse>({
     // 401 未授权：token 过期或调需登录接口但未登录
     // 后端若依 SecurityConfig 对未登录访问受保护接口返回 401
     if (response.status === 401) {
+      console.log(`[api] ← ${method} ${uri} 401 (${Date.now() - startedAt}ms) 登录过期`)
       authExpiredHandler?.()
       throw new Error('登录已过期，请重新登录')
     }
@@ -115,19 +123,29 @@ async function request<T extends BaseResponse = BaseResponse>({
 
     // 业务层 401（部分接口可能用 code=401 而非 HTTP 401）
     if (result.code === 401) {
+      console.log(`[api] ← ${method} ${uri} code=401 (${Date.now() - startedAt}ms) 登录过期`)
       authExpiredHandler?.()
       throw new Error('登录已过期，请重新登录')
     }
 
     if (result.code === 200) {
+      console.log(`[api] ← ${method} ${uri} 200 (${Date.now() - startedAt}ms)`)
       return result
     } else {
+      console.log(`[api] ← ${method} ${uri} code=${result.code} (${Date.now() - startedAt}ms) ${result.msg}`)
       throw new Error(result.msg || '请求失败')
     }
   } catch (error) {
+    const elapsed = Date.now() - startedAt
     if (error instanceof Error && error.name === 'AbortError') {
+      // 超时：silent 模式只打一行 warn（版本检查/广告等非关键路径），否则打 error
+      if (silent) console.warn(`[api] ← ${method} ${uri} 超时 (${elapsed}ms, 静默)`)
+      else console.error(`[api] ← ${method} ${uri} 超时 (${elapsed}ms)`)
       throw new Error('请求超时，请稍后再试')
     }
+    // 其他错误（网络/业务码非200）：silent 模式降级为 warn
+    if (silent) console.warn(`[api] ← ${method} ${uri} 失败 (${elapsed}ms, 静默)`, error)
+    else console.error(`[api] ← ${method} ${uri} 失败 (${elapsed}ms)`, error)
     throw error
   } finally {
     clearTimeout(timeoutId)
@@ -137,15 +155,17 @@ async function request<T extends BaseResponse = BaseResponse>({
 /**
  * 便捷 GET 方法
  * 泛型 T 表示完整响应体类型（含 code/msg）
+ * options.silent=true 时失败/超时降级为 warn 日志（版本检查/广告等非关键路径用）
  */
-export function get<T extends BaseResponse = BaseResponse>(uri: string, options?: Omit<RequestOptions, 'method' | 'uri' | 'body'>) {
+export function get<T extends BaseResponse = BaseResponse>(uri: string, options?: Omit<RequestOptions, 'method' | 'uri' | 'body'> & { silent?: boolean }) {
   return request<T>({ method: 'GET', uri, ...options })
 }
 
 /**
  * 便捷 POST 方法
  * 泛型 T 表示完整响应体类型（含 code/msg）
+ * options.silent=true 时失败/超时降级为 warn 日志
  */
-export function post<T extends BaseResponse = BaseResponse>(uri: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'uri' | 'body'>) {
+export function post<T extends BaseResponse = BaseResponse>(uri: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'uri' | 'body'> & { silent?: boolean }) {
   return request<T>({ method: 'POST', uri, body, ...options })
 }

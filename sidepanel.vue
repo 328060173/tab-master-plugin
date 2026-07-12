@@ -575,6 +575,16 @@
     <!-- 登录弹窗 -->
     <LoginDialog :open="showLoginDialog" @close="showLoginDialog = false" @success="onLoginSuccess" />
 
+    <!-- 广告浮层（底部 10 秒弹层，Teleport 到 body）-->
+    <ErrorBoundary scope="ad">
+      <AdBanner
+        :ad="currentAd"
+        @click="onAdClickFromBanner"
+        @dismiss="onAdDismissFromBanner"
+        @expired="onAdExpiredFromBanner"
+      />
+    </ErrorBoundary>
+
   </div>
 </template>
 
@@ -583,8 +593,10 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErro
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn } from "@lucide/vue"
 import LoginDialog from "~components/LoginDialog.vue"
 import UpdateBanner from "~components/UpdateBanner.vue"
+import AdBanner from "~components/AdBanner.vue"
 import { useAuth } from "~composables/useAuth"
 import { useVersionCheck } from "~composables/useVersionCheck"
+import { useAd } from "~composables/useAd"
 import TagSelectPopover from "~components/TagSelectPopover.vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabActions } from "~composables/useTabActions"
@@ -646,6 +658,11 @@ const { isLoggedIn, sessionExpired, clearSessionExpired } = useAuth()
 // 版本检查（静默失败，不阻塞 UI；强制更新顶部弹框）
 const { updateInfo, shouldShowBanner: shouldShowUpdateBanner, checkVersion, dismiss: dismissUpdate, openUpdatePage } = useVersionCheck()
 function onDismissUpdate() { dismissUpdate() }
+// 广告（底部 10 秒弹层，不打扰：每天最多3次+点击/关闭按adId当天不再展示+静默失败）
+const { currentAd, fetchAd, markShown, onAdClick, onAdDismiss, onAdExpired } = useAd()
+function onAdClickFromBanner() { onAdClick() }
+function onAdDismissFromBanner() { onAdDismiss() }
+function onAdExpiredFromBanner() { onAdExpired() }
 
 // 加载 Banner 状态
 async function loadBannerState() {
@@ -698,6 +715,13 @@ watch(sessionExpired, (expired) => {
   if (expired) {
     showToast(t('login.expired'))
     clearSessionExpired()
+  }
+})
+
+// 广告出现 -> 计展示次数（频率上限控制，不打扰用户）
+watch(currentAd, (ad) => {
+  if (ad) {
+    markShown()
   }
 })
 
@@ -1271,6 +1295,8 @@ onMounted(async () => {
   await loadBannerState()
   // 版本检查（静默失败，不阻塞；内部每天1次去重）
   checkVersion()
+  // 拉取广告（底部弹层，静默失败不打扰）
+  fetchAd()
 })
 
 onUnmounted(() => {

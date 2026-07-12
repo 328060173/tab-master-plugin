@@ -183,4 +183,9 @@ export default {
   'update.normalMsg': '发现新版本 v{version}',
   'update.goUpdate': '去更新',
   'update.changeLog': '更新内容',
+
+  // 广告
+  'ad.label': '广告',
+  'ad.close': '关闭',
+  'ad.learnMore': '了解详情',
 }

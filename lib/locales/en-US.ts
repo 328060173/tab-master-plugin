@@ -179,4 +179,9 @@ export default {
   'update.normalMsg': 'New version v{version} available',
   'update.goUpdate': 'Update',
   'update.changeLog': 'What\'s new',
+
+  // 广告
+  'ad.label': 'Ad',
+  'ad.close': 'Close',
+  'ad.learnMore': 'Learn more',
 }

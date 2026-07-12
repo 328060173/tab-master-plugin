@@ -137,11 +137,13 @@ function useVersionCheckImpl() {
     if (!shouldCheck() && updateInfo.value) return
 
     isChecking.value = true
+    console.log('[version] 开始检查版本更新')
 
     try {
-      // 调用后端接口，超时 3 秒
+      // 调用后端接口，超时 3 秒，静默失败（失败/超时只打 warn 不影响 UI）
       const response = await get<CheckVersionResponse>(API_URIS.checkVersion, {
-        timeout: 3000
+        timeout: 3000,
+        silent: true
       })
 
       if (response.code !== 200) {
@@ -157,6 +159,7 @@ function useVersionCheckImpl() {
         // 无更新
         updateInfo.value = null
         state.value.lastForceFlag = null
+        console.log('[version] 无更新')
       } else {
         // 有更新
         updateInfo.value = {
@@ -167,13 +170,14 @@ function useVersionCheckImpl() {
           changeLog: versionData.changeLog
         }
         state.value.lastForceFlag = versionData.forceFlag
+        console.log(`[version] 发现新版本 v${versionData.versionName}（forceFlag=${versionData.forceFlag}）`)
       }
 
       // 保存状态
       await saveState()
     } catch (e) {
-      // 静默失败，只记录日志
-      console.warn('[useVersionCheck] 版本检查失败', e)
+      // 静默失败，只记录日志（不 toast、不影响 UI）
+      console.warn('[version] 检查失败（静默，不影响使用）', e)
       // 失败时检查历史强制更新记录
       if (state.value.lastForceFlag === 1 && updateInfo.value?.forceFlag !== 1) {
         // 不更新 updateInfo，保持之前的强制更新状态（如果有）
