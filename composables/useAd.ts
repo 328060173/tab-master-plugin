@@ -16,9 +16,10 @@
 import { ref, computed } from 'vue'
 import { get } from '~lib/api'
 import { API_URIS } from '~lib/api-config'
+import { BUSINESS_CONFIG } from '~config/app-config'
 
 const AD_KEY = 'tabMasterAdState'
-const MAX_SHOW_PER_DAY = 3  // 每天最多展示 3 次（频率上限，防打扰）
+const MAX_SHOW_PER_DAY = BUSINESS_CONFIG.adMaxShowPerDay  // 每天最多展示次数（配置中心，后续后端下发）
 
 // 后端 AdItemVO 字段
 interface AdItem {
@@ -139,10 +140,10 @@ function useAdImpl() {
     console.log('[ad] 开始拉取广告')
 
     try {
-      // position=banner 底部弹层广告位标识（后端 required）
+      // position 由配置中心管理（后续后端下发），超时用配置
       const response = await get<AdListResponse>(API_URIS.adList, {
-        params: { position: 'banner' },
-        timeout: 3000,
+        params: { position: BUSINESS_CONFIG.adPosition },
+        timeout: BUSINESS_CONFIG.adFetchTimeout,
         silent: true
       })
       if (response.code !== 200) {
