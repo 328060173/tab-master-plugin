@@ -134,4 +134,7 @@ export default {
   // 登录引导 Banner
   'loginBanner.title': '登录获取更多功能',
   'loginBanner.comingSoon': '登录功能即将开放',
+
+  // 验证码
+  'captcha.placeholder': '验证码',
 }

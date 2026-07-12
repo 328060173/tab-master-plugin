@@ -130,4 +130,7 @@ export default {
   // Login Banner
   'loginBanner.title': 'Login for more features',
   'loginBanner.comingSoon': 'Login feature coming soon',
+
+  // Captcha
+  'captcha.placeholder': 'Captcha',
 }
