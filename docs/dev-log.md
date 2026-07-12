@@ -674,3 +674,118 @@ vue-tsc --noEmit 通过（仅 tsconfig 既有弃用警告 TS5107/TS5101）。本
 9. 标记筛选下拉框 → 新用户/重置后默认「单选」
 10. 清理菜单危险项确认后 → 整理 popover 保持（点空白可关）
 
+
+
+---
+
+## 2026-07-12 账号体系 + 运营变现 + 版本检查（跨三线大迭代）
+
+> 本日跨插件/后端/官网三线，建立账号体系、功能分级、运营变现（广告+捐助）、版本检查、消息通知。**后端暂缓约束解除**（后端已就绪，登录链路通）。共 33 commit（插件 25 + 后端 7 + 官网 1）。
+
+### 插件仓（25 commit，test 分支）
+
+**账号体系**
+- `useAuth.ts` 单例：token 持久化（chrome.storage.local）+ 401 自动登出 + sessionExpired（区分过期/主动登出）+ 注册 tokenGetter/loggedInGetter 到 api.ts
+- `LoginDialog.vue`：邮箱+图形验证码（复用 CaptchaInput）+ 邮箱验证码 60s 倒计时 + 登录即注册提示 + 登录/注册合并
+- 登录流程：发码（消费图形码）-> 刷新新图形码 + 清空 captchaCode -> 用户填新图形码+邮箱码 -> 登录（修复置灰 bug）
+- 登录请求传 accessDeviceInfo + accessLoc + versionCode + loginType
+
+**统一请求拦截（lib/api.ts）**
+- buildHeaders 统一构建：公共头（platform/appCode/versionCode）+ Authorization Bearer + customerType（1登录/0未登录）
+- 统一请求日志 `[api] -> / <-`（所有请求自动打，silent 选项降级 warn）
+- RequestOptions 加 params（URLSearchParams 拼 query，GET 用）
+- 环境区分：`process.env.NODE_ENV`（dev localhost:8080 / prod api.ouu365.com，不用 import.meta.env.DEV 不稳定）
+- 401 拦截 -> authExpiredHandler 清登录态
+
+**功能分级**
+- `config/feature-tiers.ts`：27 功能三表（未登录 22 / 登录 4 / VIP 5 预留，当前无 VIP）
+- `useFeatureTiers.ts` 单例：canUse 判断，VIP 预留扩展
+
+**图形验证码（复用官网）**
+- `CaptchaInput.vue`：搬官网，Tailwind 样式，@lucide/vue，i18n 接入，5s 超时 + 失败重试占位
+
+**版本检查**
+- `useVersionCheck.ts` 单例：每天自然日去重 + 3s 超时 + 静默失败 + 缓存兜底
+- `UpdateBanner.vue`：强制更新红色无关闭按钮 / 非强制蓝色可关
+- `POST /version/check-version`（改 POST，GET+RequestBody 前端不好发）+ 传 accessDeviceInfo + versionCode=101 + customerType
+
+**广告位**
+- `useAd.ts` 单例：每天最多 3 次 + 点击/关闭按 adId 当天不再展示 + 自然日重置 + 3s 静默失败
+- `AdBanner.vue`：底部 10 秒弹层 + 倒计时进度条 + 图片失败降级
+- **登录用户不显示广告**（前端 isLoggedIn 判断 + 后端 customerType 兜底双保险）
+
+**消息通知**
+- `useNotice.ts` 单例：拉 GET /notice/page-list + 按 id 记已读 + 5s 静默失败
+- `NoticeBar.vue`：铃铛 + 未读数红点 + 展开列表 + 全部已读（**无数据不显示整条**）
+
+**设置菜单（HeaderMenu 6 项改造）**
+- 未登录显「登录 / 注册」；已登录显邮箱 + 「退出登录」（红色，登录后才显示）
+- 6 项：登录/加群联系/反馈/操作说明/打赏（跳官网或 guide 页）
+- 邮箱行点击进「我的」页（chrome.tabs.create mine.html）
+
+**「我的」页（tabs/mine.vue）**
+- 首字母头像 + 邮箱 + VIP 标记 + 账号信息 + 功能入口 + 退出登录
+- 未登录保护
+
+**操作说明（tabs/guide.vue）**
+- 功能概览 / 快捷键（Mac Option+Shift / Win Alt+Shift）/ FAQ / 联系我们
+
+**登录引导 banner**
+- 当天频控（toDateString 比对，7 天->当天）+ 全局化（4 tab + 聚焦态都显示）
+- 登录后 watch isLoggedIn 自动隐藏
+
+**基础设施**
+- `manifest` host_permissions 加 `http://localhost/*` + `http://127.0.0.1/*`（本地联调，prod 不扩大权限）
+- `config/app-config.ts` 配置中心：API_CONFIG / HEADERS_CONFIG / BUSINESS_CONFIG（9 项 TODO 后续后端返回）
+- `lib/device-info.ts` 通用设备信息收集（会话级缓存，login/version 复用）
+- i18n 全接入 t()/tWithParams（zh-CN + en-US）
+- StoragePanel 注册 4 个新 key（banner/version/ad/notice）
+
+### 后端仓（7 commit，test 分支）
+- `26db047` 发码+登录加图形验证码校验（Redis + 防重放，复用若依 validateCaptcha）
+- `eff38a4` 广告接口 GET /ad/list（@Anonymous，生效中广告按 sort，MyBatis 全 #{} 无拼接）
+- `e776e53` 删 EmailCreateRequest.captcha 死字段
+- `9404e4d` checkVersion 加 @Anonymous（未登录可检查）
+- `f9b59ef` checkVersion GET->POST + customer/my 接口（假数据，CustomerMyVO 隔离敏感字段）
+- `5598043` getAdList 按 customerType 过滤（登录返回空，双保险）
+- logout 用若依自带（SecurityConfig logoutUrl("/logout") + LogoutSuccessHandlerImpl 删 token，**无需新建 Controller**）
+
+### 官网仓（1 commit，test 分支）
+- `45a86c2` /donate + /contact 页面 PRD（二维码打包进 public/qr/，合规资源红线，需 4 张二维码图）
+
+### 关键审查修复（不只信 agent 报告）
+1. CaptchaInput 重复 `</template>` 致 Plasmo 白屏（sfc.parse errors 没检，已加进防白屏5步，白屏教训 4->5 次）
+2. LoginDialog 发码成功误关弹窗 -> 保持打开
+3. 登录按钮置灰（发码后刷新图形码+清空 captchaCode，用户填新码才亮）
+4. baseURL 走 prod（import.meta.env.DEV 不稳定 -> 改 process.env.NODE_ENV）
+5. host_permissions 没覆盖 http://localhost（Failed to fetch 根因）
+6. /ad/list 缺 position 参数（500 -> 加 params 支持）
+7. AdBanner 重复 defineEmits（sfc.parse 抓到）
+8. 后端 OuuCustomerController#my 重复声明 Long customerId（api-backend 改一半粘重）
+9. 反馈菜单锁"需登录"是错的（后端 /feedback/suggest 是 @Anonymous）
+
+### 过程教训（已沉淀 memory）
+- **防白屏5步强化**：sfc.parse 的 errors 必检（compileTemplate 遇首个 `</template>` 截断，抓不到重复闭合标签；Plasmo 用 sfc.parse 验整体结构会报错）。白屏教训 4->5 次
+- **后端暂缓约束解除**：`project-defer-backend-features` 记忆更新为"2026-07-12 解除暂缓，后端已就绪"
+- **agent 卡住直接接手**：版本检查 agent 卡在 i18n 造轮子（i18n 本就有 tWithParams），main 接手完成省时间
+
+### 待用户验证（2026-07-12）
+1. `pnpm fresh` + 刷新扩展（改了 manifest + 新增 tabs/mine.vue + tabs/guide.vue，必须全新构建）
+2. 后端起服务 localhost:8080 + 部署最新代码 + 建广告表（执行 sql/ouu_advertisement.sql）
+3. 控制台日志：所有请求 `[api] -> / <-`，请求头带 appCode=app_1001 + versionCode=101 + customerType（登录1/未登录0）+ Authorization（登录后）
+4. 登录链路：banner 点击 -> 弹窗 -> 邮箱+图形码+邮箱码 -> 登录成功 -> banner 消失 -> 设置菜单显邮箱
+5. 版本检查：POST /version/check-version（带 accessDeviceInfo）-> 强制更新红色横幅不可关 / 非强制蓝色可关 / 后端关静默
+6. 广告：未登录底部 10 秒弹层 + 点击/关闭按 adId 当天不再显 + 每天 3 次上限 + 登录后不显示
+7. 消息通知：无数据不显示 / 有数据铃铛+未读数+展开
+8. 退出登录：设置菜单「退出登录」-> POST /logout（若依自带）-> 清 token -> 菜单恢复
+9. 「我的」页：点邮箱进 -> 首字母头像+账号信息+功能入口+退出
+10. 设置菜单 6 项：加群/打赏跳官网、操作说明跳 guide、反馈占位
+
+### 待办（后续开发）
+- **FeedbackDialog 反馈弹窗**：复用 CaptchaInput，接 POST /feedback/suggest（@Anonymous 免登录 + 图形码防滥用）
+- **customer/my 接真实数据**：后端接 IOuuCustomerService.selectOuuCustomerById 替换假数据
+- **useAppConfig**：启动拉 GET /app-config（待后端开发），合并到 BUSINESS_CONFIG，失败用前端兜底（9 项 TODO）
+- **「我的」页 onOpenLogin 补全**：未登录访问 mine 页点"去登录"需 sendMessage 触发侧边栏登录弹窗
+- **web-fe 实现官网 /donate /contact**：PRD 已出，需 4 张二维码图（微信赞赏码/支付宝/微信群/公众号）
+- **后端配真实数据**：ouu_advertisement 广告内容、ouu_apps_version 版本记录、ouu_apps_notice 通知
+- **预留扩展**：VIP 会员（功能清单已留 5 功能，isVip 永远 false）、云同步（3 类已分级，功能暂缓）、第三方登录
