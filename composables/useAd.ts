@@ -139,7 +139,9 @@ function useAdImpl() {
     console.log('[ad] 开始拉取广告')
 
     try {
+      // position=banner 底部弹层广告位标识（后端 required）
       const response = await get<AdListResponse>(API_URIS.adList, {
+        params: { position: 'banner' },
         timeout: 3000,
         silent: true
       })

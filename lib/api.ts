@@ -24,6 +24,7 @@ interface RequestOptions {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   uri: string
   body?: unknown
+  params?: Record<string, string | number>  // URL query 参数（GET 常用）
   extraHeaders?: Record<string, string>
   timeout?: number
 }
@@ -104,13 +105,21 @@ async function request<T extends BaseResponse = BaseResponse>({
   method,
   uri,
   body,
+  params,
   extraHeaders,
   timeout = DEFAULT_TIMEOUT,
   silent = false
 }: RequestOptions & { silent?: boolean }): Promise<T> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeout)
-  const url = `${API_BASE_URL}${uri}`
+  // 拼 query 参数（GET 常用，如 /ad/list?position=banner）
+  let queryString = ''
+  if (params) {
+    const sp = new URLSearchParams()
+    Object.entries(params).forEach(([k, v]) => sp.append(k, String(v)))
+    queryString = '?' + sp.toString()
+  }
+  const url = API_BASE_URL + uri + queryString
   const startedAt = Date.now()
   // 请求发出日志（让用户能在控制台看到接口确实发了）
   console.log(`[api] → ${method} ${uri}`, body ? { body } : '')
