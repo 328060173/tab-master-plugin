@@ -175,4 +175,5 @@ export default {
   'login.success': '登录成功',
   'login.codeSent': '验证码已发送',
   'login.agree': '登录即表示同意用户协议',
+  'login.expired': '登录已过期，请重新登录',
 }

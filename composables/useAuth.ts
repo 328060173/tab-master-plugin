@@ -12,6 +12,7 @@
  */
 
 import { ref, computed } from 'vue'
+import { setTokenGetter, setAuthExpiredHandler } from '~lib/api'
 
 // storage key
 const AUTH_KEY = 'tabMasterAuth'
@@ -74,9 +75,22 @@ function useAuthImpl() {
   // 响应式状态
   const auth = ref<TabMasterAuth>({ ...DEFAULT_AUTH })
 
+  // 会话过期标志：401（token 过期/调需登录接口未登录）时置 true
+  // 与主动 logout 区分：sidepanel watch 此标志 toast「登录已过期」，主动 logout 不触发
+  const sessionExpired = ref(false)
+
   // computed 暴露
   const isLoggedIn = computed(() => !!auth.value.token && !!auth.value.user)
   const user = computed(() => auth.value.user)
+
+  // 注册到 api.ts 统一拦截器：每次请求自动注入 Authorization: Bearer <token>
+  setTokenGetter(() => auth.value.token)
+  // 注册 401 处理：鉴权过期时清登录态 + 标记 sessionExpired
+  setAuthExpiredHandler(() => {
+    auth.value = { ...DEFAULT_AUTH }
+    sessionExpired.value = true
+    chrome.storage.local.remove(AUTH_KEY).catch(() => {})
+  })
 
   // 加载 auth 状态
   async function loadAuth() {
@@ -96,14 +110,16 @@ function useAuthImpl() {
       user,
       expiresAt: null // 样板阶段暂不处理过期时间
     }
+    sessionExpired.value = false
     await chrome.storage.local.set({
       [AUTH_KEY]: toPure(auth.value)
     })
   }
 
-  // 退出登录
+  // 退出登录（主动，非过期）
   async function logout() {
     auth.value = { ...DEFAULT_AUTH }
+    sessionExpired.value = false
     await chrome.storage.local.remove(AUTH_KEY)
   }
 
@@ -112,15 +128,22 @@ function useAuthImpl() {
     return auth.value.token
   }
 
+  // 清除会话过期标志（sidepanel toast 后调用）
+  function clearSessionExpired() {
+    sessionExpired.value = false
+  }
+
   // 立即加载
   loadAuth()
 
   return {
     isLoggedIn,
     user,
+    sessionExpired,
     login,
     logout,
-    getToken
+    getToken,
+    clearSessionExpired
   }
 }
 

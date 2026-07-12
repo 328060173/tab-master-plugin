@@ -171,4 +171,5 @@ export default {
   'login.success': 'Login successful',
   'login.codeSent': 'Code sent',
   'login.agree': 'By logging in, you agree to the User Agreement',
+  'login.expired': 'Session expired, please log in again',
 }

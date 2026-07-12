@@ -635,7 +635,7 @@ const {
 // ========== 登录引导 Banner 逻辑 ==========
 const showLoginBanner = ref(false)
 const showLoginDialog = ref(false)
-const { isLoggedIn } = useAuth()
+const { isLoggedIn, sessionExpired, clearSessionExpired } = useAuth()
 
 // 加载 Banner 状态
 async function loadBannerState() {
@@ -680,6 +680,14 @@ watch(isLoggedIn, (loggedIn) => {
     showLoginBanner.value = false
   } else {
     loadBannerState()
+  }
+})
+
+// 会话过期（401）-> toast 提示重新登录（区别于主动退出）
+watch(sessionExpired, (expired) => {
+  if (expired) {
+    showToast(t('login.expired'))
+    clearSessionExpired()
   }
 })
 
