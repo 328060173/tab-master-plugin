@@ -84,6 +84,30 @@
     <!-- 聚焦态顶部提示 -->
     <FocusBanner v-if="focusMode === 'focusing'" :focused-count="focusingTabs.length" :hidden-count="hiddenGroupTabCount" />
 
+    <!-- 首页登录引导 Banner -->
+    <ErrorBoundary v-if="activeNav === 'home' && focusMode === 'normal'" scope="login">
+      <!-- 样板阶段内联；批量做登录弹窗时抽成独立 LoginBanner.vue 组件 -->
+      <div
+        v-if="showLoginBanner"
+        class="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 px-3 py-1.5 flex items-center gap-2 cursor-pointer"
+        @click="handleLoginBannerClick"
+      >
+        <button
+          class="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          @click.stop="handleLoginBannerDismiss"
+        >
+          <X :size="12" />
+        </button>
+        <LogIn :size="12" class="shrink-0 text-gray-500 dark:text-gray-400" />
+        <div class="flex-1 min-w-0">
+          <p class="text-xs text-gray-600 dark:text-gray-300 truncate">
+            {{ t('loginBanner.title') }}
+          </p>
+        </div>
+        <ChevronRight :size="12" class="shrink-0 text-gray-400 dark:text-gray-500" />
+      </div>
+    </ErrorBoundary>
+
     <!-- Nav Tabs（仅普通态显示） -->
     <div v-if="focusMode === 'normal'" class="flex border-b border-gray-100 px-3 shrink-0">
       <button v-for="nav in navItems" :key="nav.key"
@@ -545,7 +569,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
-import { ChevronUp, ChevronDown, ChevronLeft, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle } from "@lucide/vue"
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn } from "@lucide/vue"
 import TagSelectPopover from "~components/TagSelectPopover.vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabActions } from "~composables/useTabActions"
@@ -558,6 +582,7 @@ import { useHistory } from "~composables/useHistory"
 import { usePopoverManager, installGlobalPopoverClose } from "~composables/usePopoverManager"
 import { computePopoverPos, computeFlyoutPos } from "~lib/popoverPosition"
 import { sortTabs, groupByDomain } from "~lib/sortUtils"
+import { t } from "~lib/i18n"
 import HeaderMenu from "~components/HeaderMenu.vue"
 import TabTileItem from "~components/TabTileItem.vue"
 import TabListItem from "~components/TabListItem.vue"
@@ -598,6 +623,49 @@ const {
   groupTab,
   updateTreeParent, moveTabToIndex,
 } = useTabManager()
+
+// ========== 登录引导 Banner 逻辑 ==========
+// 为简化样板实现，我们内联逻辑，避免多文件跳转
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+const showLoginBanner = ref(false)
+// 模拟登录状态 - 待 useAuth 接入
+const isLoggedIn = ref(false)
+
+// 加载 Banner 状态
+async function loadBannerState() {
+  const data = await chrome.storage.local.get("tabMasterBannerState")
+  const state = data.tabMasterBannerState
+  if (!state || typeof state !== "object") {
+    showLoginBanner.value = !isLoggedIn.value
+    return
+  }
+  const dismissedAt = typeof state.homeDismissedAt === "number" ? state.homeDismissedAt : null
+  if (isLoggedIn.value) {
+    showLoginBanner.value = false
+  } else if (!dismissedAt) {
+    showLoginBanner.value = true
+  } else {
+    showLoginBanner.value = Date.now() - dismissedAt > SEVEN_DAYS_MS
+  }
+}
+
+// 点击 Banner
+function handleLoginBannerClick() {
+  console.log("[LoginBanner] 登录功能即将开放")
+  showToast(t('loginBanner.comingSoon'))
+}
+
+// 关闭 Banner
+async function handleLoginBannerDismiss() {
+  showLoginBanner.value = false
+  const data = await chrome.storage.local.get("tabMasterBannerState")
+  const state = data.tabMasterBannerState && typeof data.tabMasterBannerState === "object"
+    ? data.tabMasterBannerState
+    : { homeDismissedAt: null, laterDismissedAt: null }
+  await chrome.storage.local.set({
+    tabMasterBannerState: { ...state, homeDismissedAt: Date.now() },
+  })
+}
 
 const stats = computed(() => useTabStats(tabs).value)
 
@@ -1165,6 +1233,8 @@ onMounted(async () => {
   chrome.tabs.onCreated.addListener(handleNewTabInFocus)
   // 监听首次绑标记（storage 写入 tagsSessionNoticeShown=true）→ 弹告知确认框
   chrome.storage.onChanged.addListener(onTagsSessionNoticeChanged)
+  // 加载登录引导 Banner 状态
+  await loadBannerState()
 })
 
 onUnmounted(() => {

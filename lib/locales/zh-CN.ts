@@ -130,4 +130,8 @@ export default {
   'cleanup.toast.noUnused': '未检测到长期未用标签',
   'cleanup.toast.closed': '已关闭 {count} 个标签 · Ctrl+Shift+T 可恢复',
   'cleanup.toast.closedPartial': '已关闭 {success} 个，{failed} 个失败 · Ctrl+Shift+T 可恢复',
+
+  // 登录引导 Banner
+  'loginBanner.title': '登录获取更多功能',
+  'loginBanner.comingSoon': '登录功能即将开放',
 }

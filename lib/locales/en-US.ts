@@ -126,4 +126,8 @@ export default {
   'cleanup.toast.noUnused': 'No long-unused tabs detected',
   'cleanup.toast.closed': 'Closed {count} tabs · Ctrl+Shift+T to restore',
   'cleanup.toast.closedPartial': 'Closed {success}, {failed} failed · Ctrl+Shift+T to restore',
+
+  // Login Banner
+  'loginBanner.title': 'Login for more features',
+  'loginBanner.comingSoon': 'Login feature coming soon',
 }
