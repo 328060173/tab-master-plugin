@@ -161,7 +161,7 @@ const canSendCode = computed(() => {
 const canLogin = computed(() => {
   if (!email.value || !email.value.includes('@')) return false
   if (!emailCode.value || emailCode.value.length < 4) return false
-  // 登录时也需要图形验证码（因为发码时已消费了一个）
+  // 登录需要新的图形验证码（发码时已消费旧的，发码后已刷新拉新，用户需再输一次）
   if (captchaEnabled.value && (!captchaUuid.value || !captchaCode.value)) return false
   return true
 })
@@ -193,8 +193,10 @@ async function handleSendCode() {
     // 成功 - 开始倒计时 + 提示（弹窗保持打开，用户继续输邮箱验证码）
     startCountdown()
     codeSentTip.value = t('login.codeSent')
-    // 发码已消费图形验证码（后端校验后删除），立即刷新拉一个新的，供登录时使用
+    // 发码已消费图形验证码（后端校验后删除），立即刷新拉一个新的，登录时需要再次输入新图形码
     captchaRef.value?.refresh()
+    // 清空旧的 captchaCode，提示用户输入新的图形码
+    captchaCode.value = ''
   } catch (e) {
     // 失败 - 如果是验证码错误，刷新图形验证码
     const errMsg = e instanceof Error ? e.message : '发送失败'

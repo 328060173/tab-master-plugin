@@ -1,5 +1,5 @@
 <template>
-  <div class="border-b border-gray-100 dark:border-gray-700">
+  <div v-if="hasNotice" class="border-b border-gray-100 dark:border-gray-700">
     <!-- 通知条（点击展开）-->
     <button
       class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
@@ -7,7 +7,7 @@
     >
       <Bell :size="13" class="shrink-0 text-amber-500" />
       <span class="flex-1 truncate text-gray-600 dark:text-gray-300">
-        {{ hasNotice ? latestNotice : t('notice.empty') }}
+        {{ latestNotice }}
       </span>
       <span v-if="unreadCount > 0" class="shrink-0 text-[10px] bg-red-500 text-white px-1.5 rounded-full">
         {{ unreadCount }}
@@ -20,7 +20,7 @@
     </button>
 
     <!-- 通知列表（展开时）-->
-    <div v-if="expanded && hasNotice" class="px-3 pb-2 max-h-48 overflow-y-auto">
+    <div v-if="expanded" class="px-3 pb-2 max-h-48 overflow-y-auto">
       <div
         v-for="n in notices"
         :key="n.id"

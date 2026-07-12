@@ -9,11 +9,55 @@
  */
 
 import { ref, computed } from 'vue'
-import { get } from '~lib/api'
+import { post } from '~lib/api'
 import { API_URIS } from '~lib/api-config'
+import { useAuth } from '~composables/useAuth'
 
 // Storage key
 const VERSION_CHECK_KEY = 'tabMasterVersionCheck'
+
+// 固定 versionCode=101（与后端约定，不用 manifest 算的值）
+const APP_VERSION_CODE = 101
+
+/**
+ * 收集设备信息 JSON（accessDeviceInfo）
+ * 能取的取，取不到的字段留空，不报错
+ */
+function collectDeviceInfo(): string {
+  try {
+    const ua = navigator.userAgent
+    // 解析浏览器类型/版本
+    let browser = 'unknown'
+    let browserVersion = ''
+    if (/Chrome\/([\d.]+)/.test(ua)) { browser = 'Chrome'; browserVersion = RegExp.$1 }
+    else if (/Edg\/([\d.]+)/.test(ua)) { browser = 'Edge'; browserVersion = RegExp.$1 }
+    else if (/Firefox\/([\d.]+)/.test(ua)) { browser = 'Firefox'; browserVersion = RegExp.$1 }
+    else if (/Safari\/([\d.]+)/.test(ua)) { browser = 'Safari'; browserVersion = RegExp.$1 }
+    // 系统
+    let os = 'unknown'
+    if (/Windows/.test(ua)) os = 'Windows'
+    else if (/Macintosh|Mac OS X/.test(ua)) os = 'macOS'
+    else if (/Linux/.test(ua)) os = 'Linux'
+    // 设备类型
+    const deviceType = /Mobile|Android|iPhone/.test(ua) ? 'mobile' : 'desktop'
+    const info = {
+      deviceType,
+      browser,
+      browserVersion,
+      os,
+      userAgent: ua,
+      platform: navigator.platform || '',
+      language: navigator.language || '',
+      // imei/设备编号：浏览器无法获取（隐私），留空
+      imei: '',
+      deviceNumber: ''
+    }
+    return JSON.stringify(info)
+  } catch (e) {
+    console.warn('[version] 收集设备信息失败', e)
+    return JSON.stringify({ deviceType: 'unknown' })
+  }
+}
 
 // 版本检查存储状态类型
 interface VersionCheckState {
@@ -140,8 +184,17 @@ function useVersionCheckImpl() {
     console.log('[version] 开始检查版本更新')
 
     try {
-      // 调用后端接口，超时 3 秒，静默失败（失败/超时只打 warn 不影响 UI）
-      const response = await get<CheckVersionResponse>(API_URIS.checkVersion, {
+      // 调用后端接口（POST），超时 3 秒，静默失败
+      // 请求头已自动带 platform/appCode/versionCode(101 由 buildHeaders 注入)
+      // 请求体：customerType(按登录态) + accessDeviceInfo(设备信息JSON) + versionCode
+      const { isLoggedIn } = useAuth()
+      const response = await post<CheckVersionResponse>(API_URIS.checkVersion, {
+        customerType: isLoggedIn ? 1 : 0,
+        versionCode: APP_VERSION_CODE,
+        accessDeviceInfo: collectDeviceInfo(),
+        accessLoc: '-',
+        deviceNumber: ''
+      }, {
         timeout: 3000,
         silent: true
       })

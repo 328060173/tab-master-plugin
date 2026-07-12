@@ -63,21 +63,16 @@ function versionStringToCode(version: string): number {
   }
 }
 
-// 从 manifest 读取当前版本并计算 versionCode
-let currentVersionCode = 1
-try {
-  const manifestVersion = chrome.runtime.getManifest().version
-  currentVersionCode = versionStringToCode(manifestVersion)
-} catch {
-  // 读取失败时使用默认值 1
-}
+// versionCode：与后端约定固定 101（不用 manifest 算的值，后端版本表按此匹配）
+// 如需升级版本号，与后端 ouu_apps_version 表 version_code 对齐
+const APP_VERSION_CODE = 101
 
 // 默认请求头（对应后端 Constants.HEAD_APP_*）
 // platform: 1=Web浏览器插件 2=iOS 3=Android 4=微信小程序
-// 这些是所有请求都带的公共头；登录后还会自动追加 Authorization（在 lib/api.ts 的 buildHeaders 统一处理）
+// 这些是所有请求都带的公共头；登录后还会自动追加 Authorization + customerType（在 lib/api.ts 的 buildHeaders 统一处理）
 // 后续如需新增公共头（如设备标识、渠道等），统一加到这里
 export const APP_HEADERS = {
   platform: 1,
   appCode: APP_CODES.tabMaster,
-  versionCode: currentVersionCode
+  versionCode: APP_VERSION_CODE
 } as const
