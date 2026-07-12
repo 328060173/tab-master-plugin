@@ -84,11 +84,10 @@
     <!-- 聚焦态顶部提示 -->
     <FocusBanner v-if="focusMode === 'focusing'" :focused-count="focusingTabs.length" :hidden-count="hiddenGroupTabCount" />
 
-    <!-- 首页登录引导 Banner -->
-    <ErrorBoundary v-if="activeNav === 'home' && focusMode === 'normal'" scope="login">
+    <!-- 登录引导 Banner -->
+    <ErrorBoundary v-if="showLoginBanner" scope="login">
       <!-- 样板阶段内联；批量做登录弹窗时抽成独立 LoginBanner.vue 组件 -->
       <div
-        v-if="showLoginBanner"
         class="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 px-3 py-1.5 flex items-center gap-2 cursor-pointer"
         @click="handleLoginBannerClick"
       >
@@ -626,7 +625,6 @@ const {
 
 // ========== 登录引导 Banner 逻辑 ==========
 // 为简化样板实现，我们内联逻辑，避免多文件跳转
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 const showLoginBanner = ref(false)
 // 模拟登录状态 - 待 useAuth 接入
 const isLoggedIn = ref(false)
@@ -639,13 +637,14 @@ async function loadBannerState() {
     showLoginBanner.value = !isLoggedIn.value
     return
   }
-  const dismissedAt = typeof state.homeDismissedAt === "number" ? state.homeDismissedAt : null
+  const dismissedAt = typeof state.dismissedAt === "number" ? state.dismissedAt : null
   if (isLoggedIn.value) {
     showLoginBanner.value = false
   } else if (!dismissedAt) {
     showLoginBanner.value = true
   } else {
-    showLoginBanner.value = Date.now() - dismissedAt > SEVEN_DAYS_MS
+    // 当天关闭不显示，次日（自然日）重新显示
+    showLoginBanner.value = new Date(dismissedAt).toDateString() !== new Date().toDateString()
   }
 }
 
@@ -658,12 +657,8 @@ function handleLoginBannerClick() {
 // 关闭 Banner
 async function handleLoginBannerDismiss() {
   showLoginBanner.value = false
-  const data = await chrome.storage.local.get("tabMasterBannerState")
-  const state = data.tabMasterBannerState && typeof data.tabMasterBannerState === "object"
-    ? data.tabMasterBannerState
-    : { homeDismissedAt: null, laterDismissedAt: null }
   await chrome.storage.local.set({
-    tabMasterBannerState: { ...state, homeDismissedAt: Date.now() },
+    tabMasterBannerState: { dismissedAt: Date.now() },
   })
 }
 
