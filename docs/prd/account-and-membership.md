@@ -4,6 +4,50 @@
 
 ---
 
+## 📌 v3 更新摘要（2026-07-12，用户 6 条需求落地，以本段为准）
+
+> 后端接口已核实（不凭印象），下方决策覆盖正文旧表述。正文 §6 接口路径/字段以本段为准。
+
+**1. 登录引导 Banner 频控 7天 -> 当天**：关闭后当天不再显示，次日（自然日 00:00）重新显示。已落地（plugs-fe）。
+
+**2. Banner 全局化**：去掉 `activeNav/focusMode` 限制，4 个 tab（首页/稍后/分组/历史）+ 聚焦态 + 选择态**都显示**。位置在 NavTabs 之上（四个 tab 之上的通栏），不为某个 tab 专门隐藏。已落地。
+
+**3. 登录/注册统一邮箱，接口已核实**（用户给的是方法名，实际路径如下）：
+- 发邮箱验证码：`OuuEmailController#approval` -> `POST /email/send-login-code`，请求体 `EmailCreateRequest`
+- 邮箱验证码登录：`OuuLoginController#login` -> `POST /login/login-by-email-code`，请求体 `LoginEmailRequest`，返回 `R<LoginResponse>{token, customerId, ...}`
+- 登录即注册（邮箱验证码自动判断是否已注册），无需单独注册接口
+- **baseURL = `https://api.ouu365.com/ouu-api`**（官网正式环境占位，联调可改 localhost:8080）。后端 Controller 无 `/api` 前缀，前缀 `/ouu-api` 在 baseURL 里。PRD 正文 §6 写的 `/api/xxx` **作废**，以本段为准。
+- 请求头：`platform=1`（Web浏览器插件）/ `appCode=app_1001`（标签大师）/ `versionCode=1`，对应后端 `Constants.HEAD_APP_PLATFORM/HEAD_APP_CODE/HEAD_APP_VERSION_CODE`
+
+**4. 发码 + 登录都要若依图形验证码**（用户硬要求）：
+- 后端 `approval` 和 `login` 当前**不校验**图形验证码，api-backend 改造中：请求体加 `captchaUuid + captchaCode`，service 内校验 Redis（key=`CAPTCHA_CODE_KEY+uuid`），校验后删除（一次性防重放），`captchaEnabled=false` 时跳过
+- 验证码接口：`GET /captchaImage`（`CaptchaController#getCode`），返回 `{code,msg,captchaEnabled,uuid,img(base64)}`，uuid 存 Redis 2分钟
+- 前端验证码组件：官网 `CaptchaInput.vue` 已实现完整流程，已抽象到插件 `components/CaptchaInput.vue`（plugs-fe 实现中）
+
+**5. 反馈接口真相**：`POST /feedback/suggest` 是 `@Anonymous` **免登录**的（PRD 正文 §4.B.4/§6 写"需登录"**作废**）。靠图形验证码防滥用。请求体 `{feedbackType, content, email, captchaUuid, captchaCode}`（官网 SubscribeFeedback.vue 已实现，反馈类型映射 bug=1/feature=2/cooperation=3/experience=4/other=99）。
+
+**6. 功能清单统一维护 + 收入结构**：
+- `config/feature-tiers.ts` 统一维护两张表：**登录才能用**（F102-F105）+ **VIP才能用**（F201-F207）。**现在没有 VIP**，VIP 表只是预留扩展（后续加），当前所有 VIP 功能对用户不可见/不拦截
+- 当前收入 = **广告 + 捐助喝咖啡**，无 VIP 付费
+- 广告位：底部状态栏上方弹层，**10秒自动消失**，后端新开发接口返回广告数据（plugs-fe 待实现，api-backend 待开发接口）
+
+**7. 广告位设计（新增，待 PM 细化 + api-backend 开发）**：
+- 位置：插件最底层状态栏之上，浮层广告
+- 展示：10秒自动消失，可手动关闭
+- 内容：图片 + 文案 + 可点击链接（跳转新 tab）
+- 接口：`GET /ad/list?platform=1&position=banner`（api-backend 新开发），返回 `R<List<AdItem>>`，AdItem 字段待定（id/imageUrl/linkUrl/title/duration?）
+- 频控：插件侧控制（每用户每天最多 N 次，避免打扰）
+- ⚠️ **资源红线例外**：广告图片是业务内容（广告主提供），走后端返回 URL，与"不外链字体/图标 CDN"的红线不冲突（那是针对前端依赖资源，非业务内容）。待用户确认此例外。
+
+**8. 收入结构定稿**：
+| 收入来源 | 状态 | 落地 |
+|---|---|---|
+| 广告（底部10秒弹层） | 本期开发 | api-backend 接口 + plugs-fe 广告位组件 |
+| 捐助喝咖啡 | 本期开发 | 跳转官网 /donate 页（web-pm 设计） |
+| VIP会员 | 预留扩展 | 功能清单留 VIP 表，当前不实现付费 |
+
+---
+
 ## 1. 背景与目标
 
 ### 现状/痛点
