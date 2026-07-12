@@ -122,6 +122,7 @@ const SYS_DEFS: StorageDef[] = [
   { key: "tagSelectMode",     label: "标记筛选模式",     icon: "🔘", storage: "local", warning: "会把标记筛选模式重置为默认「单选」。" },
   { key: "viewMode",          label: "视图模式",         icon: "🖼️", storage: "ls", warning: "会清空记住的视图模式，下次打开恢复默认列表视图。" },
   { key: "tabMasterBannerState", label: "登录引导记录",  icon: "🔔", storage: "local", warning: "清空后，登录引导 Banner 会重新显示。" },
+  { key: "tabMasterVersionCheck", label: "版本检查记录",  icon: "🔄", storage: "local", warning: "清空后，版本检查会重新执行。" },
 ]
 
 const loadData = async () => {

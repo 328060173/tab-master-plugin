@@ -176,4 +176,11 @@ export default {
   'login.codeSent': '验证码已发送',
   'login.agree': '登录即表示同意用户协议',
   'login.expired': '登录已过期，请重新登录',
+
+  // 版本更新
+  'update.found': '发现新版本',
+  'update.forceMsg': '发现新版本，请立即更新',
+  'update.normalMsg': '发现新版本 v{version}',
+  'update.goUpdate': '去更新',
+  'update.changeLog': '更新内容',
 }

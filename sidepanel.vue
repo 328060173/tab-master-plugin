@@ -88,6 +88,11 @@
     <!-- 聚焦态顶部提示 -->
     <FocusBanner v-if="focusMode === 'focusing'" :focused-count="focusingTabs.length" :hidden-count="hiddenGroupTabCount" />
 
+    <!-- 版本更新提示（强制更新最顶，不可关闭；非强制可关闭） -->
+    <ErrorBoundary v-if="shouldShowUpdateBanner" scope="update">
+      <UpdateBanner :info="updateInfo" @dismiss="onDismissUpdate" @go-update="openUpdatePage" />
+    </ErrorBoundary>
+
     <!-- 登录引导 Banner -->
     <ErrorBoundary v-if="showLoginBanner" scope="login">
       <!-- 样板阶段内联；批量做登录弹窗时抽成独立 LoginBanner.vue 组件 -->
@@ -577,7 +582,9 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn } from "@lucide/vue"
 import LoginDialog from "~components/LoginDialog.vue"
+import UpdateBanner from "~components/UpdateBanner.vue"
 import { useAuth } from "~composables/useAuth"
+import { useVersionCheck } from "~composables/useVersionCheck"
 import TagSelectPopover from "~components/TagSelectPopover.vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabActions } from "~composables/useTabActions"
@@ -636,6 +643,9 @@ const {
 const showLoginBanner = ref(false)
 const showLoginDialog = ref(false)
 const { isLoggedIn, sessionExpired, clearSessionExpired } = useAuth()
+// 版本检查（静默失败，不阻塞 UI；强制更新顶部弹框）
+const { updateInfo, shouldShowBanner: shouldShowUpdateBanner, checkVersion, dismiss: dismissUpdate, openUpdatePage } = useVersionCheck()
+function onDismissUpdate() { dismissUpdate() }
 
 // 加载 Banner 状态
 async function loadBannerState() {
@@ -1259,6 +1269,8 @@ onMounted(async () => {
   chrome.storage.onChanged.addListener(onTagsSessionNoticeChanged)
   // 加载登录引导 Banner 状态
   await loadBannerState()
+  // 版本检查（静默失败，不阻塞；内部每天1次去重）
+  checkVersion()
 })
 
 onUnmounted(() => {

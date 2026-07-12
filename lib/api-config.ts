@@ -23,18 +23,49 @@ export const API_BASE_URL = ENV_API_BASE
 // - loginByEmailCode: OuuLoginController#login
 // - feedbackSuggest: OuuCustomerFeedbackController#suggest
 // - adList: OuuAdvertisementController#getAdList
+// - checkVersion: AppVersionController#checkVersion
 export const API_URIS = {
   captchaImage: '/captchaImage',
   sendLoginCode: '/email/send-login-code',
   loginByEmailCode: '/login/login-by-email-code',
   feedbackSuggest: '/feedback/suggest',
-  adList: '/ad/list'
+  adList: '/ad/list',
+  checkVersion: '/version/check-version'
 } as const
 
 // 产品 appCode 注册表（值由后端分配）
 export const APP_CODES = {
   tabMaster: 'app_1001'
 } as const
+
+/**
+ * 将版本号字符串（如 "0.1.0"、"1.2.3"）转换为整数版本码
+ * 规则：主版本 * 10000 + 次版本 * 100 + 修订版本
+ * 例如：
+ *  - "0.1.0" → 0 * 10000 + 1 * 100 + 0 = 100
+ *  - "1.2.3" → 1 * 10000 + 2 * 100 + 3 = 10203
+ *  - "2.10.5" → 2 * 10000 + 10 * 100 + 5 = 21005
+ */
+function versionStringToCode(version: string): number {
+  try {
+    const parts = version.split('.').map(Number)
+    const major = parts[0] || 0
+    const minor = parts[1] || 0
+    const patch = parts[2] || 0
+    return major * 10000 + minor * 100 + patch
+  } catch {
+    return 1
+  }
+}
+
+// 从 manifest 读取当前版本并计算 versionCode
+let currentVersionCode = 1
+try {
+  const manifestVersion = chrome.runtime.getManifest().version
+  currentVersionCode = versionStringToCode(manifestVersion)
+} catch {
+  // 读取失败时使用默认值 1
+}
 
 // 默认请求头（对应后端 Constants.HEAD_APP_*）
 // platform: 1=Web浏览器插件 2=iOS 3=Android 4=微信小程序
@@ -43,5 +74,5 @@ export const APP_CODES = {
 export const APP_HEADERS = {
   platform: 1,
   appCode: APP_CODES.tabMaster,
-  versionCode: 1
+  versionCode: currentVersionCode
 } as const

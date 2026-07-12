@@ -172,4 +172,11 @@ export default {
   'login.codeSent': 'Code sent',
   'login.agree': 'By logging in, you agree to the User Agreement',
   'login.expired': 'Session expired, please log in again',
+
+  // Version Update
+  'update.found': 'New version available',
+  'update.forceMsg': 'New version available, please update now',
+  'update.normalMsg': 'New version v{version} available',
+  'update.goUpdate': 'Update',
+  'update.changeLog': 'What\'s new',
 }
