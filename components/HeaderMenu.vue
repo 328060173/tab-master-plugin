@@ -34,22 +34,20 @@
           </button>
         </template>
 
-        <!-- 已登录：显示邮箱 + 退出 -->
+        <!-- 已登录：显示邮箱，点击进「我的」 -->
         <template v-else>
           <button
-            ref="accountRowRef"
             class="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-            :class="activeSubmenu === 'account' && 'bg-gray-50 dark:bg-gray-700'"
-            @mouseenter="onEnterSubmenuRow('account', accountRowRef)"
+            @mouseenter="activeSubmenu = null"
+            @click="onOpenMine"
           >
             <span class="flex items-center gap-2">
               <User :size="13" />
-              <span class="truncate max-w-[130px]">{{ userEmail }}</span>
+              <span class="truncate max-w-[150px]">{{ userEmail }}</span>
               <template v-if="isVip">
                 <Crown :size="11" class="text-yellow-500" />
               </template>
             </span>
-            <ChevronLeft :size="11" class="text-gray-400" />
           </button>
         </template>
 
@@ -208,19 +206,6 @@
         <p v-if="sidePanelSide !== 'unknown'" class="mt-1 text-gray-400">当前：{{ sidePanelSide === 'left' ? '左侧' : '右侧' }}</p>
       </div>
 
-      <!-- ====== 二级子菜单：账号（退出登录）====== -->
-      <div
-        v-if="popover.isOpen('header-menu') && activeSubmenu === 'account'"
-        :style="accountSubmenuPos"
-        class="fixed z-[60] w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
-        @click.stop
-        @mouseenter="activeSubmenu = 'account'"
-      >
-        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700" @click="onLogout">
-          <LogOut :size="12" />
-          <span class="flex-1 text-left">{{ t('menu.logout') }}</span>
-        </button>
-      </div>
     </Teleport>
   </div>
 </template>
@@ -282,9 +267,8 @@ const onTriggerClick = (e: MouseEvent) => {
 const themeRowRef = ref<HTMLElement | null>(null)
 const fontRowRef = ref<HTMLElement | null>(null)
 const positionRowRef = ref<HTMLElement | null>(null)
-const accountRowRef = ref<HTMLElement | null>(null)
 
-const activeSubmenu = ref<"theme" | "font" | "position" | "account" | null>(null)
+const activeSubmenu = ref<"theme" | "font" | "position" | null>(null)
 const submenuAnchorRect = ref<DOMRect | null>(null)
 
 // 主菜单位置：anchor 在触发按钮的 bottom-right（右对齐）
@@ -313,14 +297,8 @@ const positionSubmenuPos = computed(() => {
   const p = computeFlyoutPos(submenuAnchorRect.value, { width: 144, height: 150 }, "left")
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
-// 账号子菜单位置
-const accountSubmenuPos = computed(() => {
-  if (!submenuAnchorRect.value) return { left: "0px", top: "0px" }
-  const p = computeFlyoutPos(submenuAnchorRect.value, { width: 144 }, "left")
-  return { left: `${p.left}px`, top: `${p.top}px` }
-})
 
-const onEnterSubmenuRow = (type: "theme" | "font" | "position" | "account", rowEl: HTMLElement | null) => {
+const onEnterSubmenuRow = (type: "theme" | "font" | "position", rowEl: HTMLElement | null) => {
   activeSubmenu.value = type
   submenuAnchorRect.value = rowEl?.getBoundingClientRect() ?? null
 }
@@ -366,6 +344,14 @@ const onPickFontSize = (v: "normal" | "large" | "xlarge") => {
 const onLogin = () => {
   popover.close("header-menu")
   emit("open-login")
+}
+const onOpenMine = () => {
+  popover.close("header-menu")
+  try {
+    chrome.tabs.create({ url: chrome.runtime.getURL("tabs/mine.html") })
+  } catch (e) {
+    console.warn("open mine page failed", e)
+  }
 }
 const onLogout = async () => {
   popover.close("header-menu")
