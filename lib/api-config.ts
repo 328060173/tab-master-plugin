@@ -33,7 +33,9 @@ export const API_URIS = {
   loginByEmailCode: '/login/login-by-email-code',
   feedbackSuggest: '/feedback/suggest',
   adList: '/ad/list',
-  checkVersion: '/version/check-version'
+  checkVersion: '/version/check-version',
+  customerMy: '/customer/my',
+  noticePageList: '/notice/page-list'
 } as const
 
 // 产品 appCode 注册表（值由后端分配）

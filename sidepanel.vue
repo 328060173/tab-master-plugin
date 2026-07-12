@@ -116,6 +116,15 @@
       </div>
     </ErrorBoundary>
 
+    <!-- 消息通知条（登录引导下、NavTabs 上；普通态显示）-->
+    <ErrorBoundary v-if="focusMode === 'normal'" scope="notice">
+      <NoticeBar
+        :notices="notices"
+        :unread-count="unreadCount"
+        @mark-all-read="markAllNoticeRead"
+      />
+    </ErrorBoundary>
+
     <!-- Nav Tabs（仅普通态显示） -->
     <div v-if="focusMode === 'normal'" class="flex border-b border-gray-100 px-3 shrink-0">
       <button v-for="nav in navItems" :key="nav.key"
@@ -594,9 +603,11 @@ import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, Che
 import LoginDialog from "~components/LoginDialog.vue"
 import UpdateBanner from "~components/UpdateBanner.vue"
 import AdBanner from "~components/AdBanner.vue"
+import NoticeBar from "~components/NoticeBar.vue"
 import { useAuth } from "~composables/useAuth"
 import { useVersionCheck } from "~composables/useVersionCheck"
 import { useAd } from "~composables/useAd"
+import { useNotice } from "~composables/useNotice"
 import TagSelectPopover from "~components/TagSelectPopover.vue"
 import { useTabManager } from "~composables/useTabManager"
 import { useTabActions } from "~composables/useTabActions"
@@ -663,6 +674,8 @@ const { currentAd, fetchAd, markShown, onAdClick, onAdDismiss, onAdExpired } = u
 function onAdClickFromBanner() { onAdClick() }
 function onAdDismissFromBanner() { onAdDismiss() }
 function onAdExpiredFromBanner() { onAdExpired() }
+// 消息通知（首页通知条，静默失败，按 id 记已读）
+const { notices, unreadCount, fetchNotices, markAllRead: markAllNoticeRead } = useNotice()
 
 // 加载 Banner 状态
 async function loadBannerState() {
@@ -1297,6 +1310,8 @@ onMounted(async () => {
   checkVersion()
   // 拉取广告（底部弹层，静默失败不打扰）
   fetchAd()
+  // 拉取消息通知（首页通知条，静默失败）
+  fetchNotices()
 })
 
 onUnmounted(() => {

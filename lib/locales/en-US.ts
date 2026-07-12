@@ -205,4 +205,8 @@ export default {
   'mine.contact': 'Contact Us',
   'mine.guide': 'Guide',
   'mine.logout': 'Logout',
+
+  // 消息通知
+  'notice.empty': 'No notifications',
+  'notice.markAllRead': 'Mark all read',
 }

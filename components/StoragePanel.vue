@@ -124,6 +124,7 @@ const SYS_DEFS: StorageDef[] = [
   { key: "tabMasterBannerState", label: "登录引导记录",  icon: "🔔", storage: "local", warning: "清空后，登录引导 Banner 会重新显示。" },
   { key: "tabMasterVersionCheck", label: "版本检查记录",  icon: "🔄", storage: "local", warning: "清空后，版本检查会重新执行。" },
   { key: "tabMasterAdState", label: "广告展示记录",  icon: "📢", storage: "local", warning: "清空后，广告展示计数会重置。" },
+  { key: "tabMasterNoticeRead", label: "通知已读记录",  icon: "📨", storage: "local", warning: "清空后，通知会重新显示为未读。" },
 ]
 
 const loadData = async () => {

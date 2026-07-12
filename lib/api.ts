@@ -34,6 +34,8 @@ const DEFAULT_TIMEOUT = 15000
 // ============ 鉴权拦截器（由 useAuth 注册）============
 // token 获取器：返回当前 token 或 null
 let tokenGetter: (() => string | null) | null = null
+// 登录状态获取器：返回是否已登录（决定 customerType 请求头取值）
+let loggedInGetter: (() => boolean) | null = null
 // 401 处理回调：token 过期/缺失时清登录态
 let authExpiredHandler: (() => void) | null = null
 
@@ -46,6 +48,15 @@ export function setTokenGetter(fn: () => string | null) {
 }
 
 /**
+ * 注册登录状态获取器（useAuth 初始化时调用）
+ * 登录后所有请求带 customerType: 1 请求头，未登录带 0
+ * 后端免登录接口（版本/广告/通知）靠此头区分登录态，做灰度/统计
+ */
+export function setLoggedInGetter(fn: () => boolean) {
+  loggedInGetter = fn
+}
+
+/**
  * 注册 401 鉴权过期处理（useAuth 初始化时调用）
  * 收到 401 时自动调用，清登录态 + 标记 sessionExpired
  */
@@ -55,7 +66,7 @@ export function setAuthExpiredHandler(fn: () => void) {
 
 /**
  * 统一构建请求头（后续新增公共头都在这里加）
- * 优先级：默认头 < APP_HEADERS < Authorization(登录态) < extraHeaders(调用方覆盖)
+ * 优先级：默认头 < APP_HEADERS < Authorization(登录态) + customerType < extraHeaders(调用方覆盖)
  */
 function buildHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = {
@@ -65,11 +76,14 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
   Object.entries(APP_HEADERS).forEach(([key, value]) => {
     headers[key] = String(value)
   })
-  // 登录态：有 token 就带 Authorization（后端按接口判断是否需要鉴权，@Anonymous 接口忽略）
+  // 登录态：有 token 就带 Authorization + customerType
+  // customerType: 1=已登录, 0=未登录（后端 AccessCustomerTypeEnum，免登录接口靠此区分登录态）
   const token = tokenGetter?.()
+  const isLoggedIn = loggedInGetter?.() ?? false
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
+  headers['customerType'] = isLoggedIn ? '1' : '0'
   // 调用方额外头（覆盖前面，允许针对单次请求覆盖 appCode 等）
   if (extra) {
     Object.entries(extra).forEach(([key, value]) => {

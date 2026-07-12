@@ -209,4 +209,8 @@ export default {
   'mine.contact': '加群 & 联系我们',
   'mine.guide': '操作说明',
   'mine.logout': '退出登录',
+
+  // 消息通知
+  'notice.empty': '暂无通知',
+  'notice.markAllRead': '全部已读',
 }

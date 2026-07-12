@@ -12,7 +12,7 @@
  */
 
 import { ref, computed } from 'vue'
-import { setTokenGetter, setAuthExpiredHandler } from '~lib/api'
+import { setTokenGetter, setLoggedInGetter, setAuthExpiredHandler } from '~lib/api'
 
 // storage key
 const AUTH_KEY = 'tabMasterAuth'
@@ -85,6 +85,8 @@ function useAuthImpl() {
 
   // 注册到 api.ts 统一拦截器：每次请求自动注入 Authorization: Bearer <token>
   setTokenGetter(() => auth.value.token)
+  // 注册登录状态获取器：所有请求带 customerType 头（1=已登录/0=未登录），免登录接口靠此区分
+  setLoggedInGetter(() => isLoggedIn.value)
   // 注册 401 处理：鉴权过期时清登录态 + 标记 sessionExpired
   setAuthExpiredHandler(() => {
     auth.value = { ...DEFAULT_AUTH }
