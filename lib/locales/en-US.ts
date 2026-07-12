@@ -171,6 +171,7 @@ export default {
   'login.success': 'Login successful',
   'login.codeSent': 'Code sent',
   'login.agree': 'By logging in, you agree to the User Agreement',
+  'login.autoRegisterTip': 'If your email is registered, you will log in directly; otherwise, an account will be created automatically.',
   'login.expired': 'Session expired, please log in again',
 
   // Version Update

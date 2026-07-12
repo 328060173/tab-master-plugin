@@ -98,6 +98,11 @@
             {{ loading ? t('common.loading') : t('login.submit') }}
           </button>
 
+          <!-- 登录即注册提示 -->
+          <p class="text-[11px] text-gray-500 dark:text-gray-400 text-center leading-relaxed">
+            {{ t('login.autoRegisterTip') }}
+          </p>
+
           <!-- 用户协议 -->
           <p class="text-[11px] text-gray-400 text-center">
             {{ t('login.agree') }}

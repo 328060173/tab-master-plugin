@@ -175,6 +175,7 @@ export default {
   'login.success': '登录成功',
   'login.codeSent': '验证码已发送',
   'login.agree': '登录即表示同意用户协议',
+  'login.autoRegisterTip': '邮箱已注册将直接登录，未注册将自动注册并登录',
   'login.expired': '登录已过期，请重新登录',
 
   // 版本更新
