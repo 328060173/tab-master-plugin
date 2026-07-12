@@ -5,15 +5,16 @@
 
 // 环境区分：
 // - 开发/本地调试：localhost:8080（后端服务地址）
-// - 生产环境：api.ouu356.com
+// - 生产环境：api.ouu365.com
 // /ouu-api 是后端 context-path 前缀（Controller 路径无此前缀，必须放在 baseURL）
+// 与官网 ouu-web-official 配置一致
 // 如需切换环境，可直接修改下方常量；或用 PLASMO_PUBLIC_API_BASE 环境变量覆盖
 const ENV_API_BASE = (import.meta.env?.PLASMO_PUBLIC_API_BASE as string | undefined) ?? ''
 
 export const API_BASE_URL = ENV_API_BASE
   || (import.meta.env?.DEV
     ? 'http://localhost:8080/ouu-api'
-    : 'https://api.ouu356.com/ouu-api')
+    : 'https://api.ouu365.com/ouu-api')
 
 // API 路径枚举（后续接口统一在此添加）
 // 对应后端 Controller：
