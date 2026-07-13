@@ -230,6 +230,7 @@ async function handleLogin() {
       // 设备信息 + 版本 + 登录类型（后端 LoginEmailRequest 字段，记录登录设备）
       accessDeviceInfo: collectDeviceInfo(),
       accessLoc: ACCESS_LOC,
+      appCode: APP_HEADERS.appCode,
       versionCode: APP_HEADERS.versionCode,
       loginType: 2  // 1=未登录 2=已登录（此处是登录动作，后端约定）
     })
