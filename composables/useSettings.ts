@@ -92,6 +92,13 @@ function mergeSettings(saved: Partial<TabMasterSettings> & Record<string, any>):
   } else if (!['normal', 'large', 'xlarge'].includes(next.fontSize)) {
     next.fontSize = DEFAULT_SETTINGS.fontSize
   }
+  // 兼容旧数据：新增字段默认 true
+  if (typeof next.homeSearchVisible !== 'boolean') {
+    next.homeSearchVisible = DEFAULT_SETTINGS.homeSearchVisible
+  }
+  if (typeof next.homeTagBarVisible !== 'boolean') {
+    next.homeTagBarVisible = DEFAULT_SETTINGS.homeTagBarVisible
+  }
   // 删掉 language 等被移除的字段（如果存在）
   delete next.language
   return next as TabMasterSettings

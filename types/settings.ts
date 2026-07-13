@@ -19,6 +19,10 @@ export interface TabMasterSettings {
   cardDensity: 'compact' | 'normal' | 'loose'
   /** 自动数据校正：每 60s 全量校正标签列表与浏览器实际状态，兜底事件丢失。默认开启，用户可在设置-更多设置关闭 */
   autoReconcile: boolean
+  /** 首页搜索框是否显示，默认 true */
+  homeSearchVisible: boolean
+  /** 首页标记栏是否显示，默认 true */
+  homeTagBarVisible: boolean
 }
 
 export const DEFAULT_SETTINGS: TabMasterSettings = {
@@ -29,4 +33,6 @@ export const DEFAULT_SETTINGS: TabMasterSettings = {
   defaultSort: 'time-desc',
   cardDensity: 'normal',
   autoReconcile: true,
+  homeSearchVisible: true, // 默认显示搜索框
+  homeTagBarVisible: true, // 默认显示标记栏
 }

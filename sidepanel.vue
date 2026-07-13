@@ -126,23 +126,66 @@
     </ErrorBoundary>
 
     <!-- Nav Tabs（仅普通态显示） -->
-    <div v-if="focusMode === 'normal'" class="flex border-b border-gray-100 px-3 shrink-0">
-      <button v-for="nav in navItems" :key="nav.key"
-        :class="['px-3 py-1.5 text-xs transition-colors border-b-2 -mb-px', activeNav === nav.key ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
-        @click="activeNav = nav.key">
-        {{ nav.label }}
-        <span v-if="nav.key === 'later' && laterTabs.length" class="ml-1 text-[10px] bg-amber-100 text-amber-700 px-1.5 rounded-full">{{ laterTabs.length }}</span>
-      </button>
+    <div v-if="focusMode === 'normal'" class="flex items-center border-b border-gray-100 px-3 shrink-0 gap-4">
+      <template v-for="nav in navItems" :key="nav.key">
+        <button
+          :class="['px-3 py-1.5 text-xs transition-colors border-b-2 -mb-px', activeNav === nav.key ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
+          @click="activeNav = nav.key">
+          {{ nav.label }}
+          <span v-if="nav.key === 'later' && laterTabs.length" class="ml-1 text-[10px] bg-amber-100 text-amber-700 px-1.5 rounded-full">{{ laterTabs.length }}</span>
+        </button>
+        <!-- 三点菜单：紧贴首页右侧（负 margin 减少与首页间距） -->
+        <button
+          v-if="nav.key === 'home' && activeNav === 'home'"
+          ref="homeOptionsTriggerRef"
+          class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 -ml-3"
+          title="显示选项"
+          @click.stop="popover.toggle('home-toolbar-options', homeOptionsTriggerRef)">
+          <MoreHorizontal :size="14" />
+        </button>
+      </template>
+    </div>
+
+    <!-- 三点菜单下拉 -->
+    <Teleport to="body">
+      <div
+        v-if="popover.isOpen('home-toolbar-options')"
+        :style="homeOptionsMenuPos"
+        class="fixed z-[60] w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+        @click.stop>
+        <label class="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" @click="toggleHomeSearchVisible">
+          <span class="w-4 h-4 border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center">
+            <CheckSquare v-if="settings.homeSearchVisible" :size="12" class="text-blue-600" />
+          </span>
+          <span>显示搜索</span>
+        </label>
+        <label class="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" @click="toggleHomeTagBarVisible">
+          <span class="w-4 h-4 border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center">
+            <CheckSquare v-if="settings.homeTagBarVisible" :size="12" class="text-blue-600" />
+          </span>
+          <span>显示标记</span>
+        </label>
+      </div>
+    </Teleport>
+
+    <!-- 搜索提示：搜索框隐藏但有搜索词时显示 -->
+    <div v-if="activeNav === 'home' && focusMode === 'normal' && !settings.homeSearchVisible && search.trim()" class="px-3 py-2 border-b border-gray-100 shrink-0">
+      <div class="inline-flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs text-blue-700">
+        <span>搜索中：{{ search.trim() }}</span>
+        <button class="hover:text-blue-900" @click="search = ''">
+          <X :size="12" />
+        </button>
+      </div>
     </div>
 
     <!-- Search（普通/选择态显示） -->
-    <div v-if="activeNav === 'home' && (focusMode === 'normal' || focusMode === 'selecting')" class="px-3 py-2 border-b border-gray-100 shrink-0">
+    <div v-if="activeNav === 'home' && (focusMode === 'normal' || focusMode === 'selecting') && settings.homeSearchVisible" class="px-3 py-2 border-b border-gray-100 shrink-0">
       <SearchBox v-model="search" />
     </div>
 
     <!-- Tag Bar（仅普通态显示） -->
     <TagBar
-      v-if="activeNav === 'home' && focusMode === 'normal'"
+      v-if="activeNav === 'home' && focusMode === 'normal' && settings.homeTagBarVisible"
       :tags="customTags"
       :active-tags="activeTagFilters"
       :tab-count-by-tag="tabCountByTag"
@@ -599,7 +642,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn } from "@lucide/vue"
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn, MoreHorizontal } from "@lucide/vue"
 import LoginDialog from "~components/LoginDialog.vue"
 import UpdateBanner from "~components/UpdateBanner.vue"
 import AdBanner from "~components/AdBanner.vue"
@@ -961,10 +1004,27 @@ const handleRenameTag = async (oldTag: string, newTag: string) => {
 }
 const laterDialogOpen = ref(false)
 const pendingLaterTabId = ref<number | null>(null)
-useSettings()  // 初始化设置：加载 storage + 应用主题/字号/字体/密度
+const { settings, updateSetting } = useSettings()  // 初始化设置：加载 storage + 应用主题/字号/字体/密度
 installGlobalPopoverClose()  // 安装全局浮层关闭监听（点空白/Esc 关）
 const popover = usePopoverManager()
 const batchMenuTriggerRef = ref<HTMLElement | null>(null)
+const homeOptionsTriggerRef = ref<HTMLElement | null>(null)
+
+// 首页工具栏选项菜单位置
+const homeOptionsMenuPos = computed(() => {
+  if (!popover.isOpen('home-toolbar-options') || !popover.activeAnchorRect.value) return { left: '0px', top: '0px' }
+  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 176, height: 80 }, 'bottom-left')
+  return { left: `${p.left}px`, top: `${p.top}px` }
+})
+
+// 切换首页搜索框显示
+const toggleHomeSearchVisible = () => {
+  updateSetting('homeSearchVisible', !settings.value.homeSearchVisible)
+}
+// 切换首页标记栏显示
+const toggleHomeTagBarVisible = () => {
+  updateSetting('homeTagBarVisible', !settings.value.homeTagBarVisible)
+}
 const selectAllCheckboxRef = ref<HTMLInputElement | null>(null)
 const batchActiveSubmenu = ref<"group" | "tag" | null>(null)
 const batchSubmenuAnchorRect = ref<DOMRect | null>(null)
