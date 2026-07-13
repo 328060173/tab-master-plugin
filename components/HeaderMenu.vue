@@ -260,7 +260,7 @@ const emit = defineEmits<{
 const { settings, updateSetting } = useSettings()
 const { side: sidePanelSide } = useSidePanelLayout()
 const popover = usePopoverManager()
-const { isLoggedIn, user, logout } = useAuth()
+const { isLoggedIn, user, logout, getToken } = useAuth()
 
 // 计算用户邮箱显示
 const userEmail = computed(() => user.value?.email ?? "")
@@ -373,22 +373,27 @@ const onCloudSync = () => {
   emit("show-toast", t("menu.cloudSync.comingSoon"))
 }
 
+// 跳官网首页反馈区（已登录带 token 建立官网登录态，未登录直接跳）
+const openOfficialFeedback = () => {
+  const token = getToken()
+  const url = token
+    ? `https://www.ouu365.com/?token=${encodeURIComponent(token)}#feedback`
+    : 'https://www.ouu365.com/#feedback'
+  try {
+    chrome.tabs.create({ url })
+  } catch (e) {
+    console.warn('open official feedback failed', e)
+  }
+}
+
 // 帮助/支持
 const onContact = () => {
   popover.close("header-menu")
-  try {
-    chrome.tabs.create({ url: "https://www.ouu365.com/official/app_1001/contact" })
-  } catch (e) {
-    console.warn("open contact page failed", e)
-  }
+  openOfficialFeedback()
 }
 const onFeedback = () => {
   popover.close("header-menu")
-  try {
-    chrome.tabs.create({ url: "https://www.ouu365.com/official/app_1001/feedback" })
-  } catch (e) {
-    console.warn("open feedback page failed", e)
-  }
+  openOfficialFeedback()
 }
 const onGuide = () => {
   popover.close("header-menu")
@@ -400,10 +405,6 @@ const onGuide = () => {
 }
 const onDonate = () => {
   popover.close("header-menu")
-  try {
-    chrome.tabs.create({ url: "https://www.ouu365.com/official/app_1001/donate" })
-  } catch (e) {
-    console.warn("open donate page failed", e)
-  }
+  openOfficialFeedback()
 }
 </script>
