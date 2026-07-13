@@ -27,7 +27,17 @@
       <!-- 已登录状态 -->
       <template v-else>
         <!-- 用户信息卡片 -->
-        <section class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5">
+        <section class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5 relative">
+          <!-- 刷新按钮 -->
+          <button
+            class="absolute top-4 right-4 p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+            :disabled="refreshing"
+            @click="onRefresh"
+            :title="t('mine.refresh')"
+          >
+            <RefreshCw :size="14" :class="refreshing ? 'animate-spin' : ''" />
+          </button>
+
           <div class="flex items-center gap-4 mb-5">
             <div class="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold text-xl">
               {{ userInitial }}
@@ -42,61 +52,20 @@
               </span>
             </div>
           </div>
-
-          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{{ t('mine.accountInfo') }}</h3>
-          <div class="space-y-2 text-xs">
-            <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700">
-              <span class="text-gray-500 dark:text-gray-400">{{ t('mine.email') }}</span>
-              <span class="text-gray-800 dark:text-gray-200">{{ user?.email }}</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700">
-              <span class="text-gray-500 dark:text-gray-400">{{ t('mine.userId') }}</span>
-              <span class="text-gray-800 dark:text-gray-200">{{ user?.id }}</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700">
-              <span class="text-gray-500 dark:text-gray-400">{{ t('mine.membership') }}</span>
-              <span class="text-gray-800 dark:text-gray-200">{{ isVip ? t('mine.membershipVip') : t('mine.membershipNormal') }}</span>
-            </div>
-            <div class="flex justify-between py-1">
-              <span class="text-gray-500 dark:text-gray-400">{{ t('mine.loginMethod') }}</span>
-              <span class="text-gray-800 dark:text-gray-200">{{ t('mine.loginMethodEmail') }}</span>
-            </div>
-          </div>
         </section>
 
-        <!-- 功能入口 -->
+        <!-- 会员权益入口 -->
         <section class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5">
-          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{{ t('mine.quickActions') }}</h3>
-          <div class="space-y-1">
-            <button
-              class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded transition-colors"
-              @click="onFeedback"
-            >
-              <MessageSquare :size="14" class="text-gray-500 dark:text-gray-400" />
-              <span>{{ t('mine.feedback') }}</span>
-            </button>
-            <button
-              class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded transition-colors"
-              @click="onDonate"
-            >
-              <Coffee :size="14" class="text-gray-500 dark:text-gray-400" />
-              <span>{{ t('mine.donate') }}</span>
-            </button>
-            <button
-              class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded transition-colors"
-              @click="onContact"
-            >
-              <Users :size="14" class="text-gray-500 dark:text-gray-400" />
-              <span>{{ t('mine.contact') }}</span>
-            </button>
-            <button
-              class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded transition-colors"
-              @click="onGuide"
-            >
-              <BookOpen :size="14" class="text-gray-500 dark:text-gray-400" />
-              <span>{{ t('mine.guide') }}</span>
-            </button>
-          </div>
+          <button
+            class="flex items-center justify-between w-full px-3 py-2 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400 rounded transition-colors"
+            @click="onOpenVipRights"
+          >
+            <span class="flex items-center gap-2">
+              <Crown :size="14" />
+              <span>{{ t('mine.viewVipRights') }}</span>
+            </span>
+            <span class="text-gray-400">→</span>
+          </button>
         </section>
 
         <!-- 退出登录 -->
@@ -119,12 +88,13 @@
  * 「我的」独立页面（tabs/mine.html）。
  * 入口：HeaderMenu 点击邮箱 → chrome.tabs.create 打开此页。
  */
-import { computed, onMounted } from "vue"
-import { User, Crown, MessageSquare, Coffee, Users, BookOpen, LogOut } from "@lucide/vue"
+import { computed, onMounted, ref } from "vue"
+import { User, Crown, LogOut, RefreshCw } from "@lucide/vue"
 import { useAuth } from "~composables/useAuth"
 import { t } from "~lib/i18n"
 
-const { isLoggedIn, user, logout } = useAuth()
+const { isLoggedIn, user, logout, fetchUser, getToken } = useAuth()
+const refreshing = ref(false)
 
 const isVip = computed(() => user.value?.isVip ?? false)
 
@@ -152,40 +122,30 @@ const onOpenLogin = () => {
   // 实际可通过 chrome.runtime.sendMessage 或 storage 通知
 }
 
-// 意见反馈
-const onFeedback = () => {
-  // TODO: 后续接入 FeedbackDialog，目前先 toast 占位或跳官网
+// 手动刷新用户信息
+const onRefresh = async () => {
+  if (refreshing.value) return
+  refreshing.value = true
   try {
-    chrome.tabs.create({ url: "https://www.ouu365.com/feedback" })
+    await fetchUser()
+    // 可以在这里加 toast 提示刷新成功（暂未引入 toast）
   } catch (e) {
-    console.warn("open feedback page failed", e)
+    console.warn('[mine] 刷新用户信息失败', e)
+  } finally {
+    refreshing.value = false
   }
 }
 
-// 请作者喝咖啡
-const onDonate = () => {
+// 打开会员权益页面
+const onOpenVipRights = () => {
   try {
-    chrome.tabs.create({ url: "https://www.ouu365.com/donate" })
+    const token = getToken()
+    const url = token
+      ? `https://www.ouu365.com/official/app_1001/my?token=${encodeURIComponent(token)}`
+      : 'https://www.ouu365.com/official/app_1001'
+    chrome.tabs.create({ url })
   } catch (e) {
-    console.warn("open donate page failed", e)
-  }
-}
-
-// 加群 & 联系我们
-const onContact = () => {
-  try {
-    chrome.tabs.create({ url: "https://www.ouu365.com/contact" })
-  } catch (e) {
-    console.warn("open contact page failed", e)
-  }
-}
-
-// 操作说明
-const onGuide = () => {
-  try {
-    chrome.tabs.create({ url: chrome.runtime.getURL("tabs/guide.html") })
-  } catch (e) {
-    console.warn("open guide page failed", e)
+    console.warn('open vip rights page failed', e)
   }
 }
 
@@ -194,6 +154,13 @@ const onLogout = async () => {
   await logout()
   closeCurrentTab()
 }
+
+// 已登录时静默刷新
+onMounted(() => {
+  if (isLoggedIn.value) {
+    fetchUser().catch(() => {})
+  }
+})
 </script>
 
 <style>

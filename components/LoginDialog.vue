@@ -133,7 +133,7 @@ const emit = defineEmits<{
 }>()
 
 // auth
-const { login } = useAuth()
+const { login, fetchUser } = useAuth()
 
 // 表单状态
 const email = ref('')
@@ -235,13 +235,20 @@ async function handleLogin() {
       loginType: 2  // 1=未登录 2=已登录（此处是登录动作，后端约定）
     })
 
-    // 登录成功
+    // 登录成功 - 先建立登录态
     await login(res.data.token, {
       id: res.data.customerId,
       email: res.data.email,
-      isVip: false, // 样板阶段无 VIP
+      isVip: false,
       vipExpiresAt: null
     })
+
+    // 从后端获取真实用户信息（失败不阻塞登录流程）
+    try {
+      await fetchUser()
+    } catch (e) {
+      console.warn('[LoginDialog] 登录后获取用户信息失败', e)
+    }
 
     emit('success', res.data.email)
     emit('close')

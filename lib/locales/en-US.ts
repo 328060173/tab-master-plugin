@@ -205,6 +205,8 @@ export default {
   'mine.contact': 'Contact Us',
   'mine.guide': 'Guide',
   'mine.logout': 'Logout',
+  'mine.refresh': 'Refresh user info',
+  'mine.viewVipRights': 'View more VIP benefits',
 
   // 消息通知
   'notice.empty': 'No notifications',

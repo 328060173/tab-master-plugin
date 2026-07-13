@@ -209,6 +209,8 @@ export default {
   'mine.contact': '加群 & 联系我们',
   'mine.guide': '操作说明',
   'mine.logout': '退出登录',
+  'mine.refresh': '刷新用户信息',
+  'mine.viewVipRights': '查看更多会员权益',
 
   // 消息通知
   'notice.empty': '暂无通知',

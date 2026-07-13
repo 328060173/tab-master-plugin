@@ -12,7 +12,7 @@
  */
 
 import { ref, computed } from 'vue'
-import { setTokenGetter, setLoggedInGetter, setAuthExpiredHandler, post } from '~lib/api'
+import { setTokenGetter, setLoggedInGetter, setAuthExpiredHandler, post, get } from '~lib/api'
 import { API_URIS } from '~lib/api-config'
 
 // storage key
@@ -144,6 +144,48 @@ function useAuthImpl() {
     sessionExpired.value = false
   }
 
+  // 从后端获取用户信息
+  async function fetchUser() {
+    try {
+      const res = await get<{
+        code: number
+        msg: string
+        data: {
+          id: number
+          userName: string
+          nickName: string
+          email: string
+          phonenumber: string
+          sex: string
+          avatar: string
+          status: string
+          loginDate: string
+          customerType: string
+          isVip: number
+        }
+      }>(API_URIS.customerMy, { silent: true })
+
+      if (res.code === 200 && res.data) {
+        const vo = res.data
+        const newUser: User = {
+          id: String(vo.id),
+          email: vo.email,
+          isVip: vo.isVip === 1,
+          vipExpiresAt: null
+        }
+        auth.value.user = newUser
+        await chrome.storage.local.set({
+          [AUTH_KEY]: toPure(auth.value)
+        })
+        return newUser
+      }
+    } catch (e) {
+      console.warn('[useAuth] fetchUser 失败', e)
+      // 静默失败，不抛错（调用方决定是否提示用户）
+    }
+    return null
+  }
+
   // 立即加载
   loadAuth()
 
@@ -154,7 +196,8 @@ function useAuthImpl() {
     login,
     logout,
     getToken,
-    clearSessionExpired
+    clearSessionExpired,
+    fetchUser
   }
 }
 
