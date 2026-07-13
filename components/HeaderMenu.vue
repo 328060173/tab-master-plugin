@@ -249,6 +249,7 @@ import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos, computeFlyoutPos } from "~lib/popoverPosition"
 import { useAuth } from "~composables/useAuth"
 import { t } from "~lib/i18n"
+import { OFFICIAL_SITE_URL } from "~lib/api-config"
 
 const emit = defineEmits<{
   (e: "open-storage"): void
@@ -377,8 +378,8 @@ const onCloudSync = () => {
 const openOfficialFeedback = () => {
   const token = getToken()
   const url = token
-    ? `https://www.ouu365.com/feedback?token=${encodeURIComponent(token)}`
-    : 'https://www.ouu365.com/feedback'
+    ? `${OFFICIAL_SITE_URL}/feedback?token=${encodeURIComponent(token)}`
+    : `${OFFICIAL_SITE_URL}/feedback`
   try {
     chrome.tabs.create({ url })
   } catch (e) {
@@ -398,7 +399,7 @@ const onFeedback = () => {
 const onGuide = () => {
   popover.close("header-menu")
   try {
-    chrome.tabs.create({ url: "https://www.ouu365.com/official/app_1001/guide" })
+    chrome.tabs.create({ url: `${OFFICIAL_SITE_URL}/official/app_1001/guide` })
   } catch (e) {
     console.warn("open guide page failed", e)
   }

@@ -92,6 +92,7 @@ import { computed, onMounted, ref } from "vue"
 import { User, Crown, LogOut, RefreshCw } from "@lucide/vue"
 import { useAuth } from "~composables/useAuth"
 import { t } from "~lib/i18n"
+import { OFFICIAL_SITE_URL } from "~lib/api-config"
 
 const { isLoggedIn, user, logout, fetchUser, getToken } = useAuth()
 const refreshing = ref(false)
@@ -141,8 +142,8 @@ const onOpenVipRights = () => {
   try {
     const token = getToken()
     const url = token
-      ? `https://www.ouu365.com/official/app_1001/my?token=${encodeURIComponent(token)}`
-      : 'https://www.ouu365.com/official/app_1001'
+      ? `${OFFICIAL_SITE_URL}/official/app_1001/my?token=${encodeURIComponent(token)}`
+      : `${OFFICIAL_SITE_URL}/official/app_1001`
     chrome.tabs.create({ url })
   } catch (e) {
     console.warn('open vip rights page failed', e)

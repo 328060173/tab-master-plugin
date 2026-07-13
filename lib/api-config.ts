@@ -19,6 +19,16 @@ export const API_BASE_URL = ENV_API_BASE
     ? 'http://localhost:8080/ouu-api'
     : 'https://api.ouu365.com/ouu-api')
 
+// 官网站点地址（用于跳转官网页面：反馈/联系/打赏/指南/我的等）
+// 开发环境：本地 VitePress dev server（默认 http://localhost:5173）
+// 生产环境：https://www.ouu365.com
+// 优先级：PLASMO_PUBLIC_SITE_BASE 环境变量 > NODE_ENV 判断
+const ENV_SITE_BASE = (import.meta.env?.PLASMO_PUBLIC_SITE_BASE as string | undefined) ?? ''
+export const OFFICIAL_SITE_URL = ENV_SITE_BASE
+  || (process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5173'
+    : 'https://www.ouu365.com')
+
 // API 路径枚举（后续接口统一在此添加）
 // 对应后端 Controller：
 // - captchaImage: CaptchaController#getCode

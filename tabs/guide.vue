@@ -98,17 +98,18 @@
  * 入口：sidepanel HeaderMenu「操作说明」→ chrome.tabs.create(runtime.getURL("tabs/guide.html"))
  */
 import { BookOpen, Palette, Type, MessageSquare, Users } from "@lucide/vue"
+import { OFFICIAL_SITE_URL } from "~lib/api-config"
 
 const onContact = () => {
   try {
-    chrome.tabs.create({ url: "https://www.ouu365.com/contact" })
+    chrome.tabs.create({ url: `${OFFICIAL_SITE_URL}/feedback` })
   } catch (e) {
     console.warn("open contact page failed", e)
   }
 }
 const onDonate = () => {
   try {
-    chrome.tabs.create({ url: "https://www.ouu365.com/donate" })
+    chrome.tabs.create({ url: `${OFFICIAL_SITE_URL}/feedback` })
   } catch (e) {
     console.warn("open donate page failed", e)
   }
