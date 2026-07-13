@@ -377,19 +377,23 @@ const onCloudSync = () => {
 const onContact = () => {
   popover.close("header-menu")
   try {
-    chrome.tabs.create({ url: "https://www.ouu365.com/contact" })
+    chrome.tabs.create({ url: "https://www.ouu365.com/official/app_1001/contact" })
   } catch (e) {
     console.warn("open contact page failed", e)
   }
 }
 const onFeedback = () => {
   popover.close("header-menu")
-  emit("show-toast", t("menu.feedback.comingSoon"))
+  try {
+    chrome.tabs.create({ url: "https://www.ouu365.com/official/app_1001/feedback" })
+  } catch (e) {
+    console.warn("open feedback page failed", e)
+  }
 }
 const onGuide = () => {
   popover.close("header-menu")
   try {
-    chrome.tabs.create({ url: chrome.runtime.getURL("tabs/guide.html") })
+    chrome.tabs.create({ url: "https://www.ouu365.com/official/app_1001/guide" })
   } catch (e) {
     console.warn("open guide page failed", e)
   }
@@ -397,7 +401,7 @@ const onGuide = () => {
 const onDonate = () => {
   popover.close("header-menu")
   try {
-    chrome.tabs.create({ url: "https://www.ouu365.com/donate" })
+    chrome.tabs.create({ url: "https://www.ouu365.com/official/app_1001/donate" })
   } catch (e) {
     console.warn("open donate page failed", e)
   }
