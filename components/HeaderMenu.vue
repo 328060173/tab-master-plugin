@@ -377,8 +377,8 @@ const onCloudSync = () => {
 const openOfficialFeedback = () => {
   const token = getToken()
   const url = token
-    ? `https://www.ouu365.com/?token=${encodeURIComponent(token)}#feedback`
-    : 'https://www.ouu365.com/#feedback'
+    ? `https://www.ouu365.com/feedback?token=${encodeURIComponent(token)}`
+    : 'https://www.ouu365.com/feedback'
   try {
     chrome.tabs.create({ url })
   } catch (e) {
