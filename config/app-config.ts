@@ -1,42 +1,12 @@
 /**
- * 应用配置中心（集中管理所有可配置项）
+ * 业务配置中心
  *
  * 当前：前端内置硬编码
  * 后续：部分配置由后端返回（启动时拉取，失败用此兜底）--见下方 @backend 标注
  *
- * 配置分类：
- * - 后端 API（baseURL/路径）：@static 本地固定，不后端返回
- * - 请求头（appCode/versionCode/platform）：@static 本地固定（后端按此识别产品）
- * - 业务配置（广告位/频率/超时/版本号）：@backend 后续可后端返回，前端兜底
+ * 注：API 配置（baseURL/路径）和请求头配置（appCode/versionCode/platform）
+ *     已统一移至 lib/api-config.ts，请勿在此添加。
  */
-
-// ============ 后端 API（@static 本地固定）===========
-export const API_CONFIG = {
-  /** 后端 baseURL：dev localhost / prod api.ouu365.com（/ouu-api 是 context-path） */
-  baseURL: '',
-  /** 接口路径枚举（后续新增接口统一加这） */
-  uris: {
-    captchaImage: '/captchaImage',
-    sendLoginCode: '/email/send-login-code',
-    loginByEmailCode: '/login/login-by-email-code',
-    feedbackSuggest: '/feedback/suggest',
-    adList: '/ad/list',
-    checkVersion: '/version/check-version',
-    customerMy: '/customer/my',
-    noticePageList: '/notice/page-list',
-    logout: '/logout'
-  } as const
-} as const
-
-// ============ 请求头（@static 本地固定，后端按此识别产品）===========
-export const HEADERS_CONFIG = {
-  /** platform: 1=Web浏览器插件 2=iOS 3=Android 4=微信小程序 */
-  platform: 1,
-  /** 产品 appCode（后端分配，标签大师=app_1001） */
-  appCode: 'app_1001',
-  /** versionCode：与后端 ouu_apps_version 表对齐（当前 101） */
-  versionCode: 101
-} as const
 
 // ============ 业务配置（@backend 后续可后端返回，前端兜底）===========
 export const BUSINESS_CONFIG = {
