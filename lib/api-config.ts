@@ -2,24 +2,31 @@
  * 浏览器标签大师 API 配置
  * 统一管理接口地址和请求头
  *
- * ⚠️ 地址真相源已收口到 lib/env.ts（一处配置，每地址独立 env 覆盖）。
- * 本文件仅 re-export 保留向后兼容：所有 `import { API_BASE_URL } from '~lib/api-config'`
- * 的调用方无需改路径。新增地址请直接加到 lib/env.ts，不要在此重复定义。
+ * 环境地址（Plasmo 规范，全仓唯一配置处）：
+ * 读 env 用 process.env.PLASMO_PUBLIC_*（Plasmo 构建期静态替换，见 https://docs.plasmo.com/framework/env）。
+ * 优先级：PLASMO_PUBLIC_* env 变量 > process.env.NODE_ENV 判断（dev=development→本地，prod=production→生产）。
+ * 切换环境：改 .env.development / .env.production，或设对应 PLASMO_PUBLIC_* 变量。
  *
-// 环境默认值（lib/env.ts）：
-// - local（NODE_ENV=development）：apiBase=http://localhost:8080/ouu-api  siteUrl=http://localhost:5173
-// - prod （NODE_ENV=production ）：apiBase=https://api.ouu365.com/ouu-api siteUrl=https://www.ouu365.com
-// /ouu-api 是后端 context-path 前缀（Controller 路径无此前缀，必须放在 baseURL）
-// 与官网 ouu-web-official 配置一致
-// 单地址覆盖：PLASMO_PUBLIC_API_BASE / PLASMO_PUBLIC_SITE_BASE / PLASMO_PUBLIC_MENU_SITE（详见 lib/env.ts）
+ * - API_BASE_URL：后端接口（dev→localhost:8080，prod→api.ouu365.com）；PLASMO_PUBLIC_API_BASE 覆盖
+ * - OFFICIAL_SITE_URL：官网跳转/内嵌（dev→localhost:5173，prod→www.ouu365.com）；PLASMO_PUBLIC_SITE_BASE 覆盖
+ * - MENU_SITE_URL：设置菜单默认项 URL（单独变量，默认=生产官网，便于本地也看真实菜单内容）；PLASMO_PUBLIC_MENU_SITE 覆盖
+ * /ouu-api 是后端 context-path 前缀（Controller 路径无此前缀，必须放在 baseURL）
  */
-export {
-  API_BASE_URL,
-  OFFICIAL_SITE_URL,
-  MENU_SITE_URL,
-  CURRENT_API_ENV,
-  CURRENT_SITE_ENV
-} from './env'
+// 后端 API 地址
+export const API_BASE_URL = process.env.PLASMO_PUBLIC_API_BASE
+  || (process.env.NODE_ENV === 'development'
+    ? 'http://localhost:8080/ouu-api'
+    : 'https://api.ouu365.com/ouu-api')
+
+// 官网站点地址（跳转官网页面：反馈/联系/我的等；dev 联调本地 VitePress，prod 生产官网）
+export const OFFICIAL_SITE_URL = process.env.PLASMO_PUBLIC_SITE_BASE
+  || (process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5173'
+    : 'https://www.ouu365.com')
+
+// 设置菜单默认项 URL（useSettingMenu DEFAULT_MENUS 用）。
+// 单独变量：菜单是给用户看的真实官网内容，默认始终指生产官网；本地联调菜单样式改这里或设 PLASMO_PUBLIC_MENU_SITE。
+export const MENU_SITE_URL = process.env.PLASMO_PUBLIC_MENU_SITE || 'https://www.ouu365.com'
 
 // API 路径枚举（后续接口统一在此添加）
 // 对应后端 Controller：

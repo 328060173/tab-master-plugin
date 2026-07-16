@@ -26,7 +26,7 @@ const SETTING_MENU_CACHE_KEY = 'tabMasterSettingMenuCache'
 const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
 // 内置默认菜单（SW 未拉到缓存时的兜底，与后端 sql 默认数据完全对齐）
-// URL 跟官网环境走：MENU_SITE_URL（lib/env.ts，默认 = OFFICIAL_SITE_URL）。
+// URL 用 MENU_SITE_URL（lib/api-config.ts，默认生产官网 ouu365.com）。
 // - local：localhost:5173（本地联调官网 dev server）
 // - prod ：www.ouu365.com
 // 如需菜单固定指向生产官网而 API/其它地址走 local，设 PLASMO_PUBLIC_MENU_SITE=https://www.ouu365.com

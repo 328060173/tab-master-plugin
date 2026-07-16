@@ -22,11 +22,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files: .env.development / .env.production 作为团队默认提交（仅含 APP_ENV 标签，无密钥）；
-# .env / .env.local / .env.*.local 为本地覆盖，不提交
+# Plasmo env files（本地覆盖，不提交；想切环境建 .env.local 改 PLASMO_PUBLIC_* 变量）
 .env
-.env.local
-.env.*.local
+.env.*
+
 
 out/
 build/
