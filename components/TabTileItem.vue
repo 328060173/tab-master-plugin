@@ -5,6 +5,7 @@
         ? 'border-blue-500 bg-blue-100 dark:bg-blue-900/30'
         : item.active ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white hover:border-blue-200 hover:bg-blue-50/50']"
     @click="onCardClick"
+    @contextmenu.prevent="emit('contextmenu', $event)"
   >
     <div v-if="item.groupId !== TAB_GROUP_ID_NONE && group"
          :class="[colorClass, 'absolute left-0 right-0 top-0 h-1 rounded-t-lg']"
@@ -62,7 +63,7 @@ import { usePopoverManager } from "~composables/usePopoverManager"
 import { GROUP_COLOR_CLASSES, TAB_GROUP_ID_NONE } from "~composables/useTabGroups"
 
 const props = defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[]; isPrev?: boolean }>()
-const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "refresh", "pin", "addTag", "toggleTag", "removeTag", "updateNumber"])
+const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "refresh", "pin", "addTag", "toggleTag", "removeTag", "updateNumber", "contextmenu"])
 
 const popover = usePopoverManager()
 const hoverCardId = `hover-card-${props.item.id}`
