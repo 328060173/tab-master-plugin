@@ -52,7 +52,11 @@
               ? 'border-blue-400 bg-blue-50 text-blue-700'
               : 'border-gray-200 hover:bg-gray-50'
         ]"
-        :title="viewMode === 'tree' ? '树形视图下排序不可用' : (SORT_OPTIONS.find(o => o.value === sortMode)?.hint || '排序方式')"
+        :title="
+          viewMode === 'tree'
+            ? '树形视图下排序不可用'
+            : SORT_OPTIONS.find((o) => o.value === sortMode)?.hint || '排序方式'
+        "
         @click.stop="onSortTriggerClick">
         <ArrowUpDown :size="11" />{{
           SORT_OPTIONS.find((o) => o.value === sortMode)?.label
@@ -317,8 +321,12 @@ const VIEW_OPTIONS = [
   { value: "tree", label: "树形", icon: GitFork }
 ]
 const SORT_OPTIONS = [
-  { value: "domain", label: "按域名", hint: "相同网站的标签排在一起" },
-  { value: "lastAccessed", label: "最近访问", hint: "最后访问的标签排在最前面" },
+  { value: "domain", label: "按域名", hint: "网址相同网站的标签排在一起" },
+  {
+    value: "lastAccessed",
+    label: "最近访问",
+    hint: "最后访问的标签排在最前面"
+  },
   { value: "timeAsc", label: "按时间正序", hint: "按标签打开时间从早到晚排" },
   { value: "timeDesc", label: "按时间倒序", hint: "按标签打开时间从晚到早排" }
 ]
