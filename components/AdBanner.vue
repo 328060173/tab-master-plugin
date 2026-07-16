@@ -8,14 +8,14 @@
         <!-- 广告图片（可点击）-->
         <div class="relative cursor-pointer" @click="$emit('click')">
           <img
-            v-if="ad.imageUrl"
+            v-if="isValidExternalUrl(ad.imageUrl) && !imgError"
             :src="ad.imageUrl"
             :alt="ad.title"
             class="w-full h-24 object-cover"
             @error="onImgError"
           />
-          <!-- 图片加载失败时的占位 -->
-          <div v-if="imgError" class="w-full h-24 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-xs text-gray-400">
+          <!-- 图片加载失败/URL 校验不过时的占位（复用现有降级，显示标题文字） -->
+          <div v-else class="w-full h-24 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-xs text-gray-400">
             {{ ad.title }}
           </div>
           <!-- 关闭按钮 -->
@@ -56,6 +56,7 @@
 import { ref, watch, onUnmounted } from 'vue'
 import { X } from '@lucide/vue'
 import { t } from '~lib/i18n'
+import { isValidExternalUrl } from '~lib/external-resource'
 import type { AdInfo } from '~composables/useAd'
 
 const props = defineProps<{

@@ -16,6 +16,8 @@ import { collectDeviceInfo, ACCESS_LOC, DEVICE_NUMBER } from '~lib/device-info'
 
 // Storage key
 const VERSION_CHECK_KEY = 'tabMasterVersionCheck'
+// 上次成功版本信息缓存 key（失败回退用，不清空、不报错）
+const VERSION_CACHE_KEY = 'tabMasterVersionCache'
 
 // 固定 versionCode=101（与后端约定，不用 manifest 算的值）
 const APP_VERSION_CODE = 101
@@ -120,6 +122,39 @@ function useVersionCheckImpl() {
     }
   }
 
+  // 读取上次成功的版本信息缓存（失败回退用）
+  async function loadCachedUpdateInfo(): Promise<UpdateInfo | null> {
+    try {
+      const data = await chrome.storage.local.get(VERSION_CACHE_KEY)
+      const raw = (data as Record<string, unknown>)?.[VERSION_CACHE_KEY]
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+      const o = raw as Record<string, unknown>
+      if (typeof o.hasUpdate !== 'boolean' || typeof o.versionName !== 'string') return null
+      return {
+        hasUpdate: o.hasUpdate,
+        forceFlag: o.forceFlag === 1 ? 1 : 0,
+        versionName: o.versionName,
+        versionCode: typeof o.versionCode === 'number' ? o.versionCode : 0,
+        changeLog: typeof o.changeLog === 'string' ? o.changeLog : ''
+      }
+    } catch {
+      return null
+    }
+  }
+
+  // 写入版本信息缓存（null 表示清除：本次检查确认无更新时清掉旧缓存）
+  async function saveCachedUpdateInfo(info: UpdateInfo | null) {
+    try {
+      if (info) {
+        await chrome.storage.local.set({ [VERSION_CACHE_KEY]: toPure(info) })
+      } else {
+        await chrome.storage.local.remove(VERSION_CACHE_KEY)
+      }
+    } catch (e) {
+      console.warn('[useVersionCheck] 保存版本缓存失败', e)
+    }
+  }
+
   // 判断是否需要检查（每天一次，按自然日）
   function shouldCheck(): boolean {
     const lastCheckAt = state.value.lastCheckAt
@@ -189,12 +224,18 @@ function useVersionCheckImpl() {
 
       // 保存状态
       await saveState()
+      // 缓存上次成功结果（无更新时清掉旧缓存，避免下次失败回退到过期数据）
+      await saveCachedUpdateInfo(updateInfo.value)
     } catch (e) {
       // 静默失败，只记录日志（不 toast、不影响 UI）
       console.warn('[version] 检查失败（静默，不影响使用）', e)
-      // 失败时检查历史强制更新记录
-      if (state.value.lastForceFlag === 1 && updateInfo.value?.forceFlag !== 1) {
-        // 不更新 updateInfo，保持之前的强制更新状态（如果有）
+      // 失败回退缓存：读 storage 上次成功结果继续用，不清空、不报错
+      if (!updateInfo.value) {
+        const cached = await loadCachedUpdateInfo()
+        if (cached) {
+          updateInfo.value = cached
+          console.log('[version] 失败回退到上次缓存的版本信息')
+        }
       }
     } finally {
       isChecking.value = false

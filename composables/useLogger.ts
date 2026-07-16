@@ -1,4 +1,5 @@
 import { ref, onMounted, onUnmounted } from "vue"
+import { NetworkError, ApiError } from "~lib/api"
 
 /**
  * 运行日志（错误 + 关键操作）—— 轻量环形缓冲，存 chrome.storage.local。
@@ -147,10 +148,28 @@ export function installGlobalCapture() {
   }
   // window 错误：能接到 Vue 没拦住、或非 Vue 上下文的错
   try {
+    // window 'error' 主要是同步异常（=插件自身代码崩溃），按 error 级入库；
+    // 防御性处理 NetworkError/ApiError（理论上异步错误不进这里），降级为 warn 不污染日志
     window.addEventListener("error", (e) => {
+      const err = e.error
+      if (err instanceof NetworkError || err instanceof ApiError) {
+        e.preventDefault()
+        log("warn", "api", `业务请求错误（${err.kind}）`, err.message)
+        return
+      }
       log("error", "window", e.message || "error", e.error)
     })
-    window.addEventListener("unhandledrejection", (e) => log("error", "window", "unhandledrejection", (e as PromiseRejectionEvent).reason))
+    // unhandledrejection：业务请求失败（NetworkError/ApiError）preventDefault 吞掉，不进 chrome 扩展 errors 面板，
+    // 降级为 warn 入库；其他未预期异常（=代码崩溃）仍 error 级入库且不 preventDefault，让浏览器/chrome 面板记录。
+    window.addEventListener("unhandledrejection", (e) => {
+      const reason = (e as PromiseRejectionEvent).reason
+      if (reason instanceof NetworkError || reason instanceof ApiError) {
+        e.preventDefault()
+        log("warn", "api", `业务请求失败（${reason.kind}，已吞）`, reason.message)
+        return
+      }
+      log("error", "window", "unhandledrejection", reason)
+    })
   } catch {}
 }
 

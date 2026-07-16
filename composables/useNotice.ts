@@ -14,6 +14,8 @@ import { get } from '~lib/api'
 import { API_URIS } from '~lib/api-config'
 
 const NOTICE_READ_KEY = 'tabMasterNoticeRead'
+// 上次成功通知列表缓存 key（失败回退用，不清空、不报错）
+const NOTICE_CACHE_KEY = 'tabMasterNoticeCache'
 
 // 通知项（后端 OuuAppsNotice 字段：id/noticeLog/createTime/...）
 export interface NoticeItem {
@@ -73,6 +75,42 @@ function useNoticeImpl() {
     }
   }
 
+  // 读取上次成功的通知列表缓存（失败回退用）
+  async function loadCachedNotices(): Promise<NoticeItem[]> {
+    try {
+      const data = await chrome.storage.local.get(NOTICE_CACHE_KEY)
+      const raw = (data as Record<string, unknown>)?.[NOTICE_CACHE_KEY]
+      if (!Array.isArray(raw)) return []
+      return raw
+        .filter(
+          (x): x is Record<string, unknown> =>
+            !!x && typeof x === 'object' && !Array.isArray(x)
+        )
+        .filter(
+          (x) =>
+            typeof x.id === 'number' &&
+            typeof x.noticeLog === 'string' &&
+            typeof x.createTime === 'string'
+        )
+        .map((x) => ({
+          id: x.id as number,
+          noticeLog: x.noticeLog as string,
+          createTime: x.createTime as string
+        }))
+    } catch {
+      return []
+    }
+  }
+
+  // 写入通知列表缓存
+  async function saveCachedNotices(list: NoticeItem[]) {
+    try {
+      await chrome.storage.local.set({ [NOTICE_CACHE_KEY]: toPure(list) })
+    } catch (e) {
+      console.warn('[notice] 保存通知缓存失败', e)
+    }
+  }
+
   /**
    * 拉取通知列表（静默失败）
    * 登录与否都能调（后端可选 token，customerType 头区分）
@@ -97,10 +135,18 @@ function useNoticeImpl() {
         noticeLog: r.noticeLog,
         createTime: r.createTime
       }))
+      // 缓存上次成功结果（失败回退用）
+      await saveCachedNotices(notices.value)
       console.log(`[notice] 拉取成功，共 ${notices.value.length} 条，未读 ${unreadCount.value} 条`)
     } catch (e) {
       console.warn('[notice] 拉取失败（静默，不影响使用）', e)
-      notices.value = []
+      // 失败回退缓存：读 storage 上次成功结果继续用，不清空、不报错
+      const cached = await loadCachedNotices()
+      if (cached.length) {
+        notices.value = cached
+        console.log(`[notice] 失败回退到上次缓存 ${cached.length} 条`)
+      }
+      // 无缓存则保持当前（首次加载为空，不强制清空）
     } finally {
       isFetching.value = false
     }
