@@ -317,7 +317,7 @@ const VIEW_OPTIONS = [
 ]
 const SORT_OPTIONS = [
   { value: "domain", label: "按域名" },
-  { value: "lastAccessed", label: "访问优先" },
+  { value: "lastAccessed", label: "最近访问" },
   { value: "timeAsc", label: "按时间正序" },
   { value: "timeDesc", label: "按时间倒序" }
 ]

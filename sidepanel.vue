@@ -953,7 +953,7 @@ provide('treeDrag', (dragId: number, targetId: number, pos: 'before' | 'into' | 
 
 const activeNav = ref("home")
 const viewMode = ref(localStorage.getItem("viewMode") || "list")
-const sortMode = ref(localStorage.getItem("sortMode") || "domain")
+const sortMode = ref(localStorage.getItem("sortMode") || "lastAccessed")
 const search = ref("")
 const isBatchMode = ref(false)
 const selectedIds = ref<number[]>([])
