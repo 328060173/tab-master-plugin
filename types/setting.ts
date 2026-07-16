@@ -3,11 +3,11 @@
  *
  * 架构（2026-07-16，与广告/版本/通知同模式）：
  * - 请求拉取：Service Worker 定时（chrome.alarms）+ 初始化（onInstalled/onStartup）
- *   GET /setting/menu-list 由 SW 发，写 tabMasterSettingMenuCache，sendMessage({type:'settingMenuCacheUpdated'}) 通知
+ *   POST /setting/menu-list 由 SW 发（body 含 customerType/versionCode/platform/appCode），写 tabMasterSettingMenuCache，sendMessage({type:'settingMenuCacheUpdated'}) 通知
  * - 菜单渲染：HeaderMenu 只读缓存，禁止任何 fetch 设置菜单请求
  * - 兜底：SW 未拉到缓存（首次/后端挂）时，useSettingMenu 内置默认 4 项（文档/FAQ/意见&需求反馈/联系我们）
  *
- * 后端接口：GET /setting/menu-list（@Anonymous），返回 R<SettingMenuListVO>
+ * 后端接口：POST /setting/menu-list（@Anonymous），返回 R<SettingMenuListVO>
  * 后端按登录用户判灰度 + versionCode 过滤（前端传 versionCode=101）。
  */
 
@@ -24,7 +24,7 @@ export interface SettingMenuItem {
   settingSort: number
 }
 
-/** /setting/menu-list 响应体（SW 拉取，后端返回 R<SettingMenuListVO>） */
+/** POST /setting/menu-list 响应体（SW 拉取，body 含 customerType/versionCode/platform/appCode，后端返回 R<SettingMenuListVO>） */
 export interface SettingMenuResponse {
   code: number
   msg: string

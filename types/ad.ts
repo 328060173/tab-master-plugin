@@ -42,7 +42,7 @@ export interface AdCacheData {
   nextSyncIntervalMinutes: number | null
 }
 
-/** /ad/list 响应体（SW 拉取，后端返回） */
+/** POST /ad/list 响应体（SW 拉取，body 含 customerType/platform/appCode/position/trigger，后端返回） */
 export interface AdSyncResponse {
   code: number
   msg: string

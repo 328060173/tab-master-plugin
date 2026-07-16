@@ -20,7 +20,7 @@
  */
 
 import { get, post } from '~lib/api'
-import { API_URIS, APP_VERSION_CODE, OFFICIAL_SITE_URL } from '~lib/api-config'
+import { API_URIS, APP_HEADERS, APP_VERSION_CODE, OFFICIAL_SITE_URL } from '~lib/api-config'
 import { BUSINESS_CONFIG } from '~config/app-config'
 import { collectDeviceInfo, ACCESS_LOC, DEVICE_NUMBER } from '~lib/device-info'
 import type { AdCacheData, AdSyncResponse } from '~types/ad'
@@ -290,6 +290,8 @@ async function shouldSkipByGap(
 
 /**
  * 拉取广告并写入缓存
+ * POST /ad/list，body 含 customerType/platform/appCode/position/trigger（后端 @RequestBody，
+ * 与 /version/check-version 同模式；customerType 从 getAuthHeaders 推导为数值放 body）
  * 静默失败：不重试、不清旧缓存、等待下次触发
  * trigger: init=安装/重启触发，timer=闹钟定时触发（后端按此统计请求时机）
  */
@@ -297,8 +299,15 @@ async function fetchAdCache(trigger: 'init' | 'timer'): Promise<void> {
   let intervalMinutes: number | null = null
   try {
     const authHeaders = await getAuthHeaders()
-    const response = await get<AdSyncResponse>(API_URIS.adList, {
-      params: { position: BUSINESS_CONFIG.adPosition, trigger },
+    // customerType 从登录态推导为数值放 body（与 fetchVersionCache 一致）
+    const customerType = authHeaders['customerType'] === '1' ? 1 : 0
+    const response = await post<AdSyncResponse>(API_URIS.adList, {
+      customerType,
+      platform: APP_HEADERS.platform,
+      appCode: APP_HEADERS.appCode,
+      position: BUSINESS_CONFIG.adPosition,
+      trigger
+    }, {
       extraHeaders: authHeaders,
       timeout: BUSINESS_CONFIG.adFetchTimeout,
       silent: true
@@ -462,8 +471,9 @@ async function fetchNoticeCache(trigger: 'init' | 'timer'): Promise<void> {
 
 /**
  * 拉取“更多”菜单列表并写入缓存
- * GET /setting/menu-list（@Anonymous），后端按登录用户判灰度 + versionCode 过滤
- * 前端带 versionCode=101 参数；登录态走 getAuthHeaders（与广告一致）
+ * POST /setting/menu-list（@Anonymous），body 含 customerType/versionCode/platform/appCode
+ * （后端 @RequestBody，与 /version/check-version 同模式；customerType 从 getAuthHeaders 推导为数值放 body）
+ * 后端按登录用户判灰度 + versionCode 过滤
  * 静默失败：不重试、不清旧缓存、等待下次触发
  * trigger: init=安装/重启触发，timer=闹钟定时触发
  */
@@ -471,8 +481,13 @@ async function fetchSettingMenuCache(trigger: 'init' | 'timer'): Promise<void> {
   let intervalMinutes: number | null = null
   try {
     const authHeaders = await getAuthHeaders()
-    const response = await get<SettingMenuResponse>(API_URIS.settingMenuList, {
-      params: { versionCode: APP_VERSION_CODE, trigger },
+    const customerType = authHeaders['customerType'] === '1' ? 1 : 0
+    const response = await post<SettingMenuResponse>(API_URIS.settingMenuList, {
+      customerType,
+      versionCode: APP_VERSION_CODE,
+      platform: APP_HEADERS.platform,
+      appCode: APP_HEADERS.appCode
+    }, {
       extraHeaders: authHeaders,
       timeout: BUSINESS_CONFIG.noticeFetchTimeout,
       silent: true
