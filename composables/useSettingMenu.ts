@@ -13,13 +13,13 @@
  * logo 渲染：
  * - settingLogo 是后端配置的图片 URL，渲染前用 isRenderableImgSrc 校验（过滤占位/测试域名）
  * - 校验通过用 <img> 加载，加载失败/无 logo → 显示默认图标（LinkIcon）
- * - 跳转前用 isValidExternalUrl 校验 settingUrl，非 http(s) 不跳（防 javascript: 等危险协议）
+ * - 跳转前用 isSafeExternalLink 校验 settingUrl，非 http(s) 不跳（防 javascript: 等危险协议；不查黑名单，dev 环境 localhost 官网可跳）
  */
 
 import { ref, computed } from 'vue'
 import type { SettingMenuCacheData, SettingMenuItem } from '~types/setting'
 import { buildOfficialUrl } from '~lib/api-config'
-import { isRenderableImgSrc, isValidExternalUrl } from '~lib/external-resource'
+import { isRenderableImgSrc, isSafeExternalLink } from '~lib/external-resource'
 
 const SETTING_MENU_CACHE_KEY = 'tabMasterSettingMenuCache'
 
@@ -99,10 +99,11 @@ function useSettingMenuImpl() {
 
   /**
    * 点击菜单项：校验 settingUrl 为合法 http(s) 外链后在新标签打开
-   * 非 http(s)（如 javascript:/data:）一律拦截，防危险协议
+   * 非 http(s)（如 javascript:/data:）一律拦截，防危险协议；
+   * 不查测试域名黑名单（dev 环境官网在 localhost，菜单跳转需放行）
    */
   function onMenuClick(item: SettingMenuItem) {
-    if (!isValidExternalUrl(item.settingUrl)) {
+    if (!isSafeExternalLink(item.settingUrl)) {
       console.warn('[setting-menu] 菜单项 URL 校验失败，拒绝跳转', item.settingName, item.settingUrl)
       return
     }

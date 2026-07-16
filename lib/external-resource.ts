@@ -61,6 +61,27 @@ export function isValidExternalUrl(url: unknown): boolean {
 }
 
 /**
+ * 校验是否为可安全跳转的外部链接（用于菜单/按钮点击 chrome.tabs.create）。
+ *
+ * 规则：空/非 string → false；非 http(s) 协议 → false（拦 javascript: data: 等）；
+ *       其余 → true。
+ *
+ * 与 {@link isValidExternalUrl} 区别：**不查 BLOCKED_HOSTS 黑名单**。
+ * 黑名单是为拦"<img> 去加载占位测试域名"（资源加载场景），但菜单跳转 URL 是用户主动
+ * 点击要打开的页面，dev 环境官网就在 localhost:5173，必须放行。跳转只需防危险协议。
+ */
+export function isSafeExternalLink(url: unknown): boolean {
+  if (typeof url !== 'string' || !url) return false
+  let u: URL
+  try {
+    u = new URL(url)
+  } catch {
+    return false
+  }
+  return u.protocol === 'http:' || u.protocol === 'https:'
+}
+
+/**
  * 浏览器内部协议白名单——这些协议由浏览器自身解析加载，不产生外部网络请求，
  * 也不会触发"资源加载失败"污染 errors 面板。FavIcon 的 tab.favIconUrl 可能返回这些协议。
  */
