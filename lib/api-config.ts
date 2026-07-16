@@ -17,7 +17,8 @@ export {
   API_BASE_URL,
   OFFICIAL_SITE_URL,
   MENU_SITE_URL,
-  CURRENT_ENV
+  CURRENT_API_ENV,
+  CURRENT_SITE_ENV
 } from './env'
 
 // API 路径枚举（后续接口统一在此添加）
