@@ -165,7 +165,7 @@
             class="w-[13px] h-[13px] object-contain shrink-0"
             @error="onLogoError($event)"
           />
-          <LinkIcon v-else :size="13" class="shrink-0" />
+          <component :is="getSettingIcon(item)" v-else :size="13" class="shrink-0" />
           <span class="truncate">{{ item.settingName }}</span>
         </button>
       </div>
@@ -253,8 +253,22 @@ import { ref, computed, watch } from "vue"
 import {
   Settings, LogIn, LogOut, Palette, Type, Layout, HardDrive,
   Sliders, RotateCcw, Sun, Moon, Monitor, Check, ChevronLeft, ScrollText,
-  User, Crown, Link as LinkIcon
+  User, Crown, Link as LinkIcon,
+  BookOpen, HelpCircle, MessageSquare, Mail
 } from "@lucide/vue"
+import type { Component } from "vue"
+
+// 默认菜单图标映射：settingLogo 为空时按 defaultIcon 名匹配内置 lucide 图标
+const DEFAULT_ICON_MAP: Record<string, Component> = {
+  'book': BookOpen,
+  'help-circle': HelpCircle,
+  'message-square': MessageSquare,
+  'mail': Mail
+}
+const getSettingIcon = (item: { settingLogo: string; defaultIcon?: string }): Component => {
+  if (item.defaultIcon && DEFAULT_ICON_MAP[item.defaultIcon]) return DEFAULT_ICON_MAP[item.defaultIcon]
+  return LinkIcon
+}
 // 云同步/快照注释后暂不用：Cloud, Lock, Users, MessageSquare, BookOpen, Coffee
 // TODO 后续恢复云同步/快照功能时一并恢复这些图标导入
 import { useSettings } from "~composables/useSettings"

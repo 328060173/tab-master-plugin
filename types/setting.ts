@@ -14,7 +14,7 @@
 /** 后端 SettingMenuVO 字段（单条菜单项） */
 export interface SettingMenuItem {
   id: number
-  /** 菜单项图标图片 URL（后端配置下发，可能为空） */
+  /** 菜单项图标图片 URL（后端配置下发，可能为空，为空时前端用内置默认图标） */
   settingLogo: string
   /** 菜单项名称 */
   settingName: string
@@ -22,6 +22,11 @@ export interface SettingMenuItem {
   settingUrl: string
   /** 排序值（升序） */
   settingSort: number
+  /**
+   * 内置默认图标名（前端兜底用，后端不返回此字段）。
+   * settingLogo 为空时，前端按此名匹配内置 lucide 图标；匹配不上用 LinkIcon 兜底。
+   */
+  defaultIcon?: string
 }
 
 /** POST /setting/menu-list 响应体（SW 拉取，body 含 customerType/versionCode/platform/appCode，后端返回 R<SettingMenuListVO>） */

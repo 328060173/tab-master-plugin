@@ -26,12 +26,13 @@ const SETTING_MENU_CACHE_KEY = 'tabMasterSettingMenuCache'
 const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
 // 内置默认菜单（SW 未拉到缓存时的兜底，与后端默认数据对齐）
-// URL 指官网对应页；登录态带 token（与原帮助组跳转一致）
+// URL 指官网对应页，buildOfficialUrl 自动带 ?app-code=app_1001
+// defaultIcon：settingLogo 为空时前端用内置 lucide 图标（后端 setting_logo 未配时用）
 const DEFAULT_MENUS: SettingMenuItem[] = [
-  { id: -1, settingLogo: '', settingName: '使用文档', settingUrl: buildOfficialUrl('/contents/help'), settingSort: 1 },
-  { id: -2, settingLogo: '', settingName: '常见问题', settingUrl: buildOfficialUrl('/contents/faq'), settingSort: 2 },
-  { id: -3, settingLogo: '', settingName: '意见 & 需求反馈', settingUrl: buildOfficialUrl('/contents/feedback'), settingSort: 3 },
-  { id: -4, settingLogo: '', settingName: '联系我们', settingUrl: buildOfficialUrl('/contents/contact'), settingSort: 4 }
+  { id: -1, settingLogo: '', settingName: '文档', settingUrl: buildOfficialUrl('/contents/docs'), settingSort: 1, defaultIcon: 'book' },
+  { id: -2, settingLogo: '', settingName: 'FAQ', settingUrl: buildOfficialUrl('/contents/faq'), settingSort: 2, defaultIcon: 'help-circle' },
+  { id: -3, settingLogo: '', settingName: '意见和需求反馈', settingUrl: buildOfficialUrl('/contents/feedback'), settingSort: 3, defaultIcon: 'message-square' },
+  { id: -4, settingLogo: '', settingName: '联系我们', settingUrl: buildOfficialUrl('/contents/contact'), settingSort: 4, defaultIcon: 'mail' }
 ]
 
 // 清洗单条菜单项（SW 写入，sidepanel 读时校验）
