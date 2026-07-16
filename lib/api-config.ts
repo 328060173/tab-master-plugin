@@ -29,6 +29,11 @@ export const OFFICIAL_SITE_URL = ENV_SITE_BASE
     ? 'http://localhost:5173'
     : 'https://www.ouu365.com')
 
+// 生产官网地址（固定，不受 dev/prod 切换）。
+// 用于"必须指向生产官网"的场景（如设置菜单默认项 URL），dev 环境也跳生产官网看真实内容。
+// OFFICIAL_SITE_URL 会随 dev/prod 变（dev 指本地 VitePress），菜单跳转不该用它。
+export const OFFICIAL_PRODUCTION_URL = 'https://www.ouu365.com'
+
 // API 路径枚举（后续接口统一在此添加）
 // 对应后端 Controller：
 // - captchaImage: CaptchaController#getCode
