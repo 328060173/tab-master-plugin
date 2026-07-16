@@ -5,7 +5,6 @@
         ? 'border-blue-500 bg-blue-100 dark:bg-blue-900/30'
         : item.active ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white hover:border-blue-200 hover:bg-blue-50/50']"
     @click="onCardClick"
-    @contextmenu.prevent="emit('contextmenu', $event)"
   >
     <div v-if="item.groupId !== TAB_GROUP_ID_NONE && group"
          :class="[colorClass, 'absolute left-0 right-0 top-0 h-1 rounded-t-lg']"
@@ -39,15 +38,17 @@
         <button class="p-0.5 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" @click.stop="emit('close')" title="关闭"><X :size="13" :stroke-width="2.5" /></button>
       </div>
     </div>
+    <!-- TabHoverCard 是 Teleport(to=body)，放主 div 内不影响布局；
+         放根节点外会让组件变成多根 fragment，导致父级 fallthrough（contextmenu/data-tabid）
+         无法继承。故收进主 div 内，保持单根。 -->
+    <TabHoverCard
+      :hoverCardId="hoverCardId" :item="item"
+      @refresh="emit('refresh')" @copy="emit('copy')"
+      @pin="emit('pin')" @addTag="onHoverAddTag" @later="emit('later')" @close="emit('close')"
+      @updateNumber="emit('updateNumber', $event)"
+      @removeTag="emit('removeTag', $event)"
+    />
   </div>
-
-  <TabHoverCard
-    :hoverCardId="hoverCardId" :item="item"
-    @refresh="emit('refresh')" @copy="emit('copy')"
-    @pin="emit('pin')" @addTag="onHoverAddTag" @later="emit('later')" @close="emit('close')"
-    @updateNumber="emit('updateNumber', $event)"
-    @removeTag="emit('removeTag', $event)"
-  />
 </template>
 
 <script setup lang="ts">
@@ -63,7 +64,7 @@ import { usePopoverManager } from "~composables/usePopoverManager"
 import { GROUP_COLOR_CLASSES, TAB_GROUP_ID_NONE } from "~composables/useTabGroups"
 
 const props = defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[]; isPrev?: boolean }>()
-const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "refresh", "pin", "addTag", "toggleTag", "removeTag", "updateNumber", "contextmenu"])
+const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "refresh", "pin", "addTag", "toggleTag", "removeTag", "updateNumber"])
 
 const popover = usePopoverManager()
 const hoverCardId = `hover-card-${props.item.id}`
