@@ -49,10 +49,16 @@ export const API_URIS = {
   logout: '/logout'
 } as const
 
-// 产品 appCode 注册表（值由后端分配）
+// 产品 appCode 注册表（值由后端分配，与官网 ouu-web-official 的 config/headers.ts 对齐）
+// 插件当前仅启用 tabMaster；bookmarkMaster / translateMaster 为多产品预留
 export const APP_CODES = {
-  tabMaster: 'app_1001'
+  tabMaster: 'app_1001',
+  bookmarkMaster: 'app_1002',
+  translateMaster: 'app_1003'
 } as const
+
+// 官网 URL 上携带的 app-code query key（buildOfficialUrl 统一使用，避免字符串硬编码）
+export const APP_CODE_QUERY_KEY = 'app-code'
 
 /**
  * 将版本号字符串（如 "0.1.0"、"1.2.3"）转换为整数版本码
@@ -87,3 +93,15 @@ export const APP_HEADERS = {
   appCode: APP_CODES.tabMaster,
   versionCode: APP_VERSION_CODE
 } as const
+
+/**
+ * 构造官网页面 URL（统一入口，HeaderMenu / sidepanel 共用，避免多处重复拼接）
+ * - 必带 app-code（多产品区分：浏览器标签大师 app_1001 / 翻译大师 app_1003 ...）
+ * - 登录态必带 token（官网落地后建立登录态）
+ * - token 由调用方传入（本文件不依赖 useAuth，避免循环依赖）
+ */
+export function buildOfficialUrl(path: string, token?: string | null): string {
+  const params = new URLSearchParams({ [APP_CODE_QUERY_KEY]: APP_HEADERS.appCode })
+  if (token) params.set('token', token)
+  return `${OFFICIAL_SITE_URL}${path}?${params.toString()}`
+}

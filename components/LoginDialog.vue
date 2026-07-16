@@ -43,14 +43,6 @@
             </div>
           </div>
 
-          <!-- 图形验证码 -->
-          <div>
-            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-              {{ t('login.captcha') }}
-            </label>
-            <CaptchaInput ref="captchaRef" @update="onCaptchaUpdate" @skip="onCaptchaSkip" />
-          </div>
-
           <!-- 邮箱验证码 -->
           <div>
             <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">
@@ -108,13 +100,48 @@
             {{ t('login.agree') }}
           </p>
         </div>
+
+        <!-- 图形验证码弹框（点「获取验证码」时弹出，验证后发送邮箱码，不常驻主表单）-->
+        <div
+          v-if="showCaptchaModal"
+          class="fixed inset-0 bg-black/40 z-[110] flex items-center justify-center"
+          @click="(e) => { if (e.target === e.currentTarget) showCaptchaModal = false }"
+        >
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-[300px] p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                {{ t('login.captcha') }}
+              </h4>
+              <button
+                class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                @click="showCaptchaModal = false"
+              >
+                <X :size="14" />
+              </button>
+            </div>
+            <CaptchaInput ref="captchaRef" @update="onCaptchaUpdate" @skip="onCaptchaSkip" />
+            <p v-if="modalError" class="mt-2 text-[11px] text-red-500">{{ modalError }}</p>
+            <button
+              :disabled="!captchaCode || sendingCode"
+              class="w-full mt-3 py-2 text-xs rounded font-medium transition-colors"
+              :class="
+                !captchaCode || sendingCode
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              "
+              @click="confirmSendCode"
+            >
+              {{ sendingCode ? t('common.loading') : t('login.sendCode') }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { X, Mail } from '@lucide/vue'
 import { t } from '~lib/i18n'
 import { post } from '~lib/api'
@@ -142,7 +169,11 @@ const captchaUuid = ref('')
 const captchaCode = ref('')
 const captchaEnabled = ref(true)
 const loading = ref(false)
+const sendingCode = ref(false)
 const codeSentTip = ref('')
+// 图形验证码弹框（点「获取验证码」时弹出，验证后发送邮箱码；不常驻主表单）
+const showCaptchaModal = ref(false)
+const modalError = ref('')
 
 // 倒计时
 const countdown = ref(0)
@@ -153,17 +184,16 @@ const captchaRef = ref<InstanceType<typeof CaptchaInput>>()
 const emailCodeRef = ref<HTMLInputElement>()
 
 // 计算属性
+// 发码条件：邮箱有效 + 未在倒计时（图形码在弹框内填，此处不校验）
 const canSendCode = computed(() => {
   if (!email.value || !email.value.includes('@')) return false
-  if (captchaEnabled.value && (!captchaUuid.value || !captchaCode.value)) return false
   return true
 })
 
+// 登录条件：邮箱有效 + 邮箱码≥4位（后端已免图形码，邮箱码为强验证）
 const canLogin = computed(() => {
   if (!email.value || !email.value.includes('@')) return false
   if (!emailCode.value || emailCode.value.length < 4) return false
-  // 登录需要新的图形验证码（发码时已消费旧的，发码后已刷新拉新，用户需再输一次）
-  if (captchaEnabled.value && (!captchaUuid.value || !captchaCode.value)) return false
   return true
 })
 
@@ -171,6 +201,7 @@ const canLogin = computed(() => {
 function onCaptchaUpdate(data: { uuid: string; code: string }) {
   captchaUuid.value = data.uuid
   captchaCode.value = data.code
+  modalError.value = ''
 }
 
 function onCaptchaSkip() {
@@ -179,10 +210,18 @@ function onCaptchaSkip() {
   captchaCode.value = ''
 }
 
-// 发送邮箱验证码
-async function handleSendCode() {
+// 点「获取验证码」→ 弹出图形验证码弹框（不直接发，先让人机校验）
+function handleSendCode() {
   if (!canSendCode.value || countdown.value > 0) return
+  modalError.value = ''
+  captchaCode.value = ''
+  showCaptchaModal.value = true
+}
 
+// 图形验证码弹框确认 → 发送邮箱验证码
+async function confirmSendCode() {
+  if (!captchaCode.value || sendingCode.value) return
+  sendingCode.value = true
   try {
     await post(API_URIS.sendLoginCode, {
       email: email.value,
@@ -190,21 +229,22 @@ async function handleSendCode() {
       captchaCode: captchaCode.value,
       appCode: APP_HEADERS.appCode
     })
-
-    // 成功 - 开始倒计时 + 提示（弹窗保持打开，用户继续输邮箱验证码）
+    // 成功 - 关弹框、开始倒计时、提示、聚焦邮箱码输入
+    showCaptchaModal.value = false
     startCountdown()
     codeSentTip.value = t('login.codeSent')
-    // 发码已消费图形验证码（后端校验后删除），立即刷新拉一个新的，登录时需要再次输入新图形码
-    captchaRef.value?.refresh()
-    // 清空旧的 captchaCode，提示用户输入新的图形码
     captchaCode.value = ''
+    nextTick(() => emailCodeRef.value?.focus())
   } catch (e) {
-    // 失败 - 如果是验证码错误，刷新图形验证码
+    // 失败 - 验证码错误则刷新图形码，弹框保持
     const errMsg = e instanceof Error ? e.message : '发送失败'
+    modalError.value = errMsg
     codeSentTip.value = errMsg
     if (errMsg.includes('验证码') && captchaRef.value) {
       captchaRef.value.refresh()
     }
+  } finally {
+    sendingCode.value = false
   }
 }
 
@@ -225,8 +265,7 @@ async function handleLogin() {
     }>(API_URIS.loginByEmailCode, {
       email: email.value,
       code: emailCode.value,
-      captchaUuid: captchaUuid.value,
-      captchaCode: captchaCode.value,
+      // 登录不再需要图形验证码（后端已免，邮箱码为强验证）
       // 设备信息 + 版本 + 登录类型（后端 LoginEmailRequest 字段，记录登录设备）
       accessDeviceInfo: collectDeviceInfo(),
       accessLoc: ACCESS_LOC,
@@ -253,12 +292,9 @@ async function handleLogin() {
     emit('success', res.data.email)
     emit('close')
   } catch (e) {
-    // 失败 - 如果是验证码错误，刷新图形验证码
+    // 失败 - 提示错误信息（登录不再涉及图形验证码）
     const errMsg = e instanceof Error ? e.message : '登录失败'
     codeSentTip.value = errMsg
-    if (errMsg.includes('验证码') && captchaRef.value) {
-      captchaRef.value.refresh()
-    }
   } finally {
     loading.value = false
   }

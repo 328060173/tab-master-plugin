@@ -75,6 +75,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 ## 官方文档（改 manifest / 调 chrome.* 前必查）
 - 本地权威副本：`docs/googledocs/`（76 个 Chrome 扩展 API 的 `.md` + `INDEX.md` 索引，每文件头带官方 URL）。重抓脚本：`docs/googledocs/fetch-chrome-docs.sh`
 - 流程：先 grep/读 `docs/googledocs/<api>.md` 核实方法签名 / 权限名 / 最低版本，**不凭印象**。详见 [[lesson-verify-api-before-coding]]、[[reference-chrome-api-docs]]
+- **通用原则（2026-07-16 复盘，硬规矩）**：任何文档/资料**本地有就先查本地**（`docs/googledocs/` + `docs/` 下任意 md + 各仓 CLAUDE.md/WEBSITE-HANDOFF.md），**本地没有再走外网**。WebFetch/WebSearch 外网是**兜底，不是首选**——曾因直接 WebFetch `developer.chrome.com` 卡半天，而本地 `docs/googledocs/alarms.md` 就有答案，浪费用户时间。流程：① 先 `ls`/grep 本地 docs 目录；② 本地有 → 读本地；③ 本地确无 → 才 WebFetch，且一次抓不到就告诉用户需要哪份资料、让用户给，**不要反复重试外网卡等**。
 
 ## 历史与参考
 - 逐日完成记录 + 项目结构快照 → `docs/dev-log.md`

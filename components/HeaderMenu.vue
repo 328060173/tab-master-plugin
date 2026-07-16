@@ -249,7 +249,7 @@ import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos, computeFlyoutPos } from "~lib/popoverPosition"
 import { useAuth } from "~composables/useAuth"
 import { t } from "~lib/i18n"
-import { OFFICIAL_SITE_URL } from "~lib/api-config"
+import { buildOfficialUrl } from "~lib/api-config"
 
 const emit = defineEmits<{
   (e: "open-storage"): void
@@ -328,6 +328,8 @@ const fontSizeOptions = [
   { value: "xlarge" as const, label: t("menu.fontSize.xlarge") },
 ]
 
+// 构造官网 URL（必带 appCode，登录带 token）—— 复用 ~lib/api-config 公共函数，避免重复拼接
+
 // 菜单项点击处理
 const onOpenStorage = () => { popover.close("header-menu"); emit("open-storage") }
 const onReload = () => { popover.close("header-menu"); emit("reload") }
@@ -357,7 +359,7 @@ const onLogin = () => {
 const onOpenMine = () => {
   popover.close("header-menu")
   try {
-    chrome.tabs.create({ url: chrome.runtime.getURL("tabs/mine.html") })
+    chrome.tabs.create({ url: buildOfficialUrl('/my', getToken()) })
   } catch (e) {
     console.warn("open mine page failed", e)
   }
@@ -374,38 +376,30 @@ const onCloudSync = () => {
   emit("show-toast", t("menu.cloudSync.comingSoon"))
 }
 
-// 跳官网首页反馈区（已登录带 token 建立官网登录态，未登录直接跳）
-const openOfficialFeedback = () => {
-  const token = getToken()
-  const url = token
-    ? `${OFFICIAL_SITE_URL}/feedback?token=${encodeURIComponent(token)}`
-    : `${OFFICIAL_SITE_URL}/feedback`
+// 跳官网独立页（已登录带 token 建立官网登录态，未登录直接跳）
+const openOfficialPage = (path: string) => {
   try {
-    chrome.tabs.create({ url })
+    chrome.tabs.create({ url: buildOfficialUrl(path, getToken()) })
   } catch (e) {
-    console.warn('open official feedback failed', e)
+    console.warn('open official page failed', e)
   }
 }
 
-// 帮助/支持
+// 帮助/支持 → 官网 /contents/* 文档站（左目录 + 右内容，每页只放自己内容）
 const onContact = () => {
   popover.close("header-menu")
-  openOfficialFeedback()
+  openOfficialPage('/contents/contact')
 }
 const onFeedback = () => {
   popover.close("header-menu")
-  openOfficialFeedback()
+  openOfficialPage('/contents/feedback')
 }
 const onGuide = () => {
   popover.close("header-menu")
-  try {
-    chrome.tabs.create({ url: `${OFFICIAL_SITE_URL}/official/app_1001/guide` })
-  } catch (e) {
-    console.warn("open guide page failed", e)
-  }
+  openOfficialPage('/contents/help')
 }
 const onDonate = () => {
   popover.close("header-menu")
-  openOfficialFeedback()
+  openOfficialPage('/contents/coffee')
 }
 </script>

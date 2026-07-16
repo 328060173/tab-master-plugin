@@ -167,6 +167,7 @@ export default {
   'login.emailCode': 'Email Code',
   'login.emailCodePlaceholder': 'Enter code',
   'login.getCode': 'Get Code',
+  'login.sendCode': 'Send Code',
   'login.submit': 'Login / Register',
   'login.success': 'Login successful',
   'login.codeSent': 'Code sent',
