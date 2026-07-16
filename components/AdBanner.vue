@@ -48,6 +48,12 @@
 <script setup lang="ts">
 /**
  * 广告浮层（底部 10 秒弹层）
+ *
+ * 数据流（2026-07-16 重设计）：
+ * - SW 后台定时拉取广告 → 写 tabMasterAdCache → sendMessage 通知
+ * - useAd 只读缓存 + adState 去重 → selectAd() 选出 currentAd
+ * - 本组件纯展示：接收 AdInfo | null，管理倒计时/图片加载/点击关闭
+ *
  * - 自动消失：duration 到自动消失（onAdExpired，不记 adId）
  * - 点击：记 adId 今天不再展示 + 打开链接（onAdClick）
  * - 关闭：记 adId 今天不再展示（onAdDismiss）

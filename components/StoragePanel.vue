@@ -122,9 +122,13 @@ const SYS_DEFS: StorageDef[] = [
   { key: "tagSelectMode",     label: "标记筛选模式",     icon: "🔘", storage: "local", warning: "会把标记筛选模式重置为默认「单选」。" },
   { key: "viewMode",          label: "视图模式",         icon: "🖼️", storage: "ls", warning: "会清空记住的视图模式，下次打开恢复默认列表视图。" },
   { key: "tabMasterBannerState", label: "登录引导记录",  icon: "🔔", storage: "local", warning: "清空后，登录引导 Banner 会重新显示。" },
-  { key: "tabMasterVersionCheck", label: "版本检查记录",  icon: "🔄", storage: "local", warning: "清空后，版本检查会重新执行。" },
+  { key: "tabMasterVersionCheck", label: "版本检查记录",  icon: "🔄", storage: "local", warning: "清空后，版本横幅的关闭记录会丢失，已关闭的非强制更新横幅可能再次出现。" },
+  { key: "tabMasterVersionCache", label: "版本信息缓存",  icon: "📦", storage: "local", empty: "object", warning: "清空后，版本更新横幅会暂时消失，下次后台同步后恢复。" },
   { key: "tabMasterAdState", label: "广告展示记录",  icon: "📢", storage: "local", warning: "清空后，广告展示计数会重置。" },
-  { key: "tabMasterNoticeRead", label: "通知已读记录",  icon: "📨", storage: "local", warning: "清空后，通知会重新显示为未读。" },
+  { key: "tabMasterAdCache", label: "广告素材缓存",  icon: "🖼️", storage: "local", empty: "object", warning: "清空后，广告会暂时显示内置占位内容，下次后台同步后恢复。" },
+  { key: "tabMasterNoticeCache", label: "通知列表缓存",  icon: "📋", storage: "local", empty: "object", warning: "清空后，通知条会暂时消失，下次后台同步后恢复。" },
+  { key: "tabMasterNoticeRead", label: "通知已读记录",  icon: "📨", storage: "local", warning: "清空后，已读记录会丢失，已读过的通知会重新展示。" },
+  { key: "tabMasterSettingMenuCache", label: "更多菜单缓存",  icon: "📑", storage: "local", empty: "object", warning: "清空后，设置菜单「更多」组会暂时显示内置默认项，下次后台同步后恢复。" },
 ]
 
 const loadData = async () => {

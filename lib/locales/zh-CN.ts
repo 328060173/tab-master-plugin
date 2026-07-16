@@ -50,6 +50,7 @@ export default {
   'menu.group.interface': '界面',
   'menu.group.data': '数据',
   'menu.group.help': '帮助',
+  'menu.group.more': '更多',
 
   // 灰显提示
   'menu.backendRequired': '需要后端服务，敬请期待',

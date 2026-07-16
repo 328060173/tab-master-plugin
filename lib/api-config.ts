@@ -46,6 +46,7 @@ export const API_URIS = {
   checkVersion: '/version/check-version',
   customerMy: '/customer/my',
   noticePageList: '/notice/page-list',
+  settingMenuList: '/setting/menu-list',
   logout: '/logout'
 } as const
 
@@ -60,29 +61,9 @@ export const APP_CODES = {
 // 官网 URL 上携带的 app-code query key（buildOfficialUrl 统一使用，避免字符串硬编码）
 export const APP_CODE_QUERY_KEY = 'app-code'
 
-/**
- * 将版本号字符串（如 "0.1.0"、"1.2.3"）转换为整数版本码
- * 规则：主版本 * 10000 + 次版本 * 100 + 修订版本
- * 例如：
- *  - "0.1.0" → 0 * 10000 + 1 * 100 + 0 = 100
- *  - "1.2.3" → 1 * 10000 + 2 * 100 + 3 = 10203
- *  - "2.10.5" → 2 * 10000 + 10 * 100 + 5 = 21005
- */
-function versionStringToCode(version: string): number {
-  try {
-    const parts = version.split('.').map(Number)
-    const major = parts[0] || 0
-    const minor = parts[1] || 0
-    const patch = parts[2] || 0
-    return major * 10000 + minor * 100 + patch
-  } catch {
-    return 1
-  }
-}
-
-// versionCode：与后端约定固定 101（不用 manifest 算的值，后端版本表按此匹配）
-// 如需升级版本号，与后端 ouu_apps_version 表 version_code 对齐
-const APP_VERSION_CODE = 101
+// 当前插件版本码（int）。发生产前与后端 ouu_apps_version 表 version_code 对齐；
+// 每次发生产版本必须 +1（用户硬规矩）。当前未发生产，versionCode=1。
+export const APP_VERSION_CODE = 1
 
 // 默认请求头（对应后端 Constants.HEAD_APP_*）
 // platform: 1=Web浏览器插件 2=iOS 3=Android 4=微信小程序

@@ -170,6 +170,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 
 ### 红线（永远不要做）
 - 改 manifest permissions / 调 chrome.* 前必查 `docs/googledocs/<api>.md`（官方副本）核实——`tabHide` 不存在、`chrome.tabs.hide` 是实验 API
+- **版本号维护**：versionCode 单一来源在 `lib/api-config.ts` 的 `APP_VERSION_CODE`（export），background.ts 等都 import 复用，**禁止在别处重复硬编码**。当前 versionCode=1（未发生产）。**每次发生产版本必须 versionCode+1**（versionName 同步升，versionName 前端不维护常量、后端 ouu_apps_version 表管）。发版时同步提醒后端 ouu_apps_version 表插新版本记录。详见 [[plugin-version-release-rule]]
 - 禁用 `(chrome.x as any)` 强转
 - 禁用 v-html（XSS）
 - **数据一致性**（底线）：派生数据不从 filteredTabs 派生（避免筛选污染数量）；onTabCreated 必须过滤窗口；跨窗口移动监听 onAttached/onDetached 兜底重载。开发+测试都要验收「插件数量=浏览器实际」。详见 [[pattern-data-consistency-with-browser]]

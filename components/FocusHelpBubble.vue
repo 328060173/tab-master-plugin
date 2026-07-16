@@ -3,6 +3,7 @@
     <div
       v-if="popover.isOpen('focus-help')"
       :style="bubbleStyle"
+      data-popover-content
       class="fixed z-[60] w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-3"
       @click.stop>
       <p class="text-xs font-medium text-gray-800 dark:text-gray-100 mb-2">聚焦模式</p>

@@ -151,6 +151,7 @@
       <div
         v-if="popover.isOpen('home-toolbar-options')"
         :style="homeOptionsMenuPos"
+        data-popover-content
         class="fixed z-[60] w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
         @click.stop>
         <label class="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" @click="toggleHomeSearchVisible">
@@ -448,6 +449,7 @@
       <div
         v-if="popover.isOpen('normal-batch')"
         :style="batchMenuPos"
+        data-popover-content
         class="fixed z-[60] w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
         @click.stop
         @mouseleave="batchActiveSubmenu = null"
@@ -497,6 +499,7 @@
       <div
         v-if="popover.isOpen('normal-batch') && batchActiveSubmenu === 'group'"
         :style="batchGroupSubmenuPos"
+        data-popover-content
         class="fixed z-[60] w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
         @click.stop
         @mouseenter="batchActiveSubmenu = 'group'"
@@ -598,7 +601,7 @@
     <TabContextMenu :tab="ctxMenu?.tab ?? null" :x="ctxMenu?.x ?? 0" :y="ctxMenu?.y ?? 0"
       @action="handleCtxAction" @close="ctxMenu = null" />
     <!-- 编号选择浮层（右键→设置编号） -->
-    <div v-if="popover.isOpen('number-picker') && numberPickerTab" class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-44 p-2.5"
+    <div v-if="popover.isOpen('number-picker') && numberPickerTab" data-popover-content class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-44 p-2.5"
       :style="numberPickerStyle" @click.stop>
       <p class="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-2">设置快捷键编号 (1-4)</p>
       <div class="flex gap-1.5">
@@ -710,15 +713,15 @@ const showLoginBanner = ref(false)
 const showLoginDialog = ref(false)
 const { isLoggedIn, sessionExpired, clearSessionExpired } = useAuth()
 // 版本检查（静默失败，不阻塞 UI；强制更新顶部弹框）
-const { updateInfo, shouldShowBanner: shouldShowUpdateBanner, checkVersion, dismiss: dismissUpdate, openUpdatePage } = useVersionCheck()
+const { updateInfo, shouldShowBanner: shouldShowUpdateBanner, dismiss: dismissUpdate, openUpdatePage } = useVersionCheck()
 function onDismissUpdate() { dismissUpdate() }
-// 广告（底部 10 秒弹层，不打扰：每天最多3次+点击/关闭按adId当天不再展示+静默失败）
-const { currentAd, fetchAd, markShown, onAdClick, onAdDismiss, onAdExpired } = useAd()
+// 广告（底部 10 秒弹层，只读 SW 缓存不发请求：每天最多3次+点击/关闭按adId当天不再展示）
+const { currentAd, markShown, onAdClick, onAdDismiss, onAdExpired } = useAd()
 function onAdClickFromBanner() { onAdClick() }
 function onAdDismissFromBanner() { onAdDismiss() }
 function onAdExpiredFromBanner() { onAdExpired() }
 // 消息通知（首页通知条，静默失败，按 id 记已读）
-const { notices, unreadCount, fetchNotices, markAllRead: markAllNoticeRead } = useNotice()
+const { notices, unreadCount, markAllRead: markAllNoticeRead } = useNotice()
 
 // 加载 Banner 状态
 async function loadBannerState() {
@@ -1366,12 +1369,8 @@ onMounted(async () => {
   chrome.storage.onChanged.addListener(onTagsSessionNoticeChanged)
   // 加载登录引导 Banner 状态
   await loadBannerState()
-  // 版本检查（静默失败，不阻塞；内部每天1次去重）
-  checkVersion()
-  // 拉取广告（底部弹层，静默失败不打扰）
-  fetchAd()
-  // 拉取消息通知（首页通知条，静默失败）
-  fetchNotices()
+  // 广告/版本/通知均由 Service Worker 后台定时拉取 + storage 缓存，sidepanel 只读缓存
+  // （useAd/useVersionCheck/useNotice 初始化时自动加载缓存，收到 SW onMessage 时刷新）
 })
 
 onUnmounted(() => {

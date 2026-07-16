@@ -4,6 +4,7 @@
       v-if="popover.isOpen(props.id)"
       ref="popoverRootRef"
       :style="popoverStyle"
+      data-popover-content
       class="fixed z-[85] w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl"
       @click.stop>
       <!-- 顶部新增标记区域 -->

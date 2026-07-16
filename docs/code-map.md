@@ -84,6 +84,31 @@ node -e "const fs=require('fs');const sfc=require('./node_modules/.pnpm/@vue+com
 - 详见记忆 `pattern-sw-as-collector`
 - UI 侧（composable）的同类监听只是兜底，不能当唯一数据源
 
+### I-2. 广告拉取（SW 定时拉 + sidepanel 只读缓存，2026-07-16 重设计）
+- **SW 拉取**：`background.ts` 的 `fetchAdCache(trigger)` 在 `onInstalled`/`onStartup` 初始化拉 + `chrome.alarms` 一次性闹钟定时拉。间隔由后端下发 `nextSyncIntervalMinutes`（banner=480）+ 0~60min 随机偏移；前端不再写死 6~12h（2026-07-16 改造）。`fetchAdCache` 内部 finally 统一调 `scheduleNextAdAlarm`（成功用后端间隔，失败兜底 480）保证闹钟常在
+- **展示即消费（2026-07-16 改造）**：`useAd.ts` 的 `onAdClick`/`onAdDismiss`/`onAdExpired` 调 `consumeCurrentAd()` 把缓存 `adData` 置 null 并写回 storage（守 toPure，只清素材不动 lastSync/nextSyncIntervalMinutes）；`selectAd()` 在「有缓存但 adData=null」分支返回 null，本窗口不再弹，等 SW 下次拉新广告（adCacheUpdated 通知）才再弹
+- **缓存写入**：SW 写 `chrome.storage.local.tabMasterAdCache`（含 hideAd/adData/expireTime/lastSync/nextSyncIntervalMinutes/serverTime），再 `sendMessage({type:'adCacheUpdated'})` 通知
+- **sidepanel 只读缓存**：`useAd.ts` 初始化 + 收到 onMessage 时读 `tabMasterAdCache`，调 `selectAd()` 选广告渲染。**sidepanel 禁止任何 fetch 广告请求**（消费写 adData=null 是「消费」语义，不造素材）
+- **两个 key 各司其职**：`tabMasterAdCache`（SW 写/sidepanel 读+消费写 adData=null，广告素材+hideAd+下次拉取间隔）vs `tabMasterAdState`（sidepanel 读写，展示去重 shownCount/interactedAdIds）
+- **改广告拉取/缓存逻辑要联动**：`background.ts`(拉取+缓存+闹钟间隔) + `composables/useAd.ts`(读取+选择+消费) + `types/ad.ts`(共享类型) + `components/StoragePanel.vue`(key 清理)
+- 需要 `alarms` 权限（manifest 已加，Chrome 111+ / Edge 同步支持）
+
+### I-3. 版本检查拉取（SW 定时拉 + sidepanel 只读缓存，2026-07-16 重设计）
+- **SW 拉取**：`background.ts` 的 `fetchVersionCache(trigger)` 在 `onInstalled`/`onStartup` 初始化拉 + `chrome.alarms`（`tabMasterVersionSync`）一次性闹钟定时拉。POST `/version/check-version`，body 含 `customerType`/`versionCode`(101)/`accessDeviceInfo`(collectDeviceInfo)/`accessLoc`/`deviceNumber`；登录态走 `getAuthHeaders`（读 `tabMasterAuth`，token 进 extraHeaders，customerType 同时进 body+header）。间隔由后端下发 `nextSyncIntervalMinutes`（version=1440/24h）+ 0~60min 随机偏移；兜底 1440。`fetchVersionCache` 内部 finally 统一调 `scheduleAlarm`（成功用后端间隔，失败兜底）保证闹钟常在
+- **缓存写入**：SW 写 `chrome.storage.local.tabMasterVersionCache`（含 updateFlag/versionData/nextSyncIntervalMinutes/lastSync），再 `sendMessage({type:'versionCacheUpdated'})` 通知
+- **sidepanel 只读缓存**：`useVersionCheck.ts` 初始化 + 收到 onMessage 时读 `tabMasterVersionCache`，派生 `UpdateInfo` 渲染 `UpdateBanner.vue`。**sidepanel 禁止任何 fetch 版本请求**
+- **两个 key 各司其职**：`tabMasterVersionCache`（SW 写/sidepanel 只读，版本数据+下次拉取间隔）vs `tabMasterVersionCheck`（sidepanel 读写，用户关闭记录 dismissedVersionCode）
+- **改版本拉取/缓存逻辑要联动**：`background.ts`(fetchVersionCache+scheduleAlarm+ensureAlarm+onAlarm 分发) + `composables/useVersionCheck.ts`(只读缓存+onMessage+dismissedVersionCode) + `types/version.ts`(共享类型) + `lib/device-info.ts`(collectDeviceInfo，SW 可用) + `components/StoragePanel.vue`(key 清理) + `sidepanel.vue`(只解构 updateInfo/shouldShowBanner/dismiss/openUpdatePage，onMounted 不调 checkVersion)
+
+### I-4. 通知拉取（SW 定时拉 + sidepanel 只读缓存，2026-07-16 重设计）
+- **SW 拉取**：`background.ts` 的 `fetchNoticeCache(trigger)` 在 `onInstalled`/`onStartup` 初始化拉 + `chrome.alarms`（`tabMasterNoticeSync`）一次性闹钟定时拉。GET `/notice/page-list`（后端返回 `R<NoticeSyncVO>`：rows/total/nextSyncIntervalMinutes）；登录态走 `getAuthHeaders`（token 进 extraHeaders）。间隔由后端下发 `nextSyncIntervalMinutes`（notice=240/4h）+ 0~60min 随机偏移；兜底 240。`fetchNoticeCache` 内部 finally 统一调 `scheduleAlarm` 保证闹钟常在
+- **缓存写入**：SW 写 `chrome.storage.local.tabMasterNoticeCache`（含 rows/nextSyncIntervalMinutes/lastSync），再 `sendMessage({type:'noticeCacheUpdated'})` 通知
+- **sidepanel 只读缓存**：`useNotice.ts` 初始化 + 收到 onMessage 时读 `tabMasterNoticeCache`。**sidepanel 禁止任何 fetch 通知请求**
+- **已读永久不展示（2026-07-16 用户新硬要求）**：`tabMasterNoticeRead` 已读 id 列表**永久保留**（不跨天清零，与广告 interactedAdIds 当天重置不同）；`useNotice` 的 `notices` computed = 缓存 rows 过滤掉 readIds（已读彻底不展示）；`markAllRead`（=「知道了」）把当前可见通知全标已读并从展示列表剔除；SW 重新拉到同 id 因 readIds 有记录仍被过滤；readIds 超 1000 条清最早的（防 storage 无限膨胀）
+- **两个 key 各司其职**：`tabMasterNoticeCache`（SW 写/sidepanel 只读，通知列表+下次拉取间隔）vs `tabMasterNoticeRead`（sidepanel 读写，已读 id 永久记录）
+- **改通知拉取/缓存逻辑要联动**：`background.ts`(fetchNoticeCache+scheduleAlarm+ensureAlarm+onAlarm 分发) + `composables/useNotice.ts`(只读缓存+onMessage+已读永久过滤) + `types/notice.ts`(共享类型) + `components/NoticeBar.vue`(展示+markAllRead 触发) + `components/StoragePanel.vue`(key 清理) + `sidepanel.vue`(只解构 notices/unreadCount/markAllRead，onMounted 不调 fetchNotices)
+- **三闹钟独立分发**：`background.ts` 的 `chrome.alarms.onAlarm` 按 `alarm.name` switch 分发到 `handleAdAlarm`/version/notice 三个 handler，互不串扰；三个闹钟名 `tabMasterAdSync`/`tabMasterVersionSync`/`tabMasterNoticeSync` 各自独立
+
 ## J. 标签操作菜单联动（右键 / 汉堡 / 批量 / 卡片）
 
 标签操作动作逻辑统一在 `composables/useTabActions.ts`（单标签 + 批量）。三个菜单 + 卡片直接操作都调它，改一个操作逻辑只改 `useTabActions.ts` 一处。

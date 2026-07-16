@@ -50,6 +50,7 @@ export default {
   'menu.group.interface': 'Interface',
   'menu.group.data': 'Data',
   'menu.group.help': 'Help',
+  'menu.group.more': 'More',
 
   // 灰显提示
   'menu.backendRequired': 'Backend service required, coming soon',

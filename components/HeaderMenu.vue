@@ -20,6 +20,7 @@
       <div
         v-if="popover.isOpen('header-menu')"
         :style="menuPos"
+        data-popover-content
         class="fixed z-[60] w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1 max-h-[80vh] overflow-y-auto"
         @click.stop
         @mouseleave="activeSubmenu = null"
@@ -100,7 +101,7 @@
         <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
         <p class="px-3 py-1 text-[10px] text-gray-400 uppercase tracking-wide">{{ t('menu.group.data') }}</p>
 
-        <!-- 云同步：未登录🔒，已登录可点击 -->
+        <!-- TODO 后续恢复云同步/快照功能（暂时注释，onCloudSync/i18n key/emits 保留）
         <button
           v-if="!isLoggedIn"
           class="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-400 cursor-not-allowed opacity-60 text-left"
@@ -119,7 +120,6 @@
           <Cloud :size="13" />{{ t('menu.cloudSync') }}
         </button>
 
-        <!-- 快照：始终🔒VIP -->
         <button
           class="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-400 cursor-not-allowed opacity-60 text-left"
           disabled
@@ -128,6 +128,7 @@
           <span class="flex items-center gap-2"><Lock :size="13" />{{ t('menu.snapshot') }}</span>
           <span class="text-[10px] text-gray-400">{{ t('menu.snapshot.vipRequired') }}</span>
         </button>
+        -->
 
         <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left" @mouseenter="activeSubmenu = null" @click="onOpenStorage">
           <HardDrive :size="13" />{{ t('menu.storage') }}
@@ -146,21 +147,26 @@
         </button>
 
         <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-        <p class="px-3 py-1 text-[10px] text-gray-400 uppercase tracking-wide">{{ t('menu.group.help') }}</p>
+        <p class="px-3 py-1 text-[10px] text-gray-400 uppercase tracking-wide">{{ t('menu.group.more') }}</p>
 
-        <!-- 帮助项 -->
-        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left" @mouseenter="activeSubmenu = null" @click="onContact">
-          <Users :size="13" />{{ t('menu.contact') }}
-        </button>
-        <!-- 意见反馈：免登录（后端 /feedback/suggest 是 @Anonymous，靠图形验证码防滥用） -->
-        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left" @mouseenter="activeSubmenu = null" @click="onFeedback">
-          <MessageSquare :size="13" />{{ t('menu.feedback') }}
-        </button>
-        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left" @mouseenter="activeSubmenu = null" @click="onGuide">
-          <BookOpen :size="13" />{{ t('menu.guide') }}
-        </button>
-        <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left" @mouseenter="activeSubmenu = null" @click="onDonate">
-          <Coffee :size="13" />{{ t('menu.donate') }}
+        <!-- 更多项：后端动态下发（GET /setting/menu-list，SW 拉取 + 缓存），SW 未拉到时 useSettingMenu 内置默认兜底 -->
+        <button
+          v-for="item in settingMenus"
+          :key="item.id"
+          :data-menu-id="item.id"
+          class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-left"
+          @mouseenter="activeSubmenu = null"
+          @click="onSettingMenuClick(item)"
+        >
+          <img
+            v-if="canRenderSettingLogoWithFallback(item)"
+            :src="item.settingLogo"
+            :alt="item.settingName"
+            class="w-[13px] h-[13px] object-contain shrink-0"
+            @error="onLogoError($event)"
+          />
+          <LinkIcon v-else :size="13" class="shrink-0" />
+          <span class="truncate">{{ item.settingName }}</span>
         </button>
       </div>
 
@@ -168,6 +174,7 @@
       <div
         v-if="popover.isOpen('header-menu') && activeSubmenu === 'theme'"
         :style="themeSubmenuPos"
+        data-popover-content
         class="fixed z-[60] w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
         @click.stop
         @mouseenter="activeSubmenu = 'theme'"
@@ -187,6 +194,7 @@
       <div
         v-if="popover.isOpen('header-menu') && activeSubmenu === 'font'"
         :style="fontSubmenuPos"
+        data-popover-content
         class="fixed z-[60] w-32 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
         @click.stop
         @mouseenter="activeSubmenu = 'font'"
@@ -204,6 +212,7 @@
       <div
         v-if="popover.isOpen('header-menu') && activeSubmenu === 'position'"
         :style="positionSubmenuPos"
+        data-popover-content
         class="fixed z-[60] w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl p-2.5 text-[11px] leading-relaxed text-gray-600 dark:text-gray-300"
         @click.stop
         @mouseenter="activeSubmenu = 'position'"
@@ -235,19 +244,25 @@
  * 2026-07-12 改造：登录态联动 + 运营项
  * - 未登录：注册/登录
  * - 已登录：邮箱 + 退出
- * - 新增：加群/反馈/操作说明/请作者喝咖啡
+ * 2026-07-16 改造：
+ * - 「帮助」组 → 「更多」组：后端动态下发（GET /setting/menu-list，SW 拉取+缓存）
+ * - SW 未拉到缓存时 useSettingMenu 内置默认 4 项兜底（文档/FAQ/反馈/联系）
+ * - 云同步/快照菜单项暂时注释（TODO 后续恢复）
  */
 import { ref, computed, watch } from "vue"
 import {
-  Settings, LogIn, LogOut, Palette, Type, Layout, Cloud, HardDrive,
+  Settings, LogIn, LogOut, Palette, Type, Layout, HardDrive,
   Sliders, RotateCcw, Sun, Moon, Monitor, Check, ChevronLeft, ScrollText,
-  Users, MessageSquare, BookOpen, Coffee, User, Crown, Lock
+  User, Crown, Link as LinkIcon
 } from "@lucide/vue"
+// 云同步/快照注释后暂不用：Cloud, Lock, Users, MessageSquare, BookOpen, Coffee
+// TODO 后续恢复云同步/快照功能时一并恢复这些图标导入
 import { useSettings } from "~composables/useSettings"
 import { useSidePanelLayout } from "~composables/useSidePanelLayout"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos, computeFlyoutPos } from "~lib/popoverPosition"
 import { useAuth } from "~composables/useAuth"
+import { useSettingMenu } from "~composables/useSettingMenu"
 import { t } from "~lib/i18n"
 import { buildOfficialUrl } from "~lib/api-config"
 
@@ -376,30 +391,23 @@ const onCloudSync = () => {
   emit("show-toast", t("menu.cloudSync.comingSoon"))
 }
 
-// 跳官网独立页（已登录带 token 建立官网登录态，未登录直接跳）
-const openOfficialPage = (path: string) => {
-  try {
-    chrome.tabs.create({ url: buildOfficialUrl(path, getToken()) })
-  } catch (e) {
-    console.warn('open official page failed', e)
+// “更多”组：后端动态下发菜单（SW 拉取 + 缓存，见 useSettingMenu）
+const { menus: settingMenus, canRenderLogo: canRenderSettingLogo, onMenuClick: onSettingMenuClickImpl } = useSettingMenu()
+// logo 加载失败的菜单项 id 集合（URL 校验通过但 <img> 加载失败时降级为默认图标）
+const logoFailedIds = ref<Set<number>>(new Set())
+const canRenderSettingLogoWithFallback = (item: { id: number; settingLogo: string }) =>
+  canRenderSettingLogo(item.settingLogo) && !logoFailedIds.value.has(item.id)
+const onLogoError = (e: Event) => {
+  // <img> 加载失败：记录其所属菜单项 id，触发 v-if 重算 → 显示默认 LinkIcon
+  const img = e.currentTarget as HTMLElement
+  const btn = img.closest("button")
+  const id = Number(btn?.getAttribute("data-menu-id"))
+  if (Number.isFinite(id) && id !== 0) {
+    logoFailedIds.value = new Set(logoFailedIds.value).add(id)
   }
 }
-
-// 帮助/支持 → 官网 /contents/* 文档站（左目录 + 右内容，每页只放自己内容）
-const onContact = () => {
+const onSettingMenuClick = (item: { settingUrl: string }) => {
   popover.close("header-menu")
-  openOfficialPage('/contents/contact')
-}
-const onFeedback = () => {
-  popover.close("header-menu")
-  openOfficialPage('/contents/feedback')
-}
-const onGuide = () => {
-  popover.close("header-menu")
-  openOfficialPage('/contents/help')
-}
-const onDonate = () => {
-  popover.close("header-menu")
-  openOfficialPage('/contents/coffee')
+  onSettingMenuClickImpl(item as Parameters<typeof onSettingMenuClickImpl>[0])
 }
 </script>
