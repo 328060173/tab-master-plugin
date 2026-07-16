@@ -789,3 +789,55 @@ vue-tsc --noEmit 通过（仅 tsconfig 既有弃用警告 TS5107/TS5101）。本
 - **web-fe 实现官网 /donate /contact**：PRD 已出，需 4 张二维码图（微信赞赏码/支付宝/微信群/公众号）
 - **后端配真实数据**：ouu_advertisement 广告内容、ouu_apps_version 版本记录、ouu_apps_notice 通知
 - **预留扩展**：VIP 会员（功能清单已留 5 功能，isVip 永远 false）、云同步（3 类已分级，功能暂缓）、第三方登录
+
+---
+
+## 2026-07-16 开发进度（跨三仓大改造，test 分支）
+
+### 插件仓（多 commit）
+- **SW 后台拉取架构**：广告/version/notice/setting 四接口全部从 sidepanel onMounted 发请求改为 Service Worker 后台定时拉取 + sidepanel 只读缓存。四闹钟独立（tabMasterAdSync/VersionSync/NoticeSync/SettingSync），onAlarm switch 分发，后端下发 nextSyncIntervalMinutes + 前端 0~60min 随机偏移错峰。sidepanel 禁止任何 fetch（核心红线）。
+- **广告展示即消费**：onAdDismiss/onAdExpired/onAdClick 把缓存 adData 置 null，本时间窗口不再弹；SW 下次拉新广告才再弹 1 次。间隔由后端 AdPositionEnum 按 position 配置（banner=480min）。
+- **notice 已读永久不展示**：notices 是 computed 过滤 readIds，已读 id 永久保留（超 1000 清最早），SW 4h 后重拉同 id 仍被过滤。
+- **统一错误处理三层**：L1 lib/api.ts 归一 NetworkError/ApiError + fetchWithRetry（仅 NetworkError 退避1s重试1次）；L2 调用点 try/catch + 失败回退缓存；L3 useLogger unhandledrejection preventDefault 防业务错误进 chrome errors 面板。
+- **外部资源统一校验** lib/external-resource.ts：isValidExternalUrl（含黑名单，资源加载用）/ isRenderableImgSrc（放行浏览器内部协议，FavIcon 用）/ isSafeExternalLink（不查黑名单，菜单跳转用）。AdBanner/FavIcon/useSettingMenu 接入。
+- **设置菜单三任务**：①点击空白关闭（usePopoverManager 改捕获阶段 + data-popover-content 豁免）②注释云同步/快照 ③帮助→更多动态化（后端 ouu_apps_tm_setting 表，SW 拉取，默认兜底4项带内置 lucide 图标）。
+- **TabTileItem 改单根**：修复多根 fallthrough 刷屏崩浏览器（contextmenu/data-tabid 无法继承），立红线 + 防白屏第⑥步 baseParse 扫描。
+- **versionCode 统一**：单一来源 lib/api-config.ts APP_VERSION_CODE=1（发生产必升+1），package.json version=1.0.0。
+- **环境配置回归 Plasmo 标准**：删 lib/env.ts，地址恢复单文件 api-config.ts，用 process.env.PLASMO_PUBLIC_*（Plasmo 规范，弃用 import.meta.env——行为不稳定是菜单 localhost 没生效根因）。MENU_SITE_URL 单独变量默认生产官网 ouu365.com。.gitignore 忽略所有 .env*（本地覆盖用 .env.local）。
+- **排序文案**：「访问优先」→「最近访问」+ 默认值改 lastAccessed + 按钮/选项 hover 提示。
+
+### 后端仓（多 commit）
+- **广告 /ad/list**：返回 AdSyncVO(hideAd/expireTime/adData/serverTime/nextSyncIntervalMinutes)，间隔由 AdPositionEnum(banner=480) 配置。改 POST + @RequestBody，登录态用标准模式（customerType + SecurityUtils.getCustomerId try-catch），通用头 platform/versionCode/appCode 保留 @RequestHeader。
+- **version /version/check-version**：返回加 nextSyncIntervalMinutes=1440(24h)。
+- **notice /notice/page-list**：返回改 R<NoticeSyncVO>(rows/total/nextSyncIntervalMinutes=240/4h)。
+- **setting /setting/menu-list（新增）**：建表 ouu_apps_tm_setting，按 delete_flag/版本/灰度过滤返回可见菜单，nextSyncIntervalMinutes=1440。默认4条菜单（文档/FAQ/意见和需求反馈/联系我们，URL 带 ?app-code=app_1001）。POST + @RequestBody + 标准登录态模式。
+- **SecurityConfig**：permitAll 加 /setting/menu-list（与 ad/version/notice 一致）。
+- **登录态判断统一标准模式**（参考 AppVersionController#checkVersion）：customerType + SecurityUtils.getCustomerId try-catch，禁用 tokenService.getLoginUser（ad/setting 曾误用被纠正）。
+- 注：application.yml/application-druid.yml 本地环境切换未提交（含生产库密码）。
+
+### 官网仓
+- `551b4ff` .doc-page .doc-inner 改直接子选择器，修复 /contents 双栏布局错乱（CSS 级联冲突，后代选择器误命中 /contents 分支）。
+
+### hub 仓
+- 立红线：多根组件 fallthrough 刷屏崩浏览器（零容忍）+ 防白屏第⑥步 baseParse 扫描。写入插件仓 CLAUDE.md + hub CLAUDE.md §10 + plugs-fe agent。
+- 强化 api-backend agent：免登录接口登录态统一标准模式，禁用 tokenService。
+- 记忆新增：multi-root-fallthrough-crash / plugin-version-release-rule / backend-anonymous-login-pattern。
+
+### 🔴 明天第一件事：生产 nginx /contents 路由问题（未解决）
+**现象**：生产 https://www.ouu365.com/contents/docs（及 /faq /feedback /contact）返回的是**首页内容**（title 是首页的，HTML 含 page-baidu/browser-page 首页组件），不是 /contents 页面。本地 dev 正常。
+**根因**：生产 nginx 没把 /contents/* 路由到 VitePress SSG 产物（/contents/docs.html），fallback 到了首页 index.html。**不是插件、不是 CSS、不是 hydration**——是 nginx 路由。
+**之前误判**：以为是 hydration mismatch / app-code query 触发 / CSS 级联——都不是。CSS 修复(551b4ff)已上线生产（确认产物含 .doc-page>.doc-inner），但路由没修所以页面还是错的。
+**修复方向**：nginx 加 `try_files $uri $uri.html $uri/ /index.html;`（漏了 $uri.html 导致 /contents/docs 找不到文件 fallback 首页）。需用户给宝塔 nginx 配置或确认产物结构（dist/contents/docs.html 是否存在）。
+
+### 待用户验证
+1. 重启后端（SecurityConfig + 新接口生效）+ 清插件缓存重载扩展
+2. SW 控制台四套 [xxx-sync] 缓存已更新日志，无 401/code=undefined
+3. 设置菜单点过去：dev 跳 localhost:5173 正常 / 生产 ouu365.com 因 nginx 路由问题仍错（待修 nginx）
+4. 广告展示即消费、notice 已读永久不展示、排序 hover 提示、点击空白关菜单
+
+### 待办（后续）
+- **生产 nginx /contents 路由**（明天优先）：try_files 加 $uri.html
+- **后端配置真实数据**：ouu_apps_tm_setting 菜单、ouu_advertisement 广告、ouu_apps_version 版本记录(version_code=1)、ouu_apps_notice 通知
+- **官网 appearance**：config.ts 未设（默认启用暗色但 Layout 无切换按钮，半启用），建议 appearance:false 待用户拍板
+- **appearance false 后验证 hydration**：nginx 修好后若 /contents fresh load 仍报 hydration mismatch 再查
+- **expireTime**：广告 hideAd 时 expireTime 暂用 null + TODO（待会员体系上线查会员表到期）
