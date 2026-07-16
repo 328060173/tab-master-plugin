@@ -18,7 +18,7 @@
 
 import { ref, computed } from 'vue'
 import type { SettingMenuCacheData, SettingMenuItem } from '~types/setting'
-import { OFFICIAL_PRODUCTION_URL } from '~lib/api-config'
+import { MENU_SITE_URL } from '~lib/api-config'
 import { isRenderableImgSrc, isSafeExternalLink } from '~lib/external-resource'
 
 const SETTING_MENU_CACHE_KEY = 'tabMasterSettingMenuCache'
@@ -26,14 +26,16 @@ const SETTING_MENU_CACHE_KEY = 'tabMasterSettingMenuCache'
 const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
 // 内置默认菜单（SW 未拉到缓存时的兜底，与后端 sql 默认数据完全对齐）
-// URL 用 OFFICIAL_PRODUCTION_URL（固定生产官网），不走 buildOfficialUrl 的 dev/prod 门控——
-// 菜单是给用户看的真实官网内容（文档/FAQ/反馈），dev 环境也该跳生产官网，不指本地 dev server。
+// URL 跟官网环境走：MENU_SITE_URL（lib/env.ts，默认 = OFFICIAL_SITE_URL）。
+// - local：localhost:5173（本地联调官网 dev server）
+// - prod ：www.ouu365.com
+// 如需菜单固定指向生产官网而 API/其它地址走 local，设 PLASMO_PUBLIC_MENU_SITE=https://www.ouu365.com
 // defaultIcon：settingLogo 为空时前端用内置 lucide 图标（后端 setting_logo 未配时用）
 const DEFAULT_MENUS: SettingMenuItem[] = [
-  { id: -1, settingLogo: '', settingName: '文档', settingUrl: `${OFFICIAL_PRODUCTION_URL}/contents/docs?app-code=app_1001`, settingSort: 1, defaultIcon: 'book' },
-  { id: -2, settingLogo: '', settingName: 'FAQ', settingUrl: `${OFFICIAL_PRODUCTION_URL}/contents/faq?app-code=app_1001`, settingSort: 2, defaultIcon: 'help-circle' },
-  { id: -3, settingLogo: '', settingName: '意见和需求反馈', settingUrl: `${OFFICIAL_PRODUCTION_URL}/contents/feedback?app-code=app_1001`, settingSort: 3, defaultIcon: 'message-square' },
-  { id: -4, settingLogo: '', settingName: '联系我们', settingUrl: `${OFFICIAL_PRODUCTION_URL}/contents/contact?app-code=app_1001`, settingSort: 4, defaultIcon: 'mail' }
+  { id: -1, settingLogo: '', settingName: '文档', settingUrl: `${MENU_SITE_URL}/contents/docs?app-code=app_1001`, settingSort: 1, defaultIcon: 'book' },
+  { id: -2, settingLogo: '', settingName: 'FAQ', settingUrl: `${MENU_SITE_URL}/contents/faq?app-code=app_1001`, settingSort: 2, defaultIcon: 'help-circle' },
+  { id: -3, settingLogo: '', settingName: '意见和需求反馈', settingUrl: `${MENU_SITE_URL}/contents/feedback?app-code=app_1001`, settingSort: 3, defaultIcon: 'message-square' },
+  { id: -4, settingLogo: '', settingName: '联系我们', settingUrl: `${MENU_SITE_URL}/contents/contact?app-code=app_1001`, settingSort: 4, defaultIcon: 'mail' }
 ]
 
 // 清洗单条菜单项（SW 写入，sidepanel 读时校验）

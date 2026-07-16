@@ -1,38 +1,24 @@
 /**
  * 浏览器标签大师 API 配置
  * 统一管理接口地址和请求头
- */
-
-// 环境区分：
-// - 开发/本地调试：localhost:8080（后端服务地址）
-// - 生产环境：api.ouu365.com
+ *
+ * ⚠️ 地址真相源已收口到 lib/env.ts（一处配置，每地址独立 env 覆盖）。
+ * 本文件仅 re-export 保留向后兼容：所有 `import { API_BASE_URL } from '~lib/api-config'`
+ * 的调用方无需改路径。新增地址请直接加到 lib/env.ts，不要在此重复定义。
+ *
+// 环境默认值（lib/env.ts）：
+// - local（NODE_ENV=development）：apiBase=http://localhost:8080/ouu-api  siteUrl=http://localhost:5173
+// - prod （NODE_ENV=production ）：apiBase=https://api.ouu365.com/ouu-api siteUrl=https://www.ouu365.com
 // /ouu-api 是后端 context-path 前缀（Controller 路径无此前缀，必须放在 baseURL）
 // 与官网 ouu-web-official 配置一致
-//
-// 用 process.env.NODE_ENV 判断（Plasmo 构建时静态替换：dev=development，prod=production）
-// 不用 import.meta.env.DEV（Plasmo 里行为不稳定，曾导致 dev 构建走 prod 地址）
-// 优先级：PLASMO_PUBLIC_API_BASE 环境变量 > NODE_ENV 判断
-const ENV_API_BASE = (import.meta.env?.PLASMO_PUBLIC_API_BASE as string | undefined) ?? ''
-
-export const API_BASE_URL = ENV_API_BASE
-  || (process.env.NODE_ENV === 'development'
-    ? 'http://localhost:8080/ouu-api'
-    : 'https://api.ouu365.com/ouu-api')
-
-// 官网站点地址（用于跳转官网页面：反馈/联系/打赏/指南/我的等）
-// 开发环境：本地 VitePress dev server（默认 http://localhost:5173）
-// 生产环境：https://www.ouu365.com
-// 优先级：PLASMO_PUBLIC_SITE_BASE 环境变量 > NODE_ENV 判断
-const ENV_SITE_BASE = (import.meta.env?.PLASMO_PUBLIC_SITE_BASE as string | undefined) ?? ''
-export const OFFICIAL_SITE_URL = ENV_SITE_BASE
-  || (process.env.NODE_ENV === 'development'
-    ? 'http://localhost:5173'
-    : 'https://www.ouu365.com')
-
-// 生产官网地址（固定，不受 dev/prod 切换）。
-// 用于"必须指向生产官网"的场景（如设置菜单默认项 URL），dev 环境也跳生产官网看真实内容。
-// OFFICIAL_SITE_URL 会随 dev/prod 变（dev 指本地 VitePress），菜单跳转不该用它。
-export const OFFICIAL_PRODUCTION_URL = 'https://www.ouu365.com'
+// 单地址覆盖：PLASMO_PUBLIC_API_BASE / PLASMO_PUBLIC_SITE_BASE / PLASMO_PUBLIC_MENU_SITE（详见 lib/env.ts）
+ */
+export {
+  API_BASE_URL,
+  OFFICIAL_SITE_URL,
+  MENU_SITE_URL,
+  CURRENT_ENV
+} from './env'
 
 // API 路径枚举（后续接口统一在此添加）
 // 对应后端 Controller：
