@@ -26,7 +26,6 @@
         <HeaderMenu
           @open-storage="showStorage = true"
           @reload="reloadPanel"
-          @open-login="showLoginDialog = true"
           @show-toast="showToast"
         />
       </div>
@@ -63,7 +62,6 @@
         <HeaderMenu
           @open-storage="showStorage = true"
           @reload="reloadPanel"
-          @open-login="showLoginDialog = true"
           @show-toast="showToast"
         />
       </div>
@@ -121,7 +119,7 @@
       <NoticeBar
         :notices="notices"
         :unread-count="unreadCount"
-        @mark-all-read="markAllNoticeRead"
+        @mark-read="markNoticeRead"
       />
     </ErrorBoundary>
 
@@ -627,9 +625,6 @@
       </button>
     </div>
 
-    <!-- 登录弹窗 -->
-    <LoginDialog :open="showLoginDialog" @close="showLoginDialog = false" @success="onLoginSuccess" />
-
     <!-- 广告浮层（底部 10 秒弹层，Teleport 到 body）-->
     <ErrorBoundary scope="ad">
       <AdBanner
@@ -646,7 +641,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn, MoreHorizontal } from "@lucide/vue"
-import LoginDialog from "~components/LoginDialog.vue"
 import UpdateBanner from "~components/UpdateBanner.vue"
 import AdBanner from "~components/AdBanner.vue"
 import NoticeBar from "~components/NoticeBar.vue"
@@ -710,8 +704,7 @@ const {
 
 // ========== 登录引导 Banner 逻辑 ==========
 const showLoginBanner = ref(false)
-const showLoginDialog = ref(false)
-const { isLoggedIn, sessionExpired, clearSessionExpired } = useAuth()
+const { isLoggedIn, sessionExpired, clearSessionExpired, fetchUser } = useAuth()
 // 版本检查（静默失败，不阻塞 UI；强制更新顶部弹框）
 const { updateInfo, shouldShowBanner: shouldShowUpdateBanner, dismiss: dismissUpdate, openUpdatePage } = useVersionCheck()
 function onDismissUpdate() { dismissUpdate() }
@@ -721,7 +714,7 @@ function onAdClickFromBanner() { onAdClick() }
 function onAdDismissFromBanner() { onAdDismiss() }
 function onAdExpiredFromBanner() { onAdExpired() }
 // 消息通知（首页通知条，静默失败，按 id 记已读）
-const { notices, unreadCount, markAllRead: markAllNoticeRead } = useNotice()
+const { notices, unreadCount, markAllRead: markAllNoticeRead, markRead: markNoticeRead } = useNotice()
 
 // 加载 Banner 状态
 async function loadBannerState() {
@@ -742,14 +735,9 @@ async function loadBannerState() {
   }
 }
 
-// 点击 Banner - 打开登录弹窗
+// 点击 Banner - 跳 options 页登录（2026-07-17：登录入口迁移至 options 页）
 function handleLoginBannerClick() {
-  showLoginDialog.value = true
-}
-
-// 登录成功
-function onLoginSuccess(email: string) {
-  showToast(t('login.success'))
+  try { chrome.runtime.openOptionsPage() } catch (e) { console.warn("openOptionsPage failed", e) }
 }
 
 // 关闭 Banner
@@ -1355,6 +1343,17 @@ const scrollToTop = () => {
   target?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+// SW manualRefreshAll 完成后会广播 manualRefreshMy：已登录则静默重拉 /my 一次
+// 复用 useAuth.fetchUser（不新建架构、不改 /my 原有调用时机），失败静默
+const onManualRefreshMyMsg = (msg: unknown) => {
+  if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return
+  if ((msg as Record<string, unknown>).type !== 'manualRefreshMy') return
+  if (!isLoggedIn.value) return
+  fetchUser().catch((e) => {
+    console.warn('[sidepanel] 手动刷新 /my 失败（静默）', e)
+  })
+}
+
 onMounted(async () => {
   // 初始化聚焦模式
   if (SUPPORTS_FOCUS_MODE) {
@@ -1367,6 +1366,8 @@ onMounted(async () => {
   chrome.tabs.onCreated.addListener(handleNewTabInFocus)
   // 监听首次绑标记（storage 写入 tagsSessionNoticeShown=true）→ 弹告知确认框
   chrome.storage.onChanged.addListener(onTagsSessionNoticeChanged)
+  // 监听 SW 手动刷新完成后的 /my 重拉广播：已登录则静默刷新一次用户信息（不新建架构，复用 fetchUser）
+  chrome.runtime.onMessage.addListener(onManualRefreshMyMsg)
   // 加载登录引导 Banner 状态
   await loadBannerState()
   // 广告/版本/通知均由 Service Worker 后台定时拉取 + storage 缓存，sidepanel 只读缓存
@@ -1376,7 +1377,9 @@ onMounted(async () => {
 onUnmounted(() => {
   chrome.tabs.onCreated.removeListener(handleNewTabInFocus)
   chrome.storage.onChanged.removeListener(onTagsSessionNoticeChanged)
+  chrome.runtime.onMessage.removeListener(onManualRefreshMyMsg)
 })
+
 
 const scrollToActive = (activeId: number | undefined) => {
   if (!activeId) return

@@ -82,7 +82,7 @@ defineExpose({
 </script>
 
 <template>
-  <div v-if="captchaEnabled" class="flex gap-2 w-full">
+  <div v-if="captchaEnabled" class="flex gap-2 w-full min-w-0">
     <!-- 验证码图片 -->
     <div
       class="w-[120px] h-11 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded cursor-pointer overflow-hidden flex-shrink-0 flex items-center justify-center transition-all hover:border-blue-500"
@@ -107,7 +107,7 @@ defineExpose({
     <!-- 验证码输入框 -->
     <input
       type="text"
-      class="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+      class="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
       v-model="captchaCode"
       @input="onCodeInput"
       :placeholder="t('captcha.placeholder', '验证码')"

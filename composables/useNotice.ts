@@ -126,6 +126,21 @@ function useNoticeImpl() {
     console.log(`[notice] 标记 ${newRead.length} 条为已读（永久不再展示），readIds 共 ${readIds.value.length} 条`)
   }
 
+  /**
+   * 标记单条通知为已读（永久不再展示）
+   * 「不再显示」按钮用：只标当前这条，不影响其它未读。
+   * readIds 永久保留；超 1000 条清最早的（与 markAllRead 同上限保护）。
+   */
+  async function markRead(id: number) {
+    if (readIds.value.includes(id)) return
+    readIds.value = [...readIds.value, id]
+    if (readIds.value.length > READ_IDS_MAX) {
+      readIds.value = readIds.value.slice(readIds.value.length - READ_IDS_MAX)
+    }
+    await saveReadIds()
+    console.log(`[notice] 标记单条 id=${id} 为已读（永久不再展示），readIds 共 ${readIds.value.length} 条`)
+  }
+
   // 监听 SW 通知缓存更新通知 -> 重读缓存
   // 单例 composable，监听器在初始化时注册一次（不在 onMounted/onUnmounted，避免永久丢失）
   chrome.runtime.onMessage.addListener((msg: unknown) => {
@@ -142,7 +157,8 @@ function useNoticeImpl() {
     notices,
     unreadCount,
     hasNotice,
-    markAllRead
+    markAllRead,
+    markRead
   }
 }
 

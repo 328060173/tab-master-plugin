@@ -6,9 +6,11 @@
  *   GET /setting/menu-list 由 SW 发，写 tabMasterSettingMenuCache，sendMessage({type:'settingMenuCacheUpdated'}) 通知
  * - 菜单渲染：HeaderMenu 只读缓存，禁止任何 fetch 设置菜单请求
  *
- * 兜底（守资源带宽 + 可用性）：
- * - SW 未拉到缓存（首次安装/后端挂/网络断）时，渲染内置默认 4 项（文档/FAQ/意见&需求反馈/联系我们）
- * - 默认项 URL 指官网对应页，与后端默认数据对齐
+ * 渲染策略（2026-07-17 调整：固定项 + 后端追加，不再替换）：
+ * - 固定 4 项（文档/FAQ/意见&需求反馈/联系我们）始终渲染在前
+ * - 后端 /setting/menu-list 下发的自定义菜单追加在固定项后面，不替换、不减少固定项
+ * - 缓存未拉到（空数组）时，menus 自然只剩固定 4 项——符合"固定菜单始终在"
+ * - 固定项 id 用负数（-1~-4），后端下发 id 为正数，v-for :key 不冲突
  *
  * logo 渲染：
  * - settingLogo 是后端配置的图片 URL，渲染前用 isRenderableImgSrc 校验（过滤占位/测试域名）
@@ -25,13 +27,14 @@ const SETTING_MENU_CACHE_KEY = 'tabMasterSettingMenuCache'
 
 const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
-// 内置默认菜单（SW 未拉到缓存时的兜底，与后端 sql 默认数据完全对齐）
+// 固定菜单项，始终渲染在前，后端 /setting/menu-list 下发的自定义菜单追加其后（不替换、不减少）
 // URL 用 MENU_SITE_URL（lib/api-config.ts，默认生产官网 ouu365.com）。
 // - local：localhost:5173（本地联调官网 dev server）
 // - prod ：www.ouu365.com
 // 如需菜单固定指向生产官网而 API/其它地址走 local，设 PLASMO_PUBLIC_MENU_SITE=https://www.ouu365.com
 // defaultIcon：settingLogo 为空时前端用内置 lucide 图标（后端 setting_logo 未配时用）
-const DEFAULT_MENUS: SettingMenuItem[] = [
+// id 用负数（-1~-4），与后端下发的正数 id 不冲突，v-for :key 天然唯一
+const FIXED_MENUS: SettingMenuItem[] = [
   { id: -1, settingLogo: '', settingName: '文档', settingUrl: `${MENU_SITE_URL}/contents/docs?app-code=app_1001`, settingSort: 1, defaultIcon: 'book' },
   { id: -2, settingLogo: '', settingName: 'FAQ', settingUrl: `${MENU_SITE_URL}/contents/faq?app-code=app_1001`, settingSort: 2, defaultIcon: 'help-circle' },
   { id: -3, settingLogo: '', settingName: '意见和需求反馈', settingUrl: `${MENU_SITE_URL}/contents/feedback?app-code=app_1001`, settingSort: 3, defaultIcon: 'message-square' },
@@ -76,9 +79,10 @@ function useSettingMenuImpl() {
   // SW 写入的缓存菜单（空数组表示尚未拉取）
   const cachedMenus = ref<SettingMenuItem[]>([])
 
-  // 展示列表：有缓存用缓存，无缓存用内置默认兜底
+  // 展示列表：固定 4 项始终在前 + 后端下发缓存追加在后（不替换、不减少固定项）
+  // 缓存未拉到（空数组）时，menus 自然只剩固定 4 项——符合"固定菜单始终在"
   const menus = computed<SettingMenuItem[]>(() =>
-    cachedMenus.value.length > 0 ? cachedMenus.value : DEFAULT_MENUS
+    [...FIXED_MENUS, ...cachedMenus.value]
   )
 
   // 读取 SW 写入的设置菜单缓存

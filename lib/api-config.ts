@@ -13,20 +13,23 @@
  * /ouu-api 是后端 context-path 前缀（Controller 路径无此前缀，必须放在 baseURL）
  */
 // 后端 API 地址
-export const API_BASE_URL = process.env.PLASMO_PUBLIC_API_BASE
-  || (process.env.NODE_ENV === 'development'
-    ? 'http://localhost:8080/ouu-api'
-    : 'https://api.ouu365.com/ouu-api')
+export const API_BASE_URL =
+  process.env.PLASMO_PUBLIC_API_BASE ||
+  (process.env.NODE_ENV === "development"
+    ? "http://localhost:8080/ouu-api"
+    : "https://api.ouu365.com/ouu-api")
 
 // 官网站点地址（跳转官网页面：反馈/联系/我的等；dev 联调本地 VitePress，prod 生产官网）
-export const OFFICIAL_SITE_URL = process.env.PLASMO_PUBLIC_SITE_BASE
-  || (process.env.NODE_ENV === 'development'
-    ? 'http://localhost:5173'
-    : 'https://www.ouu365.com')
+export const OFFICIAL_SITE_URL =
+  process.env.PLASMO_PUBLIC_SITE_BASE ||
+  (process.env.NODE_ENV === "development"
+    ? "http://localhost:5173"
+    : "https://www.ouu365.com")
 
 // 设置菜单默认项 URL（useSettingMenu DEFAULT_MENUS 用）。
 // 单独变量：菜单是给用户看的真实官网内容，默认始终指生产官网；本地联调菜单样式改这里或设 PLASMO_PUBLIC_MENU_SITE。
-export const MENU_SITE_URL = process.env.PLASMO_PUBLIC_MENU_SITE || 'https://www.ouu365.com'
+export const MENU_SITE_URL =
+  process.env.PLASMO_PUBLIC_MENU_SITE || "https://www.ouu365.com"
 
 // API 路径枚举（后续接口统一在此添加）
 // 对应后端 Controller：
@@ -37,28 +40,32 @@ export const MENU_SITE_URL = process.env.PLASMO_PUBLIC_MENU_SITE || 'https://www
 // - adList: OuuAdvertisementController#getAdList
 // - checkVersion: AppVersionController#checkVersion
 export const API_URIS = {
-  captchaImage: '/captchaImage',
-  sendLoginCode: '/email/send-login-code',
-  loginByEmailCode: '/login/login-by-email-code',
-  feedbackSuggest: '/feedback/suggest',
-  adList: '/ad/list',
-  checkVersion: '/version/check-version',
-  customerMy: '/customer/my',
-  noticePageList: '/notice/page-list',
-  settingMenuList: '/setting/menu-list',
-  logout: '/logout'
+  captchaImage: "/captchaImage",
+  sendLoginCode: "/email/send-login-code",
+  loginByEmailCode: "/login/login-by-email-code",
+  feedbackSuggest: "/feedback/suggest",
+  adList: "/ad/list",
+  checkVersion: "/version/check-version",
+  customerMy: "/customer/my",
+  // 签到/积分（2026-07-17 个人中心用，对应后端 OuuCustomerController）
+  checkinToday: "/customer/checkin/today",
+  checkin: "/customer/checkin",
+  pointsBill: "/customer/points/bill",
+  noticePageList: "/notice/page-list",
+  settingMenuList: "/setting/menu-list",
+  logout: "/logout"
 } as const
 
 // 产品 appCode 注册表（值由后端分配，与官网 ouu-web-official 的 config/headers.ts 对齐）
 // 插件当前仅启用 tabMaster；bookmarkMaster / translateMaster 为多产品预留
 export const APP_CODES = {
-  tabMaster: 'app_1001',
-  bookmarkMaster: 'app_1002',
-  translateMaster: 'app_1003'
+  tabMaster: "app_1001",
+  bookmarkMaster: "app_1002",
+  translateMaster: "app_1003"
 } as const
 
 // 官网 URL 上携带的 app-code query key（buildOfficialUrl 统一使用，避免字符串硬编码）
-export const APP_CODE_QUERY_KEY = 'app-code'
+export const APP_CODE_QUERY_KEY = "app-code"
 
 // 当前插件版本码（int）。发生产前与后端 ouu_apps_version 表 version_code 对齐；
 // 每次发生产版本必须 +1（用户硬规矩）。当前未发生产，versionCode=1。
@@ -81,7 +88,9 @@ export const APP_HEADERS = {
  * - token 由调用方传入（本文件不依赖 useAuth，避免循环依赖）
  */
 export function buildOfficialUrl(path: string, token?: string | null): string {
-  const params = new URLSearchParams({ [APP_CODE_QUERY_KEY]: APP_HEADERS.appCode })
-  if (token) params.set('token', token)
+  const params = new URLSearchParams({
+    [APP_CODE_QUERY_KEY]: APP_HEADERS.appCode
+  })
+  if (token) params.set("token", token)
   return `${OFFICIAL_SITE_URL}${path}?${params.toString()}`
 }

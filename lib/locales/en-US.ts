@@ -213,4 +213,6 @@ export default {
   // 消息通知
   'notice.empty': 'No notifications',
   'notice.markAllRead': 'Mark all read',
+  'notice.gotIt': 'Got it',
+  'notice.dontShowAgain': "Don't show again",
 }

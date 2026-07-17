@@ -24,6 +24,12 @@ interface User {
   email: string
   isVip: boolean
   vipExpiresAt: string | null
+  // 以下字段由 /customer/my 返回（2026-07-17 个人中心/签到用）
+  // 注：continuousDays 不再由 /my 返回（后端 2026-07-17 重构移除），签到即时反馈走 /customer/checkin 返回值
+  points: number
+  todayCheckedIn: boolean
+  lastCheckInTime: string | null
+  registerTime: string | null
 }
 
 interface TabMasterAuth {
@@ -59,7 +65,12 @@ function sanitizeAuth(raw: unknown): TabMasterAuth {
         id: u.id,
         email: u.email,
         isVip: typeof u.isVip === 'boolean' ? u.isVip : false,
-        vipExpiresAt: typeof u.vipExpiresAt === 'string' ? u.vipExpiresAt : null
+        vipExpiresAt: typeof u.vipExpiresAt === 'string' ? u.vipExpiresAt : null,
+        // 新字段兜底（旧 storage 数据可能无这些字段，按默认值补齐）
+        points: typeof u.points === 'number' ? u.points : 0,
+        todayCheckedIn: typeof u.todayCheckedIn === 'boolean' ? u.todayCheckedIn : false,
+        lastCheckInTime: typeof u.lastCheckInTime === 'string' ? u.lastCheckInTime : null,
+        registerTime: typeof u.registerTime === 'string' ? u.registerTime : null
       }
     }
   }
@@ -162,6 +173,12 @@ function useAuthImpl() {
           loginDate: string
           customerType: string
           isVip: number
+          // 2026-07-17 个人中心扩展字段（CustomerMyVO）
+          // 注：continuousDays 已由后端重构移除，签到即时反馈走 /customer/checkin 返回值
+          points?: number | null
+          todayCheckedIn?: boolean
+          lastCheckInTime?: string | null
+          registerTime?: string | null
         }
       }>(API_URIS.customerMy, { silent: true })
 
@@ -171,7 +188,12 @@ function useAuthImpl() {
           id: String(vo.id),
           email: vo.email,
           isVip: vo.isVip === 1,
-          vipExpiresAt: null
+          vipExpiresAt: null,
+          // 新字段：后端 null/缺省时按默认值兜底（points null→0）
+          points: typeof vo.points === 'number' ? vo.points : 0,
+          todayCheckedIn: vo.todayCheckedIn === true,
+          lastCheckInTime: typeof vo.lastCheckInTime === 'string' ? vo.lastCheckInTime : null,
+          registerTime: typeof vo.registerTime === 'string' ? vo.registerTime : null
         }
         auth.value.user = newUser
         await chrome.storage.local.set({
@@ -185,6 +207,17 @@ function useAuthImpl() {
     }
     return null
   }
+
+  // 监听 storage 变化：options 页登录/登出/签到更新 storage 后，sidepanel 自动同步内存态
+  // 单例 composable：监听器初始化时注册一次，**不放 onMounted/onUnmounted**（否则永久丢失，
+  // 见 [[singleton-composable-listener-lifecycle]]）。loadAuth 只读 storage 不写，不会触发新的
+  // onChanged → 无循环。自己 saveAuth 写 storage 也会触发回调，但读到一样的值（幂等）。
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return
+    if (changes[AUTH_KEY]) {
+      loadAuth()
+    }
+  })
 
   // 立即加载
   loadAuth()

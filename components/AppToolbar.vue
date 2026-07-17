@@ -321,7 +321,7 @@ const VIEW_OPTIONS = [
   { value: "tree", label: "树形", icon: GitFork }
 ]
 const SORT_OPTIONS = [
-  { value: "domain", label: "按域名", hint: "网址相同网站的标签排在一起" },
+  { value: "domain", label: "按域名", hint: "相同网站的标签排在一起" },
   {
     value: "lastAccessed",
     label: "最近访问",

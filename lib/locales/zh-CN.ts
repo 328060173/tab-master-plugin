@@ -217,4 +217,6 @@ export default {
   // 消息通知
   'notice.empty': '暂无通知',
   'notice.markAllRead': '全部已读',
+  'notice.gotIt': '知道了',
+  'notice.dontShowAgain': '不再显示',
 }

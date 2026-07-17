@@ -126,29 +126,59 @@ function onTabActivated(info: chrome.tabs.TabActiveInfo): void {
 chrome.runtime.onInstalled.addListener(async () => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
   await loadMap()
-  // 广告/版本/通知/设置菜单初始化拉取（各 fetch 内部 finally 会设下一次闹钟，用后端下发间隔）
-  await Promise.all([
-    fetchAdCache('init'),
-    fetchVersionCache('init'),
-    fetchNoticeCache('init'),
-    fetchSettingMenuCache('init')
-  ])
+  // 广告/版本/通知/设置菜单初始化拉取（fire-and-forget，各模块独立，互不阻塞）
+  syncAll('init')
 })
 
 chrome.runtime.onStartup.addListener(async () => {
   await loadMap()
-  // 浏览器重启：立即拉取广告/版本/通知/设置菜单（各 fetch 内部 finally 会设下一次闹钟）
-  await Promise.all([
-    fetchAdCache('init'),
-    fetchVersionCache('init'),
-    fetchNoticeCache('init'),
-    fetchSettingMenuCache('init')
-  ])
+  // 浏览器重启：立即拉取广告/版本/通知/设置菜单（fire-and-forget）
+  syncAll('init')
 })
 
 chrome.tabs.onCreated.addListener(onTabCreated)
 chrome.tabs.onRemoved.addListener(onTabRemoved)
 chrome.tabs.onActivated.addListener(onTabActivated)
+
+// ============ 统一数据同步入口（多触发源一套业务逻辑） ============
+type SyncTrigger = 'init' | 'timer' | 'manual'
+
+/**
+ * 统一数据同步入口（多触发源一套业务逻辑）。
+ * 各模块独立 fire-and-forget，互不阻塞——不 Promise.all 等全部，一个慢/挂不卡其他。
+ * 各 fetch 内部成功后各自广播 xxxCacheUpdated，sidepanel 各模块自监听刷新。
+ * 触发源：init(安装/重启) / manual(手动按钮) / 未来可扩展 'open'(打开插件)。
+ * 注意：timer(各闹钟定时)不走本函数——各模块定时间隔不同，保持各 alarm 独立调各 fetch；
+ *       但调的是同一套 fetchXxxCache 函数，业务逻辑仍是一套。
+ */
+function syncAll(trigger: SyncTrigger): void {
+  void fetchSettingMenuCache(trigger)
+  void fetchAdCache(trigger)
+  void fetchVersionCache(trigger)
+  void fetchNoticeCache(trigger)
+}
+
+// ============ 手动刷新（用户在 options 页点「刷新菜单内容」触发）============
+// 设计：sidepanel 不发任何广告/版本/通知/设置菜单网络请求（红线），手动刷新也走 SW。
+// ⚠️ manual 单独列项，不调 syncAll——刻意不刷广告：
+//    广告有「展示即消费」逻辑（useAd consumeCurrentAd 展示后 adData 置 null，本窗口不再弹），
+//    若 manual 触发 fetchAdCache 又拉到新广告会再弹一次，每次点刷新就弹广告，体验差。
+//    所以 manual 只刷 菜单/通知/版本（这三类无「展示即消费」副作用），广告仍由 init/timer 正常拉。
+// 各 fetch 写缓存后各自广播 xxxCacheUpdated，sidepanel 现有监听自动刷新。
+// 同时广播 manualRefreshMy 触发 /my 重拉（/my 架构不同，在 sidepanel 按需拉，未登录则忽略）。
+// 不等全部完成、不广播 done——按钮靠 options 页自身短延时恢复（异步不阻塞 UI）。
+chrome.runtime.onMessage.addListener((msg) => {
+  if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return
+  if ((msg as Record<string, unknown>).type !== 'manualRefreshAll') return
+  console.log('[sync] 收到手动刷新请求 (manualRefreshAll)，不含广告')
+  // 手动刷新不触发广告（避免每次点击都弹广告，体验差）；菜单/通知/版本仍同步
+  void fetchSettingMenuCache('manual')
+  void fetchNoticeCache('manual')
+  void fetchVersionCache('manual')
+  // 仅手动触发时通知 sidepanel 重拉 /my（不碰 /my 架构，sidepanel 自行决定已登录才拉）
+  chrome.runtime.sendMessage({ type: 'manualRefreshMy' }).catch(() => {})
+})
+
 
 // 用户在 StoragePanel 里清空数据 / 其他扩展页面写入时，同步 SW 内存，避免被旧数据覆盖
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -293,9 +323,9 @@ async function shouldSkipByGap(
  * POST /ad/list，body 含 customerType/position/trigger（后端 @RequestBody）。
  * platform/appCode/versionCode 走通用请求头（buildHeaders 自动注入），不放 body。
  * 静默失败：不重试、不清旧缓存、等待下次触发
- * trigger: init=安装/重启触发，timer=闹钟定时触发（后端按此统计请求时机）
+ * trigger: init=安装/重启触发，timer=闹钟定时触发，manual=用户手动触发「刷新菜单内容」（后端按此统计请求时机）
  */
-async function fetchAdCache(trigger: 'init' | 'timer'): Promise<void> {
+async function fetchAdCache(trigger: 'init' | 'timer' | 'manual'): Promise<void> {
   let intervalMinutes: number | null = null
   try {
     const authHeaders = await getAuthHeaders()
@@ -377,9 +407,9 @@ async function ensureAdAlarm(): Promise<void> {
  * 拉取版本信息并写入缓存
  * POST /version/check-version，body 含 customerType/deviceInfo/versionCode（与原 sidepanel 调用一致）
  * 静默失败：不重试、不清旧缓存、等待下次触发
- * trigger: init=安装/重启触发，timer=闹钟定时触发
+ * trigger: init=安装/重启触发，timer=闹钟定时触发，manual=用户手动触发
  */
-async function fetchVersionCache(trigger: 'init' | 'timer'): Promise<void> {
+async function fetchVersionCache(trigger: 'init' | 'timer' | 'manual'): Promise<void> {
   let intervalMinutes: number | null = null
   try {
     const authHeaders = await getAuthHeaders()
@@ -425,8 +455,9 @@ async function fetchVersionCache(trigger: 'init' | 'timer'): Promise<void> {
  * 拉取通知列表并写入缓存
  * GET /notice/page-list（后端返回 R<NoticeSyncVO>：rows/total/nextSyncIntervalMinutes）
  * 静默失败：不重试、不清旧缓存、等待下次触发
+ * trigger: init=安装/重启触发，timer=闹钟定时触发，manual=用户手动触发
  */
-async function fetchNoticeCache(trigger: 'init' | 'timer'): Promise<void> {
+async function fetchNoticeCache(trigger: 'init' | 'timer' | 'manual'): Promise<void> {
   let intervalMinutes: number | null = null
   try {
     const authHeaders = await getAuthHeaders()
@@ -473,9 +504,9 @@ async function fetchNoticeCache(trigger: 'init' | 'timer'): Promise<void> {
  * versionCode/platform/appCode 走通用请求头（buildHeaders 自动注入），不放 body。
  * 后端按登录用户判灰度 + versionCode 过滤
  * 静默失败：不重试、不清旧缓存、等待下次触发
- * trigger: init=安装/重启触发，timer=闹钟定时触发
+ * trigger: init=安装/重启触发，timer=闹钟定时触发，manual=用户手动触发
  */
-async function fetchSettingMenuCache(trigger: 'init' | 'timer'): Promise<void> {
+async function fetchSettingMenuCache(trigger: 'init' | 'timer' | 'manual'): Promise<void> {
   let intervalMinutes: number | null = null
   try {
     const authHeaders = await getAuthHeaders()

@@ -35,7 +35,7 @@
           </button>
         </template>
 
-        <!-- 已登录：显示邮箱，点击进「我的」 -->
+        <!-- 已登录：显示邮箱，点击跳 options 个人中心（不再跳官网 /my；退出统一在 options 页） -->
         <template v-else>
           <button
             class="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -49,14 +49,6 @@
                 <Crown :size="11" class="text-yellow-500" />
               </template>
             </span>
-          </button>
-          <!-- 退出登录（登录后才显示）-->
-          <button
-            class="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 text-red-600 dark:text-red-400 text-left"
-            @mouseenter="activeSubmenu = null"
-            @click="onLogout"
-          >
-            <LogOut :size="13" />{{ t('menu.logout') }}
           </button>
         </template>
 
@@ -149,7 +141,7 @@
         <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
         <p class="px-3 py-1 text-[10px] text-gray-400 uppercase tracking-wide">{{ t('menu.group.more') }}</p>
 
-        <!-- 更多项：后端动态下发（GET /setting/menu-list，SW 拉取 + 缓存），SW 未拉到时 useSettingMenu 内置默认兜底 -->
+        <!-- 更多项：固定 4 项（文档/FAQ/反馈/联系我们）+ 后端 /setting/menu-list 下发自定义菜单追加（SW 拉取+缓存） -->
         <button
           v-for="item in settingMenus"
           :key="item.id"
@@ -245,13 +237,13 @@
  * - 未登录：注册/登录
  * - 已登录：邮箱 + 退出
  * 2026-07-16 改造：
- * - 「帮助」组 → 「更多」组：后端动态下发（GET /setting/menu-list，SW 拉取+缓存）
- * - SW 未拉到缓存时 useSettingMenu 内置默认 4 项兜底（文档/FAQ/反馈/联系）
+ * - 「帮助」组 → 「更多」组：固定 4 项（文档/FAQ/反馈/联系我们）+ 后端 /setting/menu-list 下发自定义菜单追加
+ * - 渲染策略（2026-07-17 调整）：固定项始终在前，后端下发追加其后，不替换、不减少固定项
  * - 云同步/快照菜单项暂时注释（TODO 后续恢复）
  */
 import { ref, computed, watch } from "vue"
 import {
-  Settings, LogIn, LogOut, Palette, Type, Layout, HardDrive,
+  Settings, LogIn, Palette, Type, Layout, HardDrive,
   Sliders, RotateCcw, Sun, Moon, Monitor, Check, ChevronLeft, ScrollText,
   User, Crown, Link as LinkIcon,
   BookOpen, HelpCircle, MessageSquare, Mail
@@ -278,19 +270,17 @@ import { computePopoverPos, computeFlyoutPos } from "~lib/popoverPosition"
 import { useAuth } from "~composables/useAuth"
 import { useSettingMenu } from "~composables/useSettingMenu"
 import { t } from "~lib/i18n"
-import { buildOfficialUrl } from "~lib/api-config"
 
 const emit = defineEmits<{
   (e: "open-storage"): void
   (e: "reload"): void
-  (e: "open-login"): void
   (e: "show-toast", msg: string): void
 }>()
 
 const { settings, updateSetting } = useSettings()
 const { side: sidePanelSide } = useSidePanelLayout()
 const popover = usePopoverManager()
-const { isLoggedIn, user, logout, getToken } = useAuth()
+const { isLoggedIn, user } = useAuth()
 
 // 计算用户邮箱显示
 const userEmail = computed(() => user.value?.email ?? "")
@@ -357,8 +347,6 @@ const fontSizeOptions = [
   { value: "xlarge" as const, label: t("menu.fontSize.xlarge") },
 ]
 
-// 构造官网 URL（必带 appCode，登录带 token）—— 复用 ~lib/api-config 公共函数，避免重复拼接
-
 // 菜单项点击处理
 const onOpenStorage = () => { popover.close("header-menu"); emit("open-storage") }
 const onReload = () => { popover.close("header-menu"); emit("reload") }
@@ -381,22 +369,21 @@ const onPickFontSize = (v: "normal" | "large" | "xlarge") => {
 }
 
 // 账号相关
+// 2026-07-17：登录入口迁移至 options 页。点「登录/注册」跳 options 并带 ?from=login，
+// options 页 onMounted 检测到 from=login 且未登录才自动弹 LoginDialog（避免从「更多设置」
+// 进 options 的用户被强制弹登录框）。已登录点邮箱也跳 options 个人中心（不再跳官网 /my）；
+// 退出登录统一在 options 页做（带确认框），HeaderMenu 不再提供退出入口。
 const onLogin = () => {
   popover.close("header-menu")
-  emit("open-login")
+  try {
+    chrome.tabs.create({ url: chrome.runtime.getURL("options.html") + "?from=login" })
+  } catch (e) {
+    console.warn("open options (from=login) failed", e)
+  }
 }
 const onOpenMine = () => {
   popover.close("header-menu")
-  try {
-    chrome.tabs.create({ url: buildOfficialUrl('/my', getToken()) })
-  } catch (e) {
-    console.warn("open mine page failed", e)
-  }
-}
-const onLogout = async () => {
-  popover.close("header-menu")
-  await logout()
-  emit("show-toast", t("menu.loggedOut"))
+  try { chrome.runtime.openOptionsPage() } catch (e) { console.warn("openOptionsPage failed", e) }
 }
 
 // 功能占位处理
