@@ -168,7 +168,7 @@ function writeThemeVars(bg: EffectiveBg | null, opacity: number | null) {
   root.style.setProperty('--tm-skin-page-bg-image', imgVal)
   root.style.setProperty(
     '--tm-skin-bg-opacity',
-    String(opacity ?? (bg.type === 'solid' ? 0.6 : 0.32)),
+    String(opacity ?? (bg.type === 'solid' ? 0.45 : 0.32)),
   )
 }
 
@@ -177,7 +177,7 @@ function writeThemeVars(bg: EffectiveBg | null, opacity: number | null) {
 const bgOpacity = computed(() => {
   const bg = effectiveBg.value
   if (!bg) return 0
-  return userBgOpacity.value ?? (bg.type === 'solid' ? 0.6 : 0.32)
+  return userBgOpacity.value ?? (bg.type === 'solid' ? 0.45 : 0.32)
 })
 
 // 拖动滑块即时生效：
