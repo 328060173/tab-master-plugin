@@ -960,3 +960,61 @@ vue-tsc --noEmit 通过（仅 tsconfig 既有弃用警告 TS5107/TS5101）。本
 - 后端仓 test 分支：今日 3 commit，全部已 commit，**未 push**
 - 官网仓 test 分支：1 commit，**未 push**
 - 三仓 master 全锁定，不 merge 不直推
+
+---
+
+## 2026-07-18 续（透明度跨页同步修复 + 纯色背景加深）
+
+### 透明度 sidepanel 不同步根因 & 修复（commit a8d4ffb + a969132）
+
+**问题**：拖动透明度滑块，options 背景变，sidepanel 完全不变。但试穿能同步。
+
+**根因（对比试穿 vs 透明度同步链路）**：
+| | 试穿（能同步） | 透明度（不能同步） |
+|---|---|---|
+| storage key | tabMasterSkinTryon（固定，不绑id） | tabMasterSkinOpacity:{id}（绑id） |
+| 未登录写 storage | ✅ 写 | ❌ persist() 里 if(!cid) return 不写 |
+| sidepanel 监听 | if(changes[TRYON_KEY]) 无条件 | 要 activeCustomerId 匹配 |
+
+未登录试穿调透明度 → setBgOpacity → persist() 未登录 return 不写 storage → sidepanel 收不到事件。试穿写固定 key 不看登录，所以能同步。
+
+**修复（实时同步与持久化记忆分离）**：
+- 新增临时同步 key `SKIN_OPACITY_LIVE_KEY = 'tabMasterSkinBgOpacityLive'`（不绑 id，像试穿一样）
+- setBgOpacity：写本页 DOM + 写 LIVE key（未登录/试穿也写）→ sidepanel 实时收到 + 登录额外写 id key（持久化记忆）
+- handleStorageChange：加 LIVE key 分支（跨页实时同步主力）+ 保留 id key 分支（持久化记忆同步）
+- 中间还经历过 draft/preview/apply 机制（拖动只预览、应用才存）→ 改回 setBgOpacity 即时生效（a8d4ffb）
+
+### 纯色背景加深（commit 69d0712 + SQL）
+
+**问题**：纯色背景太浅太淡（#f0fdf4 那种浅色），用户要草原翠绿、天蓝、红扑扑、黄橙橙的饱和度。
+
+**色号改 Windows 桌面色系**（查 Wikipedia Bliss/Windows 10 Hero 蓝）：
+- 草原翠绿 #3A7E1E（Windows XP Bliss 草地绿采样）
+- 天蓝 #0078D4（Windows 10 Hero 蓝）
+- 红扑扑 #C30052（Windows 11 红）
+- 黄橙橙 #FFB900（Windows 黄）
+- 暖橙 #D83B01、湖青 #008577、丁香紫 #7B3FA0
+- 每色 linear-gradient(主色→略深同色) 铺底，比纯色耐看
+- **SQL 给用户执行**（DELETE prop_type=3 + INSERT 7 条新色）
+- 前端默认透明度 solid 0.6→0.45（加深色用低透明度更平衡，不压内容）
+
+### 关键 commit
+- `a8d4ffb` 透明度拖动即时生效+实时同步sidepanel（删 draft/apply 机制）
+- `a969132` 透明度跨页实时同步走临时key(不绑id)，未登录/试穿也同步
+- `69d0712` 纯色背景默认透明度0.6→0.45(加深色更平衡)
+
+### 🔴 明天待续
+1. **用户执行纯色 SQL**（加深版 7 条）+ 后端起服务
+2. `pnpm dev:safe` 实测：
+   - 纯色背景饱和度（草原翠绿/天蓝/红扑扑）
+   - 透明度 sidepanel 实时同步（未登录试穿 + 登录使用中）
+   - 性别头像/道具商城全套回归
+3. **push 三仓 test 分支**（目前都只本地 commit 未 push）
+4. 部署前：assets/skin webp 压缩或切 CDN；versionCode +1
+
+### 当前 git 状态
+- 插件仓 test 分支：今日共 11 commit，全部已 commit，**未 push**
+- 后端仓 test 分支：3 commit，**未 push**（纯色 SQL 由用户执行，不改后端代码）
+- 官网仓 test 分支：1 commit，**未 push**
+- hub 仓：干净
+- 三仓 master 全锁定
