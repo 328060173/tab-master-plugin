@@ -144,11 +144,12 @@
           >全部恢复默认</button>
         </div>
 
-        <!-- 透明度横向滑块（仅主题背景 tab 且有生效背景时显示）
+        <!-- 透明度横向滑块（主题背景 tab 内常驻占位）
              拖动只预览（不持久化），点「应用」才落地；
-             未拥有当前主题背景（purchasedBg 为空）时禁用「应用」。 -->
+             无生效背景（purchasedBg 与 tryonBgUrl 都空）时滑块禁用；
+             「应用」仅在 purchasedBg 使用中且有草稿时可用（试穿态临时性，不可应用）。 -->
         <div
-          v-if="activePropTab === 2 && (purchasedBg || tryonBgUrl)"
+          v-if="activePropTab === 2"
           class="flex items-center gap-3 mb-3"
         >
           <span class="text-xs text-gray-500 dark:text-gray-400 shrink-0">透明度调整</span>
@@ -158,7 +159,8 @@
             max="1"
             step="0.05"
             :value="bgOpacity"
-            class="flex-1 accent-blue-600 cursor-pointer"
+            :disabled="!purchasedBg && !tryonBgUrl"
+            class="flex-1 accent-blue-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             @input="onBgOpacityInput"
           />
           <span class="text-[10px] text-gray-400 tabular-nums w-7 text-center">{{ Math.round(bgOpacity * 100) }}%</span>

@@ -6,7 +6,7 @@
  *
  * 范围（静态阶段）：
  * - 12 套主题（9 套带背景图 + 3 套纯 CSS）+ 8 款头像框（7 PNG + 1 CSS 彩虹）
- * - 启用态存 chrome.storage.local key `tabMasterSkinPreview`，刷新保持
+ * - 启用态存 chrome.storage.local key `SKIN_PREVIEW_KEY_PREFIX + customerId`，按用户隔离，刷新保持
  * - applySkin 把 5 个 CSS 变量写入 :root.style；resetSkin 清掉（回 fallback = 零回归）
  * - 头像框状态仅 ref（不写 CSS 变量，由 AvatarWithFrame 按 frameId prop 渲染）
  *
@@ -249,7 +249,11 @@ const FRAMES: SkinFrame[] = [
   { id: 'frame-checkin-100', name: '百日签到专属', type: 'png', pngUrl: frameCheckin },
 ]
 
-const STORAGE_KEY = 'tabMasterSkinPreview'
+const SKIN_PREVIEW_KEY_PREFIX = 'tabMasterSkinPreview:'
+
+function skinPreviewKey(customerId: string): string {
+  return `${SKIN_PREVIEW_KEY_PREFIX}${customerId}`
+}
 
 /**
  * 已购道具「使用中」态本地存储（PRD docs/coordination/2026-07-17-prop-shop.md §2.4）
@@ -425,17 +429,38 @@ function resetBgOpacityDraft() {
   )
 }
 
-// 持久化（只存 id 字符串，无需 toPure）
+// 持久化（按 customerId 隔离；未登录不写 skinPreview——避免匿名态覆盖登录态）
+// toPure 守 reactive-proxy 序列化红线（虽然这里多是基础类型，仍统一转纯）
 async function persist() {
+  const cid = activeCustomerId.value
+  if (!cid) return // 未登录：不写 skinPreview
   try {
     const data: SkinPersist = {
       themeId: activeThemeId.value,
       frameId: activeFrameId.value,
       bgOpacity: userBgOpacity.value,
     }
-    await chrome.storage.local.set({ [STORAGE_KEY]: data })
+    await chrome.storage.local.set({ [skinPreviewKey(cid)]: toPure(data) })
   } catch (e) {
     console.warn('[useSkin] persist 失败', e)
+  }
+}
+
+// 清理非当前 customerId 的 skinPreview / skinActive 残留（换号时调用，防脏数据互窜）
+async function cleanOtherCustomerCache(keepId: string) {
+  try {
+    const all = (await chrome.storage.local.get(null)) as Record<string, unknown>
+    const toRemove: string[] = []
+    for (const k of Object.keys(all)) {
+      if (k.startsWith(SKIN_PREVIEW_KEY_PREFIX) && k !== skinPreviewKey(keepId)) {
+        toRemove.push(k)
+      } else if (k.startsWith(SKIN_ACTIVE_KEY_PREFIX) && k !== skinActiveKey(keepId)) {
+        toRemove.push(k)
+      }
+    }
+    if (toRemove.length > 0) await chrome.storage.local.remove(toRemove)
+  } catch (e) {
+    console.warn('[useSkin] 清理其他用户缓存失败', e)
   }
 }
 
@@ -458,19 +483,35 @@ async function loadPurchasedActive() {
   // customer 变了（登录/退出/换号）→ 先清内存态，再按新 customer 读
   if (customerId !== activeCustomerId.value) {
     activeCustomerId.value = customerId
+    // 换号：清静态主题/框/透明度/草稿/purchased（防上一用户态串到新用户）
+    activeThemeId.value = null
+    activeFrameId.value = null
+    userBgOpacity.value = null
+    draftBgOpacity.value = null
     purchasedFrame.value = null
     purchasedBg.value = null
-    // 换号：丢弃未应用的透明度草稿
-    draftBgOpacity.value = null
+    if (customerId) {
+      // 换号到新用户：清非当前 id 的 skinPreview/skinActive 残留
+      await cleanOtherCustomerCache(customerId)
+      // 恢复新用户的静态主题预览（themeId/frameId/bgOpacity）
+      try {
+        const spKey = skinPreviewKey(customerId)
+        const spData = await chrome.storage.local.get(spKey)
+        const sp = spData[spKey] as SkinPersist | undefined
+        if (sp) {
+          activeThemeId.value = sp.themeId ?? null
+          activeFrameId.value = sp.frameId ?? null
+          userBgOpacity.value = sp.bgOpacity ?? null
+        }
+      } catch (e) {
+        console.warn('[useSkin] 读取 skinPreview 失败', e)
+      }
+    }
   }
   if (!customerId) {
-    // 未登录：清掉 DOM purchased bg 覆盖，回静态主题（试穿态保留，独立于登录态）
-    writeThemeVars(
-      findTheme(activeThemeId.value)?.config ?? null,
-      userBgOpacity.value,
-      null,
-      tryonBgUrl.value,
-    )
+    // 未登录：清掉 DOM purchased bg 覆盖，回默认（试穿态保留，独立于登录态）
+    // 前面 customer 变化分支已清了 activeThemeId/userBgOpacity，这里 writeThemeVars(null,null,...) 即默认态
+    writeThemeVars(null, null, null, tryonBgUrl.value)
     return
   }
   try {
@@ -636,39 +677,45 @@ function handleStorageChange(
   areaName: string,
 ) {
   if (areaName !== 'local') return
-  // 静态主题装扮变化
-  if (changes[STORAGE_KEY]) {
-    const next = changes[STORAGE_KEY].newValue as SkinPersist | undefined
-    if (next) {
-      const newTheme = next.themeId ?? null
-      const newFrame = next.frameId ?? null
-      const newOpacity = next.bgOpacity ?? null
-      let changed = false
-      if (newTheme !== activeThemeId.value) {
-        activeThemeId.value = newTheme
-        changed = true
+  // 静态主题装扮变化（按 customerId 隔离：仅匹配当前用户的 skinPreview key）
+  for (const key of Object.keys(changes)) {
+    if (
+      key.startsWith(SKIN_PREVIEW_KEY_PREFIX) &&
+      key === skinPreviewKey(activeCustomerId.value ?? '')
+    ) {
+      const next = changes[key].newValue as SkinPersist | undefined
+      if (next) {
+        const newTheme = next.themeId ?? null
+        const newFrame = next.frameId ?? null
+        const newOpacity = next.bgOpacity ?? null
+        let changed = false
+        if (newTheme !== activeThemeId.value) {
+          activeThemeId.value = newTheme
+          changed = true
+        }
+        if (newFrame !== activeFrameId.value) {
+          activeFrameId.value = newFrame
+        }
+        if (newOpacity !== userBgOpacity.value) {
+          userBgOpacity.value = newOpacity
+          changed = true
+        }
+        // 其他页 applyBgOpacity 写了 storage → 本页丢弃本地草稿，以新存值为准
+        if (draftBgOpacity.value !== null) {
+          draftBgOpacity.value = null
+          changed = true
+        }
+        // 主题或透明度变了都要重写 DOM 变量
+        if (changed) {
+          writeThemeVars(
+            findTheme(activeThemeId.value)?.config ?? null,
+            userBgOpacity.value,
+            purchasedBg.value?.resourceUrl ?? null,
+            tryonBgUrl.value,
+          )
+        }
       }
-      if (newFrame !== activeFrameId.value) {
-        activeFrameId.value = newFrame
-      }
-      if (newOpacity !== userBgOpacity.value) {
-        userBgOpacity.value = newOpacity
-        changed = true
-      }
-      // 其他页 applyBgOpacity 写了 storage → 本页丢弃本地草稿，以新存值为准
-      if (draftBgOpacity.value !== null) {
-        draftBgOpacity.value = null
-        changed = true
-      }
-      // 主题或透明度变了都要重写 DOM 变量
-      if (changed) {
-        writeThemeVars(
-          findTheme(activeThemeId.value)?.config ?? null,
-          userBgOpacity.value,
-          purchasedBg.value?.resourceUrl ?? null,
-          tryonBgUrl.value,
-        )
-      }
+      break
     }
   }
   // 登录态变化（tabMasterAuth）→ 重载 purchased active（customer 可能变了）
@@ -699,12 +746,18 @@ function handleStorageChange(
 async function init() {
   if (initialized.value) return
   try {
-    const result = await chrome.storage.local.get(STORAGE_KEY)
-    const stored = result[STORAGE_KEY] as SkinPersist | undefined
-    if (stored) {
-      activeThemeId.value = stored.themeId ?? null
-      activeFrameId.value = stored.frameId ?? null
-      userBgOpacity.value = stored.bgOpacity ?? null
+    // 先解析 customerId，按 id 隔离读 skinPreview（未登录跳过，全默认）
+    const cid = await resolveCustomerId()
+    activeCustomerId.value = cid
+    if (cid) {
+      const spKey = skinPreviewKey(cid)
+      const result = await chrome.storage.local.get(spKey)
+      const stored = result[spKey] as SkinPersist | undefined
+      if (stored) {
+        activeThemeId.value = stored.themeId ?? null
+        activeFrameId.value = stored.frameId ?? null
+        userBgOpacity.value = stored.bgOpacity ?? null
+      }
     }
   } catch (e) {
     console.warn('[useSkin] 读取 storage 失败', e)
