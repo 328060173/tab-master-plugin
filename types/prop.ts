@@ -5,8 +5,8 @@
  * 前后端联调靠字段名一致，勿擅自改名。
  */
 
-/** 道具类型：1=头像框 2=背景图（后端 PropTypeEnum） */
-export type PropType = 1 | 2
+/** 道具类型：1=头像框 2=背景图(webp) 3=主题纯色背景(CSS 值)（后端 PropTypeEnum） */
+export type PropType = 1 | 2 | 3
 
 /** 免费标记：1=免费 2=收费（后端 free_flag） */
 export type PropFreeFlag = 1 | 2
@@ -51,7 +51,7 @@ export interface ExchangeResultVO {
  * - rows：当前页数据列表
  * - total：总记录数（用于分页栏计算总页数）
  *
- * query 参数（请求侧，不在响应里）：pageNum / pageSize / propType(1头像框 2背景图，可空)
+ * query 参数（请求侧，不在响应里）：pageNum / pageSize / propType(1头像框 2背景图 3纯色背景，可空)
  */
 export interface PropPageResult {
   code: number

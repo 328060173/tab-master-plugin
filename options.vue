@@ -144,12 +144,12 @@
           >全部恢复默认</button>
         </div>
 
-        <!-- 透明度横向滑块（主题背景 tab 内常驻占位）
+        <!-- 透明度横向滑块（主题背景 / 主题纯色背景 tab 内常驻占位）
              拖动只预览（不持久化），点「应用」才落地；
-             无生效背景（purchasedBg 与 tryonBgUrl 都空）时滑块禁用；
+             无生效背景（effectiveBg 为空，即未使用也未试穿背景）时滑块禁用；
              「应用」仅在 purchasedBg 使用中且有草稿时可用（试穿态临时性，不可应用）。 -->
         <div
-          v-if="activePropTab === 2"
+          v-if="activePropTab === 2 || activePropTab === 3"
           class="flex items-center gap-3 mb-3"
         >
           <span class="text-xs text-gray-500 dark:text-gray-400 shrink-0">透明度调整</span>
@@ -159,7 +159,7 @@
             max="1"
             step="0.05"
             :value="bgOpacity"
-            :disabled="!purchasedBg && !tryonBgUrl"
+            :disabled="!effectiveBg"
             class="flex-1 accent-blue-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             @input="onBgOpacityInput"
           />
@@ -227,10 +227,15 @@
                 class="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col"
                 :class="isUsingProp(p.id) ? 'ring-2 ring-blue-500' : ''"
               >
-                <!-- 缩略图（不取原图，省带宽）：头像框 object-contain / 背景图 object-cover -->
+                <!-- 缩略图（不取原图，省带宽）：头像框 object-contain / 背景图 object-cover / 纯色背景用 CSS 值铺色块 -->
                 <div class="aspect-square bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+                  <div
+                    v-if="p.propThumbnailUrl && isCssBg(p.propThumbnailUrl)"
+                    :style="{ background: p.propThumbnailUrl }"
+                    class="w-full h-full"
+                  ></div>
                   <img
-                    v-if="p.propThumbnailUrl"
+                    v-else-if="p.propThumbnailUrl"
                     :src="p.propThumbnailUrl"
                     :alt="p.propName"
                     :class="activePropTab === 1 ? 'w-full h-full object-contain' : 'w-full h-full object-cover'"
@@ -422,10 +427,15 @@
           <div v-if="previewProp.propType === 1" class="flex items-center justify-center py-6 bg-gray-50 dark:bg-gray-900 rounded-lg">
             <AvatarWithFrame :email="previewEmail" :size="240" :frame-url="previewProp.propResourceUrl" />
           </div>
-          <!-- 背景图道具：铺满示例区预览 -->
+          <!-- 背景图道具：铺满示例区预览（纯色用 CSS 值铺色块，webp 走 img） -->
           <div v-else class="aspect-video rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+            <div
+              v-if="previewProp.propResourceUrl && isCssBg(previewProp.propResourceUrl)"
+              :style="{ background: previewProp.propResourceUrl }"
+              class="w-full h-full"
+            ></div>
             <img
-              v-if="previewProp.propResourceUrl"
+              v-else-if="previewProp.propResourceUrl"
               :src="previewProp.propResourceUrl"
               :alt="previewProp.propName"
               class="w-full h-full object-cover"
@@ -479,8 +489,6 @@ import AvatarWithFrame from "~components/AvatarWithFrame.vue"
 const { settings, updateSetting } = useSettings()
 const { isLoggedIn, user, logout, fetchUser, getToken } = useAuth()
 const {
-  activeThemeId,
-  activeFrameId,
   bgOpacity,
   hasBgOpacityDraft,
   previewBgOpacity,
@@ -495,10 +503,17 @@ const {
   loadPurchasedActive,
   tryonProp,
   tryonRemaining,
-  tryonBgUrl,
+  effectiveBg,
   startTryon,
   stopTryon,
 } = useSkin()
+
+// 判断道具资源 URL 是否为纯色 CSS 值（如 linear-gradient(...)）
+// 非 http/相对路径开头 = CSS（webp 走 https 或 / 路径）
+// 用于缩略图色块渲染 + applyPurchasedBg/startTryon 传 bgType
+function isCssBg(url: string): boolean {
+  return !/^(https?:|\/)/.test(url)
+}
 
 const showReconcileHelp = ref(false)
 
@@ -718,17 +733,18 @@ const propList = ref<PropListVO[]>([])
 const loadingProps = ref(false)
 const loadPropsError = ref('')
 
-// 二级 tab（propType）：1=头像框 2=背景图，localStorage 持久化上次选择（key tabMasterPropTab，默认 1）
-type PropTab = 1 | 2
+// 二级 tab（propType）：1=头像框 2=主题背景(webp) 3=主题纯色背景(CSS 值)，localStorage 持久化上次选择（key tabMasterPropTab，默认 1）
+type PropTab = 1 | 2 | 3
 const propSubTabs: { value: PropTab; label: string }[] = [
   { value: 1, label: '头像框' },
   { value: 2, label: '主题背景' },
+  { value: 3, label: '主题纯色背景' },
 ]
 const PROP_TAB_STORAGE_KEY = 'tabMasterPropTab'
 function loadPropTab(): PropTab {
   try {
     const v = window.localStorage.getItem(PROP_TAB_STORAGE_KEY)
-    if (v === '1' || v === '2') return Number(v) as PropTab
+    if (v === '1' || v === '2' || v === '3') return Number(v) as PropTab
   } catch { /* localStorage 不可用时静默回退默认 */ }
   return 1
 }
@@ -828,7 +844,7 @@ function onPreviewTryOn() {
     showToast('道具资源缺失，无法试穿')
     return
   }
-  startTryon(p.id, p.propType, url)
+  startTryon(p.id, p.propType, url, isCssBg(url) ? 'solid' : 'image')
   closePreview()
   showToast(`试穿中：${p.propName}（30 秒后自动恢复）`)
 }
@@ -877,7 +893,8 @@ async function onUse(p: PropListVO) {
     if (p.propType === 1) {
       applyPurchasedFrame(p.id, url)
     } else {
-      applyPurchasedBg(p.id, url)
+      // 背景道具（webp=propType=2 / 纯色=propType=3）：按 url 是否 CSS 值决定 bgType
+      applyPurchasedBg(p.id, url, isCssBg(url) ? 'solid' : 'image')
     }
     showToast(`已使用：${p.propName}`)
   } catch (e) {
@@ -931,7 +948,7 @@ async function onTryOn(p: PropListVO) {
       showToast('道具资源缺失，无法试穿')
       return
     }
-    startTryon(p.id, p.propType, url)
+    startTryon(p.id, p.propType, url, isCssBg(url) ? 'solid' : 'image')
     showToast(`试穿中：${p.propName}（30 秒后自动恢复）`)
   } catch (e) {
     const msg = e instanceof Error ? e.message : '试穿失败'

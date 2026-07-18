@@ -27,7 +27,7 @@
           @click.stop="toggleFocusHelpFromEvent">
           <HelpCircle :size="14" />
         </button>
-        <!-- 已登录态头像（含装扮头像框）：点按跳 options 个人中心；frameId 取自 useSkin 单例 -->
+        <!-- 已登录态头像（含装扮头像框）：点按跳 options 个人中心；头像框走 useSkin 单例 purchasedFrameUrl/tryonFrameUrl -->
         <button
           v-if="isLoggedIn"
           class="shrink-0 rounded-full hover:ring-2 hover:ring-blue-200 dark:hover:ring-blue-700 transition-shadow"
@@ -74,7 +74,7 @@
             <HelpCircle :size="14" />
           </button>
         </div>
-        <!-- 已登录态头像（含装扮头像框）：点按跳 options 个人中心；frameId 取自 useSkin 单例 -->
+        <!-- 已登录态头像（含装扮头像框）：点按跳 options 个人中心；头像框走 useSkin 单例 purchasedFrameUrl/tryonFrameUrl -->
         <button
           v-if="isLoggedIn"
           class="shrink-0 rounded-full hover:ring-2 hover:ring-blue-200 dark:hover:ring-blue-700 transition-shadow"

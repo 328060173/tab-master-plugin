@@ -1,83 +1,36 @@
 /**
- * useSkin —— 装扮主题 + 头像框状态管理（静态预览版，不接后端）
+ * useSkin —— 装扮主题 + 头像框状态管理（商城驱动版，纯色背景走后端 /prop/list?propType=3）
  *
- * PRD：docs/prd/avatar-theme-visual.md（§2.2 主题注入机制 / §2.4 背景图 / §3 切换逻辑）
- * 资源：docs/prd/avatar-theme-assets.md
- *
- * 范围（静态阶段）：
- * - 12 套主题（9 套带背景图 + 3 套纯 CSS）+ 8 款头像框（7 PNG + 1 CSS 彩虹）
- * - 启用态存 chrome.storage.local key `SKIN_PREVIEW_KEY_PREFIX + customerId`，按用户隔离，刷新保持
- * - applySkin 把 5 个 CSS 变量写入 :root.style；resetSkin 清掉（回 fallback = 零回归）
- * - 头像框状态仅 ref（不写 CSS 变量，由 AvatarWithFrame 按 frameId prop 渲染）
+ * 范围（商城驱动阶段）：
+ * - 头像框道具（propType=1，PNG）/ 主题背景图道具（propType=2，webp）/ 主题纯色背景道具（propType=3，CSS 值如 linear-gradient）
+ * - 三类都走标准兑换流程（免费不扣积分），由 options.vue 商城面板渲染
+ * - 已购「使用中」态存 chrome.storage.local key `tabMasterSkinActive:{customerId}`（按用户隔离）
+ * - 背景透明度存 `tabMasterSkinOpacity:{customerId}`（按用户隔离，独立 key）
+ * - writeThemeVars 把 --tm-skin-page-bg-image / --tm-skin-bg-opacity 写入 :root.style
+ * - 头像框状态仅 ref（不写 CSS 变量，由 AvatarWithFrame 按 purchasedFrameUrl/tryonFrameUrl 渲染）
+ * - skin-overlay.css 的 --tm-skin-primary 等变量定义与 .tm-skin-primary-* 工具类保留不动（按钮走 fallback #2563eb，删静态主题视觉无变化）
  *
  * 单例：模块级 _instance，所有 useSkin() 调用共享同一状态（参考 useSettings/useAuth 风格）。
  *
  * 与现有明暗模式（useSettings.theme）的关系：
  * - 明暗模式控制 dark class（亮/暗/系统），是底层明暗
  * - 装扮主题控制背景图+主色，是另一层装饰，两者叠加生效不互斥
- *
- * @TODO 部署前：背景图 webp 体积超标（实际 400KB-1.3MB，要求 ≤45KB），
- *        上线前必须压缩或切到后端 CDN（cdn.ouu365.com/skin/），
- *        届时把 pageBgImage 的 url(...) 换成 CDN 地址并删掉本地 import。
  */
 import { ref, computed, onMounted } from 'vue'
 
-// 背景图（9 张，PRD §2.3 需图主题；本地图临时引用，上线前换 CDN）
-import bgSakura from '~assets/skin/bg/bg-sakura-spring.webp'
-import bgLotus from '~assets/skin/bg/bg-lotus-summer.webp'
-import bgMaple from '~assets/skin/bg/bg-maple-autumn.webp'
-import bgSnow from '~assets/skin/bg/bg-snow-winter.webp'
-import bgGalaxy from '~assets/skin/bg/bg-galaxy-starry.webp'
-import bgOcean from '~assets/skin/bg/bg-ocean-wave.webp'
-import bgGrassland from '~assets/skin/bg/bg-grassland-field.webp'
-import bgRiver from '~assets/skin/bg/bg-river-mountain.webp'
-import bgCream from '~assets/skin/bg/bg-cream-cloud.webp'
-
-// 头像框 PNG（7 张，144×144 源图，CSS 缩放复用三档）
-import frameBronze from '~assets/skin/frames/frame-bronze-100.png'
-import frameBamboo from '~assets/skin/frames/frame-bamboo-green-100.png'
-import frameSilver from '~assets/skin/frames/frame-silver-wave-100.png'
-import frameSakura from '~assets/skin/frames/frame-sakura-ribbon-100.png'
-import frameStardust from '~assets/skin/frames/frame-stardust-silver-100.png'
-import frameLaurel from '~assets/skin/frames/frame-laurel-gold-100.png'
-import frameCheckin from '~assets/skin/frames/frame-checkin-100-100.png'
-
 // 全局叠加层（body::before 背景图 + 彩虹头像框动画 + 主题工具类）
+// skin-overlay.css 的变量定义和工具类保留不动（删静态主题后按钮走 fallback #2563eb）
 import '~assets/skin/skin-overlay.css'
 
 // ========== 类型 ==========
-export type SkinSeries = 'season' | 'scenery' | 'style'
 
-export interface SkinThemeConfig {
-  primary: string
-  accentBg: string
-  pageBgImage: string // 'none' / `url('...')` / `linear-gradient(...)`（纯色主题用渐变铺底）
-  cardRadius: string
-  cardBorder: string
-  bgOpacity?: string // 可选：覆盖默认背景透明度（图片默认 0.32；纯色主题需更高才显眼，如 0.7）
-}
-
-export interface SkinTheme {
-  id: string
-  name: string
-  series: SkinSeries
-  hasBg: boolean
-  bgUrl?: string // bundled URL，供缩略图用
-  config: SkinThemeConfig
-}
-
-export interface SkinFrame {
-  id: string
-  name: string
-  type: 'png' | 'css'
-  pngUrl?: string
-  cssClass?: string
-}
-
-interface SkinPersist {
-  themeId: string | null
-  frameId: string | null
-  bgOpacity?: number | null // 用户手动调的背景透明度（0~1）；null/undefined=用主题默认
+/**
+ * 生效背景（image=webp url / solid=CSS 值如 linear-gradient，不包 url()）
+ * writeThemeVars 按 type 决定是否包 url()，纯色 CSS 值直接用
+ */
+export interface EffectiveBg {
+  type: 'image' | 'solid'
+  value: string
 }
 
 /**
@@ -91,13 +44,14 @@ interface SkinPersist {
  * - 「防白嫖」：不持久化为资产，到期/关页/手动结束均立即失效
  *
  * 优先级（覆盖链）：
- * - 背景图：试穿 bg > purchased bg > 静态主题 pageBgImage > none
- * - 头像框：AvatarWithFrame props.frameUrl > 试穿 frame > purchased frame > 静态 frameId
+ * - 背景图：试穿 bg > purchased bg > none
+ * - 头像框：AvatarWithFrame props.frameUrl > 试穿 frame > purchased frame
  */
 interface TryonState {
   propId: number
-  propType: 1 | 2
+  propType: 1 | 2 | 3 // 1=头像框 2=webp背景 3=纯色背景（内部仅按 ===1 区分头像框 vs 背景）
   resourceUrl: string
+  bgType?: 'image' | 'solid' // 背景道具的渲染类型（webp=image / 纯色=solid），头像框无此字段
 }
 interface TryonPersist extends TryonState {
   endAt: number // 试穿到期时间戳（ms）
@@ -105,176 +59,27 @@ interface TryonPersist extends TryonState {
 const TRYON_KEY = 'tabMasterSkinTryon'
 const TRYON_DURATION_MS = 30_000
 
-// ========== mock 数据（PRD §6.4，写死不接后端） ==========
-// 12 套主题：季节 4 + 风景 5（不含机甲战纪，无资源）+ 风格 3
-// 主色参考任务说明：春樱粉/盛夏绿/金秋橙/暖冬蓝/星空紫/海浪蓝/草原绿/晴川蓝/奶霜粉
-const THEMES: SkinTheme[] = [
-  // 季节系列 4
-  {
-    id: 'theme-sakura-spring', name: '春樱初绽', series: 'season', hasBg: true, bgUrl: bgSakura,
-    config: {
-      primary: '#ec4899',
-      accentBg: 'linear-gradient(135deg, rgba(252,231,243,0.5) 0%, rgba(251,207,232,0.3) 100%)',
-      pageBgImage: `url('${bgSakura}')`,
-      cardRadius: '0.75rem',
-      cardBorder: '1px solid rgba(236,72,153,0.2)',
-    },
-  },
-  {
-    id: 'theme-lotus-summer', name: '盛夏清荷', series: 'season', hasBg: true, bgUrl: bgLotus,
-    config: {
-      primary: '#059669',
-      accentBg: 'linear-gradient(135deg, rgba(209,250,229,0.4) 0%, rgba(165,243,252,0.2) 100%)',
-      pageBgImage: `url('${bgLotus}')`,
-      cardRadius: '0.625rem',
-      cardBorder: '1px solid rgba(5,150,105,0.2)',
-    },
-  },
-  {
-    id: 'theme-maple-autumn', name: '金秋满陇', series: 'season', hasBg: true, bgUrl: bgMaple,
-    config: {
-      primary: '#d97706',
-      accentBg: 'linear-gradient(135deg, rgba(254,215,170,0.4) 0%, rgba(253,230,138,0.2) 100%)',
-      pageBgImage: `url('${bgMaple}')`,
-      cardRadius: '0.5rem',
-      cardBorder: '1px solid rgba(217,119,6,0.25)',
-    },
-  },
-  {
-    id: 'theme-snow-winter', name: '暖冬初雪', series: 'season', hasBg: true, bgUrl: bgSnow,
-    config: {
-      primary: '#6366f1',
-      accentBg: 'linear-gradient(135deg, rgba(224,231,255,0.5) 0%, rgba(199,210,254,0.3) 100%)',
-      pageBgImage: `url('${bgSnow}')`,
-      cardRadius: '0.625rem',
-      cardBorder: '1px solid rgba(99,102,241,0.2)',
-    },
-  },
-  // 风景系列 5（星空/海浪/草原/晴川 + 纯色护眼墨绿）
-  {
-    id: 'theme-galaxy-starry', name: '星河璀璨', series: 'scenery', hasBg: true, bgUrl: bgGalaxy,
-    config: {
-      primary: '#6d28d9',
-      accentBg: 'linear-gradient(135deg, rgba(237,233,254,0.4) 0%, rgba(196,181,253,0.2) 100%)',
-      pageBgImage: `url('${bgGalaxy}')`,
-      cardRadius: '0.5rem',
-      cardBorder: '1px solid rgba(109,40,217,0.3)',
-    },
-  },
-  {
-    id: 'theme-ocean-wave', name: '碧海潮生', series: 'scenery', hasBg: true, bgUrl: bgOcean,
-    config: {
-      primary: '#0284c7',
-      accentBg: 'linear-gradient(135deg, rgba(207,250,254,0.4) 0%, rgba(186,230,253,0.2) 100%)',
-      pageBgImage: `url('${bgOcean}')`,
-      cardRadius: '0.625rem',
-      cardBorder: '1px solid rgba(2,132,199,0.2)',
-    },
-  },
-  {
-    id: 'theme-grassland-field', name: '原野牧风', series: 'scenery', hasBg: true, bgUrl: bgGrassland,
-    config: {
-      primary: '#65a30d',
-      accentBg: 'linear-gradient(135deg, rgba(247,254,231,0.4) 0%, rgba(217,249,157,0.2) 100%)',
-      pageBgImage: `url('${bgGrassland}')`,
-      cardRadius: '0.625rem',
-      cardBorder: '1px solid rgba(101,163,13,0.2)',
-    },
-  },
-  {
-    id: 'theme-river-mountain', name: '晴川芳洲', series: 'scenery', hasBg: true, bgUrl: bgRiver,
-    config: {
-      primary: '#0ea5e9',
-      accentBg: 'linear-gradient(135deg, rgba(224,242,254,0.5) 0%, rgba(186,230,253,0.3) 100%)',
-      pageBgImage: `url('${bgRiver}')`,
-      cardRadius: '0.625rem',
-      cardBorder: '1px solid rgba(14,165,233,0.2)',
-    },
-  },
-  {
-    id: 'theme-eye-green', name: '护眼墨绿', series: 'scenery', hasBg: false,
-    config: {
-      primary: '#10b981',
-      accentBg: 'linear-gradient(135deg, rgba(209,250,229,0.5) 0%, rgba(167,243,208,0.3) 100%)',
-      pageBgImage: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
-      bgOpacity: '0.7',
-      cardRadius: '0.625rem',
-      cardBorder: '1px solid rgba(16,185,129,0.2)',
-    },
-  },
-  // 风格系列 3（极简纯白 / 暗夜深渊 / 软萌奶霜）
-  {
-    id: 'theme-pure-white', name: '极简纯白', series: 'style', hasBg: false,
-    config: {
-      primary: '#4b5563',
-      accentBg: 'transparent',
-      pageBgImage: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-      bgOpacity: '0.6',
-      cardRadius: '0.5rem',
-      cardBorder: '1px solid rgba(229,231,235,1)',
-    },
-  },
-  {
-    id: 'theme-dark-abyss', name: '暗夜深渊', series: 'style', hasBg: false,
-    config: {
-      primary: '#1f2937',
-      accentBg: 'linear-gradient(135deg, rgba(31,41,55,0.15) 0%, rgba(17,24,39,0.1) 100%)',
-      pageBgImage: 'linear-gradient(135deg, #1f2937 0%, #0f172a 100%)',
-      bgOpacity: '0.85',
-      cardRadius: '0.5rem',
-      cardBorder: '1px solid rgba(75,85,99,0.4)',
-    },
-  },
-  {
-    id: 'theme-cream-cloud', name: '软萌奶霜', series: 'style', hasBg: true, bgUrl: bgCream,
-    config: {
-      primary: '#f472b6',
-      accentBg: 'linear-gradient(135deg, rgba(253,242,248,0.5) 0%, rgba(252,231,243,0.3) 100%)',
-      pageBgImage: `url('${bgCream}')`,
-      cardRadius: '1rem',
-      cardBorder: '1px solid rgba(244,114,182,0.25)',
-    },
-  },
-]
-
-// 8 款头像框：7 PNG + 1 CSS 彩虹流光
-const FRAMES: SkinFrame[] = [
-  { id: 'frame-bronze-100', name: '铜质光环', type: 'png', pngUrl: frameBronze },
-  { id: 'frame-bamboo-green', name: '翠竹青', type: 'png', pngUrl: frameBamboo },
-  { id: 'frame-silver-wave', name: '银浪纹', type: 'png', pngUrl: frameSilver },
-  { id: 'frame-sakura-ribbon', name: '樱粉丝带', type: 'png', pngUrl: frameSakura },
-  { id: 'frame-stardust-silver', name: '星辰银', type: 'png', pngUrl: frameStardust },
-  { id: 'frame-laurel-gold', name: '金桂冠', type: 'png', pngUrl: frameLaurel },
-  { id: 'frame-rainbow-anim', name: '彩虹流光', type: 'css', cssClass: 'tm-frame-rainbow' },
-  { id: 'frame-checkin-100', name: '百日签到专属', type: 'png', pngUrl: frameCheckin },
-]
-
-const SKIN_PREVIEW_KEY_PREFIX = 'tabMasterSkinPreview:'
-
-function skinPreviewKey(customerId: string): string {
-  return `${SKIN_PREVIEW_KEY_PREFIX}${customerId}`
-}
-
 /**
  * 已购道具「使用中」态本地存储（PRD docs/coordination/2026-07-17-prop-shop.md §2.4）
  *
  * 按 customerId 隔离：key = `tabMasterSkinActive:{customerId}`
- * value = { framePropId, frameResourceUrl, bgPropId, bgResourceUrl }
- * 存 resourceUrl 避免每次重取 /prop/{id}（省带宽，列表只用缩略图）
+ * value = { framePropId, frameResourceUrl, bgPropId, bgResourceUrl, bgType }
+ * 存 resourceUrl + bgType 避免每次重取 /prop/{id}（省带宽，列表只用缩略图）
  * 卸载插件/清缓存即失（不写后端）
  *
- * 同类型各一个 active（frame + bg 可共存），与静态 activeFrameId/activeThemeId 并存。
- * 优先级：purchased > 静态（同类型同时选时 purchased 覆盖静态）
+ * 同类型各一个 active（frame + bg 可共存）；purchasedBg 单值，webp/纯色互相覆盖（无需专门互斥代码）
  */
 interface PurchasedActive {
   propId: number
   resourceUrl: string
+  bgType?: 'image' | 'solid' // 背景道具的渲染类型；旧 storage 无此字段时按 'image' 兜底（向后兼容）
 }
 interface SkinActivePersist {
   framePropId: number | null
   frameResourceUrl: string | null
   bgPropId: number | null
   bgResourceUrl: string | null
+  bgType: 'image' | 'solid' | null
 }
 const SKIN_ACTIVE_KEY_PREFIX = 'tabMasterSkinActive:'
 
@@ -282,13 +87,26 @@ function skinActiveKey(customerId: string): string {
   return `${SKIN_ACTIVE_KEY_PREFIX}${customerId}`
 }
 
+/**
+ * 背景透明度独立存储（按 customerId 隔离）
+ *
+ * key = `tabMasterSkinOpacity:{customerId}`，value = { bgOpacity: number | null }
+ * 未登录不写（避免匿名态覆盖登录态）；换号时清非当前 id 残留
+ */
+interface SkinOpacityPersist {
+  bgOpacity: number | null
+}
+const SKIN_OPACITY_KEY_PREFIX = 'tabMasterSkinOpacity:'
+
+function skinOpacityKey(customerId: string): string {
+  return `${SKIN_OPACITY_KEY_PREFIX}${customerId}`
+}
+
 // 防 Vue reactive proxy 经结构化克隆变成数字键对象（[[lesson-reactive-proxy-storage-serialize]]）
 const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
 // ========== 单例状态 ==========
-const activeThemeId = ref<string | null>(null)
-const activeFrameId = ref<string | null>(null)
-// 用户手动调的背景透明度（0~1）；null=未手动调，用主题 config 默认值
+// 用户手动调的背景透明度（0~1）；null=未手动调，用默认值（image=0.32 / solid=0.6）
 const userBgOpacity = ref<number | null>(null)
 const initialized = ref(false)
 
@@ -307,77 +125,44 @@ const tryonRemaining = ref<number>(0)
 // 由 startTryon 启动、stopTryon 清除，所有 useSkin() 实例共享）
 let tryonTimer: ReturnType<typeof setInterval> | null = null
 
-// 派生：当前生效的试穿背景图 URL（供 writeThemeVars 用）
-const tryonBgUrl = computed(() => {
+// 派生：当前生效的背景（替代旧 tryonBgUrl；image=webp url / solid=CSS 值）
+// 试穿 bg (propType=2 或 3) > purchasedBg > null
+const effectiveBg = computed<EffectiveBg | null>(() => {
   const t = tryonProp.value
-  return t && t.propType === 2 ? t.resourceUrl : null
+  if (t && t.propType !== 1) {
+    return { type: t.bgType ?? 'image', value: t.resourceUrl }
+  }
+  const b = purchasedBg.value
+  if (b) {
+    return { type: b.bgType ?? 'image', value: b.resourceUrl }
+  }
+  return null
 })
+
 // 派生：当前生效的试穿头像框 URL（供 AvatarWithFrame 用）
 const tryonFrameUrl = computed(() => {
   const t = tryonProp.value
   return t && t.propType === 1 ? t.resourceUrl : null
 })
 
-// 派生：当前启用的主题/头像框（computed，模板可直接 .name）
-const activeTheme = computed(() => findTheme(activeThemeId.value))
-const activeFrame = computed(() => findFrame(activeFrameId.value))
-
 // ========== 工具 ==========
-function findTheme(id: string | null): SkinTheme | null {
-  if (!id) return null
-  return THEMES.find((t) => t.id === id) ?? null
-}
-function findFrame(id: string | null): SkinFrame | null {
-  if (!id) return null
-  return FRAMES.find((f) => f.id === id) ?? null
-}
-
-// 把主题 config 写入 :root.style（5 个变量 + bg-opacity）
-// override: 用户手动调的透明度，非 null 时覆盖主题默认
-// purchasedBgUrl: 已购背景图道具 URL，非空时覆盖 --tm-skin-page-bg-image（purchased 优先级 > 静态主题）
-// tryonBgUrl: 试穿背景图道具 URL，优先级最高（> purchased > 静态主题）
-function writeThemeVars(
-  cfg: SkinThemeConfig | null,
-  override?: number | null,
-  purchasedBgUrl?: string | null,
-  tryonBgUrl?: string | null,
-) {
+// 把生效背景 + 透明度写入 :root.style
+// - bg=null → 清掉两个变量（CSS 取 fallback，零回归）
+// - bg.type='image' → 包 url('...')；bg.type='solid' → 直接用 CSS 值（不包 url）
+// - opacity=null → 按 bg.type 默认（solid 0.6 / image 0.32）
+function writeThemeVars(bg: EffectiveBg | null, opacity: number | null) {
   const root = document.documentElement
-  // 背景图优先级：试穿 > purchased > 静态主题 > none
-  const effBgUrl = tryonBgUrl ?? purchasedBgUrl ?? null
-  if (!cfg) {
-    // 清掉全部变量 → CSS 取 fallback → 零回归
-    root.style.removeProperty('--tm-skin-primary')
-    root.style.removeProperty('--tm-skin-accent-bg')
+  if (!bg) {
     root.style.removeProperty('--tm-skin-page-bg-image')
-    root.style.removeProperty('--tm-skin-card-radius')
-    root.style.removeProperty('--tm-skin-card-border')
     root.style.removeProperty('--tm-skin-bg-opacity')
-    // 即便无静态主题，purchased/试穿 bg 仍可独立生效
-    if (effBgUrl) {
-      root.style.setProperty('--tm-skin-page-bg-image', `url('${effBgUrl}')`)
-      root.style.setProperty('--tm-skin-bg-opacity', String(override ?? 0.32))
-    }
     return
   }
-  root.style.setProperty('--tm-skin-primary', cfg.primary)
-  root.style.setProperty('--tm-skin-accent-bg', cfg.accentBg)
-  root.style.setProperty('--tm-skin-card-radius', cfg.cardRadius)
-  root.style.setProperty('--tm-skin-card-border', cfg.cardBorder)
-  // 背景图：试穿 > purchased > 静态主题
-  if (effBgUrl) {
-    root.style.setProperty('--tm-skin-page-bg-image', `url('${effBgUrl}')`)
-  } else {
-    root.style.setProperty('--tm-skin-page-bg-image', cfg.pageBgImage)
-  }
-  // 有背景（图或纯色渐变）→ 透明度；无背景 → 0
-  // 优先用用户手动值 override，其次主题 config.bgOpacity，最后默认 0.32
-  // purchased/试穿 bg 视为「有背景」，透明度同上规则
-  const hasBg = effBgUrl != null || cfg.pageBgImage !== 'none'
-  const eff = hasBg
-    ? String(override != null ? override : (cfg.bgOpacity ?? 0.32))
-    : '0'
-  root.style.setProperty('--tm-skin-bg-opacity', eff)
+  const imgVal = bg.type === 'image' ? `url('${bg.value}')` : bg.value
+  root.style.setProperty('--tm-skin-page-bg-image', imgVal)
+  root.style.setProperty(
+    '--tm-skin-bg-opacity',
+    String(opacity ?? (bg.type === 'solid' ? 0.6 : 0.32)),
+  )
 }
 
 // 草稿透明度（PRD：拖动滑块只预览不持久化，点「应用」才落地）
@@ -386,12 +171,12 @@ const draftBgOpacity = ref<number | null>(null)
 
 // 当前生效的背景透明度（供 UI 滑块回显）：
 // - 有 draft 显示 draft（拖动中即时跟手）
-// - 否则无主题→0；有主题→用户值 ?? 主题默认 ?? 0.32
+// - 否则无生效背景→0；有生效背景→用户值 ?? 默认（solid 0.6 / image 0.32）
 const bgOpacity = computed(() => {
   if (draftBgOpacity.value != null) return draftBgOpacity.value
-  const t = activeTheme.value
-  if (!t || t.config.pageBgImage === 'none') return 0
-  return userBgOpacity.value ?? Number(t.config.bgOpacity ?? 0.32)
+  const bg = effectiveBg.value
+  if (!bg) return 0
+  return userBgOpacity.value ?? (bg.type === 'solid' ? 0.6 : 0.32)
 })
 
 // 是否有未应用的透明度草稿（应用按钮可用性依据之一）
@@ -401,12 +186,7 @@ const hasBgOpacityDraft = computed(() => draftBgOpacity.value !== null)
 function previewBgOpacity(v: number) {
   const clamped = Math.max(0, Math.min(1, v))
   draftBgOpacity.value = clamped
-  writeThemeVars(
-    activeTheme.value?.config ?? null,
-    clamped,
-    purchasedBg.value?.resourceUrl ?? null,
-    tryonBgUrl.value,
-  )
+  writeThemeVars(effectiveBg.value, clamped)
 }
 
 // 应用草稿：写 userBgOpacity + 持久化 + 跨页同步，清 draft
@@ -421,38 +201,31 @@ function applyBgOpacity() {
 function resetBgOpacityDraft() {
   if (draftBgOpacity.value == null) return
   draftBgOpacity.value = null
-  writeThemeVars(
-    activeTheme.value?.config ?? null,
-    userBgOpacity.value,
-    purchasedBg.value?.resourceUrl ?? null,
-    tryonBgUrl.value,
-  )
+  writeThemeVars(effectiveBg.value, userBgOpacity.value)
 }
 
-// 持久化（按 customerId 隔离；未登录不写 skinPreview——避免匿名态覆盖登录态）
+// 持久化背景透明度（按 customerId 隔离；未登录不写——避免匿名态覆盖登录态）
 // toPure 守 reactive-proxy 序列化红线（虽然这里多是基础类型，仍统一转纯）
 async function persist() {
   const cid = activeCustomerId.value
-  if (!cid) return // 未登录：不写 skinPreview
+  if (!cid) return // 未登录：不写
   try {
-    const data: SkinPersist = {
-      themeId: activeThemeId.value,
-      frameId: activeFrameId.value,
+    const data: SkinOpacityPersist = {
       bgOpacity: userBgOpacity.value,
     }
-    await chrome.storage.local.set({ [skinPreviewKey(cid)]: toPure(data) })
+    await chrome.storage.local.set({ [skinOpacityKey(cid)]: toPure(data) })
   } catch (e) {
     console.warn('[useSkin] persist 失败', e)
   }
 }
 
-// 清理非当前 customerId 的 skinPreview / skinActive 残留（换号时调用，防脏数据互窜）
+// 清理非当前 customerId 的 skinOpacity / skinActive 残留（换号时调用，防脏数据互窜）
 async function cleanOtherCustomerCache(keepId: string) {
   try {
     const all = (await chrome.storage.local.get(null)) as Record<string, unknown>
     const toRemove: string[] = []
     for (const k of Object.keys(all)) {
-      if (k.startsWith(SKIN_PREVIEW_KEY_PREFIX) && k !== skinPreviewKey(keepId)) {
+      if (k.startsWith(SKIN_OPACITY_KEY_PREFIX) && k !== skinOpacityKey(keepId)) {
         toRemove.push(k)
       } else if (k.startsWith(SKIN_ACTIVE_KEY_PREFIX) && k !== skinActiveKey(keepId)) {
         toRemove.push(k)
@@ -477,41 +250,44 @@ async function resolveCustomerId(): Promise<string | null> {
   }
 }
 
+// 按 customerId 读背景透明度，恢复 userBgOpacity
+async function loadOpacity(customerId: string) {
+  try {
+    const key = skinOpacityKey(customerId)
+    const data = await chrome.storage.local.get(key)
+    const stored = data[key] as SkinOpacityPersist | undefined
+    if (stored) {
+      userBgOpacity.value = stored.bgOpacity ?? null
+    } else {
+      userBgOpacity.value = null
+    }
+  } catch (e) {
+    console.warn('[useSkin] 读取 skinOpacity 失败', e)
+    userBgOpacity.value = null
+  }
+}
+
 // 从 storage 加载当前 customer 的 purchased active 态
 async function loadPurchasedActive() {
   const customerId = await resolveCustomerId()
   // customer 变了（登录/退出/换号）→ 先清内存态，再按新 customer 读
   if (customerId !== activeCustomerId.value) {
     activeCustomerId.value = customerId
-    // 换号：清静态主题/框/透明度/草稿/purchased（防上一用户态串到新用户）
-    activeThemeId.value = null
-    activeFrameId.value = null
+    // 换号：清透明度/草稿/purchased（防上一用户态串到新用户）
     userBgOpacity.value = null
     draftBgOpacity.value = null
     purchasedFrame.value = null
     purchasedBg.value = null
     if (customerId) {
-      // 换号到新用户：清非当前 id 的 skinPreview/skinActive 残留
+      // 换号到新用户：清非当前 id 的 skinOpacity/skinActive 残留
       await cleanOtherCustomerCache(customerId)
-      // 恢复新用户的静态主题预览（themeId/frameId/bgOpacity）
-      try {
-        const spKey = skinPreviewKey(customerId)
-        const spData = await chrome.storage.local.get(spKey)
-        const sp = spData[spKey] as SkinPersist | undefined
-        if (sp) {
-          activeThemeId.value = sp.themeId ?? null
-          activeFrameId.value = sp.frameId ?? null
-          userBgOpacity.value = sp.bgOpacity ?? null
-        }
-      } catch (e) {
-        console.warn('[useSkin] 读取 skinPreview 失败', e)
-      }
+      // 恢复新用户的背景透明度
+      await loadOpacity(customerId)
     }
   }
   if (!customerId) {
-    // 未登录：清掉 DOM purchased bg 覆盖，回默认（试穿态保留，独立于登录态）
-    // 前面 customer 变化分支已清了 activeThemeId/userBgOpacity，这里 writeThemeVars(null,null,...) 即默认态
-    writeThemeVars(null, null, null, tryonBgUrl.value)
+    // 未登录：清掉 DOM bg，回默认（试穿态保留，独立于登录态）
+    writeThemeVars(effectiveBg.value, userBgOpacity.value)
     return
   }
   try {
@@ -519,12 +295,18 @@ async function loadPurchasedActive() {
     const data = await chrome.storage.local.get(key)
     const stored = data[key] as SkinActivePersist | undefined
     if (stored) {
-      purchasedFrame.value = stored.framePropId != null && stored.frameResourceUrl
-        ? { propId: stored.framePropId, resourceUrl: stored.frameResourceUrl }
-        : null
-      purchasedBg.value = stored.bgPropId != null && stored.bgResourceUrl
-        ? { propId: stored.bgPropId, resourceUrl: stored.bgResourceUrl }
-        : null
+      purchasedFrame.value =
+        stored.framePropId != null && stored.frameResourceUrl
+          ? { propId: stored.framePropId, resourceUrl: stored.frameResourceUrl }
+          : null
+      purchasedBg.value =
+        stored.bgPropId != null && stored.bgResourceUrl
+          ? {
+              propId: stored.bgPropId,
+              resourceUrl: stored.bgResourceUrl,
+              bgType: stored.bgType ?? 'image', // 旧 storage 无 bgType 按 image 兜底
+            }
+          : null
     } else {
       purchasedFrame.value = null
       purchasedBg.value = null
@@ -534,13 +316,8 @@ async function loadPurchasedActive() {
     purchasedFrame.value = null
     purchasedBg.value = null
   }
-  // 重写 DOM 变量（试穿 bg > purchased bg > 静态主题）
-  writeThemeVars(
-    findTheme(activeThemeId.value)?.config ?? null,
-    userBgOpacity.value,
-    purchasedBg.value?.resourceUrl ?? null,
-    tryonBgUrl.value,
-  )
+  // 重写 DOM 变量（试穿 bg > purchased bg）
+  writeThemeVars(effectiveBg.value, userBgOpacity.value)
 }
 
 // 写当前 customer 的 purchased active 态到 storage（跨页同步靠 storage.onChanged）
@@ -553,6 +330,7 @@ async function persistPurchasedActive() {
       frameResourceUrl: purchasedFrame.value?.resourceUrl ?? null,
       bgPropId: purchasedBg.value?.propId ?? null,
       bgResourceUrl: purchasedBg.value?.resourceUrl ?? null,
+      bgType: purchasedBg.value?.bgType ?? null,
     }
     await chrome.storage.local.set({ [skinActiveKey(customerId)]: toPure(data) })
   } catch (e) {
@@ -596,16 +374,12 @@ function applyTryonState(state: TryonPersist, persistStorage: boolean) {
     propId: state.propId,
     propType: state.propType,
     resourceUrl: state.resourceUrl,
+    bgType: state.bgType,
   }
   tryonEndAt.value = state.endAt
   tryonRemaining.value = Math.max(0, Math.ceil((state.endAt - Date.now()) / 1000))
-  // 写 DOM 变量（试穿 bg 覆盖 purchased/静态）
-  writeThemeVars(
-    findTheme(activeThemeId.value)?.config ?? null,
-    userBgOpacity.value,
-    purchasedBg.value?.resourceUrl ?? null,
-    tryonBgUrl.value,
-  )
+  // 写 DOM 变量（试穿 bg 覆盖 purchased）
+  writeThemeVars(effectiveBg.value, userBgOpacity.value)
   startTryonTimer()
   if (persistStorage) {
     chrome.storage.local
@@ -623,13 +397,8 @@ function clearTryonState(persistStorage: boolean) {
   tryonRemaining.value = 0
   clearTryonTimer()
   if (wasActive) {
-    // 重写 DOM 变量 → 回落到 purchased / 静态主题 / 默认
-    writeThemeVars(
-      findTheme(activeThemeId.value)?.config ?? null,
-      userBgOpacity.value,
-      purchasedBg.value?.resourceUrl ?? null,
-      null,
-    )
+    // 重写 DOM 变量 → 回落到 purchased / 默认
+    writeThemeVars(effectiveBg.value, userBgOpacity.value)
   }
   if (persistStorage) {
     chrome.storage.local
@@ -656,11 +425,18 @@ async function loadTryon() {
 }
 
 // 启动试穿（用户点「试穿」按钮触发）
-function startTryon(propId: number, propType: 1 | 2, resourceUrl: string) {
+// bgType 仅背景道具(propType=2 或 3)需要：webp='image' / 纯色='solid'；头像框不传
+function startTryon(
+  propId: number,
+  propType: 1 | 2 | 3,
+  resourceUrl: string,
+  bgType?: 'image' | 'solid',
+) {
   const state: TryonPersist = {
     propId,
     propType,
     resourceUrl,
+    bgType,
     endAt: Date.now() + TRYON_DURATION_MS,
   }
   applyTryonState(state, true)
@@ -677,43 +453,26 @@ function handleStorageChange(
   areaName: string,
 ) {
   if (areaName !== 'local') return
-  // 静态主题装扮变化（按 customerId 隔离：仅匹配当前用户的 skinPreview key）
+  // 背景透明度变化（按 customerId 隔离：仅匹配当前用户的 skinOpacity key）
   for (const key of Object.keys(changes)) {
     if (
-      key.startsWith(SKIN_PREVIEW_KEY_PREFIX) &&
-      key === skinPreviewKey(activeCustomerId.value ?? '')
+      key.startsWith(SKIN_OPACITY_KEY_PREFIX) &&
+      key === skinOpacityKey(activeCustomerId.value ?? '')
     ) {
-      const next = changes[key].newValue as SkinPersist | undefined
-      if (next) {
-        const newTheme = next.themeId ?? null
-        const newFrame = next.frameId ?? null
-        const newOpacity = next.bgOpacity ?? null
-        let changed = false
-        if (newTheme !== activeThemeId.value) {
-          activeThemeId.value = newTheme
-          changed = true
-        }
-        if (newFrame !== activeFrameId.value) {
-          activeFrameId.value = newFrame
-        }
-        if (newOpacity !== userBgOpacity.value) {
-          userBgOpacity.value = newOpacity
-          changed = true
-        }
-        // 其他页 applyBgOpacity 写了 storage → 本页丢弃本地草稿，以新存值为准
-        if (draftBgOpacity.value !== null) {
-          draftBgOpacity.value = null
-          changed = true
-        }
-        // 主题或透明度变了都要重写 DOM 变量
-        if (changed) {
-          writeThemeVars(
-            findTheme(activeThemeId.value)?.config ?? null,
-            userBgOpacity.value,
-            purchasedBg.value?.resourceUrl ?? null,
-            tryonBgUrl.value,
-          )
-        }
+      const next = changes[key].newValue as SkinOpacityPersist | undefined
+      const newOpacity = next?.bgOpacity ?? null
+      let changed = false
+      if (newOpacity !== userBgOpacity.value) {
+        userBgOpacity.value = newOpacity
+        changed = true
+      }
+      // 其他页 applyBgOpacity 写了 storage → 本页丢弃本地草稿，以新存值为准
+      if (draftBgOpacity.value !== null) {
+        draftBgOpacity.value = null
+        changed = true
+      }
+      if (changed) {
+        writeThemeVars(effectiveBg.value, userBgOpacity.value)
       }
       break
     }
@@ -746,30 +505,18 @@ function handleStorageChange(
 async function init() {
   if (initialized.value) return
   try {
-    // 先解析 customerId，按 id 隔离读 skinPreview（未登录跳过，全默认）
+    // 先解析 customerId，按 id 隔离读 skinOpacity（未登录跳过，全默认）
     const cid = await resolveCustomerId()
     activeCustomerId.value = cid
     if (cid) {
-      const spKey = skinPreviewKey(cid)
-      const result = await chrome.storage.local.get(spKey)
-      const stored = result[spKey] as SkinPersist | undefined
-      if (stored) {
-        activeThemeId.value = stored.themeId ?? null
-        activeFrameId.value = stored.frameId ?? null
-        userBgOpacity.value = stored.bgOpacity ?? null
-      }
+      await loadOpacity(cid)
     }
   } catch (e) {
     console.warn('[useSkin] 读取 storage 失败', e)
   }
-  // 应用当前主题到 DOM（带用户透明度；purchased/tryon bg 暂未加载，先写静态）
-  writeThemeVars(
-    findTheme(activeThemeId.value)?.config ?? null,
-    userBgOpacity.value,
-    null,
-    null,
-  )
-  // 加载已购道具使用中态（按 customerId 隔离，可能覆盖静态 bg）
+  // 应用当前背景到 DOM（purchased/tryon bg 暂未加载，先写空）
+  writeThemeVars(effectiveBg.value, userBgOpacity.value)
+  // 加载已购道具使用中态（按 customerId 隔离）
   await loadPurchasedActive()
   // 加载试穿态（跨页同步：若其他页正在试穿且未到期，本页同步套用 + 续倒计时）
   await loadTryon()
@@ -788,41 +535,23 @@ export function useSkin() {
     init()
   })
 
-  // 启用主题（写 CSS 变量 + 持久化）。传 null = 清主题
-  function applyTheme(themeId: string | null) {
-    activeThemeId.value = themeId
-    writeThemeVars(
-      findTheme(themeId)?.config ?? null,
-      userBgOpacity.value,
-      purchasedBg.value?.resourceUrl ?? null,
-      tryonBgUrl.value,
-    )
-    persist()
-  }
-
-  // 启用头像框（仅状态，不写 CSS 变量）。传 null = 清框
-  function applyFrame(frameId: string | null) {
-    activeFrameId.value = frameId
-    persist()
-  }
-
   // ========== 已购道具「使用中」操作（PRD 2026-07-17-prop-shop） ==========
   // 使用已购头像框道具：存 propId + resourceUrl，AvatarWithFrame 通过 purchasedFrameUrl 自动消费
   function applyPurchasedFrame(propId: number, resourceUrl: string) {
     purchasedFrame.value = { propId, resourceUrl }
     persistPurchasedActive().catch((e) => console.warn('[useSkin] persistPurchasedActive 失败', e))
   }
-  // 使用已购背景图道具：覆盖 --tm-skin-page-bg-image（复用 bgOpacity）
-  function applyPurchasedBg(propId: number, resourceUrl: string) {
-    purchasedBg.value = { propId, resourceUrl }
+  // 使用已购背景道具：覆盖 --tm-skin-page-bg-image（复用 bgOpacity）
+  // bgType: webp='image'（包 url()）/ 纯色='solid'（直接用 CSS 值）；purchasedBg 单值，webp/纯色互相覆盖
+  function applyPurchasedBg(
+    propId: number,
+    resourceUrl: string,
+    bgType: 'image' | 'solid',
+  ) {
+    purchasedBg.value = { propId, resourceUrl, bgType }
     // 切了背景图，旧透明度草稿无意义 → 丢弃
     draftBgOpacity.value = null
-    writeThemeVars(
-      findTheme(activeThemeId.value)?.config ?? null,
-      userBgOpacity.value,
-      resourceUrl,
-      tryonBgUrl.value,
-    )
+    writeThemeVars(effectiveBg.value, userBgOpacity.value)
     persistPurchasedActive().catch((e) => console.warn('[useSkin] persistPurchasedActive 失败', e))
   }
   // 清除某类型已购使用中态：type='frame'|'bg'
@@ -831,51 +560,25 @@ export function useSkin() {
       purchasedFrame.value = null
     } else {
       purchasedBg.value = null
-      // 恢复默认背景图 → 丢弃未应用草稿
+      // 恢复默认背景 → 丢弃未应用草稿
       draftBgOpacity.value = null
-      writeThemeVars(
-        findTheme(activeThemeId.value)?.config ?? null,
-        userBgOpacity.value,
-        null,
-        tryonBgUrl.value,
-      )
+      writeThemeVars(effectiveBg.value, userBgOpacity.value)
     }
     persistPurchasedActive().catch((e) => console.warn('[useSkin] persistPurchasedActive 失败', e))
   }
 
-  // 一键恢复默认（清主题 + 清框 + 清用户透明度；不清 purchased，那是登录态绑定的）
-  function resetSkin() {
-    activeThemeId.value = null
-    activeFrameId.value = null
-    userBgOpacity.value = null
-    draftBgOpacity.value = null
-    writeThemeVars(null, null, purchasedBg.value?.resourceUrl ?? null, tryonBgUrl.value)
-    persist()
-  }
-
-  // 清除全部「使用中」已购道具态（头像框 + 背景图都回默认；不清已购记录，那些在后端）
+  // 清除全部「使用中」已购道具态（头像框 + 背景都回默认；不清已购记录，那些在后端）
   // 用户点「恢复默认」用：本地使用中态清掉，主题背景/头像框回到默认（无 purchased 覆盖）。
   function clearAllActive() {
     purchasedFrame.value = null
     purchasedBg.value = null
-    writeThemeVars(
-      findTheme(activeThemeId.value)?.config ?? null,
-      userBgOpacity.value,
-      null,
-      tryonBgUrl.value,
-    )
+    draftBgOpacity.value = null
+    writeThemeVars(effectiveBg.value, userBgOpacity.value)
     persistPurchasedActive().catch((e) => console.warn('[useSkin] persistPurchasedActive 失败', e))
   }
 
   return {
     // 状态
-    activeThemeId,
-    activeFrameId,
-    themes: THEMES,
-    frames: FRAMES,
-    // 派生
-    activeTheme,
-    activeFrame,
     bgOpacity,
     hasBgOpacityDraft,
     // 已购道具使用中态
@@ -883,18 +586,16 @@ export function useSkin() {
     purchasedBg,
     purchasedFrameUrl: computed(() => purchasedFrame.value?.resourceUrl ?? null),
     purchasedBgUrl: computed(() => purchasedBg.value?.resourceUrl ?? null),
+    // 生效背景（替代旧 tryonBgUrl；供 UI 判断有无背景、透明度条可用性）
+    effectiveBg,
     // 试穿态（临时态，30s 自动到期，跨页同步）
     tryonProp,
     tryonRemaining,
     tryonFrameUrl,
-    tryonBgUrl,
     // 操作
-    applyTheme,
-    applyFrame,
     previewBgOpacity,
     applyBgOpacity,
     resetBgOpacityDraft,
-    resetSkin,
     applyPurchasedFrame,
     applyPurchasedBg,
     clearPurchased,

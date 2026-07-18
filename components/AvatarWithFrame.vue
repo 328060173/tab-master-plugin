@@ -2,9 +2,8 @@
   <!--
     头像 + 头像框叠加组件（PRD avatar-theme-visual §1）
     单根：外层 div 包裹头像本体 + 框层，绝不拆多根（守 fallthrough 红线）。
-    框层优先级：frameUrl prop（商城预览 png url）> tryonFrameUrl（试穿态）> purchasedFrameUrl（useSkin 已购使用中态）
-      > frameId prop / 静态 activeFrameId（8 款内置框）。
-    框层类型：PNG（absolute inset-0，盖在头像之上）或彩虹流光（CSS class）。
+    框层优先级：frameUrl prop（商城预览 png url）> tryonFrameUrl（试穿态）> purchasedFrameUrl（useSkin 已购使用中态）。
+    框层类型：PNG（absolute inset-0，盖在头像之上）；静态内置框已下线，全部走商城道具 URL。
     头像本体（2026-07-18 改造）：按 useAuth.user.sex 选择男/女/默认 SVG 剪影，不再用邮箱 hash 渲染。
   -->
   <div class="relative inline-flex items-center justify-center shrink-0" :style="outerStyle">
@@ -15,7 +14,7 @@
     >
       <img :src="avatarSrc" class="w-full h-full object-cover" alt="" draggable="false" />
     </div>
-    <!-- 已购头像框 PNG URL（商城购买道具，盖在头像之上） -->
+    <!-- 头像框 PNG URL（商城购买/试穿/预览道具，盖在头像之上） -->
     <img
       v-if="effectiveFrameUrl"
       :src="effectiveFrameUrl"
@@ -23,19 +22,6 @@
       alt=""
       draggable="false"
     />
-    <!-- 静态头像框 PNG：盖在头像之上，外延装饰伸出头像圆形之外 -->
-    <img
-      v-else-if="frame?.type === 'png' && frame.pngUrl"
-      :src="frame.pngUrl"
-      class="absolute inset-0 w-full h-full pointer-events-none"
-      alt=""
-      draggable="false"
-    />
-    <!-- 头像框 CSS（彩虹流光）：mask 挖空中心露出头像 -->
-    <div
-      v-else-if="frame?.type === 'css' && frame.cssClass === 'tm-frame-rainbow'"
-      class="absolute inset-0 pointer-events-none tm-frame-rainbow"
-    ></div>
   </div>
 </template>
 
@@ -48,13 +34,13 @@
  * - 三张 SVG（assets/avatars/avatar-{default,female,male}.svg，灰色人形剪影，viewBox 0 0 1024 1024）
  * - email prop 保留以向后兼容调用方（HeaderMenu/options 预览仍传 email），但不再用于渲染本体
  *
- * 头像框：单张 144×144 PNG 源图，CSS background-size 缩放复用三档（24/48/68）。
+ * 头像框（2026-07-18 重构，去静态内置框）：全部走商城道具 PNG URL，由 useSkin 提供：
+ * - frameUrl prop（商城预览，优先级最高）
+ * - tryonFrameUrl（试穿态，30s 临时）
+ * - purchasedFrameUrl（已购使用中态，按 customerId 隔离持久化）
  *
  * 尺寸：size prop = 框外延总尺寸；头像本体 = size * 0.82（留出框环空间）。
- *
- * 2026-07-17 道具商城扩展：新增 frameUrl prop（商城预览/已购框图片 URL，兼容 webp/png/jpeg/jpg），
- * 优先级高于静态 frameId/activeFrameId；useSkin.purchasedFrameUrl 自动消费已购使用中态。
- * 2026-07-17 试穿功能：useSkin.tryonFrameUrl（试穿态）优先级介于 frameUrl prop 与 purchasedFrameUrl 之间。
+ * frameId prop 保留签名向后兼容（不再内部消费，静态内置框已下线）。
  */
 import { computed } from 'vue'
 import avatarDefault from '~assets/avatars/avatar-default.svg'
@@ -67,11 +53,11 @@ const props = withDefaults(
   defineProps<{
     /** 登录邮箱；保留以向后兼容调用方（HeaderMenu/options 预览仍传），不再用于渲染本体 */
     email: string
-    /** 框外延总尺寸 px；不传则用当前启用框（无框时仅头像 40px） */
+    /** 框外延总尺寸 px；不传则默认 48 */
     size?: number
-    /** 指定框 id（覆盖当前启用框）；用于商城缩略图 */
+    /** 指定框 id（已下线，保留签名向后兼容，不再内部消费） */
     frameId?: string | null
-    /** 指定已购头像框 PNG URL（覆盖 frameId/activeFrameId）；用于商城预览/已购框 */
+    /** 指定头像框 PNG URL（商城预览/已购框）；优先级高于试穿/已购使用中态 */
     frameUrl?: string | null
   }>(),
   {
@@ -81,7 +67,7 @@ const props = withDefaults(
   },
 )
 
-const { frames, activeFrameId, purchasedFrameUrl, tryonFrameUrl } = useSkin()
+const { purchasedFrameUrl, tryonFrameUrl } = useSkin()
 const { user } = useAuth()
 
 // 头像 SVG：1=女 / 0=男 / 其它（2/null/未登录）=默认
@@ -96,14 +82,6 @@ const avatarSrc = computed(() => {
 const effectiveFrameUrl = computed(() => {
   if (props.frameUrl !== undefined) return props.frameUrl || null
   return tryonFrameUrl.value ?? purchasedFrameUrl.value
-})
-
-// 当前生效的静态框（仅在未用 purchased url 时生效）
-const frame = computed(() => {
-  if (effectiveFrameUrl.value) return null
-  const id = props.frameId !== undefined ? props.frameId : activeFrameId.value
-  if (!id) return null
-  return frames.find((f) => f.id === id) ?? null
 })
 
 // 头像本体直径 = 总尺寸 * 0.82（留 ~18% 给框环 + 装饰外延）
