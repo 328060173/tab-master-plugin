@@ -10,8 +10,8 @@
     <!-- Header - 聚焦中 -->
     <div v-if="focusMode === 'focusing'" class="flex items-center justify-between px-3 py-2 border-b border-gray-200 shrink-0">
       <h1 class="text-sm font-bold">标签大师</h1>
-      <div class="flex items-center gap-1.5">
-        <span class="text-xs text-gray-400">{{ focusingTabs.length }} 个标签</span>
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-gray-400 whitespace-nowrap shrink-0">{{ focusingTabs.length }} 个标签</span>
         <button
           class="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
           @click="exitFocusingWithToast">
@@ -32,7 +32,7 @@
           title="个人中心"
           @click.stop="openOptionsForUser"
         >
-          <AvatarWithFrame :email="userEmail" :size="38" />
+          <AvatarWithFrame :email="userEmail" :size="32" />
         </button>
         <HeaderMenu
           @open-storage="showStorage = true"
@@ -45,9 +45,9 @@
     <!-- Header - 普通/选择态 -->
     <div v-else class="flex items-center justify-between px-3 py-2 border-b border-gray-200 shrink-0">
       <h1 class="text-sm font-bold">标签大师</h1>
-      <div class="flex items-center gap-1.5">
-        <span class="text-xs text-gray-400">{{ tabs.length }} 个标签</span>
-        <div class="flex items-center gap-1">
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-gray-400 whitespace-nowrap shrink-0">{{ tabs.length }} 个标签</span>
+        <div class="flex items-center gap-1 shrink-0">
           <button v-if="focusMode === 'normal'"
             :class="['px-2 py-1 text-xs rounded border transition-colors flex items-center gap-1',
               !SUPPORTS_FOCUS_MODE ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-600 hover:bg-gray-50']"
@@ -77,7 +77,7 @@
           title="个人中心"
           @click.stop="openOptionsForUser"
         >
-          <AvatarWithFrame :email="userEmail" :size="38" />
+          <AvatarWithFrame :email="userEmail" :size="32" />
         </button>
         <HeaderMenu
           @open-storage="showStorage = true"

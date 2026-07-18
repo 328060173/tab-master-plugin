@@ -112,14 +112,53 @@
       </section>
 
 
-      <!-- 道具商城（账号 tab 内，登录态信息下方）（PRD docs/coordination/2026-07-17-prop-shop.md） -->
-      <section v-show="activeTab === 'account'">
+      <!-- 道具商城（账号 tab 内，登录态信息下方）（PRD docs/coordination/2026-07-17-prop-shop.md）
+           2026-07-18 重构：后端 /prop/list 改若依分页（propType 单类型查询），前端加二级 tab + 分页栏；
+           透明度滑块从视口 fixed 改为 section 内 absolute right-2 top-2（section 加 relative）。 -->
+      <section v-show="activeTab === 'account'" class="relative">
         <!-- 积分摘要（h2 由 tab 标签取代，仅保留积分显示） -->
         <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mb-3">
           <Coins :size="14" class="text-amber-500" />
           <span>我的积分：<span class="font-medium text-blue-600 dark:text-blue-400">{{ isLoggedIn ? (user?.points ?? 0) : '—' }}</span></span>
         </div>
+
+        <!-- 恢复默认行（置顶）：三个按钮分别清头像框 / 清背景图 / 全部清 -->
+        <div class="flex items-center flex-wrap gap-2 mb-3">
+          <button
+            type="button"
+            :disabled="!purchasedFrame"
+            class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="onResetFrame"
+          >头像框默认</button>
+          <button
+            type="button"
+            :disabled="!purchasedBg"
+            class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="onResetBg"
+          >背景图默认</button>
+          <button
+            type="button"
+            :disabled="!purchasedFrame && !purchasedBg"
+            class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="onResetActive"
+          >全部默认</button>
+        </div>
+
         <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5 space-y-5">
+          <!-- 二级 tab：头像框(propType=1) / 背景图(propType=2)，样式对齐顶部 Tab 栏（border-b-2 选中态） -->
+          <div class="flex gap-1 border-b border-gray-100 dark:border-gray-700">
+            <button
+              v-for="t in propSubTabs"
+              :key="t.value"
+              type="button"
+              :class="['px-3 py-2 text-xs transition-colors border-b-2 -mb-px',
+                activePropTab === t.value
+                  ? 'border-blue-600 text-blue-600 font-medium'
+                  : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300']"
+              @click="onPropTabChange(t.value)"
+            >{{ t.label }}</button>
+          </div>
+
           <!-- 加载中 -->
           <div v-if="loadingProps" class="text-center py-8 text-xs text-gray-400">加载中…</div>
           <!-- 加载失败 -->
@@ -132,7 +171,7 @@
             >重试</button>
           </div>
           <!-- 空列表 -->
-          <div v-else-if="frameProps.length === 0 && bgProps.length === 0" class="text-center py-8 text-xs text-gray-400">
+          <div v-else-if="propList.length === 0" class="text-center py-8 text-xs text-gray-400">
             暂无可兑换的道具
           </div>
           <template v-else>
@@ -151,165 +190,122 @@
                 @click="stopTryon"
               >结束试穿</button>
             </div>
-            <!-- 头像框道具组（propType=1 在前） -->
-            <div v-if="frameProps.length > 0">
-              <p class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">头像框</p>
-              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div
-                  v-for="p in frameProps"
-                  :key="p.id"
-                  class="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col"
-                  :class="isUsingProp(p.id) ? 'ring-2 ring-blue-500' : ''"
-                >
-                  <!-- 缩略图（不取原图，省带宽） -->
-                  <div class="aspect-square bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-                    <img
-                      v-if="p.propThumbnailUrl"
-                      :src="p.propThumbnailUrl"
-                      :alt="p.propName"
-                      class="w-full h-full object-contain"
-                      loading="lazy"
-                    />
-                    <span v-else class="text-[11px] text-gray-400">无图</span>
-                  </div>
-                  <!-- 信息 + 操作 -->
-                  <div class="p-2 flex flex-col gap-1 flex-1">
-                    <p class="text-xs font-medium text-gray-800 dark:text-gray-200 truncate" :title="p.propName">{{ p.propName }}</p>
-                    <p v-if="p.propTip" class="text-[10px] text-gray-400 truncate" :title="p.propTip">{{ p.propTip }}</p>
-                    <p class="text-[11px] text-amber-600 dark:text-amber-400">
-                      <template v-if="p.freeFlag === 1">免费</template>
-                      <template v-else>{{ p.points }} 积分</template>
-                    </p>
-                    <!-- 操作按钮区 -->
-                    <div class="flex flex-wrap gap-1 mt-auto">
-                      <!-- 已购：显示「使用」/「使用中」 -->
-                      <template v-if="p.purchased">
-                        <button
-                          v-if="isUsingProp(p.id)"
-                          type="button"
-                          disabled
-                          class="flex-1 min-w-[55px] px-2 py-1 text-[11px] rounded bg-blue-500 text-white cursor-default"
-                        >使用中</button>
-                        <button
-                          v-else
-                          type="button"
-                          class="flex-1 min-w-[55px] px-2 py-1 text-[11px] rounded border border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/30 disabled:opacity-60"
-                          :disabled="usingId === p.id"
-                          @click="onUse(p)"
-                        >{{ usingId === p.id ? '应用中…' : '使用' }}</button>
-                      </template>
-                      <!-- 未购：显示「预览」+「试穿」+「兑换」 -->
-                      <template v-else>
-                        <button
-                          type="button"
-                          class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700/50 disabled:opacity-60"
-                          :disabled="previewLoadingId === p.id || tryonLoadingId === p.id"
-                          @click="onPreview(p)"
-                        >{{ previewLoadingId === p.id ? '…' : '预览' }}</button>
-                        <button
-                          type="button"
-                          class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border disabled:opacity-60"
-                          :class="isTryingOn(p.id)
-                            ? 'border-amber-500 bg-amber-500 text-white cursor-default'
-                            : 'border-amber-400 text-amber-600 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-300 dark:hover:bg-amber-900/30'"
-                          :disabled="tryonLoadingId !== null && tryonLoadingId !== p.id"
-                          @click="onTryOn(p)"
-                        >{{ isTryingOn(p.id) ? '试穿中…' : (tryonLoadingId === p.id ? '…' : '试穿') }}</button>
-                        <button
-                          type="button"
-                          class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border tm-skin-primary-border tm-skin-primary-text hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-60"
-                          :disabled="exchangingId === p.id || tryonLoadingId === p.id"
-                          @click="onExchange(p)"
-                        >{{ exchangingId === p.id ? '兑换中…' : '兑换' }}</button>
-                      </template>
-                    </div>
+
+            <!-- 网格（ref 用于翻页后滚动定位） -->
+            <div ref="propGridRef" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div
+                v-for="p in propList"
+                :key="p.id"
+                class="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col"
+                :class="isUsingProp(p.id) ? 'ring-2 ring-blue-500' : ''"
+              >
+                <!-- 缩略图（不取原图，省带宽）：头像框 object-contain / 背景图 object-cover -->
+                <div class="aspect-square bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+                  <img
+                    v-if="p.propThumbnailUrl"
+                    :src="p.propThumbnailUrl"
+                    :alt="p.propName"
+                    :class="activePropTab === 1 ? 'w-full h-full object-contain' : 'w-full h-full object-cover'"
+                    loading="lazy"
+                  />
+                  <span v-else class="text-[11px] text-gray-400">无图</span>
+                </div>
+                <!-- 信息 + 操作 -->
+                <div class="p-2 flex flex-col gap-1 flex-1">
+                  <p class="text-xs font-medium text-gray-800 dark:text-gray-200 truncate" :title="p.propName">{{ p.propName }}</p>
+                  <p v-if="p.propTip" class="text-[10px] text-gray-400 truncate" :title="p.propTip">{{ p.propTip }}</p>
+                  <p class="text-[11px] text-amber-600 dark:text-amber-400">
+                    <template v-if="p.freeFlag === 1">免费</template>
+                    <template v-else>{{ p.points }} 积分</template>
+                  </p>
+                  <!-- 操作按钮区 -->
+                  <div class="flex flex-wrap gap-1 mt-auto">
+                    <!-- 已购：显示「使用」/「使用中」 -->
+                    <template v-if="p.purchased">
+                      <button
+                        v-if="isUsingProp(p.id)"
+                        type="button"
+                        disabled
+                        class="flex-1 min-w-[55px] px-2 py-1 text-[11px] rounded bg-blue-500 text-white cursor-default"
+                      >使用中</button>
+                      <button
+                        v-else
+                        type="button"
+                        class="flex-1 min-w-[55px] px-2 py-1 text-[11px] rounded border border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/30 disabled:opacity-60"
+                        :disabled="usingId === p.id"
+                        @click="onUse(p)"
+                      >{{ usingId === p.id ? '应用中…' : '使用' }}</button>
+                    </template>
+                    <!-- 未购：显示「预览」+「试穿」+「兑换」 -->
+                    <template v-else>
+                      <button
+                        type="button"
+                        class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700/50 disabled:opacity-60"
+                        :disabled="previewLoadingId === p.id || tryonLoadingId === p.id"
+                        @click="onPreview(p)"
+                      >{{ previewLoadingId === p.id ? '…' : '预览' }}</button>
+                      <button
+                        type="button"
+                        class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border disabled:opacity-60"
+                        :class="isTryingOn(p.id)
+                          ? 'border-amber-500 bg-amber-500 text-white cursor-default'
+                          : 'border-amber-400 text-amber-600 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-300 dark:hover:bg-amber-900/30'"
+                        :disabled="tryonLoadingId !== null && tryonLoadingId !== p.id"
+                        @click="onTryOn(p)"
+                      >{{ isTryingOn(p.id) ? '试穿中…' : (tryonLoadingId === p.id ? '…' : '试穿') }}</button>
+                      <button
+                        type="button"
+                        class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border tm-skin-primary-border tm-skin-primary-text hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-60"
+                        :disabled="exchangingId === p.id || tryonLoadingId === p.id"
+                        @click="onExchange(p)"
+                      >{{ exchangingId === p.id ? '兑换中…' : '兑换' }}</button>
+                    </template>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- 背景图道具组（propType=2 在后） -->
-            <div v-if="bgProps.length > 0">
-              <p class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">背景图</p>
-              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div
-                  v-for="p in bgProps"
-                  :key="p.id"
-                  class="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col"
-                  :class="isUsingProp(p.id) ? 'ring-2 ring-blue-500' : ''"
-                >
-                  <div class="aspect-square bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-                    <img
-                      v-if="p.propThumbnailUrl"
-                      :src="p.propThumbnailUrl"
-                      :alt="p.propName"
-                      class="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                    <span v-else class="text-[11px] text-gray-400">无图</span>
-                  </div>
-                  <div class="p-2 flex flex-col gap-1 flex-1">
-                    <p class="text-xs font-medium text-gray-800 dark:text-gray-200 truncate" :title="p.propName">{{ p.propName }}</p>
-                    <p v-if="p.propTip" class="text-[10px] text-gray-400 truncate" :title="p.propTip">{{ p.propTip }}</p>
-                    <p class="text-[11px] text-amber-600 dark:text-amber-400">
-                      <template v-if="p.freeFlag === 1">免费</template>
-                      <template v-else>{{ p.points }} 积分</template>
-                    </p>
-                    <div class="flex flex-wrap gap-1 mt-auto">
-                      <template v-if="p.purchased">
-                        <button
-                          v-if="isUsingProp(p.id)"
-                          type="button"
-                          disabled
-                          class="flex-1 min-w-[55px] px-2 py-1 text-[11px] rounded bg-blue-500 text-white cursor-default"
-                        >使用中</button>
-                        <button
-                          v-else
-                          type="button"
-                          class="flex-1 min-w-[55px] px-2 py-1 text-[11px] rounded border border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/30 disabled:opacity-60"
-                          :disabled="usingId === p.id"
-                          @click="onUse(p)"
-                        >{{ usingId === p.id ? '应用中…' : '使用' }}</button>
-                      </template>
-                      <template v-else>
-                        <button
-                          type="button"
-                          class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700/50 disabled:opacity-60"
-                          :disabled="previewLoadingId === p.id || tryonLoadingId === p.id"
-                          @click="onPreview(p)"
-                        >{{ previewLoadingId === p.id ? '…' : '预览' }}</button>
-                        <button
-                          type="button"
-                          class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border disabled:opacity-60"
-                          :class="isTryingOn(p.id)
-                            ? 'border-amber-500 bg-amber-500 text-white cursor-default'
-                            : 'border-amber-400 text-amber-600 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-300 dark:hover:bg-amber-900/30'"
-                          :disabled="tryonLoadingId !== null && tryonLoadingId !== p.id"
-                          @click="onTryOn(p)"
-                        >{{ isTryingOn(p.id) ? '试穿中…' : (tryonLoadingId === p.id ? '…' : '试穿') }}</button>
-                        <button
-                          type="button"
-                          class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border tm-skin-primary-border tm-skin-primary-text hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-60"
-                          :disabled="exchangingId === p.id || tryonLoadingId === p.id"
-                          @click="onExchange(p)"
-                        >{{ exchangingId === p.id ? '兑换中…' : '兑换' }}</button>
-                      </template>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <!-- 分页栏：[上一页] 第 N / M 页 [下一页]（M=ceil(total/pageSize)，至少 1） -->
+            <div class="flex items-center justify-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+              <button
+                type="button"
+                :disabled="propPageNum <= 1"
+                class="px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                @click="onPropPageChange(propPageNum - 1)"
+              >上一页</button>
+              <span class="tabular-nums">第 {{ propPageNum }} / {{ propTotalPages }} 页</span>
+              <button
+                type="button"
+                :disabled="propPageNum >= propTotalPages"
+                class="px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                @click="onPropPageChange(propPageNum + 1)"
+              >下一页</button>
             </div>
 
             <p class="text-[11px] text-gray-400 leading-relaxed">
               道具按类型各保留一个使用中（头像框 + 背景图可共存）。「使用中」状态仅保存在本地，卸载插件或清缓存后会恢复默认，届时重新点击「使用」即可恢复，不影响已购买的道具。
             </p>
-            <button
-              type="button"
-              :disabled="!purchasedFrame && !purchasedBg"
-              class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              @click="onResetActive"
-            >恢复默认</button>
           </template>
+        </div>
+
+        <!-- 透明度竖向滑块（仅背景图 tab 且有生效背景时显示）
+             从视口 fixed 改为 section 内 absolute right-2 top-2（section 已加 relative）。
+             逻辑不变：onBgOpacityInput / setBgOpacity / bgOpacity（useSkin 模块级单例）。 -->
+        <div
+          v-if="activePropTab === 2 && (purchasedBg || tryonBgUrl)"
+          class="absolute right-2 top-2 z-20 flex flex-col items-center gap-2 px-2 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-800/90 backdrop-blur shadow-sm"
+        >
+          <span class="text-[10px] text-gray-600 dark:text-gray-300">透明度</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            :value="bgOpacity"
+            class="bg-opacity-range accent-blue-600 cursor-pointer"
+            @input="onBgOpacityInput"
+          />
+          <span class="text-[10px] text-gray-400 tabular-nums w-7 text-center">{{ Math.round(bgOpacity * 100) }}%</span>
         </div>
       </section>
 
@@ -373,26 +369,6 @@
 
     </main>
 
-    <!-- 背景透明度竖向滑块（账号 tab + purchased 背景图使用中 或 试穿背景图时显示）
-         fixed 定位到视口右侧中央，不挤进卡片网格，跟随页面滚动始终可见。
-         逻辑不变：onBgOpacityInput / setBgOpacity / bgOpacity（useSkin 模块级单例）。 -->
-    <div
-      v-if="activeTab === 'account' && (purchasedBg || tryonBgUrl)"
-      class="fixed right-6 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-2 px-2 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-800/90 backdrop-blur shadow-sm"
-    >
-      <span class="text-[10px] text-gray-600 dark:text-gray-300">透明度</span>
-      <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        :value="bgOpacity"
-        class="bg-opacity-range accent-blue-600 cursor-pointer"
-        @input="onBgOpacityInput"
-      />
-      <span class="text-[10px] text-gray-400 tabular-nums w-7 text-center">{{ Math.round(bgOpacity * 100) }}%</span>
-    </div>
-
     <!-- 登录弹框：跨页面复用 LoginDialog（内部 Teleport to body，不影响本页单根结构） -->
     <LoginDialog
       :open="loginDialogOpen"
@@ -434,9 +410,9 @@
         </div>
         <div class="p-4">
           <p v-if="previewProp.propDiscription" class="text-xs text-gray-500 dark:text-gray-400 mb-3">{{ previewProp.propDiscription }}</p>
-          <!-- 头像框道具：套在示例头像上预览 -->
+          <!-- 头像框道具：套在示例头像上预览（240×240，框 PNG 盖满，头像本体≈197 居中） -->
           <div v-if="previewProp.propType === 1" class="flex items-center justify-center py-6 bg-gray-50 dark:bg-gray-900 rounded-lg">
-            <AvatarWithFrame :email="previewEmail" :size="120" :frame-url="previewProp.propResourceUrl" />
+            <AvatarWithFrame :email="previewEmail" :size="240" :frame-url="previewProp.propResourceUrl" />
           </div>
           <!-- 背景图道具：铺满示例区预览 -->
           <div v-else class="aspect-video rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
@@ -447,6 +423,14 @@
               class="w-full h-full object-cover"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-xs text-gray-400">无原图</div>
+          </div>
+          <!-- 头像框预览：底部「试穿 30 秒」次按钮（复用 startTryon，关弹层 + toast） -->
+          <div v-if="previewProp.propType === 1" class="flex justify-center mt-4">
+            <button
+              type="button"
+              class="px-4 py-1.5 text-xs rounded border border-amber-400 text-amber-600 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-300 dark:hover:bg-amber-900/30 transition-colors"
+              @click="onPreviewTryOn"
+            >试穿 30 秒</button>
           </div>
         </div>
       </div>
@@ -479,7 +463,7 @@ import { useAuth } from "~composables/useAuth"
 import { useSkin } from "~composables/useSkin"
 import { post, get } from "~lib/api"
 import { API_URIS, buildOfficialUrl, propDetailUri } from "~lib/api-config"
-import type { PropListVO, PropDetailVO, ExchangeResultVO } from "~types/prop"
+import type { PropListVO, PropDetailVO, ExchangeResultVO, PropPageResult } from "~types/prop"
 import LoginDialog from "~components/LoginDialog.vue"
 import ConfirmDialog from "~components/ConfirmDialog.vue"
 import AvatarWithFrame from "~components/AvatarWithFrame.vue"
@@ -713,12 +697,54 @@ function onBgOpacityInput(e: Event) {
 }
 
 // ========== 道具商城（PRD docs/coordination/2026-07-17-prop-shop.md） ==========
-// 列表数据（按 propType 分两组：1 头像框在前、2 背景图在后）
+// 2026-07-18 改造：后端 /prop/list 改若依分页（GET 带 pageNum/pageSize/propType，返回 TableDataInfo 形状）。
+// 前端二级 tab [头像框/背景图] 切 propType，分页栏 [上一页/下一页]，propList 只含当前 tab 当前页数据。
 const propList = ref<PropListVO[]>([])
 const loadingProps = ref(false)
 const loadPropsError = ref('')
-const frameProps = computed(() => propList.value.filter((p) => p.propType === 1).sort((a, b) => a.propSort - b.propSort))
-const bgProps = computed(() => propList.value.filter((p) => p.propType === 2).sort((a, b) => a.propSort - b.propSort))
+
+// 二级 tab（propType）：1=头像框 2=背景图，localStorage 持久化上次选择（key tabMasterPropTab，默认 1）
+type PropTab = 1 | 2
+const propSubTabs: { value: PropTab; label: string }[] = [
+  { value: 1, label: '头像框' },
+  { value: 2, label: '背景图' },
+]
+const PROP_TAB_STORAGE_KEY = 'tabMasterPropTab'
+function loadPropTab(): PropTab {
+  try {
+    const v = window.localStorage.getItem(PROP_TAB_STORAGE_KEY)
+    if (v === '1' || v === '2') return Number(v) as PropTab
+  } catch { /* localStorage 不可用时静默回退默认 */ }
+  return 1
+}
+const activePropTab = ref<PropTab>(loadPropTab())
+// 分页状态：pageNum 当前页（1-based）、pageSize 固定 20、total 后端返回总条数
+const propPageNum = ref(1)
+const propPageSize = 20
+const propTotal = ref(0)
+// 总页数：至少 1，避免空列表时显示「第 1 / 0 页」
+const propTotalPages = computed(() => Math.max(1, Math.ceil(propTotal.value / propPageSize)))
+// 网格容器 ref：翻页后 scrollIntoView 滚到网格顶
+const propGridRef = ref<HTMLElement | null>(null)
+
+function onPropTabChange(t: PropTab) {
+  if (activePropTab.value === t) return
+  activePropTab.value = t
+  try { window.localStorage.setItem(PROP_TAB_STORAGE_KEY, String(t)) } catch { /* ignore */ }
+  // 切 tab 重置到第 1 页 + 重新拉
+  propPageNum.value = 1
+  loadProps()
+}
+
+async function onPropPageChange(n: number) {
+  if (n < 1 || n > propTotalPages.value || n === propPageNum.value) return
+  propPageNum.value = n
+  await loadProps()
+  // 加载完成滚到网格顶（block:'start' 贴顶）
+  try {
+    propGridRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  } catch { /* scrollIntoView 不支持时静默 */ }
+}
 
 // 预览态：点击「预览」才 GET /prop/{id} 取原图（省带宽）
 const previewProp = ref<PropDetailVO | null>(null)
@@ -729,13 +755,21 @@ const exchangingId = ref<number | null>(null)
 const usingId = ref<number | null>(null)
 
 // 拉列表（免登录可调；已登录后端按 token 标记 purchased）
+// 2026-07-18：改若依分页 GET /prop/list?pageNum&pageSize&propType，返回 { code, msg, rows, total }
 async function loadProps() {
   loadingProps.value = true
   loadPropsError.value = ''
   try {
-    const res = await get<{ code: number; msg: string; data: PropListVO[] }>(API_URIS.propList)
-    const arr = Array.isArray(res.data) ? res.data : []
+    const res = await get<PropPageResult>(API_URIS.propList, {
+      params: {
+        pageNum: propPageNum.value,
+        pageSize: propPageSize,
+        propType: activePropTab.value,
+      },
+    })
+    const arr = Array.isArray(res.rows) ? res.rows : []
     propList.value = arr
+    propTotal.value = typeof res.total === 'number' ? res.total : arr.length
   } catch (e) {
     const msg = e instanceof Error ? e.message : '加载道具失败'
     loadPropsError.value = msg
@@ -765,6 +799,21 @@ async function onPreview(p: PropListVO) {
 }
 function closePreview() {
   previewProp.value = null
+}
+
+// 预览弹层内「试穿 30 秒」：复用 startTryon（与列表「试穿」按钮同链路），关弹层 + toast
+// 仅头像框预览弹层有此按钮（背景图预览弹层不变）；previewProp.propResourceUrl 已在 onPreview 时取到
+function onPreviewTryOn() {
+  const p = previewProp.value
+  if (!p) return
+  const url = p.propResourceUrl
+  if (!url) {
+    showToast('道具资源缺失，无法试穿')
+    return
+  }
+  startTryon(p.id, p.propType, url)
+  closePreview()
+  showToast(`试穿中：${p.propName}（30 秒后自动恢复）`)
 }
 
 // 兑换：未登录→弹登录框；已登录→POST /prop/exchange，积分不足透传后端 msg
@@ -826,6 +875,16 @@ async function onUse(p: PropListVO) {
 function onResetActive() {
   clearAllActive()
   showToast('已恢复默认装扮')
+}
+// 仅清头像框使用中态（恢复默认头像框，不动背景图）
+function onResetFrame() {
+  clearPurchased('frame')
+  showToast('已恢复默认头像框')
+}
+// 仅清背景图使用中态（恢复默认背景图，不动头像框）
+function onResetBg() {
+  clearPurchased('bg')
+  showToast('已恢复默认背景图')
 }
 
 // ========== 试穿（PRD docs/coordination/2026-07-17-prop-shop.md §3） ==========
@@ -894,8 +953,6 @@ html.dark body { background-color: #111827; }
 /* 背景透明度竖向滑块：modern writing-mode + 兼容旧 -webkit-appearance
    Chrome/Edge 均支持；direction:rtl 让值从下(0)到上(1)增长更符合直觉 */
 .bg-opacity-range {
-  -webkit-appearance: slider-vertical;
-  appearance: slider-vertical;
   writing-mode: vertical-lr;
   direction: rtl;
   width: 8px;

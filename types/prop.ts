@@ -42,3 +42,20 @@ export interface ExchangeResultVO {
   propId: number
   afterPoints: number
 }
+
+/**
+ * GET /prop/list 若依分页响应（2026-07-18 改造，后端 /prop/list 改 TableDataInfo 形状）
+ *
+ * 字段对齐后端 com.ruoyi.common.core.page.TableDataInfo：
+ * - code/msg：标准状态码与提示
+ * - rows：当前页数据列表
+ * - total：总记录数（用于分页栏计算总页数）
+ *
+ * query 参数（请求侧，不在响应里）：pageNum / pageSize / propType(1头像框 2背景图，可空)
+ */
+export interface PropPageResult {
+  code: number
+  msg: string
+  rows: PropListVO[]
+  total: number
+}
