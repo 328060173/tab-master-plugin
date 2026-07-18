@@ -129,19 +129,45 @@
             :disabled="!purchasedFrame"
             class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             @click="onResetFrame"
-          >头像框默认</button>
+          >头像框恢复默认</button>
           <button
             type="button"
             :disabled="!purchasedBg"
             class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             @click="onResetBg"
-          >背景图默认</button>
+          >主题背景恢复默认</button>
           <button
             type="button"
             :disabled="!purchasedFrame && !purchasedBg"
             class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             @click="onResetActive"
-          >全部默认</button>
+          >全部恢复默认</button>
+        </div>
+
+        <!-- 透明度横向滑块（仅主题背景 tab 且有生效背景时显示）
+             拖动只预览（不持久化），点「应用」才落地；
+             未拥有当前主题背景（purchasedBg 为空）时禁用「应用」。 -->
+        <div
+          v-if="activePropTab === 2 && (purchasedBg || tryonBgUrl)"
+          class="flex items-center gap-3 mb-3"
+        >
+          <span class="text-xs text-gray-500 dark:text-gray-400 shrink-0">透明度调整</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            :value="bgOpacity"
+            class="flex-1 accent-blue-600 cursor-pointer"
+            @input="onBgOpacityInput"
+          />
+          <span class="text-[10px] text-gray-400 tabular-nums w-7 text-center">{{ Math.round(bgOpacity * 100) }}%</span>
+          <button
+            type="button"
+            :disabled="!purchasedBg || !hasBgOpacityDraft"
+            class="shrink-0 px-3 py-1 text-xs rounded border border-amber-400 text-amber-600 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-300 dark:hover:bg-amber-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="onApplyBgOpacity"
+          >应用</button>
         </div>
 
         <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5 space-y-5">
@@ -283,29 +309,9 @@
             </div>
 
             <p class="text-[11px] text-gray-400 leading-relaxed">
-              道具按类型各保留一个使用中（头像框 + 背景图可共存）。「使用中」状态仅保存在本地，卸载插件或清缓存后会恢复默认，届时重新点击「使用」即可恢复，不影响已购买的道具。
+              道具按类型各保留一个使用中（头像框 + 主题背景可共存）。「使用中」状态仅保存在本地，卸载插件或清缓存后会恢复默认，届时重新点击「使用」即可恢复，不影响已购买的道具。
             </p>
           </template>
-        </div>
-
-        <!-- 透明度竖向滑块（仅背景图 tab 且有生效背景时显示）
-             从视口 fixed 改为 section 内 absolute right-2 top-2（section 已加 relative）。
-             逻辑不变：onBgOpacityInput / setBgOpacity / bgOpacity（useSkin 模块级单例）。 -->
-        <div
-          v-if="activePropTab === 2 && (purchasedBg || tryonBgUrl)"
-          class="absolute right-2 top-2 z-20 flex flex-col items-center gap-2 px-2 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-800/90 backdrop-blur shadow-sm"
-        >
-          <span class="text-[10px] text-gray-600 dark:text-gray-300">透明度</span>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            :value="bgOpacity"
-            class="bg-opacity-range accent-blue-600 cursor-pointer"
-            @input="onBgOpacityInput"
-          />
-          <span class="text-[10px] text-gray-400 tabular-nums w-7 text-center">{{ Math.round(bgOpacity * 100) }}%</span>
         </div>
       </section>
 
@@ -474,7 +480,10 @@ const {
   activeThemeId,
   activeFrameId,
   bgOpacity,
-  setBgOpacity,
+  hasBgOpacityDraft,
+  previewBgOpacity,
+  applyBgOpacity,
+  resetBgOpacityDraft,
   purchasedFrame,
   purchasedBg,
   applyPurchasedFrame,
@@ -690,10 +699,14 @@ function onOpenMyPage() {
 // 头像用登录邮箱，未登录用 mock 邮箱
 const previewEmail = computed(() => user.value?.email || 'preview@tabmaster.com')
 
-// 背景透明度滑块：实时调，不弹 toast（拖动高频）
+// 背景透明度滑块：拖动只预览（不持久化），点「应用」才落地
 function onBgOpacityInput(e: Event) {
   const v = Number((e.target as HTMLInputElement).value)
-  if (Number.isFinite(v)) setBgOpacity(v)
+  if (Number.isFinite(v)) previewBgOpacity(v)
+}
+function onApplyBgOpacity() {
+  applyBgOpacity()
+  showToast('已应用透明度')
 }
 
 // ========== 道具商城（PRD docs/coordination/2026-07-17-prop-shop.md） ==========
@@ -707,7 +720,7 @@ const loadPropsError = ref('')
 type PropTab = 1 | 2
 const propSubTabs: { value: PropTab; label: string }[] = [
   { value: 1, label: '头像框' },
-  { value: 2, label: '背景图' },
+  { value: 2, label: '主题背景' },
 ]
 const PROP_TAB_STORAGE_KEY = 'tabMasterPropTab'
 function loadPropTab(): PropTab {
@@ -729,6 +742,8 @@ const propGridRef = ref<HTMLElement | null>(null)
 
 function onPropTabChange(t: PropTab) {
   if (activePropTab.value === t) return
+  // 切 tab → 丢弃当前未应用的透明度草稿
+  resetBgOpacityDraft()
   activePropTab.value = t
   try { window.localStorage.setItem(PROP_TAB_STORAGE_KEY, String(t)) } catch { /* ignore */ }
   // 切 tab 重置到第 1 页 + 重新拉
@@ -881,10 +896,10 @@ function onResetFrame() {
   clearPurchased('frame')
   showToast('已恢复默认头像框')
 }
-// 仅清背景图使用中态（恢复默认背景图，不动头像框）
+// 仅清背景图使用中态（恢复默认主题背景，不动头像框）
 function onResetBg() {
   clearPurchased('bg')
-  showToast('已恢复默认背景图')
+  showToast('已恢复默认主题背景')
 }
 
 // ========== 试穿（PRD docs/coordination/2026-07-17-prop-shop.md §3） ==========
@@ -949,13 +964,4 @@ html.dark body { background-color: #111827; }
 :root.fs-xlarge  { font-size: 19px; }
 :root.font-mono body { font-family: 'SF Mono', 'Cascadia Code', Consolas, Monaco, monospace; }
 .help-trigger { background: transparent; border: none; padding: 0; cursor: help; display: inline-flex; }
-
-/* 背景透明度竖向滑块：modern writing-mode + 兼容旧 -webkit-appearance
-   Chrome/Edge 均支持；direction:rtl 让值从下(0)到上(1)增长更符合直觉 */
-.bg-opacity-range {
-  writing-mode: vertical-lr;
-  direction: rtl;
-  width: 8px;
-  height: 180px;
-}
 </style>
