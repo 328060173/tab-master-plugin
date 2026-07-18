@@ -165,43 +165,20 @@ function writeThemeVars(bg: EffectiveBg | null, opacity: number | null) {
   )
 }
 
-// 草稿透明度（PRD：拖动滑块只预览不持久化，点「应用」才落地）
-// null=无未应用草稿，回显/写 DOM 用已存值；非 null=用户正在拖动预览中
-const draftBgOpacity = ref<number | null>(null)
-
 // 当前生效的背景透明度（供 UI 滑块回显）：
-// - 有 draft 显示 draft（拖动中即时跟手）
-// - 否则无生效背景→0；有生效背景→用户值 ?? 默认（solid 0.6 / image 0.32）
+// 无生效背景→0；有生效背景→用户值 ?? 默认（solid 0.6 / image 0.32）
 const bgOpacity = computed(() => {
-  if (draftBgOpacity.value != null) return draftBgOpacity.value
   const bg = effectiveBg.value
   if (!bg) return 0
   return userBgOpacity.value ?? (bg.type === 'solid' ? 0.6 : 0.32)
 })
 
-// 是否有未应用的透明度草稿（应用按钮可用性依据之一）
-const hasBgOpacityDraft = computed(() => draftBgOpacity.value !== null)
-
-// 拖动滑块预览：只写 DOM，不持久化、不写 userBgOpacity
-function previewBgOpacity(v: number) {
+// 拖动滑块即时生效：写 userBgOpacity + 本页 DOM + 持久化（storage.onChanged 触发 sidepanel 实时同步）
+function setBgOpacity(v: number) {
   const clamped = Math.max(0, Math.min(1, v))
-  draftBgOpacity.value = clamped
+  userBgOpacity.value = clamped
   writeThemeVars(effectiveBg.value, clamped)
-}
-
-// 应用草稿：写 userBgOpacity + 持久化 + 跨页同步，清 draft
-function applyBgOpacity() {
-  if (draftBgOpacity.value == null) return
-  userBgOpacity.value = draftBgOpacity.value
   persist()
-  draftBgOpacity.value = null
-}
-
-// 丢弃草稿：清 draft，DOM 回已存值（用于取消/恢复默认/切主题背景）
-function resetBgOpacityDraft() {
-  if (draftBgOpacity.value == null) return
-  draftBgOpacity.value = null
-  writeThemeVars(effectiveBg.value, userBgOpacity.value)
 }
 
 // 持久化背景透明度（按 customerId 隔离；未登录不写——避免匿名态覆盖登录态）
@@ -273,9 +250,8 @@ async function loadPurchasedActive() {
   // customer 变了（登录/退出/换号）→ 先清内存态，再按新 customer 读
   if (customerId !== activeCustomerId.value) {
     activeCustomerId.value = customerId
-    // 换号：清透明度/草稿/purchased（防上一用户态串到新用户）
+    // 换号：清透明度/purchased（防上一用户态串到新用户）
     userBgOpacity.value = null
-    draftBgOpacity.value = null
     purchasedFrame.value = null
     purchasedBg.value = null
     if (customerId) {
@@ -466,11 +442,6 @@ function handleStorageChange(
         userBgOpacity.value = newOpacity
         changed = true
       }
-      // 其他页 applyBgOpacity 写了 storage → 本页丢弃本地草稿，以新存值为准
-      if (draftBgOpacity.value !== null) {
-        draftBgOpacity.value = null
-        changed = true
-      }
       if (changed) {
         writeThemeVars(effectiveBg.value, userBgOpacity.value)
       }
@@ -549,8 +520,6 @@ export function useSkin() {
     bgType: 'image' | 'solid',
   ) {
     purchasedBg.value = { propId, resourceUrl, bgType }
-    // 切了背景图，旧透明度草稿无意义 → 丢弃
-    draftBgOpacity.value = null
     writeThemeVars(effectiveBg.value, userBgOpacity.value)
     persistPurchasedActive().catch((e) => console.warn('[useSkin] persistPurchasedActive 失败', e))
   }
@@ -560,8 +529,6 @@ export function useSkin() {
       purchasedFrame.value = null
     } else {
       purchasedBg.value = null
-      // 恢复默认背景 → 丢弃未应用草稿
-      draftBgOpacity.value = null
       writeThemeVars(effectiveBg.value, userBgOpacity.value)
     }
     persistPurchasedActive().catch((e) => console.warn('[useSkin] persistPurchasedActive 失败', e))
@@ -572,7 +539,6 @@ export function useSkin() {
   function clearAllActive() {
     purchasedFrame.value = null
     purchasedBg.value = null
-    draftBgOpacity.value = null
     writeThemeVars(effectiveBg.value, userBgOpacity.value)
     persistPurchasedActive().catch((e) => console.warn('[useSkin] persistPurchasedActive 失败', e))
   }
@@ -580,7 +546,6 @@ export function useSkin() {
   return {
     // 状态
     bgOpacity,
-    hasBgOpacityDraft,
     // 已购道具使用中态
     purchasedFrame,
     purchasedBg,
@@ -593,9 +558,7 @@ export function useSkin() {
     tryonRemaining,
     tryonFrameUrl,
     // 操作
-    previewBgOpacity,
-    applyBgOpacity,
-    resetBgOpacityDraft,
+    setBgOpacity,
     applyPurchasedFrame,
     applyPurchasedBg,
     clearPurchased,

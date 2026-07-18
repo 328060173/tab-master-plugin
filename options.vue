@@ -145,9 +145,8 @@
         </div>
 
         <!-- 透明度横向滑块（主题背景 / 主题纯色背景 tab 内常驻占位）
-             拖动只预览（不持久化），点「应用」才落地；
-             无生效背景（effectiveBg 为空，即未使用也未试穿背景）时滑块禁用；
-             「应用」仅在 purchasedBg 使用中且有草稿时可用（试穿态临时性，不可应用）。 -->
+             拖动即时生效：写 userBgOpacity + persist → storage.onChanged 触发 sidepanel 实时同步；
+             无生效背景（effectiveBg 为空，即未使用也未试穿背景）时滑块禁用。 -->
         <div
           v-if="activePropTab === 2 || activePropTab === 3"
           class="flex items-center gap-3 mb-3"
@@ -164,12 +163,6 @@
             @input="onBgOpacityInput"
           />
           <span class="text-[10px] text-gray-400 tabular-nums w-7 text-center">{{ Math.round(bgOpacity * 100) }}%</span>
-          <button
-            type="button"
-            :disabled="!purchasedBg || !hasBgOpacityDraft"
-            class="shrink-0 px-3 py-1 text-xs rounded border border-amber-400 text-amber-600 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-300 dark:hover:bg-amber-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="onApplyBgOpacity"
-          >应用</button>
         </div>
 
         <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5 space-y-5">
@@ -490,10 +483,7 @@ const { settings, updateSetting } = useSettings()
 const { isLoggedIn, user, logout, fetchUser, getToken } = useAuth()
 const {
   bgOpacity,
-  hasBgOpacityDraft,
-  previewBgOpacity,
-  applyBgOpacity,
-  resetBgOpacityDraft,
+  setBgOpacity,
   purchasedFrame,
   purchasedBg,
   applyPurchasedFrame,
@@ -716,14 +706,10 @@ function onOpenMyPage() {
 // 头像用登录邮箱，未登录用 mock 邮箱
 const previewEmail = computed(() => user.value?.email || 'preview@tabmaster.com')
 
-// 背景透明度滑块：拖动只预览（不持久化），点「应用」才落地
+// 背景透明度滑块：拖动即时生效（写 userBgOpacity + persist → storage.onChanged 触发 sidepanel 实时同步）
 function onBgOpacityInput(e: Event) {
   const v = Number((e.target as HTMLInputElement).value)
-  if (Number.isFinite(v)) previewBgOpacity(v)
-}
-function onApplyBgOpacity() {
-  applyBgOpacity()
-  showToast('已应用透明度')
+  if (Number.isFinite(v)) setBgOpacity(v)
 }
 
 // ========== 道具商城（PRD docs/coordination/2026-07-17-prop-shop.md） ==========
@@ -760,8 +746,6 @@ const propGridRef = ref<HTMLElement | null>(null)
 
 function onPropTabChange(t: PropTab) {
   if (activePropTab.value === t) return
-  // 切 tab → 丢弃当前未应用的透明度草稿
-  resetBgOpacityDraft()
   activePropTab.value = t
   try { window.localStorage.setItem(PROP_TAB_STORAGE_KEY, String(t)) } catch { /* ignore */ }
   // 切 tab 重置到第 1 页 + 重新拉
