@@ -896,3 +896,67 @@ vue-tsc --noEmit 通过（仅 tsconfig 既有弃用警告 TS5107/TS5101）。本
 - 后端仓 test 分支：道具商城后端 13 新文件+2改 未 commit
 - hub 仓：docs/coordination/2026-07-17-prop-shop.md 未 commit
 - 三仓 master 全锁定，不 merge 不直推
+
+---
+
+## 2026-07-18 收工（性别头像 + 道具商城重构 + 纯色背景 + 本地缓存按id隔离）
+
+### 今日完成（全部已 commit 到 test 分支）
+
+#### A. 性别头像 + options 改性别
+- **后端** `POST /customer/update-sex`（body `{sex:0|1|2}`，仅更新 sex 字段，requireLogin 兜底）
+- **插件**：3 张性别 SVG → `assets/avatars/avatar-{default,female,male}.svg`；useAuth 持久化 sex；AvatarWithFrame 头像本体由「邮箱彩色圆+首字母」改为性别 SVG 剪影（移除 md5/调色板死代码）；options 账号区加「头像+性别选择」行
+- 修了 disabled 的 `0 即假` 坑（`updatingSex ||` → `updatingSex !== null ||`）
+
+#### B. 道具商城重构（8 项需求）
+- **后端** `/prop/list` 改若依分页（startPage+getDataTable，返 TableDataInfo）+ propType 过滤参数
+- **插件** options 道具商城：
+  - 二级 tab [头像框/主题背景/主题纯色背景]（propType 1/2/3）+ 分页 20/页
+  - 头像框预览弹层 240×240（AvatarWithFrame size=240）+ 弹层内「试穿30秒」按钮
+  - 恢复默认三分按钮置顶（头像框/主题背景/全部）
+  - sidepanel 头部布局收紧（gap-1、头像 38→32、标签数 shrink-0）
+  - 顶部标题「X个标签」挨着标题 + 黑色跟随明暗
+- 文案：背景图→主题背景
+
+#### C. 本地缓存按用户id隔离（红线，已写入 CLAUDE.md）
+- `tabMasterSkinActive:{id}` 已购frame/bg、`tabMasterSkinOpacity:{id}` 透明度、`tabMasterSkinSolidBg`(已废，纯色改走后端)
+- 退出登录清当前id、重新登录清非当前id残留（`cleanOtherCustomerCache` 扫 storage 全 key）、未登录全默认
+- storage.onChanged 改 startsWith 前缀匹配
+- hub 记忆 [[plugin-user-cache-isolation-by-id]]
+
+#### D. 清死代码 + 纯色背景走后端统一
+- **清死代码**：删 THEMES/FRAMES（9 webp+7 png import）、applyTheme/applyFrame/resetSkin/findTheme/findFrame、activeThemeId/activeFrameId；AvatarWithFrame 删静态框两分支 + frame computed；StoragePanel 删 tabMasterSkinPreview 条目；净删 ~300 行
+- **拆 bgOpacity**：从 tabMasterSkinPreview 拆出独立 key `tabMasterSkinOpacity:{id}`
+- **纯色背景走后端**：ouu_prop 加 prop_type=3，7 种彩虹护眼暖色（CSS 存 prop_resource_url），免费，走标准兑换。前端 isCssBg() 判断缩略图/预览 CSS→色块、URL→img；writeThemeVars 加 bgType（image 包 url()、solid 直接用 CSS 值不包 url，核心解冲突）；purchasedBg 加 bgType，effectiveBg 派生，互斥天然（单值覆盖）
+- **SQL 已给用户**：7 条 INSERT prop_type=3 纯色道具（用户执行）
+
+#### E. 透明度拖动即时生效（修 sidepanel 不同步）
+- 之前 draft/preview/apply 机制（拖动只预览、点应用才存）导致 sidepanel 不同步
+- 改为 setBgOpacity 即时写 userBgOpacity+persist → storage.onChanged 触发 sidepanel 实时同步
+- 删 draft 体系 + 「应用」按钮
+
+### 关键 commit
+- 插件：`4115c99`→`549df6b`→`09a02d8`→`cc34b92`→`f1ddb09`→`ba26ccc`→`6a7f686`→`a8d4ffb`
+- 后端：`254322d`→`13212bf`→`08d33d0`
+- 官网：`484323b`（清零引用 logo）
+
+### 🔴 明天待续
+
+#### 联调验证（用户跑）
+1. **后端**：执行纯色背景 SQL（7 条 prop_type=3）+ 起服务
+2. **前端** `pnpm dev:safe` 实测：
+   - 性别头像：/my 返回性别→头像切换；options 改性别→sidepanel 同步
+   - 道具商城：分 tab+分页、头像框预览240+试穿30s、纯色背景色卡/兑换/使用/试穿、恢复默认三分
+   - 透明度：拖动即时同步 sidepanel（试穿/使用中）
+   - 按id隔离：退出清、重登同id关联、换号清残留
+3. 联调 OK 后**push 三仓 test 分支**（目前都只本地 commit 未 push）
+
+#### 部署前
+4. **资源压缩/CDN**：assets/skin 背景图（webp 400KB-1.3MB）压到 ≤45KB 或切 CDN（useSkin.ts @TODO；纯色背景已走后端 CSS 不占本地体积）
+5. **versionCode 升级**：发生产前 lib/api-config.ts APP_VERSION_CODE +1（当前=1）
+
+### 当前 git 状态
+- 插件仓 test 分支：今日 8 commit，全部已 commit，**未 push**
+- 后端仓 test 分支：今日 3 commit，全部已 commit，**未 push**
+- 官网仓 test 分支：1 commit，**未 push**
+- 三仓 master 全锁定，不 merge 不直推
