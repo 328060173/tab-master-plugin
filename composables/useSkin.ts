@@ -102,6 +102,13 @@ function skinOpacityKey(customerId: string): string {
   return `${SKIN_OPACITY_KEY_PREFIX}${customerId}`
 }
 
+// 透明度「实时同步」临时 key（不绑 id）：任何页面拖动滑块都写这个 key，
+// 其他页 storage.onChanged 收到后即时 writeThemeVars 同步背景透明度。
+// 与按 id 隔离的持久化记忆（skinOpacityKey）分离：
+// - 实时同步（本 key）：跨页即时跟变，未登录/试穿也生效（与试穿 TRYON_KEY 同性质）
+// - 持久化记忆（id key）：仅登录用户「使用中」的透明度记住，退出清、换号隔离
+const SKIN_OPACITY_LIVE_KEY = 'tabMasterSkinBgOpacityLive'
+
 // 防 Vue reactive proxy 经结构化克隆变成数字键对象（[[lesson-reactive-proxy-storage-serialize]]）
 const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
@@ -173,11 +180,19 @@ const bgOpacity = computed(() => {
   return userBgOpacity.value ?? (bg.type === 'solid' ? 0.6 : 0.32)
 })
 
-// 拖动滑块即时生效：写 userBgOpacity + 本页 DOM + 持久化（storage.onChanged 触发 sidepanel 实时同步）
+// 拖动滑块即时生效：
+// 1. 写本页 DOM（本页即时跟手）
+// 2. 写临时同步 key（不绑 id，未登录/试穿也写）→ 其他页 storage.onChanged 实时同步
+// 3. 登录用户额外写 id key（持久化记忆，退出清、换号隔离）
 function setBgOpacity(v: number) {
   const clamped = Math.max(0, Math.min(1, v))
   userBgOpacity.value = clamped
   writeThemeVars(effectiveBg.value, clamped)
+  // 实时同步（不绑 id，跨页即时）
+  chrome.storage.local
+    .set({ [SKIN_OPACITY_LIVE_KEY]: toPure({ bgOpacity: clamped, at: Date.now() }) })
+    .catch((e) => console.warn('[useSkin] 写 opacity live 失败', e))
+  // 持久化记忆（仅登录）
   persist()
 }
 
@@ -429,7 +444,17 @@ function handleStorageChange(
   areaName: string,
 ) {
   if (areaName !== 'local') return
-  // 背景透明度变化（按 customerId 隔离：仅匹配当前用户的 skinOpacity key）
+  // 透明度「实时同步」临时 key（不绑 id）：其他页拖动滑块 → 本页即时同步背景透明度
+  // 这是跨页同步的主力通道（未登录/试穿也生效，与 TRYON_KEY 同性质）
+  if (changes[SKIN_OPACITY_LIVE_KEY]) {
+    const next = changes[SKIN_OPACITY_LIVE_KEY].newValue as { bgOpacity: number } | undefined
+    const newOpacity = next?.bgOpacity
+    if (typeof newOpacity === 'number' && newOpacity !== userBgOpacity.value) {
+      userBgOpacity.value = newOpacity
+      writeThemeVars(effectiveBg.value, newOpacity)
+    }
+  }
+  // 透明度「持久化记忆」id key（登录用户「使用中」透明度被其他页改了 → 本页同步内存值）
   for (const key of Object.keys(changes)) {
     if (
       key.startsWith(SKIN_OPACITY_KEY_PREFIX) &&
@@ -437,12 +462,8 @@ function handleStorageChange(
     ) {
       const next = changes[key].newValue as SkinOpacityPersist | undefined
       const newOpacity = next?.bgOpacity ?? null
-      let changed = false
       if (newOpacity !== userBgOpacity.value) {
         userBgOpacity.value = newOpacity
-        changed = true
-      }
-      if (changed) {
         writeThemeVars(effectiveBg.value, userBgOpacity.value)
       }
       break
