@@ -1,19 +1,30 @@
 <template>
-  <div class="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
-    <!-- 顶部条 -->
-    <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 sticky top-0 z-10">
-      <div class="max-w-3xl mx-auto flex items-center gap-3">
+  <div class="min-h-screen text-gray-900 dark:text-gray-100 relative" style="z-index: 1;">
+    <!-- 顶部条 + Tab 栏（合在一个 sticky header 内，一起吸顶） -->
+    <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+      <div class="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
         <Sliders :size="18" class="text-blue-600 dark:text-blue-400" />
         <h1 class="text-base font-semibold">标签大师 · 设置</h1>
         <span class="text-xs text-gray-400 ml-auto">v{{ version }}</span>
       </div>
+      <!-- Tab 栏：风格对齐 sidepanel NavTabs（border-b-2 选中态） -->
+      <div class="max-w-3xl mx-auto px-6 flex gap-1 border-t border-gray-100 dark:border-gray-700">
+        <button
+          v-for="tab in optionTabs"
+          :key="tab.key"
+          type="button"
+          :class="['px-3 py-2 text-xs transition-colors border-b-2 -mb-px',
+            activeTab === tab.key
+              ? 'border-blue-600 text-blue-600 font-medium'
+              : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300']"
+          @click="activeTab = tab.key"
+        >{{ tab.label }}</button>
+      </div>
     </header>
 
-    <main class="max-w-3xl mx-auto p-6 space-y-8">
-      <!-- 账号 / 同步 -->
-      <section>
-        <h2 class="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">账号 / 同步</h2>
-
+    <main class="max-w-3xl mx-auto p-6 space-y-8 relative">
+      <!-- 账号 tab：原「账号/同步」section 内容 -->
+      <section v-show="activeTab === 'account'">
         <!-- 未登录态：登录入口卡片 -->
         <div
           v-if="!isLoggedIn"
@@ -23,7 +34,7 @@
           <p class="text-sm text-gray-600 dark:text-gray-400 text-center">登录账号以同步个人设置与积分</p>
           <button
             type="button"
-            class="px-4 py-2 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+            class="px-4 py-2 text-xs rounded tm-skin-primary-bg text-white font-medium transition-colors"
             @click="loginDialogOpen = true"
           >登录账号</button>
         </div>
@@ -33,6 +44,24 @@
           v-else
           class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-700"
         >
+          <!-- 头像 + 性别选择（2026-07-18 性别头像） -->
+          <div class="px-5 py-4 flex items-center gap-4">
+            <AvatarWithFrame :email="user?.email || ''" :size="56" />
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <button
+                v-for="opt in SEX_OPTIONS"
+                :key="opt.value"
+                type="button"
+                :disabled="updatingSex !== null || user?.sex === opt.value"
+                class="px-3 py-1.5 text-xs rounded border transition-colors disabled:cursor-not-allowed"
+                :class="user?.sex === opt.value
+                  ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-300 font-medium'
+                  : 'border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 disabled:opacity-60'"
+                @click="onUpdateSex(opt.value)"
+              >{{ updatingSex === opt.value ? '提交中…' : opt.label }}</button>
+            </div>
+          </div>
+
           <!-- 邮箱 -->
           <div class="px-5 py-4 flex items-center justify-between gap-4">
             <span class="text-xs text-gray-500 dark:text-gray-400">邮箱</span>
@@ -82,9 +111,210 @@
         </div>
       </section>
 
-      <!-- 更多设置 -->
-      <section>
-        <h2 class="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">更多设置</h2>
+
+      <!-- 道具商城（账号 tab 内，登录态信息下方）（PRD docs/coordination/2026-07-17-prop-shop.md） -->
+      <section v-show="activeTab === 'account'">
+        <!-- 积分摘要（h2 由 tab 标签取代，仅保留积分显示） -->
+        <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mb-3">
+          <Coins :size="14" class="text-amber-500" />
+          <span>我的积分：<span class="font-medium text-blue-600 dark:text-blue-400">{{ isLoggedIn ? (user?.points ?? 0) : '—' }}</span></span>
+        </div>
+        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5 space-y-5">
+          <!-- 加载中 -->
+          <div v-if="loadingProps" class="text-center py-8 text-xs text-gray-400">加载中…</div>
+          <!-- 加载失败 -->
+          <div v-else-if="loadPropsError" class="text-center py-8">
+            <p class="text-xs text-red-500 mb-2">{{ loadPropsError }}</p>
+            <button
+              type="button"
+              class="px-3 py-1.5 text-xs rounded border border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/30"
+              @click="loadProps"
+            >重试</button>
+          </div>
+          <!-- 空列表 -->
+          <div v-else-if="frameProps.length === 0 && bgProps.length === 0" class="text-center py-8 text-xs text-gray-400">
+            暂无可兑换的道具
+          </div>
+          <template v-else>
+            <!-- 试穿中提示条（PRD docs/coordination/2026-07-17-prop-shop.md §3 试穿功能） -->
+            <div
+              v-if="tryonProp"
+              class="flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20 text-xs"
+            >
+              <Timer :size="14" class="shrink-0 text-amber-600 dark:text-amber-400" />
+              <span class="text-amber-800 dark:text-amber-300 truncate">
+                试穿中：{{ tryonPropName }} · 剩余 {{ tryonRemaining }}s
+              </span>
+              <button
+                type="button"
+                class="shrink-0 ml-auto px-2 py-0.5 rounded border border-amber-400 text-amber-700 dark:border-amber-500 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+                @click="stopTryon"
+              >结束试穿</button>
+            </div>
+            <!-- 头像框道具组（propType=1 在前） -->
+            <div v-if="frameProps.length > 0">
+              <p class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">头像框</p>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div
+                  v-for="p in frameProps"
+                  :key="p.id"
+                  class="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col"
+                  :class="isUsingProp(p.id) ? 'ring-2 ring-blue-500' : ''"
+                >
+                  <!-- 缩略图（不取原图，省带宽） -->
+                  <div class="aspect-square bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+                    <img
+                      v-if="p.propThumbnailUrl"
+                      :src="p.propThumbnailUrl"
+                      :alt="p.propName"
+                      class="w-full h-full object-contain"
+                      loading="lazy"
+                    />
+                    <span v-else class="text-[11px] text-gray-400">无图</span>
+                  </div>
+                  <!-- 信息 + 操作 -->
+                  <div class="p-2 flex flex-col gap-1 flex-1">
+                    <p class="text-xs font-medium text-gray-800 dark:text-gray-200 truncate" :title="p.propName">{{ p.propName }}</p>
+                    <p v-if="p.propTip" class="text-[10px] text-gray-400 truncate" :title="p.propTip">{{ p.propTip }}</p>
+                    <p class="text-[11px] text-amber-600 dark:text-amber-400">
+                      <template v-if="p.freeFlag === 1">免费</template>
+                      <template v-else>{{ p.points }} 积分</template>
+                    </p>
+                    <!-- 操作按钮区 -->
+                    <div class="flex flex-wrap gap-1 mt-auto">
+                      <!-- 已购：显示「使用」/「使用中」 -->
+                      <template v-if="p.purchased">
+                        <button
+                          v-if="isUsingProp(p.id)"
+                          type="button"
+                          disabled
+                          class="flex-1 min-w-[55px] px-2 py-1 text-[11px] rounded bg-blue-500 text-white cursor-default"
+                        >使用中</button>
+                        <button
+                          v-else
+                          type="button"
+                          class="flex-1 min-w-[55px] px-2 py-1 text-[11px] rounded border border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/30 disabled:opacity-60"
+                          :disabled="usingId === p.id"
+                          @click="onUse(p)"
+                        >{{ usingId === p.id ? '应用中…' : '使用' }}</button>
+                      </template>
+                      <!-- 未购：显示「预览」+「试穿」+「兑换」 -->
+                      <template v-else>
+                        <button
+                          type="button"
+                          class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700/50 disabled:opacity-60"
+                          :disabled="previewLoadingId === p.id || tryonLoadingId === p.id"
+                          @click="onPreview(p)"
+                        >{{ previewLoadingId === p.id ? '…' : '预览' }}</button>
+                        <button
+                          type="button"
+                          class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border disabled:opacity-60"
+                          :class="isTryingOn(p.id)
+                            ? 'border-amber-500 bg-amber-500 text-white cursor-default'
+                            : 'border-amber-400 text-amber-600 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-300 dark:hover:bg-amber-900/30'"
+                          :disabled="tryonLoadingId !== null && tryonLoadingId !== p.id"
+                          @click="onTryOn(p)"
+                        >{{ isTryingOn(p.id) ? '试穿中…' : (tryonLoadingId === p.id ? '…' : '试穿') }}</button>
+                        <button
+                          type="button"
+                          class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border tm-skin-primary-border tm-skin-primary-text hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-60"
+                          :disabled="exchangingId === p.id || tryonLoadingId === p.id"
+                          @click="onExchange(p)"
+                        >{{ exchangingId === p.id ? '兑换中…' : '兑换' }}</button>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 背景图道具组（propType=2 在后） -->
+            <div v-if="bgProps.length > 0">
+              <p class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">背景图</p>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div
+                  v-for="p in bgProps"
+                  :key="p.id"
+                  class="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col"
+                  :class="isUsingProp(p.id) ? 'ring-2 ring-blue-500' : ''"
+                >
+                  <div class="aspect-square bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+                    <img
+                      v-if="p.propThumbnailUrl"
+                      :src="p.propThumbnailUrl"
+                      :alt="p.propName"
+                      class="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    <span v-else class="text-[11px] text-gray-400">无图</span>
+                  </div>
+                  <div class="p-2 flex flex-col gap-1 flex-1">
+                    <p class="text-xs font-medium text-gray-800 dark:text-gray-200 truncate" :title="p.propName">{{ p.propName }}</p>
+                    <p v-if="p.propTip" class="text-[10px] text-gray-400 truncate" :title="p.propTip">{{ p.propTip }}</p>
+                    <p class="text-[11px] text-amber-600 dark:text-amber-400">
+                      <template v-if="p.freeFlag === 1">免费</template>
+                      <template v-else>{{ p.points }} 积分</template>
+                    </p>
+                    <div class="flex flex-wrap gap-1 mt-auto">
+                      <template v-if="p.purchased">
+                        <button
+                          v-if="isUsingProp(p.id)"
+                          type="button"
+                          disabled
+                          class="flex-1 min-w-[55px] px-2 py-1 text-[11px] rounded bg-blue-500 text-white cursor-default"
+                        >使用中</button>
+                        <button
+                          v-else
+                          type="button"
+                          class="flex-1 min-w-[55px] px-2 py-1 text-[11px] rounded border border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/30 disabled:opacity-60"
+                          :disabled="usingId === p.id"
+                          @click="onUse(p)"
+                        >{{ usingId === p.id ? '应用中…' : '使用' }}</button>
+                      </template>
+                      <template v-else>
+                        <button
+                          type="button"
+                          class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700/50 disabled:opacity-60"
+                          :disabled="previewLoadingId === p.id || tryonLoadingId === p.id"
+                          @click="onPreview(p)"
+                        >{{ previewLoadingId === p.id ? '…' : '预览' }}</button>
+                        <button
+                          type="button"
+                          class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border disabled:opacity-60"
+                          :class="isTryingOn(p.id)
+                            ? 'border-amber-500 bg-amber-500 text-white cursor-default'
+                            : 'border-amber-400 text-amber-600 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-300 dark:hover:bg-amber-900/30'"
+                          :disabled="tryonLoadingId !== null && tryonLoadingId !== p.id"
+                          @click="onTryOn(p)"
+                        >{{ isTryingOn(p.id) ? '试穿中…' : (tryonLoadingId === p.id ? '…' : '试穿') }}</button>
+                        <button
+                          type="button"
+                          class="flex-1 min-w-[44px] px-1.5 py-1 text-[11px] rounded border tm-skin-primary-border tm-skin-primary-text hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-60"
+                          :disabled="exchangingId === p.id || tryonLoadingId === p.id"
+                          @click="onExchange(p)"
+                        >{{ exchangingId === p.id ? '兑换中…' : '兑换' }}</button>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p class="text-[11px] text-gray-400 leading-relaxed">
+              道具按类型各保留一个使用中（头像框 + 背景图可共存）。「使用中」状态仅保存在本地，卸载插件或清缓存后会恢复默认，届时重新点击「使用」即可恢复，不影响已购买的道具。
+            </p>
+            <button
+              type="button"
+              :disabled="!purchasedFrame && !purchasedBg"
+              class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="onResetActive"
+            >恢复默认</button>
+          </template>
+        </div>
+      </section>
+
+      <!-- 设置 tab：原「更多设置」section 内容 -->
+      <section v-show="activeTab === 'settings'">
         <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-700">
           <!-- 自动数据校正 -->
           <div class="px-5 py-4 flex items-center justify-between gap-4">
@@ -141,15 +371,27 @@
         </div>
       </section>
 
-      <!-- 关于 -->
-      <section>
-        <h2 class="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">关于</h2>
-        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-5 py-4 space-y-2">
-          <p class="text-sm">标签大师 <span class="text-gray-500">v{{ version }}</span></p>
-          <p class="text-xs text-gray-500 dark:text-gray-400">帮你高效管理浏览器标签页</p>
-        </div>
-      </section>
     </main>
+
+    <!-- 背景透明度竖向滑块（账号 tab + purchased 背景图使用中 或 试穿背景图时显示）
+         fixed 定位到视口右侧中央，不挤进卡片网格，跟随页面滚动始终可见。
+         逻辑不变：onBgOpacityInput / setBgOpacity / bgOpacity（useSkin 模块级单例）。 -->
+    <div
+      v-if="activeTab === 'account' && (purchasedBg || tryonBgUrl)"
+      class="fixed right-6 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-2 px-2 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-800/90 backdrop-blur shadow-sm"
+    >
+      <span class="text-[10px] text-gray-600 dark:text-gray-300">透明度</span>
+      <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        :value="bgOpacity"
+        class="bg-opacity-range accent-blue-600 cursor-pointer"
+        @input="onBgOpacityInput"
+      />
+      <span class="text-[10px] text-gray-400 tabular-nums w-7 text-center">{{ Math.round(bgOpacity * 100) }}%</span>
+    </div>
 
     <!-- 登录弹框：跨页面复用 LoginDialog（内部 Teleport to body，不影响本页单根结构） -->
     <LoginDialog
@@ -168,6 +410,47 @@
       @cancel="logoutConfirmOpen = false"
       @confirm="confirmLogout"
     />
+
+    <!-- 道具预览弹层（点击预览时按需 GET /prop/{id} 取原图） -->
+    <div
+      v-if="previewProp"
+      class="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-6"
+      @click="closePreview"
+    >
+      <div
+        class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        @click.stop
+      >
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <p class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ previewProp.propName }}</p>
+          <button
+            class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            @click="closePreview"
+          >
+            <X :size="16" />
+          </button>
+        </div>
+        <div class="p-4">
+          <p v-if="previewProp.propDiscription" class="text-xs text-gray-500 dark:text-gray-400 mb-3">{{ previewProp.propDiscription }}</p>
+          <!-- 头像框道具：套在示例头像上预览 -->
+          <div v-if="previewProp.propType === 1" class="flex items-center justify-center py-6 bg-gray-50 dark:bg-gray-900 rounded-lg">
+            <AvatarWithFrame :email="previewEmail" :size="120" :frame-url="previewProp.propResourceUrl" />
+          </div>
+          <!-- 背景图道具：铺满示例区预览 -->
+          <div v-else class="aspect-video rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
+            <img
+              v-if="previewProp.propResourceUrl"
+              :src="previewProp.propResourceUrl"
+              :alt="previewProp.propName"
+              class="w-full h-full object-cover"
+            />
+            <div v-else class="w-full h-full flex items-center justify-center text-xs text-gray-400">无原图</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- toast -->
     <div
@@ -189,19 +472,62 @@
  *
  * 触发方式：sidepanel HeaderMenu "设置..." → chrome.runtime.openOptionsPage()
  */
-import { computed, ref, onMounted } from "vue"
-import { Sliders, LogIn, HelpCircle } from "@lucide/vue"
+import { computed, ref, onMounted, watch } from "vue"
+import { Sliders, LogIn, HelpCircle, Coins, X, Timer } from "@lucide/vue"
 import { useSettings } from "~composables/useSettings"
 import { useAuth } from "~composables/useAuth"
-import { post } from "~lib/api"
-import { API_URIS, buildOfficialUrl } from "~lib/api-config"
+import { useSkin } from "~composables/useSkin"
+import { post, get } from "~lib/api"
+import { API_URIS, buildOfficialUrl, propDetailUri } from "~lib/api-config"
+import type { PropListVO, PropDetailVO, ExchangeResultVO } from "~types/prop"
 import LoginDialog from "~components/LoginDialog.vue"
 import ConfirmDialog from "~components/ConfirmDialog.vue"
+import AvatarWithFrame from "~components/AvatarWithFrame.vue"
 
 const { settings, updateSetting } = useSettings()
 const { isLoggedIn, user, logout, fetchUser, getToken } = useAuth()
+const {
+  activeThemeId,
+  activeFrameId,
+  bgOpacity,
+  setBgOpacity,
+  purchasedFrame,
+  purchasedBg,
+  applyPurchasedFrame,
+  applyPurchasedBg,
+  clearPurchased,
+  clearAllActive,
+  loadPurchasedActive,
+  tryonProp,
+  tryonRemaining,
+  tryonBgUrl,
+  startTryon,
+  stopTryon,
+} = useSkin()
 
 const showReconcileHelp = ref(false)
+
+// ========== Tab 切换（账号 / 设置） ==========
+// 道具商城并入「账号」tab（登录态信息下方），让用户更容易看到。
+// localStorage 持久化上次 tab（key tabMasterOptionsTab），刷新保持。
+// options 页是普通 DOM 页面，window.localStorage 可用（非 SW / 非 SSR）。
+type OptionsTab = 'account' | 'settings'
+const optionTabs: { key: OptionsTab; label: string }[] = [
+  { key: 'account', label: '账号' },
+  { key: 'settings', label: '设置' },
+]
+const TAB_STORAGE_KEY = 'tabMasterOptionsTab'
+function loadStoredTab(): OptionsTab {
+  try {
+    const v = window.localStorage.getItem(TAB_STORAGE_KEY)
+    if (v === 'account' || v === 'settings') return v
+  } catch { /* localStorage 不可用时静默回退默认 */ }
+  return 'account'
+}
+const activeTab = ref<OptionsTab>(loadStoredTab())
+watch(activeTab, (v) => {
+  try { window.localStorage.setItem(TAB_STORAGE_KEY, v) } catch { /* ignore */ }
+})
 
 const version = computed(() => {
   try { return chrome.runtime.getManifest().version } catch { return '0.0.1' }
@@ -257,6 +583,12 @@ const loginDialogOpen = ref(false)
 // useAuth 构造时已触发 loadAuth（异步），首屏 isLoggedIn 可能尚未反映 storage 真实状态；
 // 这里独立查一次 storage（key 与 useAuth AUTH_KEY 一致，硬编码，未改 useAuth 导出常量）
 onMounted(async () => {
+  // 刷新页面重走进入逻辑：拉道具列表 + 从本地恢复使用中态
+  // useSkin.init() 已在 useSkin() 调用时 onMounted 触发，会自动 loadPurchasedActive（按 customerId）
+  // 但 useAuth.loadAuth 是异步的，登录态可能在首屏后才到 → 这里显式 reload 一次保证 purchased 态对齐当前 customer
+  loadPurchasedActive().catch((e) => console.warn('[options] loadPurchasedActive 失败', e))
+  loadProps()
+
   const from = new URLSearchParams(window.location.search).get('from')
   if (from !== 'login') return
   try {
@@ -270,10 +602,49 @@ onMounted(async () => {
   }
 })
 
+// 登录成功后：重新拉列表（purchased 标记变化）+ 重新加载使用中态（按新 customer）
+watch(isLoggedIn, (logged) => {
+  if (logged) {
+    loadProps()
+    loadPurchasedActive().catch((e) => console.warn('[options] loadPurchasedActive 失败', e))
+  } else {
+    // 退出登录：使用中态自动随 useSkin 监听 tabMasterAuth 变化清空，这里只刷列表
+    loadProps()
+  }
+})
+
 // LoginDialog 内部已调 login + fetchUser 完成登录态建立；此处仅关弹框 + toast
 function onLoginSuccess(email: string) {
   loginDialogOpen.value = false
   showToast(`已登录：${email}`)
+}
+
+// 性别选择（2026-07-18 性别头像）：0=男 1=女 2=保密
+// 与后端 OuuCustomer.sex 对齐；UI 文案「保密」对应后端「未知(2)」
+const SEX_OPTIONS = [
+  { label: '男', value: 0 },
+  { label: '女', value: 1 },
+  { label: '保密', value: 2 },
+] as const
+
+// 更新性别：调 /customer/update-sex，成功后 fetchUser 刷新 user.sex（storage.onChanged 自动同步 sidepanel）
+// updatingSex 同时存「正在提交的值」，按钮文案变「提交中…」；与当前 sex 相同则不触发
+const updatingSex = ref<0 | 1 | 2 | null>(null)
+async function onUpdateSex(sex: 0 | 1 | 2) {
+  if (updatingSex.value !== null) return
+  if (user.value?.sex === sex) return
+  updatingSex.value = sex
+  try {
+    await post<{ code: number; msg: string }>(API_URIS.customerUpdateSex, { sex })
+    await fetchUser()
+    showToast('已更新')
+  } catch (e) {
+    // ApiError.message 已是后端 msg；NetworkError.message 是网络提示
+    const msg = e instanceof Error ? e.message : '更新失败'
+    showToast(msg)
+  } finally {
+    updatingSex.value = null
+  }
 }
 
 // 签到：调 /customer/checkin，成功后 fetchUser 刷新 points/todayCheckedIn
@@ -331,6 +702,169 @@ function onOpenMyPage() {
   chrome.tabs.create({ url })
 }
 
+// ========== 主题装扮（道具商城驱动，无静态兜底） ==========
+// 头像用登录邮箱，未登录用 mock 邮箱
+const previewEmail = computed(() => user.value?.email || 'preview@tabmaster.com')
+
+// 背景透明度滑块：实时调，不弹 toast（拖动高频）
+function onBgOpacityInput(e: Event) {
+  const v = Number((e.target as HTMLInputElement).value)
+  if (Number.isFinite(v)) setBgOpacity(v)
+}
+
+// ========== 道具商城（PRD docs/coordination/2026-07-17-prop-shop.md） ==========
+// 列表数据（按 propType 分两组：1 头像框在前、2 背景图在后）
+const propList = ref<PropListVO[]>([])
+const loadingProps = ref(false)
+const loadPropsError = ref('')
+const frameProps = computed(() => propList.value.filter((p) => p.propType === 1).sort((a, b) => a.propSort - b.propSort))
+const bgProps = computed(() => propList.value.filter((p) => p.propType === 2).sort((a, b) => a.propSort - b.propSort))
+
+// 预览态：点击「预览」才 GET /prop/{id} 取原图（省带宽）
+const previewProp = ref<PropDetailVO | null>(null)
+const previewLoadingId = ref<number | null>(null)
+// 兑换态
+const exchangingId = ref<number | null>(null)
+// 使用态（点「使用」时也要取一次原图拿 resourceUrl）
+const usingId = ref<number | null>(null)
+
+// 拉列表（免登录可调；已登录后端按 token 标记 purchased）
+async function loadProps() {
+  loadingProps.value = true
+  loadPropsError.value = ''
+  try {
+    const res = await get<{ code: number; msg: string; data: PropListVO[] }>(API_URIS.propList)
+    const arr = Array.isArray(res.data) ? res.data : []
+    propList.value = arr
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : '加载道具失败'
+    loadPropsError.value = msg
+  } finally {
+    loadingProps.value = false
+  }
+}
+
+// 判断某 prop 是否处于「使用中」态（按类型读 useSkin.purchasedFrame/purchasedBg）
+function isUsingProp(propId: number): boolean {
+  return purchasedFrame.value?.propId === propId || purchasedBg.value?.propId === propId
+}
+
+// 预览：取原图后弹层（头像框套示例头像；背景图铺满示例区）
+async function onPreview(p: PropListVO) {
+  if (previewLoadingId.value !== null) return
+  previewLoadingId.value = p.id
+  try {
+    const res = await get<{ code: number; msg: string; data: PropDetailVO }>(propDetailUri(p.id))
+    if (res.data) previewProp.value = res.data
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : '加载详情失败'
+    showToast(msg)
+  } finally {
+    previewLoadingId.value = null
+  }
+}
+function closePreview() {
+  previewProp.value = null
+}
+
+// 兑换：未登录→弹登录框；已登录→POST /prop/exchange，积分不足透传后端 msg
+async function onExchange(p: PropListVO) {
+  if (exchangingId.value !== null) return
+  if (!isLoggedIn.value) {
+    loginDialogOpen.value = true
+    return
+  }
+  exchangingId.value = p.id
+  try {
+    const res = await post<{ code: number; msg: string; data: ExchangeResultVO }>(
+      API_URIS.propExchange,
+      { propId: p.id },
+    )
+    showToast(`兑换成功，剩余 ${res.data.afterPoints} 积分`)
+    // 刷新列表（该道具变已购）+ 刷新积分
+    await Promise.all([loadProps(), fetchUser()])
+  } catch (e) {
+    // ApiError.message 已是后端 msg（积分不足提示语在后端常量）；NetworkError.message 是网络提示
+    const msg = e instanceof Error ? e.message : '兑换失败'
+    showToast(msg)
+  } finally {
+    exchangingId.value = null
+  }
+}
+
+// 使用：已购道具，取原图 resourceUrl 后设为该类型使用中（同类型其他已购自动变未使用）
+async function onUse(p: PropListVO) {
+  if (usingId.value !== null) return
+  if (!isLoggedIn.value) {
+    loginDialogOpen.value = true
+    return
+  }
+  usingId.value = p.id
+  try {
+    // 列表无 resourceUrl，需按需取详情
+    const res = await get<{ code: number; msg: string; data: PropDetailVO }>(propDetailUri(p.id))
+    const url = res.data?.propResourceUrl
+    if (!url) {
+      showToast('道具资源缺失，无法使用')
+      return
+    }
+    if (p.propType === 1) {
+      applyPurchasedFrame(p.id, url)
+    } else {
+      applyPurchasedBg(p.id, url)
+    }
+    showToast(`已使用：${p.propName}`)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : '使用失败'
+    showToast(msg)
+  } finally {
+    usingId.value = null
+  }
+}
+
+// 恢复默认：清除全部「使用中」已购道具态（头像框+背景图回默认，清本地缓存；不清已购记录）
+function onResetActive() {
+  clearAllActive()
+  showToast('已恢复默认装扮')
+}
+
+// ========== 试穿（PRD docs/coordination/2026-07-17-prop-shop.md §3） ==========
+// 试穿：未购道具点「试穿」→ GET /prop/{id} 取原图 → startTryon（30s 倒计时，跨页同步）
+// 试穿是临时态，不要求登录（未登录也可试穿，让用户先看效果再决定兑换）
+const tryonLoadingId = ref<number | null>(null)
+
+// 试穿中道具名（提示条显示）
+const tryonPropName = computed(() => {
+  const t = tryonProp.value
+  if (!t) return ''
+  return propList.value.find((p) => p.id === t.propId)?.propName ?? '道具'
+})
+
+// 某道具是否处于试穿中
+function isTryingOn(propId: number): boolean {
+  return tryonProp.value?.propId === propId
+}
+
+async function onTryOn(p: PropListVO) {
+  if (tryonLoadingId.value !== null) return
+  tryonLoadingId.value = p.id
+  try {
+    const res = await get<{ code: number; msg: string; data: PropDetailVO }>(propDetailUri(p.id))
+    const url = res.data?.propResourceUrl
+    if (!url) {
+      showToast('道具资源缺失，无法试穿')
+      return
+    }
+    startTryon(p.id, p.propType, url)
+    showToast(`试穿中：${p.propName}（30 秒后自动恢复）`)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : '试穿失败'
+    showToast(msg)
+  } finally {
+    tryonLoadingId.value = null
+  }
+}
+
 // ========== toast（options 独立，与 sidepanel 同款样式） ==========
 const toastMsg = ref('')
 let toastTimer: ReturnType<typeof setTimeout> | null = null
@@ -347,7 +881,8 @@ function showToast(msg: string) {
 @tailwind components;
 @tailwind utilities;
 * { box-sizing: border-box; }
-body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color: #f9fafb; }
+html.dark body { background-color: #111827; }
 
 /* 与 sidepanel 同步的字号/暗色规则（让 options 也响应同一份 settings） */
 :root.fs-normal  { font-size: 16px; }
@@ -355,4 +890,15 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 :root.fs-xlarge  { font-size: 19px; }
 :root.font-mono body { font-family: 'SF Mono', 'Cascadia Code', Consolas, Monaco, monospace; }
 .help-trigger { background: transparent; border: none; padding: 0; cursor: help; display: inline-flex; }
+
+/* 背景透明度竖向滑块：modern writing-mode + 兼容旧 -webkit-appearance
+   Chrome/Edge 均支持；direction:rtl 让值从下(0)到上(1)增长更符合直觉 */
+.bg-opacity-range {
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 8px;
+  height: 180px;
+}
 </style>

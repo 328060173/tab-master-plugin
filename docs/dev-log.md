@@ -841,3 +841,58 @@ vue-tsc --noEmit 通过（仅 tsconfig 既有弃用警告 TS5107/TS5101）。本
 - **官网 appearance**：config.ts 未设（默认启用暗色但 Layout 无切换按钮，半启用），建议 appearance:false 待用户拍板
 - **appearance false 后验证 hydration**：nginx 修好后若 /contents fresh load 仍报 hydration mismatch 再查
 - **expireTime**：广告 hideAd 时 expireTime 暂用 null + TODO（待会员体系上线查会员表到期）
+
+---
+
+## 2026-07-17 收工（装扮主题动态化 + 道具商城兑换）
+
+### 今日完成（未 commit，全在 test 分支）
+
+#### A. 装扮主题落地 sidepanel + 效果调优
+- **sidepanel 应用主题背景 + 头像框**：root 去 bg-white、白底移 body，body::before 6% 主题图从间隙透出；两个 Header 加已登录态 AvatarWithFrame（size 38）；HeaderMenu 账号行 User 图标换 AvatarWithFrame（size 32）。useSkin 单例 + storage.onChanged 跨页同步。
+- **效果调优**：背景 opacity 0.06→0.18→0.32；纯色主题（护眼墨绿/极简纯白/暗夜深渊）原 pageBgImage:'none' 不渲染，改为铺渐变底 + 高 bgOpacity（0.6/0.7/0.85）；SkinThemeConfig 加可选 bgOpacity 覆盖默认。
+- **背景透明度用户可调**：useSkin 加 userBgOpacity + bgOpacity computed + setBgOpacity；options 加滑块（0~100% 步进5%），持久化进 tabMasterSkinPreview，跨页同步。后迁为竖向 fixed 右侧滑块。
+
+#### B. 道具商城兑换（跨线：后端 + 前端）
+- **协调文档**：docs/coordination/2026-07-17-prop-shop.md（API 契约 + 设计决策）
+- **后端**（api-backend，mvn compile BUILD SUCCESS）：建表 ouu_prop/ouu_customer_prop（含 uk_customer_prop 唯一索引防并发重复兑换）；3 接口 GET /prop/list（免登录不返回原图）、GET /prop/{id}（免登录取原图）、POST /prop/exchange（需登录）；**兑换扣积分写进 IOuuCustomerPointsService.exchangeProp**（照 checkInAdd 乐观锁减积分 + 流水 IN_OR_OUT=2/EXCHANGE_PROP(3)）；防重三层（Service判重+DB唯一索引+免费也判重）；积分不足提示语后端常量控制。
+  - ⚠️ 偏离契约：exchangeProp 签名 Integer→ExchangeDeductResultDTO（返回 afterPoints+relationOrderNo），让流水 relationOrderNo 与 ouu_customer_prop.prop_order_no 同单号。
+- **前端**（plugs-fe，vue-tsc 0 错 + 防白屏5步+第⑥步过）：options 道具商城 section；列表按 propType 分两组（头像框在前/背景图在后）+ 缩略图 lazy；预览/兑换/使用三态按钮；purchased 使用中态本地存（key tabMasterSkinActive:{customerId} 按 customerId 隔离，存 resourceUrl 避免重取）；useSkin 拓展 applyPurchasedFrame/Bg/clearPurchased/loadPurchasedActive，purchased 优先级 > 静态主题；AvatarWithFrame 加 frameUrl prop。
+
+#### C. 试穿功能
+- 试穿=临时态（30秒倒计时自动恢复，防白嫖付费道具），区别于 purchased 持久使用中态。
+- useSkin 加 tryonProp/tryonEndAt/tryonRemaining + startTryon/stopTryon；interval 模块级 timer（守单例监听器红线，不在 onMounted/onUnmounted）；跨页同步 storage.local key tabMasterSkinTryon；优先级 试穿>purchased>静态。
+- 未购道具卡片：预览 + 试穿 + 兑换 三按钮；已购只显示使用/使用中。试穿中提示条「试穿中：{名}·剩余{N}s·[结束试穿]」。试穿 bg 时透明度滑块也可调。
+
+#### D. options 信息架构重构
+- 删静态「主题装扮」section（12 主题+8 框写死数据，后端没数据时不应显示）。主题/头像框统一只走道具商城（后端）。背景透明度滑块保留迁入。
+- **分 Tab**：原 [账号/同步][更多设置][道具商城] 三平铺 → Tab 切换。后按用户要求**去掉「装扮」tab**，道具商城并入「账号」tab（登录信息下方，让用户更易看到）。现 Tab：[账号]（含道具商城）[设置]。localStorage 持久化上次 tab。
+- 透明度滑块改竖向 fixed 右侧（v-if 守卫 shop→account）。
+- 文案修正：「使用中」状态本地存，卸载/清缓存回默认，重新点「使用」恢复，不影响已购道具。
+- 加「恢复默认」按钮：useSkin.clearAllActive() 清 purchasedFrame+Bg 使用中态（不清已购记录），主题背景+头像框回默认，跨页同步。
+
+#### E. 资源
+- 静态背景图/头像框资源已 copy 到 assets/skin/（bg/ 9张 webp + frames/ 7张 png），**体积超标 10-30 倍**（400KB-1.3MB，要求 ≤45KB），部署前必须压缩或切 CDN（cdn.ouu365.com/skin/）。useSkin.ts 有 @TODO 标记。
+- 图片格式兼容：`<img :src>` 浏览器原生支持 webp/png/jpeg/jpg，后端返回任意格式都兼容，无需特殊处理。AvatarWithFrame frameUrl 同理。
+
+### 🔴 明天待续
+
+#### 后端
+1. **执行建表 SQL**：sql/ouu_prop_shop.sql（ouu_prop + ouu_customer_prop）
+2. **录入道具数据**：ouu_prop 录入头像框/背景图道具，prop_thumbnail_url + prop_resource_url **走 CDN URL**（带宽红线，别用本地图）
+3. **联调** 3 接口（/prop/list、/prop/{id}、/prop/exchange）+ 兑换扣积分 + 积分不足提示语
+
+#### 前端（联调后）
+4. `pnpm dev:safe` 实测：道具商城列表/预览/试穿30秒倒计时/兑换扣积分/使用切换/跨页同步（options 设使用中→sidepanel 跟变）/恢复默认/竖向透明度滑块/Tab 切换
+5. 联调 OK 后**提交全部装扮+道具商城改动到 test 分支**（3 仓：插件 + 后端 + 协调文档）
+6. **sidepanel 静态框清理评估**：useSkin.ts 的 THEMES/FRAMES 静态数组目前保留（sidepanel AvatarWithFrame 回退用），后续若确认 sidepanel 也不需要静态框再单独清理
+
+#### 部署前
+7. **资源压缩/CDN**：assets/skin 背景图压到 ≤45KB 或切 CDN（useSkin.ts @TODO）
+8. **versionCode 升级**：发生产前 lib/api-config.ts APP_VERSION_CODE +1（当前=1）
+
+### 当前 git 状态
+- 插件仓 test 分支：装扮+道具商城+试穿+Tab 重构 全部未 commit
+- 后端仓 test 分支：道具商城后端 13 新文件+2改 未 commit
+- hub 仓：docs/coordination/2026-07-17-prop-shop.md 未 commit
+- 三仓 master 全锁定，不 merge 不直推

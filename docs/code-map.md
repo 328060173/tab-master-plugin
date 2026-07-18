@@ -182,6 +182,7 @@ node -e "const fs=require('fs');const sfc=require('./node_modules/.pnpm/@vue+com
 | 分组 | `composables/useTabGroups.ts` |
 | 聚焦模式 | `composables/useFocusMode.ts` |
 | 设置 | `composables/useSettings.ts` + `types/settings.ts` |
+| 主题装扮(静态) | `composables/useSkin.ts` + `components/AvatarWithFrame.vue` + `assets/skin/skin-overlay.css` + `lib/md5.ts` |
 | 浏览历史(可选权限) | `composables/useHistory.ts` |
 | 清理/检测 | `composables/useCleanup.ts` |
 | 日志 | `composables/useLogger.ts` + `tabs/logs.vue` |

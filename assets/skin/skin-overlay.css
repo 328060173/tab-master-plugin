@@ -1,0 +1,74 @@
+/**
+ * 主题装扮全局叠加层（PRD avatar-theme-visual §2.4 / §5.1.8）
+ *
+ * 引入位置：useSkin.ts 顶部 `import '~assets/skin/skin-overlay.css'`，
+ * 任何使用 useSkin 的页面（options / sidepanel）都会加载这份规则。
+ *
+ * 零回归红线：所有 CSS 变量都带 fallback，未启用主题时取 fallback，
+ * 与现状像素级一致。消费点用 `var(--tm-skin-xxx, <原值>)` 形式。
+ *
+ * 变量清单（由 useSkin.applySkin 写入 :root.style）：
+ *   --tm-skin-primary        主色，默认 #2563eb（blue-600）
+ *   --tm-skin-accent-bg      背景叠加渐变，默认 transparent
+ *   --tm-skin-page-bg-image  背景图 url()，默认 none
+ *   --tm-skin-card-radius    卡片圆角，默认 0.5rem
+ *   --tm-skin-card-border    卡片边框，默认 1px solid rgba(229,231,235,1)
+ *   --tm-skin-bg-opacity     背景图透明度，默认 0（启用带图主题时 0.18）
+ */
+
+/* ====== body 背景图层（PRD §2.4） ======
+ * 走 body::before 伪元素，铺满整页，z-index: 0 在内容之下。
+ * 内容层需保证自身背景/层级在 0 之上（options/sidepanel 现有结构已满足）。
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: var(--tm-skin-page-bg-image, none);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: var(--tm-skin-bg-opacity, 0);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ====== 彩虹流光头像框（PRD §5.1.8，无图，纯 CSS 动画） ======
+ * 用 conic-gradient 做彩色环，radial mask 把中心挖透明露出头像。
+ * 4s 一圈缓慢旋转，不抢注意力。
+ */
+.tm-frame-rainbow {
+  background: conic-gradient(
+    from 0deg,
+    #ef4444, #f59e0b, #10b981, #3b82f6, #8b5cf6, #ec4899, #ef4444
+  );
+  border-radius: 50%;
+  -webkit-mask: radial-gradient(circle, transparent 60%, black 62%);
+  mask: radial-gradient(circle, transparent 60%, black 62%);
+  animation: tm-rainbow-spin 4s linear infinite;
+}
+@keyframes tm-rainbow-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ====== 主题感知工具类（可选消费点） ======
+ * 未启用主题时取 fallback，与现状一致。
+ * 用 !important 是为了覆盖 Tailwind 原子类（bg-blue-600 等），
+ * 暗色模式仍由 html.dark 的覆盖规则优先（其也带 !important 且选择器更具体）。
+ */
+.tm-skin-primary-bg {
+  background-color: var(--tm-skin-primary, #2563eb);
+}
+.tm-skin-primary-bg:hover {
+  filter: brightness(0.92);
+}
+.tm-skin-primary-text {
+  color: var(--tm-skin-primary, #2563eb);
+}
+.tm-skin-primary-border {
+  border-color: var(--tm-skin-primary, #3b82f6);
+}
+.tm-skin-card {
+  border-radius: var(--tm-skin-card-radius, 0.5rem);
+  border: var(--tm-skin-card-border, 1px solid rgba(229, 231, 235, 1));
+}

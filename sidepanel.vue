@@ -1,5 +1,7 @@
 <template>
-  <div class="h-screen flex flex-col bg-white text-gray-900 overflow-hidden text-sm">
+  <!-- root 不设 bg：白色底移到 body（见 <style>），让 body::before 的主题背景图（z-index:0）
+       能从 root 的透明间隙透出来。relative + z-index:1 把内容层抬到 ::before 之上（参考 options.vue）。 -->
+  <div class="h-screen flex flex-col text-gray-900 overflow-hidden text-sm relative" style="z-index: 1;">
     <div v-if="toastMsg" class="fixed top-3 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 bg-gray-800 text-white text-xs rounded-full shadow-lg pointer-events-none">{{ toastMsg }}</div>
 
     <!-- Storage Panel -->
@@ -22,6 +24,15 @@
               : 'hover:bg-gray-100 text-gray-400 hover:text-gray-600 dark:hover:bg-gray-700']"
           @click.stop="toggleFocusHelpFromEvent">
           <HelpCircle :size="14" />
+        </button>
+        <!-- 已登录态头像（含装扮头像框）：点按跳 options 个人中心；frameId 取自 useSkin 单例 -->
+        <button
+          v-if="isLoggedIn"
+          class="shrink-0 rounded-full hover:ring-2 hover:ring-blue-200 dark:hover:ring-blue-700 transition-shadow"
+          title="个人中心"
+          @click.stop="openOptionsForUser"
+        >
+          <AvatarWithFrame :email="userEmail" :size="38" />
         </button>
         <HeaderMenu
           @open-storage="showStorage = true"
@@ -59,6 +70,15 @@
             <HelpCircle :size="14" />
           </button>
         </div>
+        <!-- 已登录态头像（含装扮头像框）：点按跳 options 个人中心；frameId 取自 useSkin 单例 -->
+        <button
+          v-if="isLoggedIn"
+          class="shrink-0 rounded-full hover:ring-2 hover:ring-blue-200 dark:hover:ring-blue-700 transition-shadow"
+          title="个人中心"
+          @click.stop="openOptionsForUser"
+        >
+          <AvatarWithFrame :email="userEmail" :size="38" />
+        </button>
         <HeaderMenu
           @open-storage="showStorage = true"
           @reload="reloadPanel"
@@ -645,6 +665,7 @@ import UpdateBanner from "~components/UpdateBanner.vue"
 import AdBanner from "~components/AdBanner.vue"
 import NoticeBar from "~components/NoticeBar.vue"
 import { useAuth } from "~composables/useAuth"
+import { useSkin } from "~composables/useSkin"
 import { useVersionCheck } from "~composables/useVersionCheck"
 import { useAd } from "~composables/useAd"
 import { useNotice } from "~composables/useNotice"
@@ -689,6 +710,7 @@ import GroupListPage from "~components/GroupListPage.vue"
 import GroupBadge from "~components/GroupBadge.vue"
 import HistoryList from "~components/HistoryList.vue"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
+import AvatarWithFrame from "~components/AvatarWithFrame.vue"
 import type { TabItem } from "~types/tab"
 import { isMac } from "~lib/platform"
 
@@ -704,7 +726,17 @@ const {
 
 // ========== 登录引导 Banner 逻辑 ==========
 const showLoginBanner = ref(false)
-const { isLoggedIn, sessionExpired, clearSessionExpired, fetchUser } = useAuth()
+const { isLoggedIn, user, sessionExpired, clearSessionExpired, fetchUser } = useAuth()
+// 装扮主题（背景图 + 头像框状态）：onMounted 自动从 storage 恢复持久化主题到 :root；
+// storage.onChanged 已在 useSkin 内注册，options 改主题这里自动同步，无需额外监听
+useSkin()
+
+// 头像点击：跳 options 个人中心（与 HeaderMenu「邮箱行」入口一致）
+const openOptionsForUser = () => {
+  try { chrome.runtime.openOptionsPage() } catch (e) { console.warn("openOptionsPage failed", e) }
+}
+// 用户邮箱（未登录为空字符串，AvatarWithFrame 仅在 isLoggedIn 时渲染，此处仅传值）
+const userEmail = computed(() => user.value?.email ?? "")
 // 版本检查（静默失败，不阻塞 UI；强制更新顶部弹框）
 const { updateInfo, shouldShowBanner: shouldShowUpdateBanner, dismiss: dismissUpdate, openUpdatePage } = useVersionCheck()
 function onDismissUpdate() { dismissUpdate() }
@@ -1663,7 +1695,7 @@ const handleCtxAction = (action: string, data?: any) => {
 @tailwind components;
 @tailwind utilities;
 * { box-sizing: border-box; }
-body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color: #ffffff; }
 
 /* ======================================================================
  * 字号档位 —— 通过改 :root font-size 让 Tailwind rem 类自动响应
@@ -1702,7 +1734,7 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
  * 覆盖范围：背景、文字、边框、hover 态、divide 边框
  * 不覆盖：blue/red/green 等品牌色（保持视觉锚点）、shadow（深色已经够低对比）
  * ====================================================================== */
-html.dark body { background-color: #111827; color: #e5e7eb; }
+html.dark body { background-color: #1f2937; color: #e5e7eb; }
 
 html.dark .bg-white         { background-color: #1f2937 !important; }
 html.dark .bg-gray-50       { background-color: #1f2937 !important; }

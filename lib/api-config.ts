@@ -47,14 +47,27 @@ export const API_URIS = {
   adList: "/ad/list",
   checkVersion: "/version/check-version",
   customerMy: "/customer/my",
+  // 更新性别（2026-07-18 性别头像，对应后端 OuuCustomerController#updateSex）
+  customerUpdateSex: "/customer/update-sex",
   // 签到/积分（2026-07-17 个人中心用，对应后端 OuuCustomerController）
   checkinToday: "/customer/checkin/today",
   checkin: "/customer/checkin",
   pointsBill: "/customer/points/bill",
   noticePageList: "/notice/page-list",
   settingMenuList: "/setting/menu-list",
-  logout: "/logout"
+  logout: "/logout",
+  // 道具商城（2026-07-17，对应后端 OuuPropController）
+  propList: "/prop/list",
+  propExchange: "/prop/exchange"
 } as const
+
+/**
+ * 道具详情 URI（按 id 拼接）：GET /prop/{id}
+ * 单独函数：API_URIS 是 as const 字符串表，路径变量不能静态化
+ */
+export function propDetailUri(id: number | string): string {
+  return `/prop/${id}`
+}
 
 // 产品 appCode 注册表（值由后端分配，与官网 ouu-web-official 的 config/headers.ts 对齐）
 // 插件当前仅启用 tabMaster；bookmarkMaster / translateMaster 为多产品预留

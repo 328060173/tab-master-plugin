@@ -43,7 +43,7 @@
             @click="onOpenMine"
           >
             <span class="flex items-center gap-2">
-              <User :size="13" />
+              <AvatarWithFrame :email="userEmail" :size="32" />
               <span class="truncate max-w-[150px]">{{ userEmail }}</span>
               <template v-if="isVip">
                 <Crown :size="11" class="text-yellow-500" />
@@ -180,6 +180,15 @@
           <span class="flex-1 text-left">{{ opt.label }}</span>
           <Check v-if="settings.theme === opt.value" :size="12" class="text-blue-600 dark:text-blue-400" />
         </button>
+        <!-- 分隔线 + 装扮主题入口（跳 options 主题装扮 section，静态阶段简化融合） -->
+        <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+        <button
+          class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 text-left"
+          @click="onOpenSkinOptions"
+        >
+          <Sparkles :size="12" />
+          <span class="flex-1 text-left">装扮主题…</span>
+        </button>
       </div>
 
       <!-- ====== 二级子菜单：字号 ====== -->
@@ -245,8 +254,8 @@ import { ref, computed, watch } from "vue"
 import {
   Settings, LogIn, Palette, Type, Layout, HardDrive,
   Sliders, RotateCcw, Sun, Moon, Monitor, Check, ChevronLeft, ScrollText,
-  User, Crown, Link as LinkIcon,
-  BookOpen, HelpCircle, MessageSquare, Mail
+  Crown, Link as LinkIcon,
+  BookOpen, HelpCircle, MessageSquare, Mail, Sparkles
 } from "@lucide/vue"
 import type { Component } from "vue"
 
@@ -269,6 +278,7 @@ import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos, computeFlyoutPos } from "~lib/popoverPosition"
 import { useAuth } from "~composables/useAuth"
 import { useSettingMenu } from "~composables/useSettingMenu"
+import AvatarWithFrame from "~components/AvatarWithFrame.vue"
 import { t } from "~lib/i18n"
 
 const emit = defineEmits<{
@@ -362,6 +372,12 @@ const onOpenLogs = () => {
 const onPickTheme = (v: "light" | "dark" | "system") => {
   updateSetting("theme", v)
   popover.close("header-menu")
+}
+// 装扮主题入口：跳 options 页主题装扮 section（静态阶段简化融合，
+// 细节如「自定义：春樱初绽」状态显示等用户确认效果后再做）
+const onOpenSkinOptions = () => {
+  popover.close("header-menu")
+  try { chrome.runtime.openOptionsPage() } catch (e) { console.warn("openOptionsPage failed", e) }
 }
 const onPickFontSize = (v: "normal" | "large" | "xlarge") => {
   updateSetting("fontSize", v)
