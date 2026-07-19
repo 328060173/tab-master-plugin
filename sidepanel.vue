@@ -1353,10 +1353,14 @@ const setViewMode = (v: string) => {
     treeGuideShown.value = true
     safeSet({ treeGuideShown: true }, "sidepanel")
   }
+  // 切视图后列表重建，当前激活标签可能滚出视野，重新锚定（树形视图元素结构不同，跳过）
+  if (v !== "tree") scrollToActive(activeTabId.value ?? undefined)
 }
 const setSortMode = (v: string) => {
   sortMode.value = v
   localStorage.setItem("sortMode", v)
+  // 切排序后列表重排，当前激活标签可能滚出视野，重新锚定到它（居中高亮）
+  scrollToActive(activeTabId.value ?? undefined)
 }
 
 // 树形视图引导：黄条点击/首次切换自动打开
@@ -1433,9 +1437,12 @@ onUnmounted(() => {
 const scrollToActive = (activeId: number | undefined) => {
   if (!activeId) return
   // 等 Vue 完成 computed 链 + DOM 渲染（两个 tick + 一次宏任务）
+  // 切排序/视图后列表重排，需等 DOM 重建才能定位到新位置的元素
   nextTick(() => setTimeout(() => {
-    if (!contentRef.value) return
-    const el = contentRef.value.querySelector(`[data-tabid="${activeId}"]`) as HTMLElement | null
+    // home 普通态滚动容器是 homeTabsScrollRef；其它页是 contentRef
+    const container = homeTabsScrollRef.value ?? contentRef.value
+    if (!container) return
+    const el = container.querySelector(`[data-tabid="${activeId}"]`) as HTMLElement | null
     el?.scrollIntoView({ block: "center", behavior: "smooth" })
   }, 0))
 }
