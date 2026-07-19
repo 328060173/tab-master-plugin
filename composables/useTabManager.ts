@@ -1,3 +1,5 @@
+import { isDev } from "~lib/env"
+import { toPure } from "~lib/toPure"
 import { ref, watch } from "vue"
 import { useSettings } from "~composables/useSettings"
 import type { TabItem, LaterItem, ClosedTabItem } from "~types/tab"
@@ -15,7 +17,6 @@ function isProtectedUrl(url: string) {
 // chrome.storage.local.set 内部用结构化克隆序列化参数；Vue reactive proxy 数组会被克隆成
 // 数字键对象（["工作"] → {"0":"工作"}），读回时 Array.isArray 失败被当脏数据丢弃（标记全丢）。
 // 所有写 storage 前用此函数转成纯 JSON 值，杜绝 proxy 污染。
-const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 // 清洗 tabTagsMap：外层必须是普通 object，每个 value 必须是 string 数组；坏的都丢
 // 历史脏数据（旧版本 / 调试残留）会让 tab.tags 变 Object，导致 Vue render 函数对 .tags 做 spread/迭代时全局崩溃
 function sanitizeTabTagsMap(raw: unknown): Record<string, string[]> {
@@ -105,7 +106,7 @@ function useTabManagerImpl() {
       const raw = await chrome.tabs.query({ currentWindow: true })
 
       // 诊断日志：开始 loadTabs
-      if (!!(import.meta as any).env?.DEV) {
+      if (!!isDev) {
         console.debug("[tab-master:tags] loadTabs 开始", {
           queryTabsCount: raw.length,
           currentTabTagsMapKeys: Object.keys(tabTagsMap.value).length,
@@ -157,7 +158,7 @@ function useTabManagerImpl() {
       })
 
       // 诊断日志：回填完成
-      if (!!(import.meta as any).env?.DEV) {
+      if (!!isDev) {
         const tabsWithTags = tabs.value.filter(t => t.tags.length > 0)
         console.debug("[tab-master:tags] loadTabs 回填完成", {
           totalTabs: tabs.value.length,
@@ -181,7 +182,7 @@ function useTabManagerImpl() {
       const data = await chrome.storage.local.get(["laterTabs", "customTags", "tabTagsMap", "tabNumberMap", "recentlyClosed", "treeParentMap", "tabOpenedAtMap", "tabLastAccessedMap", "tagSelectMode", "tagsSessionNoticeShown"])
 
       // 诊断日志：读取到的数据
-      if (!!(import.meta as any).env?.DEV) {
+      if (!!isDev) {
         console.debug("[tab-master:tags] loadLater 读取 storage 成功", {
           tabTagsMapKeys: Object.keys(data.tabTagsMap || {}).length,
           customTagsLength: (data.customTags || []).length,
@@ -214,7 +215,7 @@ function useTabManagerImpl() {
       tagSelectMode.value = data.tagSelectMode === "multi" ? "multi" : "single"
 
       // 诊断日志：处理后的数据
-      if (!!(import.meta as any).env?.DEV) {
+      if (!!isDev) {
         console.debug("[tab-master:tags] loadLater 处理完成", {
           tabTagsMapKeysAfter: Object.keys(tabTagsMap.value).length,
           customTagsLengthAfter: customTags.value.length,
@@ -225,7 +226,7 @@ function useTabManagerImpl() {
       console.warn("[tab-master] loadLater 失败，保留当前内存数据；loadTabs 会继续执行不阻塞 UI：", e)
 
       // 诊断日志：异常情况
-      if (!!(import.meta as any).env?.DEV) {
+      if (!!isDev) {
         console.error("[tab-master:tags] loadLater 异常，保留当前内存数据", { error: e })
       }
 
@@ -312,7 +313,7 @@ function useTabManagerImpl() {
     tabTagsMap.value = { ...tabTagsMap.value, [String(id)]: tags }
 
     // 诊断日志：写入前
-    if (!!(import.meta as any).env?.DEV) {
+    if (!!isDev) {
       console.debug("[tab-master:tags] updateTabTags 写入 storage", {
         tabId: id,
         tags: tags,
@@ -323,7 +324,7 @@ function useTabManagerImpl() {
     await chrome.storage.local.set({ tabTagsMap: toPure(tabTagsMap.value) })
 
     // 诊断日志：写入后回读验证
-    if (!!(import.meta as any).env?.DEV) {
+    if (!!isDev) {
       const verifyData = await chrome.storage.local.get(["tabTagsMap"])
       console.debug("[tab-master:tags] updateTabTags 回读验证", {
         tabId: id,
@@ -663,7 +664,7 @@ function useTabManagerImpl() {
     if (document.visibilityState !== 'visible') return
 
     // 诊断日志：visibilitychange 触发
-    if (!!(import.meta as any).env?.DEV) {
+    if (!!isDev) {
       console.debug("[tab-master:tags] onVisibilityChange 触发", {
         hasRuntimeId: !!chrome.runtime?.id,
         currentTabTagsMapKeys: Object.keys(tabTagsMap.value).length

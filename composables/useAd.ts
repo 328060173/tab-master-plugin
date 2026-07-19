@@ -22,6 +22,7 @@
  * - 无缓存 → 展示内置静态占位广告（兜底 AdInfo，不发请求）
  */
 
+import { toPure } from "~lib/toPure"
 import { ref, computed } from 'vue'
 import { OFFICIAL_SITE_URL } from '~lib/api-config'
 import { BUSINESS_CONFIG } from '~config/app-config'
@@ -53,7 +54,6 @@ const FALLBACK_AD: AdInfo = {
   duration: BUSINESS_CONFIG.adDefaultDuration
 }
 
-const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
 // 今天日期字符串（用 toDateString 与版本检查一致）
 function todayStr(): string {

@@ -25,7 +25,3 @@ export function getDomainLabel(domain: string): string {
   }
   return ""
 }
-
-export function getAllDomains(): DomainEntry[] {
-  return entries
-}

@@ -18,6 +18,7 @@
  * - 跳转前用 isSafeExternalLink 校验 settingUrl，非 http(s) 不跳（防 javascript: 等危险协议；不查黑名单，dev 环境 localhost 官网可跳）
  */
 
+import { toPure } from "~lib/toPure"
 import { ref, computed } from 'vue'
 import type { SettingMenuCacheData, SettingMenuItem } from '~types/setting'
 import { MENU_SITE_URL } from '~lib/api-config'
@@ -25,7 +26,6 @@ import { isRenderableImgSrc, isSafeExternalLink } from '~lib/external-resource'
 
 const SETTING_MENU_CACHE_KEY = 'tabMasterSettingMenuCache'
 
-const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
 // 固定菜单项，始终渲染在前，后端 /setting/menu-list 下发的自定义菜单追加其后（不替换、不减少）
 // URL 用 MENU_SITE_URL（lib/api-config.ts，默认生产官网 ouu365.com）。

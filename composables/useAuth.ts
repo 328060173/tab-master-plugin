@@ -11,6 +11,7 @@
  * 关键：storage 写 reactive 数据必须 toPure()
  */
 
+import { toPure } from "~lib/toPure"
 import { ref, computed } from 'vue'
 import { setTokenGetter, setLoggedInGetter, setAuthExpiredHandler, post, get } from '~lib/api'
 import { API_URIS } from '~lib/api-config'
@@ -48,7 +49,6 @@ const DEFAULT_AUTH: TabMasterAuth = {
 }
 
 // 防 proxy 污染的 toPure 工具（与 useTabManager 保持一致）
-const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
 // 清洗 auth 数据，防止脏数据导致崩溃
 function sanitizeAuth(raw: unknown): TabMasterAuth {

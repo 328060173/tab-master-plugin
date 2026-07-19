@@ -663,6 +663,7 @@
 </template>
 
 <script setup lang="ts">
+import { isDev } from "~lib/env"
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn, MoreHorizontal } from "@lucide/vue"
 import UpdateBanner from "~components/UpdateBanner.vue"
@@ -997,12 +998,12 @@ watch(customTags, (newTags) => {
 })
 // 处理添加标记
 const handleAddTag = async (tag: string) => {
-  if (!!(import.meta as any).env?.DEV) {
+  if (!!isDev) {
     console.debug("[tab-master:tags] handleAddTag 被调用", { tag, currentCustomTags: customTags.value })
   }
   const success = await addCustomTag(tag)
   if (success) {
-    if (!!(import.meta as any).env?.DEV) {
+    if (!!isDev) {
       console.debug("[tab-master:tags] handleAddTag 成功，准备 showToast")
     }
     showToast(`已添加标记「${tag}」`)
@@ -1276,7 +1277,7 @@ const navItems = [
 ]
 
 const showToast = (msg: string) => {
-  if (!!(import.meta as any).env?.DEV) {
+  if (!!isDev) {
     console.debug("[tab-master:tags] showToast 被调用", { msg })
   }
   toastMsg.value = msg

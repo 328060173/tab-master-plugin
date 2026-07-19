@@ -12,6 +12,7 @@
  * 静默失败策略沿用：无缓存则不显示横幅（不阻塞用户）
  */
 
+import { toPure } from "~lib/toPure"
 import { ref, computed } from 'vue'
 import type { UpdateInfo, VersionCacheData, VersionData } from '~types/version'
 
@@ -35,7 +36,6 @@ const DEFAULT_STATE: VersionCheckState = {
 }
 
 // 防 proxy 污染的 toPure 工具
-const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
 // 清洗存储数据
 function sanitizeState(raw: unknown): VersionCheckState {

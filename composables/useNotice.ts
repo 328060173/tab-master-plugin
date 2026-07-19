@@ -13,6 +13,7 @@
  * - 上限保护：readIds 超 1000 条时清最早的（防 storage 无限膨胀）
  */
 
+import { toPure } from "~lib/toPure"
 import { ref, computed } from 'vue'
 import type { NoticeCacheData, NoticeItem } from '~types/notice'
 
@@ -22,7 +23,6 @@ const NOTICE_CACHE_KEY = 'tabMasterNoticeCache'
 // readIds 上限：超此数量清最早的，防 storage 无限膨胀
 const READ_IDS_MAX = 1000
 
-const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
 // 清洗已读 id 列表
 function sanitizeReadIds(raw: unknown): number[] {

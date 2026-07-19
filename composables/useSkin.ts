@@ -16,6 +16,7 @@
  * - 明暗模式控制 dark class（亮/暗/系统），是底层明暗
  * - 装扮主题控制背景图+主色，是另一层装饰，两者叠加生效不互斥
  */
+import { toPure } from "~lib/toPure"
 import { ref, computed, onMounted } from 'vue'
 
 // 全局叠加层（body::before 背景图 + 彩虹头像框动画 + 主题工具类）
@@ -110,7 +111,6 @@ function skinOpacityKey(customerId: string): string {
 const SKIN_OPACITY_LIVE_KEY = 'tabMasterSkinBgOpacityLive'
 
 // 防 Vue reactive proxy 经结构化克隆变成数字键对象（[[lesson-reactive-proxy-storage-serialize]]）
-const toPure = <T>(x: T): T => JSON.parse(JSON.stringify(x))
 
 // ========== 单例状态 ==========
 // 用户手动调的背景透明度（0~1）；null=未手动调，用默认值（image=0.32 / solid=0.6）
