@@ -51,9 +51,6 @@
         <button class="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-center gap-1" @click="onPin">
           <Pin :size="10" />{{ item.pinned ? '取消固定' : '固定' }}
         </button>
-        <button v-if="!hideAddTag" class="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-center gap-1" @click="onClickTag">
-          <Tag :size="10" />标记
-        </button>
         <button class="px-2 py-1 text-[10px] rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-center gap-1" @click="onLater">
           <Clock :size="10" />稍后处理
         </button>
@@ -67,7 +64,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, computed } from "vue"
-import { RefreshCw, Link, Pin, Tag, Clock, X } from "@lucide/vue"
+import { RefreshCw, Link, Pin, Clock, X } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import { modKey } from "~lib/platform"
 import { usePopoverManager } from "~composables/usePopoverManager"
@@ -94,16 +91,6 @@ const onCopy = () => { popover.close(); emit('copy') }
 const onPin = () => { popover.close(); emit('pin') }
 const onLater = () => { popover.close(); emit('later') }
 const onClose = () => { popover.close(); emit('close') }
-
-// 标记按钮：把按钮 DOM 传给父组件，让它能用这个 DOM 做 anchor 打开 TagPicker
-// ⚠️ 不能先 popover.close()：HoverCard 卸载会导致 anchorEl DOM 被移除，
-//    popover.open 时 getBoundingClientRect 返回 0,0 → 弹框跑到左上角。
-//    缓存 currentTarget（事件结束后会被浏览器重置为 null），交给父组件 openFromAnchor
-//    调 popover.open（互斥机制会自动关掉 HoverCard，此时 rect 已存好）。
-const onClickTag = (e: MouseEvent) => {
-  const anchor = e.currentTarget as HTMLElement
-  emit('addTag', anchor)
-}
 
 // 移除单个标记：只 emit tag 名，由父组件转发到 sidepanel 主实例的 removeTabTag
 // （removeTabTag 内部用 tabs.value 查当前 tags 再 filter，不依赖 props.item.tags——

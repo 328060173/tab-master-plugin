@@ -43,11 +43,12 @@
       <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" />
       <div class="flex-1 min-w-0">
         <p class="text-sm font-medium text-gray-900 truncate group-hover:text-blue-700">{{ item.title }}</p>
-        <p v-if="item.laterNote" class="text-xs text-amber-600 mt-0.5 break-all">备注：{{ item.laterNote }}</p>
+        <!-- 添加时间 + 备注分两行，单行不换行（超长 truncate，title 显示完整） -->
+        <p class="text-[10px] text-gray-400 truncate mt-0.5">添加时间：{{ formatTime(item.laterAddedAt) }}</p>
+        <p v-if="item.laterNote" class="text-xs text-amber-600 truncate mt-0.5" :title="`备注：${item.laterNote}`">备注：{{ item.laterNote }}</p>
         <p class="text-[10px] text-gray-400 truncate">{{ item.url }}</p>
       </div>
       <div class="flex flex-col items-end gap-1 shrink-0">
-        <span class="text-xs text-gray-400">{{ item.laterAddedAt }}</span>
         <span class="text-[10px] text-blue-500 opacity-0 group-hover:opacity-100">点击打开 ↗</span>
       </div>
       <button class="p-1 rounded hover:bg-red-50 hover:text-red-600 text-gray-400 shrink-0" title="移除" @click.stop="askRemove(item)">
@@ -81,6 +82,14 @@ import FavIcon from "./FavIcon.vue"
 defineProps<{ items: LaterItem[] }>()
 const emit = defineEmits(["remove", "open"])
 const showHelp = ref(false)
+// laterAddedAt 存 ISO 字符串（如 2026-07-19T03:45:12.123Z），格式化成 年-月-日 时:分:秒
+function formatTime(iso: string): string {
+  if (!iso) return ""
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
 // 移除确认：点叉号先弹确认，避免误删稍后处理记录
 const removing = ref<LaterItem | null>(null)
 const askRemove = (item: LaterItem) => { removing.value = item }
