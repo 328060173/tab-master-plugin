@@ -10,9 +10,9 @@
             你可以随时在「稍后处理」Tab 中找到它，点击即可重新打开。
           </p>
         </div>
-        <p class="text-xs text-gray-500 mb-2">备注（可选）</p>
+        <p class="text-xs text-gray-500 mb-2">备注（可选，最多 15 字）</p>
         <input
-          v-model="note" type="text" ref="inputRef"
+          v-model="note" type="text" ref="inputRef" maxlength="15"
           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="备注内容..."
           @keydown.enter="confirm" @keydown.esc="emit('close')"

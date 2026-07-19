@@ -43,18 +43,33 @@
       <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" />
       <div class="flex-1 min-w-0">
         <p class="text-sm font-medium text-gray-900 truncate group-hover:text-blue-700">{{ item.title }}</p>
-        <p v-if="item.laterNote" class="text-xs text-amber-600 truncate mt-0.5">备注：{{ item.laterNote }}</p>
+        <p v-if="item.laterNote" class="text-xs text-amber-600 mt-0.5 break-all">备注：{{ item.laterNote }}</p>
         <p class="text-[10px] text-gray-400 truncate">{{ item.url }}</p>
       </div>
       <div class="flex flex-col items-end gap-1 shrink-0">
         <span class="text-xs text-gray-400">{{ item.laterAddedAt }}</span>
         <span class="text-[10px] text-blue-500 opacity-0 group-hover:opacity-100">点击打开 ↗</span>
       </div>
-      <button class="p-1 rounded hover:bg-red-50 hover:text-red-600 text-gray-400 shrink-0" title="移除" @click.stop="emit('remove', item.id)">
+      <button class="p-1 rounded hover:bg-red-50 hover:text-red-600 text-gray-400 shrink-0" title="移除" @click.stop="askRemove(item)">
         <X :size="13" />
       </button>
     </div>
   </div>
+
+  <!-- 移除确认弹框 -->
+  <Teleport to="body">
+    <div v-if="removing" class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center" @click.self="removing = null">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-72 p-5">
+        <h3 class="text-sm font-bold mb-2 text-gray-900 dark:text-gray-100">确认移除这条稍后处理？</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-1 break-all">「{{ removing.title }}」</p>
+        <p class="text-xs text-red-500 mb-4">移除后该记录将清除，如需找回请用浏览器历史。</p>
+        <div class="flex gap-2 justify-end">
+          <button class="px-4 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200" @click="removing = null">取消</button>
+          <button class="px-4 py-1.5 text-sm rounded-lg bg-red-500 text-white hover:bg-red-600" @click="confirmRemove">确认移除</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -66,4 +81,11 @@ import FavIcon from "./FavIcon.vue"
 defineProps<{ items: LaterItem[] }>()
 const emit = defineEmits(["remove", "open"])
 const showHelp = ref(false)
+// 移除确认：点叉号先弹确认，避免误删稍后处理记录
+const removing = ref<LaterItem | null>(null)
+const askRemove = (item: LaterItem) => { removing.value = item }
+const confirmRemove = () => {
+  if (removing.value) emit("remove", removing.value.id)
+  removing.value = null
+}
 </script>

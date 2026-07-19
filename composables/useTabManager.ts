@@ -287,7 +287,9 @@ function useTabManagerImpl() {
   const moveToLater = async (id: number, note: string) => {
     const tab = tabs.value.find(t => t.id === id)
     if (!tab) return
-    laterTabs.value = [...laterTabs.value, { ...tab, laterNote: note, laterAddedAt: nowTime() }]
+    // 备注限 15 字（LaterDialog maxlength=15，这里兜底防脏数据/超长）
+    const safeNote = (note || "").trim().slice(0, 15)
+    laterTabs.value = [...laterTabs.value, { ...tab, laterNote: safeNote, laterAddedAt: nowTime() }]
     await chrome.storage.local.set({ laterTabs: toPure(laterTabs.value) })
     await closeTab(id)
   }

@@ -2,6 +2,7 @@
   <div>
     <!-- 分组行（有子项时） -->
     <div v-if="children.length"
+      :data-tabid="item.id"
       :style="{ paddingLeft: depth * 16 + 'px' }"
       :class="['flex items-center gap-1.5 py-1.5 pr-2 rounded group cursor-pointer relative', dropClass('group'), isBatch && isChecked ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/20' : item.active ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800']"
       draggable="true"
@@ -42,6 +43,7 @@
 
     <!-- 叶子行（无子项） -->
     <div v-if="!children.length"
+      :data-tabid="item.id"
       :style="{ paddingLeft: (depth ?? 0) * 16 + 8 + 'px' }"
       :class="['flex items-center gap-1.5 py-1.5 pr-2 rounded cursor-pointer group relative', dropClass('leaf'), isBatch && isChecked ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/20' : item.active ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800']"
       draggable="true"

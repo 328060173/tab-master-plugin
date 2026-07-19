@@ -1353,8 +1353,9 @@ const setViewMode = (v: string) => {
     treeGuideShown.value = true
     safeSet({ treeGuideShown: true }, "sidepanel")
   }
-  // 切视图后列表重建，当前激活标签可能滚出视野，重新锚定（树形视图元素结构不同，跳过）
-  if (v !== "tree") scrollToActive(activeTabId.value ?? undefined)
+  // 切视图后列表重建，当前激活标签可能滚出视野，重新锚定（含树形，data-tabid 已加到 TabTreeItem）
+  // 树形若 active 标签在折叠子树内则 DOM 未渲染、锚定不到，属可接受边界
+  scrollToActive(activeTabId.value ?? undefined)
 }
 const setSortMode = (v: string) => {
   sortMode.value = v

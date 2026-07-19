@@ -96,9 +96,13 @@ const onLater = () => { popover.close(); emit('later') }
 const onClose = () => { popover.close(); emit('close') }
 
 // 标记按钮：把按钮 DOM 传给父组件，让它能用这个 DOM 做 anchor 打开 TagPicker
+// ⚠️ 不能先 popover.close()：HoverCard 卸载会导致 anchorEl DOM 被移除，
+//    popover.open 时 getBoundingClientRect 返回 0,0 → 弹框跑到左上角。
+//    缓存 currentTarget（事件结束后会被浏览器重置为 null），交给父组件 openFromAnchor
+//    调 popover.open（互斥机制会自动关掉 HoverCard，此时 rect 已存好）。
 const onClickTag = (e: MouseEvent) => {
-  popover.close()
-  emit('addTag', e.currentTarget as HTMLElement)
+  const anchor = e.currentTarget as HTMLElement
+  emit('addTag', anchor)
 }
 
 // 移除单个标记：只 emit tag 名，由父组件转发到 sidepanel 主实例的 removeTabTag
