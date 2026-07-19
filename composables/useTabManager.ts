@@ -1,4 +1,5 @@
 import { isDev } from "~lib/env"
+import { safeSet } from "~lib/safeStorage"
 import { toPure } from "~lib/toPure"
 import { ref, watch } from "vue"
 import { useSettings } from "~composables/useSettings"
@@ -10,6 +11,20 @@ function getDomain(url: string) {
 }
 function nowTime() {
   return new Date().toISOString()
+}
+// reload 节流（稳定性红线④）：chrome.runtime.id 失效持续时裸 reload 会无限循环闪白屏 + CPU 满。
+// sessionStorage 记上次 reload 时间，10s 内不重 reload。
+const RELOAD_THROTTLE_KEY = "tabMasterLastReload"
+function safeReload(reason: string) {
+  try {
+    const last = Number(sessionStorage.getItem(RELOAD_THROTTLE_KEY) || 0)
+    if (Date.now() - last < 10000) {
+      console.warn(`[tab-master] reload 被节流（${reason}），扩展可能已失效，请手动重新启用`)
+      return
+    }
+    sessionStorage.setItem(RELOAD_THROTTLE_KEY, String(Date.now()))
+  } catch {}
+  window.location.reload()
 }
 function isProtectedUrl(url: string) {
   return url.startsWith("chrome://") || url.startsWith("edge://") || url.startsWith("about:") || url.startsWith("chrome-extension://")
@@ -128,7 +143,7 @@ function useTabManagerImpl() {
           newEntries[String(t.id!)] = new Date(baseTime - (unseenTabs.length - 1 - i) * 60000).toISOString()
         })
         tabOpenedAtMap.value = { ...tabOpenedAtMap.value, ...newEntries }
-        chrome.storage.local.set({ tabOpenedAtMap: toPure(tabOpenedAtMap.value) })
+        safeSet({ tabOpenedAtMap: toPure(tabOpenedAtMap.value) }, "tabManager")
       }
 
       // 父子关系回填：扩展首次安装 / 数据被清空 / 跨会话后，treeParentMap 可能没记录
@@ -144,7 +159,7 @@ function useTabManagerImpl() {
       }
       if (Object.keys(parentBackfill).length) {
         treeParentMap.value = { ...treeParentMap.value, ...parentBackfill }
-        chrome.storage.local.set({ treeParentMap: toPure(treeParentMap.value) })
+        safeSet({ treeParentMap: toPure(treeParentMap.value) }, "tabManager")
       }
 
       tabs.value = raw.map((t) => {
@@ -174,7 +189,7 @@ function useTabManagerImpl() {
       if (active) activeTabId.value = active.id
     } catch (e) {
       console.error("[tab-master] loadTabs 异常", e)
-      if (!chrome.runtime?.id) window.location.reload()
+      if (!chrome.runtime?.id) safeReload("loadTabs 失效")
     }
   }
   const loadLater = async () => {
@@ -486,7 +501,7 @@ function useTabManagerImpl() {
       newMap[String(tabId)] = parentId
     }
     treeParentMap.value = newMap
-    await chrome.storage.local.set({ treeParentMap: toPure(newMap) })
+    await safeSet({ treeParentMap: toPure(newMap) }, "tabManager")
   }
 
   // 树形拖拽：调整标签顺序（调用 Chrome API）
@@ -559,8 +574,29 @@ function useTabManagerImpl() {
     delete atMap[String(id)]
     tabOpenedAtMap.value = atMap
     storageUpdate.tabOpenedAtMap = atMap
+    // 清理标记映射（防 storage 累积撑爆，稳定性红线①）
+    if (tabTagsMap.value[String(id)] !== undefined) {
+      const newTagsMap = { ...tabTagsMap.value }
+      delete newTagsMap[String(id)]
+      tabTagsMap.value = newTagsMap
+      storageUpdate.tabTagsMap = newTagsMap
+    }
+    // 清理编号映射
+    if (tabNumberMap.value[String(id)] !== undefined) {
+      const newNumMap = { ...tabNumberMap.value }
+      delete newNumMap[String(id)]
+      tabNumberMap.value = newNumMap
+      storageUpdate.tabNumberMap = newNumMap
+    }
+    // 清理 UI 侧 lastAccessed 副本（SW 侧 background.ts 同步清）
+    if (tabLastAccessedMap.value[String(id)] !== undefined) {
+      const newAccMap = { ...tabLastAccessedMap.value }
+      delete newAccMap[String(id)]
+      tabLastAccessedMap.value = newAccMap
+      storageUpdate.tabLastAccessedMap = newAccMap
+    }
     // 一次性写入，减少 I/O
-    chrome.storage.local.set(toPure(storageUpdate))
+    safeSet(toPure(storageUpdate), "tabManager")
     const filtered = switchHistory.value.filter(h => h !== id)
     if (filtered.length !== switchHistory.value.length) {
       switchHistory.value = filtered; switchIndex.value = Math.min(switchIndex.value, filtered.length - 1)
@@ -578,13 +614,13 @@ function useTabManagerImpl() {
       if (!wouldCreateCycle(t.id!, t.openerTabId, treeParentMap.value)) {
         const newMap = { ...treeParentMap.value, [String(t.id!)]: t.openerTabId }
         treeParentMap.value = newMap
-        chrome.storage.local.set({ treeParentMap: toPure(newMap) })
+        safeSet({ treeParentMap: toPure(newMap) }, "tabManager")
       }
     }
     const sid = String(t.id!)
     const openedAt = nowTime()
     tabOpenedAtMap.value = { ...tabOpenedAtMap.value, [sid]: openedAt }
-    chrome.storage.local.set({ tabOpenedAtMap: toPure(tabOpenedAtMap.value) })
+    safeSet({ tabOpenedAtMap: toPure(tabOpenedAtMap.value) }, "tabManager")
     tabs.value = [...tabs.value, chromeTabToItem(t, tabTagsMap.value, tabNumberMap.value, tabOpenedAtMap.value)]
   }
   const onTabUpdated = (_: number, change: chrome.tabs.TabChangeInfo, t: chrome.tabs.Tab) => {
@@ -671,7 +707,7 @@ function useTabManagerImpl() {
       })
     }
 
-    if (!chrome.runtime?.id) { window.location.reload(); return }
+    if (!chrome.runtime?.id) { safeReload("visibilitychange 失效"); return }
     loadTabs(); loadLater()
   }
 

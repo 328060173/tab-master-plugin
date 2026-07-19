@@ -84,7 +84,8 @@ function startTimer() {
   clearTimer()
   if (!props.ad) return
   const durationMs = props.ad.duration * 1000
-  const tickMs = 100
+  // 稳定性红线⑥：进度条别用 100ms tick（持续重排，低端机风扇响），250ms 足够平滑
+  const tickMs = 250
   const startedAt = Date.now()
   // 进度条更新
   progressTimer = setInterval(() => {

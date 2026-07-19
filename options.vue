@@ -471,6 +471,8 @@ import { computed, ref, onMounted, watch } from "vue"
 import { Sliders, LogIn, HelpCircle, Coins, X, Timer } from "@lucide/vue"
 import { useSettings } from "~composables/useSettings"
 import { useToast } from "~composables/useToast"
+import { installGlobalCapture, logError } from "~composables/useLogger"
+import { onErrorCaptured } from "vue"
 import { useAuth } from "~composables/useAuth"
 import { useSkin } from "~composables/useSkin"
 import { post, get } from "~lib/api"
@@ -583,6 +585,14 @@ const loginDialogOpen = ref(false)
 // 避免从「更多设置」进来的用户被强制弹登录框打扰
 // useAuth 构造时已触发 loadAuth（异步），首屏 isLoggedIn 可能尚未反映 storage 真实状态；
 // 这里独立查一次 storage（key 与 useAuth AUTH_KEY 一致，硬编码，未改 useAuth 导出常量）
+
+// 全局错误捕获（稳定性红线③）：拦截 window error/unhandledrejection/console.error 入运行日志页
+installGlobalCapture()
+onErrorCaptured((err, _instance, info) => {
+  logError("vue", `渲染错误：${err instanceof Error ? err.message : String(err)}`, { info, err })
+  return false
+})
+
 onMounted(async () => {
   // 刷新页面重走进入逻辑：拉道具列表 + 从本地恢复使用中态
   // useSkin.init() 已在 useSkin() 调用时 onMounted 触发，会自动 loadPurchasedActive（按 customerId）

@@ -665,6 +665,8 @@
 <script setup lang="ts">
 import { isDev } from "~lib/env"
 import { useToast } from "~composables/useToast"
+import { safeSet } from "~lib/safeStorage"
+import { installGlobalCapture, logError } from "~composables/useLogger"
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn, MoreHorizontal } from "@lucide/vue"
 import UpdateBanner from "~components/UpdateBanner.vue"
@@ -1338,7 +1340,7 @@ const setViewMode = (v: string) => {
   if (v === "tree" && !treeGuideShown.value) {
     treeGuideOpen.value = true
     treeGuideShown.value = true
-    chrome.storage.local.set({ treeGuideShown: true })
+    safeSet({ treeGuideShown: true }, "sidepanel")
   }
 }
 const setSortMode = (v: string) => {
@@ -1355,7 +1357,7 @@ chrome.storage.local.get("treeGuideShown").then((d) => {
   if (viewMode.value === "tree" && !treeGuideShown.value) {
     treeGuideOpen.value = true
     treeGuideShown.value = true
-    chrome.storage.local.set({ treeGuideShown: true })
+    safeSet({ treeGuideShown: true }, "sidepanel")
   }
 })
 // 模板里直接用 window.location.reload() 在 Vue 3 <script setup> 的求值上下文中找不到 window，
@@ -1381,6 +1383,14 @@ const onManualRefreshMyMsg = (msg: unknown) => {
     console.warn('[sidepanel] 手动刷新 /my 失败（静默）', e)
   })
 }
+
+// 全局错误捕获（稳定性红线③）：拦截 window error/unhandledrejection/console.error 入运行日志页，
+// + onErrorCaptured 兜底 Vue 渲染错误。不装=线上问题全看不到日志 + 顶层异常直接白屏。
+installGlobalCapture()
+onErrorCaptured((err, _instance, info) => {
+  logError("vue", `渲染错误：${err instanceof Error ? err.message : String(err)}`, { info, err })
+  return false // 阻止冒泡到 app 级默认 handler（已入库，避免控制台重复报）
+})
 
 onMounted(async () => {
   // 初始化聚焦模式

@@ -17,7 +17,13 @@ function handleStorageChange(changes: { [key: string]: chrome.storage.StorageCha
   if (areaName === 'local' && changes[STORAGE_KEY]) {
     const newSettings = changes[STORAGE_KEY].newValue
     if (newSettings) {
-      settings.value = { ...DEFAULT_SETTINGS, ...newSettings }
+      const merged = { ...DEFAULT_SETTINGS, ...newSettings }
+      // 稳定性红线⑤：等值短路。外部 storage 变更回写后 deep watch 会再写盘，
+      // 多页（sidepanel+options）同时打开会交叉 2-3 轮冗余写。等值则跳过。
+      try {
+        if (JSON.stringify(settings.value) === JSON.stringify(merged)) return
+      } catch {}
+      settings.value = merged
     }
   }
 }
