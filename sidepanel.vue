@@ -50,7 +50,8 @@
         <!-- 不重复显示标题（浏览器侧边栏标题栏已显示 manifest name），直接顶左显示标签数 -->
         <span class="text-xs text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">{{ tabs.length }} 个标签</span>
       </div>
-      <div class="flex items-center gap-1">
+      <div class="flex items-center gap-2">
+        <!-- 聚焦模式组：按钮 + 帮助问号（紧贴同组），组外 gap-2 与头像/菜单拉开 -->
         <div class="flex items-center gap-1 shrink-0">
           <button v-if="focusMode === 'normal'"
             :class="['px-2 py-1 text-xs rounded border transition-colors flex items-center gap-1',
@@ -58,7 +59,7 @@
             :disabled="!SUPPORTS_FOCUS_MODE"
             :title="!SUPPORTS_FOCUS_MODE ? '聚焦模式需要 Chrome 102+ 或 Edge 102+' : ''"
             @click="enterFocusSelectMode">
-            聚焦模式 开启
+            开启聚焦模式
           </button>
           <button v-else-if="focusMode === 'selecting'"
             class="px-2 py-1 text-xs text-blue-600 hover:underline"
