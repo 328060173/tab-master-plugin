@@ -821,6 +821,10 @@ function closePreview() {
 // 预览弹层内「试穿 30 秒」：复用 startTryon（与列表「试穿」按钮同链路），关弹层 + toast
 // 仅头像框预览弹层有此按钮（背景图预览弹层不变）；previewProp.propResourceUrl 已在 onPreview 时取到
 function onPreviewTryOn() {
+  if (!isLoggedIn.value) {
+    loginDialogOpen.value = true
+    return
+  }
   const p = previewProp.value
   if (!p) return
   const url = p.propResourceUrl
@@ -907,7 +911,7 @@ function onResetBg() {
 
 // ========== 试穿（PRD docs/coordination/2026-07-17-prop-shop.md §3） ==========
 // 试穿：未购道具点「试穿」→ GET /prop/{id} 取原图 → startTryon（30s 倒计时，跨页同步）
-// 试穿是临时态，不要求登录（未登录也可试穿，让用户先看效果再决定兑换）
+// 未登录禁止试穿：头像框试穿依赖用户头像，未登录只有灰色默认剪影，框套上去无意义 → 弹登录框
 const tryonLoadingId = ref<number | null>(null)
 
 // 试穿中道具名（提示条显示）
@@ -924,6 +928,10 @@ function isTryingOn(propId: number): boolean {
 
 async function onTryOn(p: PropListVO) {
   if (tryonLoadingId.value !== null) return
+  if (!isLoggedIn.value) {
+    loginDialogOpen.value = true
+    return
+  }
   tryonLoadingId.value = p.id
   try {
     const res = await get<{ code: number; msg: string; data: PropDetailVO }>(propDetailUri(p.id))
