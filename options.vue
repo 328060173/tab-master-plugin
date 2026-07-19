@@ -600,16 +600,20 @@ onMounted(async () => {
   loadPurchasedActive().catch((e) => console.warn('[options] loadPurchasedActive 失败', e))
   loadProps()
 
-  const from = new URLSearchParams(window.location.search).get('from')
-  if (from !== 'login') return
+  // 已登录则拉一次 /my 刷新积分/会员状态（本地 storage 是旧值，不联网永不更新）。
+  // fetchUser 静默失败不阻断（401 由 useAuth 自动登出）；与兑换后 Promise.all([loadProps, fetchUser]) 范式一致。
   try {
     const data = await chrome.storage.local.get('tabMasterAuth')
     const stored = data?.tabMasterAuth as { token?: string; user?: { id?: string } } | undefined
     const logged = !!(stored?.token && stored?.user?.id)
-    if (!logged) loginDialogOpen.value = true
+    if (logged) {
+      fetchUser().catch((e) => console.warn('[options] fetchUser 失败', e))
+    } else if (new URLSearchParams(window.location.search).get('from') === 'login') {
+      // 从登录页跳来但仍未登录 → 弹登录框
+      loginDialogOpen.value = true
+    }
   } catch (e) {
-    console.warn('[options] 读取登录态失败，默认弹登录框', e)
-    loginDialogOpen.value = true
+    console.warn('[options] 读取登录态失败', e)
   }
 })
 
