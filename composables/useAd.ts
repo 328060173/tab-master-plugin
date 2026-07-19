@@ -24,6 +24,7 @@
 
 import { toPure } from "~lib/toPure"
 import { ref, computed } from 'vue'
+import { isDev } from "~lib/env"
 import { OFFICIAL_SITE_URL } from '~lib/api-config'
 import { BUSINESS_CONFIG } from '~config/app-config'
 import type { AdCacheData, AdInfo, AdItem } from '~types/ad'
@@ -215,7 +216,7 @@ function useAdImpl() {
     c.adData = null
     try {
       await chrome.storage.local.set({ [AD_CACHE_KEY]: toPure(c) })
-      console.log('[ad] 当前广告已消费，adData 置 null，本窗口不再弹')
+      if (isDev) console.log('[ad] 当前广告已消费，adData 置 null，本窗口不再弹')
     } catch (e) {
       console.warn('[ad] 消费广告写缓存失败', e)
     }
@@ -229,7 +230,7 @@ function useAdImpl() {
     if (!currentAd.value) return
     state.value.shownCount++
     await saveState()
-    console.log(`[ad] 展示计数 ${state.value.shownCount}/${MAX_SHOW_PER_DAY}`)
+    if (isDev) console.log(`[ad] 展示计数 ${state.value.shownCount}/${MAX_SHOW_PER_DAY}`)
   }
 
   /**
@@ -242,7 +243,7 @@ function useAdImpl() {
       state.value.interactedAdIds.push(id)
       await saveState()
     }
-    console.log(`[ad] 用户点击广告 id=${id}，今天不再展示`)
+    if (isDev) console.log(`[ad] 用户点击广告 id=${id}，今天不再展示`)
     // 消费：清缓存素材，本时间窗口不再弹（等 SW 下次拉新广告）
     consumeCurrentAd()
     // 打开链接
@@ -262,7 +263,7 @@ function useAdImpl() {
       state.value.interactedAdIds.push(id)
       await saveState()
     }
-    console.log(`[ad] 用户关闭广告 id=${id}，今天不再展示`)
+    if (isDev) console.log(`[ad] 用户关闭广告 id=${id}，今天不再展示`)
     // 消费：清缓存素材，本时间窗口不再弹
     consumeCurrentAd()
     currentAd.value = null
@@ -272,7 +273,7 @@ function useAdImpl() {
    * 广告自动消失（duration 到）-> 消费当前广告素材（本窗口不再弹这条），但已计展示次数
    */
   function onAdExpired() {
-    console.log('[ad] 广告展示时长到，自动消失')
+    if (isDev) console.log('[ad] 广告展示时长到，自动消失')
     // 消费：清缓存素材，本时间窗口不再弹（展示即消费，看完自动消失也算消费）
     consumeCurrentAd()
     currentAd.value = null

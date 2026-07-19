@@ -14,6 +14,7 @@
  */
 
 import { toPure } from "~lib/toPure"
+import { isDev } from "~lib/env"
 import { ref, computed } from 'vue'
 import type { NoticeCacheData, NoticeItem } from '~types/notice'
 
@@ -123,7 +124,7 @@ function useNoticeImpl() {
       readIds.value = readIds.value.slice(readIds.value.length - READ_IDS_MAX)
     }
     await saveReadIds()
-    console.log(`[notice] 标记 ${newRead.length} 条为已读（永久不再展示），readIds 共 ${readIds.value.length} 条`)
+    if (isDev) console.log(`[notice] 标记 ${newRead.length} 条为已读（永久不再展示），readIds 共 ${readIds.value.length} 条`)
   }
 
   /**
@@ -138,7 +139,7 @@ function useNoticeImpl() {
       readIds.value = readIds.value.slice(readIds.value.length - READ_IDS_MAX)
     }
     await saveReadIds()
-    console.log(`[notice] 标记单条 id=${id} 为已读（永久不再展示），readIds 共 ${readIds.value.length} 条`)
+    if (isDev) console.log(`[notice] 标记单条 id=${id} 为已读（永久不再展示），readIds 共 ${readIds.value.length} 条`)
   }
 
   // 监听 SW 通知缓存更新通知 -> 重读缓存

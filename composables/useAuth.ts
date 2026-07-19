@@ -12,6 +12,7 @@
  */
 
 import { toPure } from "~lib/toPure"
+import { isDev } from "~lib/env"
 import { ref, computed } from 'vue'
 import { setTokenGetter, setLoggedInGetter, setAuthExpiredHandler, post, get } from '~lib/api'
 import { API_URIS } from '~lib/api-config'
@@ -137,7 +138,7 @@ function useAuthImpl() {
   // 退出登录（主动，非过期）
   // 先调后端 /logout 让 token 失效，无论成败都清前端（保证用户能退出）
   async function logout() {
-    console.log('[auth] 退出登录')
+    if (isDev) console.log('[auth] 退出登录')
     try {
       await post(API_URIS.logout, undefined, { timeout: 5000, silent: true })
     } catch (e) {
