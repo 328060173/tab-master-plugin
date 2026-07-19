@@ -4,7 +4,7 @@
     <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 sticky top-0 z-10">
       <div class="max-w-3xl mx-auto flex items-center gap-3">
         <ScrollText :size="18" class="text-blue-600 dark:text-blue-400" />
-        <h1 class="text-base font-semibold">标签大师 · 运行日志</h1>
+        <h1 class="text-base font-semibold">TM-标签整理大师 · 运行日志</h1>
         <span class="text-xs text-gray-400 ml-auto">{{ logs.length }} 条</span>
       </div>
     </header>

@@ -47,7 +47,7 @@ const DEFAULT_STATE: AdState = {
 // 兜底占位广告（无缓存时展示，不发请求）
 const FALLBACK_AD: AdInfo = {
   id: 0,
-  title: '浏览器标签大师 — 让标签管理更高效',
+  title: 'TM-浏览器标签整理大师 — 3秒找到任何标签',
   imageUrl: '',
   linkUrl: OFFICIAL_SITE_URL,
   duration: BUSINESS_CONFIG.adDefaultDuration

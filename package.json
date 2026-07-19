@@ -1,9 +1,9 @@
 {
   "name": "tab-master-plugin",
-  "displayName": "浏览器标签大师",
+  "displayName": "TM-浏览器标签整理大师",
   "version": "1.0.0",
-  "description": "好用的浏览器侧边栏标签管理插件：四视图、智能分组排序、标记分类、聚焦模式、稍后处理、状态感知，3 秒找回任何标签。Chrome/Edge。",
-  "short_name": "标签大师",
+  "description": "3秒找到任何标签，标签再多也不乱。侧边栏标签管理：四视图、智能分组、标记分类、聚焦模式、稍后处理、状态感知。Chrome/Edge。",
+  "short_name": "TM-标签整理大师",
   "author": "xpd",
   "scripts": {
     "dev": "plasmo dev",
@@ -31,7 +31,7 @@
     "typescript": "5.3.3"
   },
   "manifest": {
-    "short_name": "标签大师",
+    "short_name": "TM-标签整理大师",
     "host_permissions": [
       "https://api.ouu365.com/*",
       "https://www.ouu365.com/*"

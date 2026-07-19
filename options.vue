@@ -4,7 +4,7 @@
     <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
       <div class="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
         <Sliders :size="18" class="text-blue-600 dark:text-blue-400" />
-        <h1 class="text-base font-semibold">标签大师 · 设置</h1>
+        <h1 class="text-base font-semibold">TM-标签整理大师 · 设置</h1>
         <span class="text-xs text-gray-400 ml-auto">v{{ version }}</span>
       </div>
       <!-- Tab 栏：风格对齐 sidepanel NavTabs（border-b-2 选中态） -->

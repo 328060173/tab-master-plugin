@@ -7,7 +7,7 @@
 > - Plasmo Framework 文档（docs.plasmo.com）
 > - 开源参考：sidebery（Vue 3 + 6 万行级 Firefox 标签管理器）、tab-manager-plus（Chrome MV3）
 >
-> 适用项目：浏览器标签大师（Plasmo + Vue 3 + TypeScript + Chrome MV3，兼容 Chrome 102+ / Edge 102+ × macOS + Windows）
+> 适用项目：TM-浏览器标签整理大师（Plasmo + Vue 3 + TypeScript + Chrome MV3，兼容 Chrome 102+ / Edge 102+ × macOS + Windows）
 
 ---
 

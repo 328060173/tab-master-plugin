@@ -59,7 +59,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 
 ## Project Goal
 
-**浏览器标签大师** — 帮助用户高效管理浏览器标签页。
+**TM-浏览器标签整理大师** — 帮助用户高效管理浏览器标签页。
 
 
 ## 协作协议（务必遵守）

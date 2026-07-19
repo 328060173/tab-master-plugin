@@ -79,7 +79,7 @@ export default {
   'settings.cardDensity.loose': '宽松',
   'settings.appearance': '外观',
   'settings.about': '关于',
-  'settings.version': '浏览器标签大师 v{version}',
+  'settings.version': 'TM-浏览器标签整理大师 v{version}',
   'settings.github': 'GitHub',
   'settings.feedback': '反馈',
 

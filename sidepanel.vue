@@ -10,7 +10,7 @@
     <!-- Header - 聚焦中 -->
     <div v-if="focusMode === 'focusing'" class="flex items-center justify-between px-3 py-2 border-b border-gray-200 shrink-0">
       <div class="flex items-center gap-1.5">
-        <h1 class="text-sm font-bold">标签大师</h1>
+        <h1 class="text-sm font-bold">TM-标签整理大师</h1>
         <span class="text-xs text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">{{ focusingTabs.length }} 个标签</span>
       </div>
       <div class="flex items-center gap-1">
@@ -47,7 +47,7 @@
     <!-- Header - 普通/选择态 -->
     <div v-else class="flex items-center justify-between px-3 py-2 border-b border-gray-200 shrink-0">
       <div class="flex items-center gap-1.5">
-        <h1 class="text-sm font-bold">标签大师</h1>
+        <h1 class="text-sm font-bold">TM-标签整理大师</h1>
         <span class="text-xs text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">{{ tabs.length }} 个标签</span>
       </div>
       <div class="flex items-center gap-1">
