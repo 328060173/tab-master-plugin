@@ -1050,10 +1050,11 @@ const popover = usePopoverManager()
 const batchMenuTriggerRef = ref<HTMLElement | null>(null)
 const homeOptionsTriggerRef = ref<HTMLElement | null>(null)
 
-// 首页工具栏选项菜单位置
+// 首页工具栏选项菜单位置：bottom-right 让菜单从竖三点右下展开（右边对齐三点），
+// 不挡住「首页」文字和三点按钮本身（避免盖住触发点导致无法点别处关闭）。
 const homeOptionsMenuPos = computed(() => {
   if (!popover.isOpen('home-toolbar-options') || !popover.activeAnchorRect.value) return { left: '0px', top: '0px' }
-  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 176, height: 80 }, 'bottom-left')
+  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 176, height: 80 }, 'bottom-right')
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
 
