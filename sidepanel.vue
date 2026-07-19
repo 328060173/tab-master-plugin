@@ -1426,6 +1426,19 @@ onMounted(async () => {
   await loadBannerState()
   // 广告/版本/通知均由 Service Worker 后台定时拉取 + storage 缓存，sidepanel 只读缓存
   // （useAd/useVersionCheck/useNotice 初始化时自动加载缓存，收到 SW onMessage 时刷新）
+
+  // 已登录则拉一次 /my 刷新积分/会员状态（本地 storage 是旧值，不联网永不更新；
+  // 头像/积分展示依赖最新 user 信息）。fetchUser 静默失败不阻断，401 由 useAuth 自动登出。
+  // 直读 storage 判登录态，避免 loadAuth 异步未完成时漏拉（与 options onMounted 范式一致）。
+  try {
+    const data = await chrome.storage.local.get('tabMasterAuth')
+    const stored = data?.tabMasterAuth as { token?: string; user?: { id?: string } } | undefined
+    if (stored?.token && stored?.user?.id) {
+      fetchUser().catch((e) => console.warn('[sidepanel] fetchUser 失败', e))
+    }
+  } catch (e) {
+    console.warn('[sidepanel] 读取登录态失败', e)
+  }
 })
 
 onUnmounted(() => {
