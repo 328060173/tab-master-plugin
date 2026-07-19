@@ -17,6 +17,7 @@
  */
 
 import { API_BASE_URL, APP_HEADERS } from './api-config'
+import { isDev } from './env'
 
 // ============ 错误类型（L1 归一，导出供 L3 useLogger instanceof 判别）============
 /**
@@ -170,8 +171,8 @@ async function request<T extends BaseResponse = BaseResponse>({
   }
   const url = API_BASE_URL + uri + queryString
   const startedAt = Date.now()
-  // 请求发出日志（让用户能在控制台看到接口确实发了）
-  console.log(`[api] → ${method} ${uri}`, body ? { body } : '')
+  // 请求发出日志（仅 dev；prod 不打，避免 SW 刷屏）
+  if (isDev) console.log(`[api] → ${method} ${uri}`, body ? { body } : '')
 
   // 单次尝试：发 fetch + 解析 + 状态/业务码检查，失败归一为 NetworkError / ApiError 抛出
   const attempt = async (): Promise<T> => {
@@ -190,7 +191,7 @@ async function request<T extends BaseResponse = BaseResponse>({
       // 后端若依 SecurityConfig 对未登录访问受保护接口返回 401
       if (response.status === 401) {
         const elapsed = Date.now() - startedAt
-        console.log(`[api] ← ${method} ${uri} 401 (${elapsed}ms) 登录过期`)
+        console.warn(`[api] ← ${method} ${uri} 401 (${elapsed}ms) 登录过期`)
         authExpiredHandler?.()
         throw new ApiError('登录已过期，请重新登录', {
           code: 401,
@@ -204,7 +205,7 @@ async function request<T extends BaseResponse = BaseResponse>({
       // 业务层 401（部分接口可能用 code=401 而非 HTTP 401）
       if (result.code === 401) {
         const elapsed = Date.now() - startedAt
-        console.log(`[api] ← ${method} ${uri} code=401 (${elapsed}ms) 登录过期`)
+        console.warn(`[api] ← ${method} ${uri} code=401 (${elapsed}ms) 登录过期`)
         authExpiredHandler?.()
         throw new ApiError('登录已过期，请重新登录', {
           code: 401,
@@ -215,13 +216,13 @@ async function request<T extends BaseResponse = BaseResponse>({
 
       if (result.code === 200) {
         const elapsed = Date.now() - startedAt
-        console.log(`[api] ← ${method} ${uri} 200 (${elapsed}ms)`)
+        if (isDev) console.log(`[api] ← ${method} ${uri} 200 (${elapsed}ms)`)
         return result
       }
 
       // 业务码非 200：归一为 ApiError（不重试）
       const elapsed = Date.now() - startedAt
-      console.log(`[api] ← ${method} ${uri} code=${result.code} (${elapsed}ms) ${result.msg}`)
+      if (isDev) console.log(`[api] ← ${method} ${uri} code=${result.code} (${elapsed}ms) ${result.msg}`)
       throw new ApiError(result.msg || '请求失败', {
         code: result.code,
         httpStatus: response.status,

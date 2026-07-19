@@ -21,6 +21,7 @@
 
 import { get, post } from '~lib/api'
 import { API_URIS, APP_VERSION_CODE, OFFICIAL_SITE_URL } from '~lib/api-config'
+import { isDev } from '~lib/env'
 import { BUSINESS_CONFIG } from '~config/app-config'
 import { collectDeviceInfo, ACCESS_LOC, DEVICE_NUMBER } from '~lib/device-info'
 import type { AdCacheData, AdSyncResponse } from '~types/ad'
@@ -171,7 +172,7 @@ function syncAll(trigger: SyncTrigger): void {
 chrome.runtime.onMessage.addListener((msg) => {
   if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return
   if ((msg as Record<string, unknown>).type !== 'manualRefreshAll') return
-  console.log('[sync] 收到手动刷新请求 (manualRefreshAll)，不含广告')
+  if (isDev) console.log('[sync] 收到手动刷新请求 (manualRefreshAll)，不含广告')
   // 手动刷新不触发广告（避免每次点击都弹广告，体验差）；菜单/通知/版本仍同步
   void fetchSettingMenuCache('manual')
   void fetchNoticeCache('manual')
@@ -260,7 +261,7 @@ function scheduleAlarm(name: string, intervalMinutes: number | null, defaultInte
   const offsetMinutes = Math.random() * MAX_OFFSET_MINUTES
   const delayMinutes = base + offsetMinutes
   chrome.alarms.create(name, { delayInMinutes: delayMinutes })
-  console.log(`[sync] 下次 ${name} 闹钟: ${delayMinutes.toFixed(1)} 分钟后 (${(delayMinutes / 60).toFixed(1)}h)，基础间隔 ${base}min`)
+  if (isDev) console.log(`[sync] 下次 ${name} 闹钟: ${delayMinutes.toFixed(1)} 分钟后 (${(delayMinutes / 60).toFixed(1)}h)，基础间隔 ${base}min`)
 }
 
 /**
@@ -306,7 +307,7 @@ async function shouldSkipByGap(
         : defaultInterval
       const elapsed = Date.now() - cache.lastSync
       if (elapsed < intervalMin * 60 * 1000) {
-        console.log(`[sync] 距上次同步不足 ${intervalMin} 分钟 (${Math.round(elapsed / 60000)} 分钟)，跳过 ${name} 拉取`)
+        if (isDev) console.log(`[sync] 距上次同步不足 ${intervalMin} 分钟 (${Math.round(elapsed / 60000)} 分钟)，跳过 ${name} 拉取`)
         scheduleAlarm(name, intervalMin, defaultInterval)
         return true
       }
@@ -356,7 +357,7 @@ async function fetchAdCache(trigger: 'init' | 'timer' | 'manual'): Promise<void>
       nextSyncIntervalMinutes: intervalMinutes
     }
     await chrome.storage.local.set({ [AD_CACHE_KEY]: cache })
-    console.log(`[ad-sync] 广告缓存已更新 (trigger=${trigger}, hideAd=${cache.hideAd}, hasAdData=${!!cache.adData}, nextInterval=${intervalMinutes}min)`)
+    if (isDev) console.log(`[ad-sync] 广告缓存已更新 (trigger=${trigger}, hideAd=${cache.hideAd}, hasAdData=${!!cache.adData}, nextInterval=${intervalMinutes}min)`)
     // 通知侧边栏重读缓存（sidepanel 可能未打开，无接收方时 sendMessage 会 reject，静默忽略）
     chrome.runtime.sendMessage({ type: 'adCacheUpdated' }).catch(() => {})
   } catch (e) {
@@ -376,7 +377,7 @@ function scheduleNextAdAlarm(intervalMinutes: number | null): void {
   const offsetMinutes = Math.random() * MAX_OFFSET_MINUTES
   const delayMinutes = base + offsetMinutes
   chrome.alarms.create(AD_ALARM_NAME, { delayInMinutes: delayMinutes })
-  console.log(`[ad-sync] 下次广告同步闹钟: ${delayMinutes.toFixed(1)} 分钟后 (${(delayMinutes / 60).toFixed(1)}h)，基础间隔 ${base}min`)
+  if (isDev) console.log(`[ad-sync] 下次广告同步闹钟: ${delayMinutes.toFixed(1)} 分钟后 (${(delayMinutes / 60).toFixed(1)}h)，基础间隔 ${base}min`)
 }
 
 /**
@@ -441,7 +442,7 @@ async function fetchVersionCache(trigger: 'init' | 'timer' | 'manual'): Promise<
       lastSync: Date.now()
     }
     await chrome.storage.local.set({ [VERSION_CACHE_KEY]: cache })
-    console.log(`[version-sync] 版本缓存已更新 (trigger=${trigger}, updateFlag=${cache.updateFlag}, hasVersionData=${!!cache.versionData}, nextInterval=${intervalMinutes}min)`)
+    if (isDev) console.log(`[version-sync] 版本缓存已更新 (trigger=${trigger}, updateFlag=${cache.updateFlag}, hasVersionData=${!!cache.versionData}, nextInterval=${intervalMinutes}min)`)
     chrome.runtime.sendMessage({ type: 'versionCacheUpdated' }).catch(() => {})
   } catch (e) {
     console.warn('[version-sync] 拉取版本信息失败（静默，不影响使用）', e)
@@ -488,7 +489,7 @@ async function fetchNoticeCache(trigger: 'init' | 'timer' | 'manual'): Promise<v
       lastSync: Date.now()
     }
     await chrome.storage.local.set({ [NOTICE_CACHE_KEY]: cache })
-    console.log(`[notice-sync] 通知缓存已更新 (trigger=${trigger}, rows=${cache.rows.length}, nextInterval=${intervalMinutes}min)`)
+    if (isDev) console.log(`[notice-sync] 通知缓存已更新 (trigger=${trigger}, rows=${cache.rows.length}, nextInterval=${intervalMinutes}min)`)
     chrome.runtime.sendMessage({ type: 'noticeCacheUpdated' }).catch(() => {})
   } catch (e) {
     console.warn('[notice-sync] 拉取通知失败（静默，不影响使用）', e)
@@ -543,7 +544,7 @@ async function fetchSettingMenuCache(trigger: 'init' | 'timer' | 'manual'): Prom
       lastSync: Date.now()
     }
     await chrome.storage.local.set({ [SETTING_MENU_CACHE_KEY]: cache })
-    console.log(`[setting-menu-sync] 设置菜单缓存已更新 (trigger=${trigger}, menus=${cache.menus.length}, nextInterval=${intervalMinutes}min)`)
+    if (isDev) console.log(`[setting-menu-sync] 设置菜单缓存已更新 (trigger=${trigger}, menus=${cache.menus.length}, nextInterval=${intervalMinutes}min)`)
     chrome.runtime.sendMessage({ type: 'settingMenuCacheUpdated' }).catch(() => {})
   } catch (e) {
     console.warn('[setting-menu-sync] 拉取设置菜单失败（静默，不影响使用）', e)
@@ -565,7 +566,7 @@ async function handleAdAlarm(): Promise<void> {
         : DEFAULT_AD_INTERVAL_MINUTES
       const elapsed = Date.now() - cache.lastSync
       if (elapsed < intervalMin * 60 * 1000) {
-        console.log(`[ad-sync] 距上次同步不足 ${intervalMin} 分钟 (${Math.round(elapsed / 60000)} 分钟)，跳过本次拉取`)
+        if (isDev) console.log(`[ad-sync] 距上次同步不足 ${intervalMin} 分钟 (${Math.round(elapsed / 60000)} 分钟)，跳过本次拉取`)
         scheduleNextAdAlarm(intervalMin)
         return
       }
