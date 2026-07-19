@@ -22,9 +22,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Plasmo env files（本地覆盖，不提交；想切环境建 .env.local 改 PLASMO_PUBLIC_* 变量）
+# Plasmo env files
+# .env.development / .env.production 是公开配置（无密钥），必须提交，让团队/CI 能复现环境。
+# .env.local 用于本地临时覆盖（含密钥或个人配置），不提交。
 .env
-.env.*
+.env.local
+.env.*.local
 
 
 out/

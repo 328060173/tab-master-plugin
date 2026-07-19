@@ -124,6 +124,7 @@ function onTabActivated(info: chrome.tabs.TabActiveInfo): void {
 // 1. install / startup：加载 map 到内存
 // 2. tabs 事件：持续维护
 chrome.runtime.onInstalled.addListener(async () => {
+  // chrome.sidePanel 需 Chrome/Edge 114+（侧边栏核心形态，不支持则插件不可用）
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
   await loadMap()
   // 广告/版本/通知/设置菜单初始化拉取（fire-and-forget，各模块独立，互不阻塞）

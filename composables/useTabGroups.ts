@@ -1,6 +1,7 @@
 import { ref, computed, onMounted, onUnmounted, type Ref } from "vue"
 import type { TabItem } from "~types/tab"
 
+// chrome.tabGroups 需 Chrome/Edge 89+；不支持时分组相关功能降级（SUPPORTS_TAB_GROUPS 守卫）
 // 支持的分组颜色
 export const GROUP_COLORS = [
   "grey", "blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"
