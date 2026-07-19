@@ -664,6 +664,7 @@
 
 <script setup lang="ts">
 import { isDev } from "~lib/env"
+import { useToast } from "~composables/useToast"
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn, MoreHorizontal } from "@lucide/vue"
 import UpdateBanner from "~components/UpdateBanner.vue"
@@ -1058,8 +1059,7 @@ const batchActiveSubmenu = ref<"group" | "tag" | null>(null)
 const batchSubmenuAnchorRect = ref<DOMRect | null>(null)
 const showStorage = ref(false)
 const contentRef = ref<HTMLElement | null>(null)
-const toastMsg = ref("")
-let toastTimer: ReturnType<typeof setTimeout> | null = null
+const { toastMsg, showToast } = useToast()
 const ctxMenu = ref<{ tab: TabItem; x: number; y: number } | null>(null)
 // 右键 picker —— 用 PopoverManager 统一管理 open/close，自身只保留"对哪个 tab"
 const rightClickTabId = ref<number | null>(null)
@@ -1275,15 +1275,6 @@ const navItems = [
   { key: "groups", label: "分组" },
   { key: "history", label: "历史" },
 ]
-
-const showToast = (msg: string) => {
-  if (!!isDev) {
-    console.debug("[tab-master:tags] showToast 被调用", { msg })
-  }
-  toastMsg.value = msg
-  if (toastTimer) clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastMsg.value = "" }, 2000)
-}
 
 // 首次给标签绑定标记时，弹告知确认框（替代一晃没的 toast，文案通俗化）
 // 用 storage.onChanged 监听而非 watch ref —— useTabManager 非单例，各入口（TagPicker/右键/

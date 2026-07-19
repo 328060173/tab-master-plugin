@@ -470,6 +470,7 @@
 import { computed, ref, onMounted, watch } from "vue"
 import { Sliders, LogIn, HelpCircle, Coins, X, Timer } from "@lucide/vue"
 import { useSettings } from "~composables/useSettings"
+import { useToast } from "~composables/useToast"
 import { useAuth } from "~composables/useAuth"
 import { useSkin } from "~composables/useSkin"
 import { post, get } from "~lib/api"
@@ -950,14 +951,8 @@ async function onTryOn(p: PropListVO) {
   }
 }
 
-// ========== toast（options 独立，与 sidepanel 同款样式） ==========
-const toastMsg = ref('')
-let toastTimer: ReturnType<typeof setTimeout> | null = null
-function showToast(msg: string) {
-  toastMsg.value = msg
-  if (toastTimer) clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastMsg.value = '' }, 2500)
-}
+// ========== toast（useToast 单例，与 sidepanel 共用） ==========
+const { toastMsg, showToast } = useToast()
 
 </script>
 
