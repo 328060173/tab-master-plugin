@@ -36,6 +36,7 @@
               <input
                 v-model="email"
                 type="email"
+                maxlength="100"
                 class="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 :placeholder="t('login.emailPlaceholder')"
                 @keyup.enter="emailCodeRef?.focus()"
@@ -53,9 +54,11 @@
                 ref="emailCodeRef"
                 v-model="emailCode"
                 type="text"
+                inputmode="numeric"
                 class="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 :placeholder="t('login.emailCodePlaceholder')"
-                maxlength="6"
+                maxlength="8"
+                @input="onEmailCodeInput"
                 @keyup.enter="handleLogin"
               />
               <button
@@ -184,16 +187,30 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 const captchaRef = ref<InstanceType<typeof CaptchaInput>>()
 const emailCodeRef = ref<HTMLInputElement>()
 
+// 邮箱格式校验（统一正则，与官网 BookOrder/SubscribeFeedback 对齐）
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const isEmailValid = (e: string) => EMAIL_RE.test(e.trim())
+
+// 邮箱验证码输入：只允许数字，最长 8 位
+function onEmailCodeInput(e: Event) {
+  const target = e.target as HTMLInputElement
+  const digits = target.value.replace(/\D/g, '').slice(0, 8)
+  if (target.value !== digits) {
+    target.value = digits
+  }
+  emailCode.value = digits
+}
+
 // 计算属性
 // 发码条件：邮箱有效 + 未在倒计时（图形码在弹框内填，此处不校验）
 const canSendCode = computed(() => {
-  if (!email.value || !email.value.includes('@')) return false
+  if (!email.value || !isEmailValid(email.value)) return false
   return true
 })
 
 // 登录条件：邮箱有效 + 邮箱码≥4位（后端已免图形码，邮箱码为强验证）
 const canLogin = computed(() => {
-  if (!email.value || !email.value.includes('@')) return false
+  if (!email.value || !isEmailValid(email.value)) return false
   if (!emailCode.value || emailCode.value.length < 4) return false
   return true
 })

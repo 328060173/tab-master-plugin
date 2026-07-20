@@ -59,7 +59,10 @@ async function fetchCaptcha() {
  */
 function onCodeInput(e: Event) {
   const target = e.target as HTMLInputElement
-  captchaCode.value = target.value
+  // 图形验证码当前为算术题模式（答案纯数字），过滤非数字
+  const digits = target.value.replace(/\D/g, '').slice(0, 4)
+  if (target.value !== digits) target.value = digits
+  captchaCode.value = digits
   emit('update', { uuid: captchaUuid.value, code: captchaCode.value })
 }
 
@@ -107,6 +110,7 @@ defineExpose({
     <!-- 验证码输入框 -->
     <input
       type="text"
+      inputmode="numeric"
       class="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
       v-model="captchaCode"
       @input="onCodeInput"
