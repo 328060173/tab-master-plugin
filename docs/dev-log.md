@@ -1018,3 +1018,101 @@ vue-tsc --noEmit 通过（仅 tsconfig 既有弃用警告 TS5107/TS5101）。本
 - 官网仓 test 分支：1 commit，**未 push**
 - hub 仓：干净
 - 三仓 master 全锁定
+
+## 2026-07-20 收工（首发 Edge 准备 + 拼音搜索 + 多项交互修复）
+
+> 今天跨四仓大批量改动，主线是「插件首发 Edge Add-ons 发布准备」，穿插若干功能与交互修复。全部已 commit + push 到各仓 test 分支，master 全锁定。
+
+### 一、首发 Edge Add-ons 发布准备（重点）
+
+**版本号升级**（插件 commit 9997e38）：
+- `package.json` version `1.0.0` → `1.1.0`（Plasmo 自动写进 manifest.version = versionName）
+- `lib/api-config.ts` `APP_VERSION_CODE` `1` → `11`（请求后端公共头 versionCode，单一来源）
+- 日志复核：console.log/debug 29 处均已带 isDev 守卫（prod 不输出），warn 保留
+- .env.production 已指生产 api.ouu365.com，无需改
+
+**manifest 最低版本声明**（插件 commit 4759d4c）：
+- 加 `minimum_chrome_version: "114"`（sidePanel API 要求 Chrome/Edge 114+）
+- ⚠️ 踩坑：一开始误加 `minimum_edge_version`，**Edge 报错 "Unrecognized manifest key"**——Edge 是 Chromium 认 minimum_chrome_version，minimum_edge_version 不是合法 manifest key（是 Partner Center 元数据字段）。已删（commit d2a4e08 里修）
+- 教训：manifest key 不能凭印象加，要查 Chrome 扩展 manifest 规范
+
+**发布标准 SOP 文档**（hub commit 7028380）：
+- 立 `docs/release-sop.md`：跨三仓发布红线 + 打包/本地测试/Edge Add-ons 发布/官网下载逻辑/派发矩阵
+- 版本号两处对齐 + 生产接口 + 日志屏蔽 + 后端版本记录同步 = 一套动作，缺一不可
+- 当前版本记录表：2026-07-20 / 1.1.0 / versionCode 11 / 首发 Edge
+
+**官网浏览器版本文案修正**（官网 commit ecebd24）：
+- 全站「Chrome/Edge 88+」→ **114+**（sidePanel 是 Chrome 114 引入，原 88+ 不准，低版装了会崩）
+- 涉及 config.ts FAQ JSON-LD、Download.vue、FAQ.vue、products/tab-master.md
+
+### 二、拼音搜索（插件 commit 195445c）
+
+- 标签搜索支持标题拼音匹配：输入 `shili` 命中「实例」，`sl` 也命中（首字母）
+- `matchSearch` 上「或」一层 `matchTitlePinyin`，仅作用 title，全拼+首字母，大小写/空格不敏感
+- 现有 title/url/domain 子串匹配一行未改，库异常 try/catch 降级不阻断
+- 新增依赖 pinyin-pro@^3.28.1（~30-40KB gzip）
+- PRD: docs/prd/pinyin-search.md
+
+### 三、options 设置菜单 settingType 分类（插件 + 后端）
+
+**后端**（commit 4d96156）：
+- `/setting/menu-list` 加 settingType 参数（1=插件 sidepanel 设置，2=options 我的设置），全链路打通
+- `/customer/my` 返回 `checkinAwardPoints`（写死 10，插件显示「签到可获得X积分」），不动签到逻辑常量
+- 修正 DTO 注释（0/1 → 1/2 与 domain 对齐）
+- ⚠️ 依赖 DB `ouu_apps_tm_setting.setting_type` 字段，生产 DB 已加（.sql 待统一同步，已知多表与 .sql 不一致，不管）
+
+**插件**：
+- sidepanel（settingType=1）：background.ts POST 加 settingType=1，行为不变（commit 626e626）
+- options 设置 tab（settingType=2）：新增「更多功能」动态菜单区
+- ⚠️ **架构纠正**（commit 52e9355）：一开始误把 options 的 settingType=2 也走 SW 缓存（误信 options.vue:554 过时注释「options/sidepanel 均不发…全走 SW」当红线）。用户纠正：options 是用户主动操作页，业务请求（/my/道具/签到/兑换/菜单查询）直接发后端，和 propList 同模式。改回 options 直接请求 /menu-list settingType=2，删 SW 缓存逻辑
+- 教训：别把代码内联注释当红线，注释可能过时；核实红线看 CLAUDE.md §10 + 记忆，动工前 grep 现有请求模式。已记 memory `options-direct-request-not-sw`
+- 「扩展功能」改名「更多功能」+ 注释同步（commit 03af21e）
+
+### 四、交互修复（插件）
+
+**快捷键编号设置改点选**（commit b9c2fb4）：
+- 原 input 输入框：hover card 里 input 触发 blur/失焦导致整个弹框消失无法设置（用户抱怨"弹框弹没了"）；右键浮层要输入回车繁琐
+- 改成 4 个编号按钮（1-4，commands 实际只有 switch-tab-1~4）点选 + 清除，当前编号蓝底高亮
+- TabHoverCard + sidepanel 右键浮层两处统一，标题改「快捷键编号」
+- 删 input 相关逻辑（editingNumber/numberDraft/startEditNumber/confirmNumber 等）
+
+**Edge manifest 报错修复 + 登录失败弹 toast + 签到暖黄提示**（commit d2a4e08）：
+- 删 manifest 非法 key minimum_edge_version（见上）
+- 登录发验证码/登录接口失败补弹 toast（http 层 lib/api.ts 不弹 toast，原只小字 modalError 不醒目）
+- options 签到：未签到时暖黄提示「签到可获得X积分哦」，X 来自 /my.checkinAwardPoints
+
+### 五、邮箱/验证码输入统一规范（插件 commit d205f3c + 官网 commit a6bd401）
+
+- 邮箱 input：maxlength=100 + 统一正则 `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`（替换 includes('@') 弱校验）
+- 邮箱验证码：maxlength 6→8 + 只能数字（@input 过滤 \D + inputmode=numeric）
+- 图形验证码：onCodeInput 加数字过滤 + inputmode=numeric（maxlength=4 保留）
+- 涉及：插件 LoginDialog/CaptchaInput；官网 LoginDialog/BookOrder/SubscribeFeedback/CaptchaInput
+
+### 六、其它零碎
+- 验证码配色换风格（后端 commit 17f498a）：math/char 两 bean 统一品牌蓝渐变背景+白字+深蓝边框，原配置注释保留
+- 官网顶部导航调整（commit a605bd3 + 469826c）：功能→功能概览跳 /contents/overview?app-code=app_1001；下载移第二位；清退拍照大师描述
+  - ⚠️ 踩坑：第一次改了 config.ts themeConfig.nav 没效果——顶部导航真身在 TheHeader.vue navLinks，config.ts 那段是被自研 Layout 架空的死代码。已记 memory `website-topnav-source`
+
+### 关键 commit 汇总
+**插件**（9 commit）：195445c 拼音搜索 / 9997e38 升版本 / 4759d4c manifest 最低版本 / d2a4e08 Edge修复+toast+签到提示 / 626e626 settingType 两套菜单 / 52e9355 纠正 options 直接请求 / 03af21e 改名更多功能 / b9c2fb4 编号点选 / d205f3c 邮箱验证码规范
+**官网**（4 commit）：a605bd3 导航调整 / 469826c 导航改对地方 / ecebd24 版本88→114 / a6bd401 邮箱验证码规范
+**后端**（3 commit）：17f498a 验证码配色 / 4d96156 /my签到积分+settingType / 3c47f7b 人工更改
+**hub**（1 commit）：7028380 发布 SOP 文档
+
+### 新增 memory
+- `website-topnav-source`：官网顶部导航真身在 TheHeader.vue navLinks
+- `options-direct-request-not-sw`：options 业务请求直接发后端，只有 sidepanel 广告/版本/通知/设置菜单走 SW
+
+### 🔴 明天待续 / 用户待办
+1. **打包首发 Edge**：`pnpm build` + `pnpm package` → 本地加载 build/chrome-mv3-prod 验证 → Partner Center 上传 zip
+2. 后端 `ouu_apps_version` 表插 version_code=11 记录（用户选了先不动，长期不更新也行，check-version 容错已确认安全返回 null 不崩）
+3. 后端 settingType=2 菜单数据：DB `ouu_apps_tm_setting` 插几条 setting_type=2 记录，options 才显示「更多功能」动态菜单
+4. 官网下载包：pnpm package 产出的 zip 拷到 docs/public/download/tab-master-edge.zip
+5. 实测验证：拼音搜索 / 编号点选 / 签到暖黄提示 / options 更多功能 / 邮箱验证码数字过滤
+
+### 当前 git 状态
+- 插件仓 test：9 commit，**已 push**
+- 官网仓 test：4 commit，**已 push**
+- 后端仓 test：3 commit，**已 push**
+- hub 仓 test：1 commit（本次 dev-log 更新将再 +1）
+- 四仓 master 全锁定
