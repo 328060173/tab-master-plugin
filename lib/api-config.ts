@@ -81,8 +81,8 @@ export const APP_CODES = {
 export const APP_CODE_QUERY_KEY = "app-code"
 
 // 当前插件版本码（int）。发生产前与后端 ouu_apps_version 表 version_code 对齐；
-// 每次发生产版本必须 +1（用户硬规矩）。当前未发生产，versionCode=1。
-export const APP_VERSION_CODE = 1
+// 每次发生产版本必须 +1（用户硬规矩）。当前已发生产，versionName=1.1.0 / versionCode=11（2026-07-20 首发）。
+export const APP_VERSION_CODE = 11
 
 // 默认请求头（对应后端 Constants.HEAD_APP_*）
 // platform: 1=Web浏览器插件 2=iOS 3=Android 4=微信小程序
