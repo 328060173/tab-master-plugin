@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@lucide/vue": "^1.21.0",
+    "pinyin-pro": "^3.28.1",
     "plasmo": "0.90.5",
     "vue": "3.4.15"
   },

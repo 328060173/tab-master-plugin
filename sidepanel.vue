@@ -730,6 +730,7 @@ import HistoryList from "~components/HistoryList.vue"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
 import AvatarWithFrame from "~components/AvatarWithFrame.vue"
 import type { TabItem } from "~types/tab"
+import { pinyin } from "pinyin-pro"
 import { isMac } from "~lib/platform"
 
 const {
@@ -1484,7 +1485,21 @@ const gridClass = computed(() => {
 
 const matchSearch = (q: string, t: { title: string; url: string; domain: string }) => {
   const lq = q.toLowerCase()
-  return t.title.toLowerCase().includes(lq) || t.url.toLowerCase().includes(lq) || t.domain.toLowerCase().includes(lq)
+  return t.title.toLowerCase().includes(lq) || t.url.toLowerCase().includes(lq) || t.domain.toLowerCase().includes(lq) || matchTitlePinyin(q, t.title)
+}
+// 标题拼音匹配：全拼或首字母命中（大小写/空格不敏感）。只对 title 加、与现有子串匹配是「或」关系。
+const matchTitlePinyin = (q: string, title: string): boolean => {
+  const norm = (s: string) => s.replace(/\s+/g, "").toLowerCase()
+  const lq = norm(q)
+  if (!lq) return false
+  try {
+    const full = norm(pinyin(title, { pattern: "pinyin", toneType: "none" }))
+    const first = norm(pinyin(title, { pattern: "first", toneType: "none" }))
+    return full.includes(lq) || first.includes(lq)
+  } catch {
+    // 库异常时降级为不命中，不阻断子串匹配
+    return false
+  }
 }
 const searchPinned = computed(() => { const q = search.value.trim(); return q ? tabs.value.filter(t => t.pinned && matchSearch(q, t)) : [] })
 const searchOpen = computed(() => { const q = search.value.trim(); return q ? tabs.value.filter(t => !t.pinned && matchSearch(q, t)) : [] })
