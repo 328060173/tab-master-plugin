@@ -1,0 +1,10 @@
+{
+  "extensionName": {
+    "message": "TM-浏览器标签整理大师",
+    "description": "扩展名称"
+  },
+  "extensionDescription": {
+    "message": "3秒找到任何标签，标签再多也不乱。侧边栏标签管理：四视图、域名归并与最近访问优先排序、标记分类、聚焦模式、稍后处理、状态感知。Chrome/Edge。",
+    "description": "扩展功能描述"
+  }
+}

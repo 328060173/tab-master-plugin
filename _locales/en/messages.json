@@ -1,0 +1,10 @@
+{
+  "extensionName": {
+    "message": "TM - Browser Tab Manager",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "Find any tab in 3 seconds, no matter how many tabs you have. Sidebar tab management: four views, domain grouping and recent-access sorting, tags, focus mode, later list, status awareness. For Chrome/Edge.",
+    "description": "Extension description"
+  }
+}
