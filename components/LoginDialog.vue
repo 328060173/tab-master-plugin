@@ -148,6 +148,7 @@ import { post } from '~lib/api'
 import { API_URIS, APP_HEADERS } from '~lib/api-config'
 import { collectDeviceInfo, ACCESS_LOC } from '~lib/device-info'
 import { useAuth } from '~composables/useAuth'
+import { showToast } from '~composables/useToast'
 import CaptchaInput from './CaptchaInput.vue'
 
 // props & emits
@@ -240,6 +241,7 @@ async function confirmSendCode() {
     const errMsg = e instanceof Error ? e.message : '发送失败'
     modalError.value = errMsg
     codeSentTip.value = errMsg
+    showToast(errMsg)   // 额外弹 toast 醒目提示（保留小字 modalError/codeSentTip）
     if (errMsg.includes('验证码') && captchaRef.value) {
       captchaRef.value.refresh()
     }
@@ -283,7 +285,8 @@ async function handleLogin() {
       points: 0,
       todayCheckedIn: false,
       lastCheckInTime: null,
-      registerTime: null
+      registerTime: null,
+      checkinAwardPoints: 10
     })
 
     // 从后端获取真实用户信息（失败不阻塞登录流程）
@@ -299,6 +302,7 @@ async function handleLogin() {
     // 失败 - 提示错误信息（登录不再涉及图形验证码）
     const errMsg = e instanceof Error ? e.message : '登录失败'
     codeSentTip.value = errMsg
+    showToast(errMsg)   // 额外弹 toast 醒目提示（保留小字 codeSentTip）
   } finally {
     loading.value = false
   }

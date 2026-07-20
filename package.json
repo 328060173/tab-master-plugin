@@ -34,7 +34,6 @@
   "manifest": {
     "short_name": "TM-标签整理大师",
     "minimum_chrome_version": "114",
-    "minimum_edge_version": "114",
     "host_permissions": [
       "https://api.ouu365.com/*",
       "https://www.ouu365.com/*"

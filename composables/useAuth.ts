@@ -34,6 +34,8 @@ interface User {
   registerTime: string | null
   // 性别（2026-07-18 性别头像用）：0=男 1=女 2=未知；null=未获取/脏数据兜底（用默认头像）
   sex: 0 | 1 | 2 | null
+  // 签到可获得积分数（/my 返回，用于显示「签到可获得X积分」提示）
+  checkinAwardPoints: number
 }
 
 interface TabMasterAuth {
@@ -75,7 +77,9 @@ function sanitizeAuth(raw: unknown): TabMasterAuth {
         lastCheckInTime: typeof u.lastCheckInTime === 'string' ? u.lastCheckInTime : null,
         registerTime: typeof u.registerTime === 'string' ? u.registerTime : null,
         // sex 兜底：仅 0/1/2 合法，其余（含旧 storage 无此字段）一律 null
-        sex: u.sex === 0 || u.sex === 1 || u.sex === 2 ? u.sex : null
+        sex: u.sex === 0 || u.sex === 1 || u.sex === 2 ? u.sex : null,
+        // checkinAwardPoints 兜底：旧 storage 无此字段默认 10（与后端写死值一致）
+        checkinAwardPoints: typeof u.checkinAwardPoints === 'number' ? u.checkinAwardPoints : 10
       }
     }
   }
@@ -184,6 +188,8 @@ function useAuthImpl() {
           todayCheckedIn?: boolean
           lastCheckInTime?: string | null
           registerTime?: string | null
+          // 签到可得积分数（后端 2026-07-20 加，写死 10；兜底默认 10）
+          checkinAwardPoints?: number
         }
       }>(API_URIS.customerMy, { silent: true })
 
@@ -200,7 +206,9 @@ function useAuthImpl() {
           lastCheckInTime: typeof vo.lastCheckInTime === 'string' ? vo.lastCheckInTime : null,
           registerTime: typeof vo.registerTime === 'string' ? vo.registerTime : null,
           // 后端 OuuCustomer.sex 是 Integer（0/1/2）；非 0/1/2 兜底 null（用默认头像）
-          sex: vo.sex === 0 || vo.sex === 1 || vo.sex === 2 ? vo.sex : null
+          sex: vo.sex === 0 || vo.sex === 1 || vo.sex === 2 ? vo.sex : null,
+          // 签到可得积分：后端返回非数字时兜底 10（与后端写死值一致）
+          checkinAwardPoints: typeof vo.checkinAwardPoints === 'number' ? vo.checkinAwardPoints : 10
         }
         auth.value.user = newUser
         await chrome.storage.local.set({

@@ -82,6 +82,10 @@
                 class="text-xs mt-0.5"
                 :class="user?.todayCheckedIn ? 'text-green-600 dark:text-green-400' : 'text-gray-400'"
               >{{ user?.todayCheckedIn ? '今日已签到' : '今日未签到' }}</p>
+              <p
+                v-if="user && !user.todayCheckedIn"
+                class="text-[11px] text-amber-600 dark:text-amber-400 mt-1"
+              >签到可以获得{{ user.checkinAwardPoints }}积分哦</p>
             </div>
             <button
               type="button"
@@ -371,6 +375,10 @@
           <p class="mb-2">开启后，每 60 秒自动校正一次，保证列表始终准确反映浏览器真实标签。</p>
           <p>校正仅读取本地数据，不联网、不消耗流量，推荐保持开启。</p>
         </div>
+
+        <!-- 扩展功能：后端 /setting/menu-list (settingType=2) 下发的动态菜单（SW 拉取+缓存，options 只读） -->
+        <!-- 空数组（SW 未拉到/后端未配）时整个区块隐藏，不影响上方「自动数据校正」「刷新菜单内容」 -->
+        <SettingMenuOptionsList class="mt-3" />
       </section>
 
     </main>
@@ -479,6 +487,7 @@ import { post, get } from "~lib/api"
 import { API_URIS, buildOfficialUrl, propDetailUri } from "~lib/api-config"
 import type { PropListVO, PropDetailVO, ExchangeResultVO, PropPageResult } from "~types/prop"
 import LoginDialog from "~components/LoginDialog.vue"
+import SettingMenuOptionsList from "~components/SettingMenuOptionsList.vue"
 import ConfirmDialog from "~components/ConfirmDialog.vue"
 import AvatarWithFrame from "~components/AvatarWithFrame.vue"
 
