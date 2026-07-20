@@ -40,10 +40,20 @@ export interface SettingMenuResponse {
   } | null
 }
 
-/** SW 写入 storage 的设置菜单缓存（key=tabMasterSettingMenuCache） */
+/** SW 写入 storage 的设置菜单缓存（key=tabMasterSettingMenuCache / tabMasterSettingMenuOptionsCache） */
 export interface SettingMenuCacheData {
   menus: SettingMenuItem[]
   // 后端下发的下次拉取间隔（分钟），SW 据此设闹钟；null 时 SW 用 1440 兜底
   nextSyncIntervalMinutes: number | null
   lastSync: number         // 上次成功同步时间戳（ms）
 }
+
+/**
+ * 菜单类型（后端 /setting/menu-list 的 settingType 参数）
+ * - 1 = 插件 sidepanel 设置菜单（缓存 key=tabMasterSettingMenuCache，通知 settingMenuCacheUpdated）
+ * - 2 = options.html 设置 tab 菜单（缓存 key=tabMasterSettingMenuOptionsCache，通知 settingMenuOptionsCacheUpdated）
+ *
+ * 注：cache key / msg type 常量在 background.ts（SW 写入端）与 composables/useSettingMenu.ts（UI 读取端）
+ * 各自本地定义（沿用现有模式，不强行集中），改动时需同步三处：types/setting.ts 注释 + background.ts + useSettingMenu.ts
+ */
+export type SettingMenuType = 1 | 2
