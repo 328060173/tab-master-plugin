@@ -129,7 +129,6 @@ const SYS_DEFS: StorageDef[] = [
   { key: "tabMasterNoticeCache", label: "通知列表缓存",  icon: "📋", storage: "local", empty: "object", warning: "清空后，通知条会暂时消失，下次后台同步后恢复。" },
   { key: "tabMasterNoticeRead", label: "通知已读记录",  icon: "📨", storage: "local", warning: "清空后，已读记录会丢失，已读过的通知会重新展示。" },
   { key: "tabMasterSettingMenuCache", label: "更多菜单缓存",  icon: "📑", storage: "local", empty: "object", warning: "清空后，设置菜单「更多」组会暂时显示内置默认项，下次后台同步后恢复。" },
-  { key: "tabMasterSettingMenuOptionsCache", label: "设置页扩展功能缓存",  icon: "🗂️", storage: "local", empty: "object", warning: "清空后，设置页「扩展功能」区块会暂时消失，下次后台同步后恢复。" },
   { key: "tabMasterSkinTryon", label: "道具试穿态", icon: "⏳", storage: "local", empty: "object", warning: "会立即结束当前试穿（如有），并清除试穿临时数据。不影响已购道具的使用中态。" },
   // 注：装扮相关动态 key（按账号隔离，不在此静态表展示）：
   //   - `tabMasterSkinActive:{customerId}` 已购道具「使用中」态（头像框 + 背景图/纯色 + bgType）

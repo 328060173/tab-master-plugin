@@ -13,8 +13,9 @@
  *    - 广告：GET /ad/list 写 tabMasterAdCache
  *    - 版本：POST /version/check-version 写 tabMasterVersionCache
  *    - 通知：GET /notice/page-list 写 tabMasterNoticeCache
- *    - 设置菜单：GET /setting/menu-list 写 tabMasterSettingMenuCache
+ *    - 设置菜单（sidepanel，settingType=1）：POST /setting/menu-list 写 tabMasterSettingMenuCache
  *    各自 sendMessage 通知 sidepanel 只读缓存 —— sidepanel 禁止任何 fetch 上述请求
+ *    注：options.html 设置 tab 菜单（settingType=2）由 options 页直接请求后端，不走 SW 缓存
  *
  * 兼容：Chrome 88+ / Edge 88+（参见 [[constraint-target-platforms]]）
  */
@@ -154,8 +155,7 @@ type SyncTrigger = 'init' | 'timer' | 'manual'
  *       但调的是同一套 fetchXxxCache 函数，业务逻辑仍是一套。
  */
 function syncAll(trigger: SyncTrigger): void {
-  void fetchSettingMenuCache(trigger, 1)
-  void fetchSettingMenuCache(trigger, 2)
+  void fetchSettingMenuCache(trigger)
   void fetchAdCache(trigger)
   void fetchVersionCache(trigger)
   void fetchNoticeCache(trigger)
@@ -175,8 +175,8 @@ chrome.runtime.onMessage.addListener((msg) => {
   if ((msg as Record<string, unknown>).type !== 'manualRefreshAll') return
   if (isDev) console.log('[sync] 收到手动刷新请求 (manualRefreshAll)，不含广告')
   // 手动刷新不触发广告（避免每次点击都弹广告，体验差）；菜单/通知/版本仍同步
-  void fetchSettingMenuCache('manual', 1)
-  void fetchSettingMenuCache('manual', 2)
+  // 仅刷 sidepanel 设置菜单（settingType=1）；options 设置 tab 菜单由 options 页直接请求，不走 SW
+  void fetchSettingMenuCache('manual')
   void fetchNoticeCache('manual')
   void fetchVersionCache('manual')
   // 仅手动触发时通知 sidepanel 重拉 /my（不碰 /my 架构，sidepanel 自行决定已登录才拉）
@@ -216,7 +216,6 @@ const NOTICE_CACHE_KEY = 'tabMasterNoticeCache'
 const NOTICE_ALARM_NAME = 'tabMasterNoticeSync'
 
 const SETTING_MENU_CACHE_KEY = 'tabMasterSettingMenuCache'
-const SETTING_MENU_OPTIONS_CACHE_KEY = 'tabMasterSettingMenuOptionsCache'
 const SETTING_MENU_ALARM_NAME = 'tabMasterSettingSync'
 
 // 登录态 storage key（与 useAuth.ts 的 AUTH_KEY 对齐，SW 无法 import useAuth 因其依赖 Vue）
@@ -502,25 +501,23 @@ async function fetchNoticeCache(trigger: 'init' | 'timer' | 'manual'): Promise<v
 }
 
 // -------- 设置菜单拉取（SW 定时 + 初始化，sidepanel 只读缓存） --------
+// 注：仅拉取 sidepanel 设置菜单（settingType=1）。
+// options.html 设置 tab 菜单（settingType=2）由 options 页直接请求后端，不走 SW 缓存
+// （options 是用户主动操作页，业务请求直接发，与 /my/道具/签到同模式）。
 
 /**
- * 拉取“更多”菜单列表并写入缓存
- * POST /setting/menu-list（@Anonymous），body 含 customerType + settingType（后端 @RequestBody）。
+ * 拉取"更多"菜单列表并写入缓存
+ * POST /setting/menu-list（@Anonymous），body 含 customerType + settingType=1（后端 @RequestBody）。
  * versionCode/platform/appCode 走通用请求头（buildHeaders 自动注入），不放 body。
- * settingType=1 → sidepanel 设置菜单（缓存 key=tabMasterSettingMenuCache，通知 settingMenuCacheUpdated）
- * settingType=2 → options.html 设置 tab 菜单（缓存 key=tabMasterSettingMenuOptionsCache，通知 settingMenuOptionsCacheUpdated）
- * 两套共用一个闹钟 SETTING_MENU_ALARM_NAME（一次闹钟触发同时拉两套，避免双闹钟）
+ * 缓存 key=tabMasterSettingMenuCache，通知 settingMenuCacheUpdated
  * 后端按登录用户判灰度 + versionCode 过滤
  * 静默失败：不重试、不清旧缓存、等待下次触发
  * trigger: init=安装/重启触发，timer=闹钟定时触发，manual=用户手动触发
  */
 async function fetchSettingMenuCache(
-  trigger: 'init' | 'timer' | 'manual',
-  settingType: 1 | 2
+  trigger: 'init' | 'timer' | 'manual'
 ): Promise<void> {
-  const cacheKey = settingType === 1 ? SETTING_MENU_CACHE_KEY : SETTING_MENU_OPTIONS_CACHE_KEY
-  const msgType = settingType === 1 ? 'settingMenuCacheUpdated' : 'settingMenuOptionsCacheUpdated'
-  const logTag = settingType === 1 ? 'setting-menu-sync' : 'setting-menu-options-sync'
+  const settingType = 1
   let intervalMinutes: number | null = null
   try {
     const authHeaders = await getAuthHeaders()
@@ -534,7 +531,7 @@ async function fetchSettingMenuCache(
       silent: true
     })
     if (response.code !== 200) {
-      console.warn(`[${logTag}] 设置菜单接口返回 code=${response.code}（settingType=${settingType}），跳过缓存更新`)
+      console.warn(`[setting-menu-sync] 设置菜单接口返回 code=${response.code}，跳过缓存更新`)
       return
     }
     const d = response.data
@@ -556,16 +553,13 @@ async function fetchSettingMenuCache(
       nextSyncIntervalMinutes: intervalMinutes,
       lastSync: Date.now()
     }
-    await chrome.storage.local.set({ [cacheKey]: cache })
-    if (isDev) console.log(`[${logTag}] 设置菜单缓存已更新 (trigger=${trigger}, settingType=${settingType}, menus=${cache.menus.length}, nextInterval=${intervalMinutes}min)`)
-    chrome.runtime.sendMessage({ type: msgType }).catch(() => {})
+    await chrome.storage.local.set({ [SETTING_MENU_CACHE_KEY]: cache })
+    if (isDev) console.log(`[setting-menu-sync] 设置菜单缓存已更新 (trigger=${trigger}, menus=${cache.menus.length}, nextInterval=${intervalMinutes}min)`)
+    chrome.runtime.sendMessage({ type: 'settingMenuCacheUpdated' }).catch(() => {})
   } catch (e) {
-    console.warn(`[${logTag}] 拉取设置菜单失败（静默，不影响使用，settingType=${settingType}）`, e)
+    console.warn('[setting-menu-sync] 拉取设置菜单失败（静默，不影响使用）', e)
   } finally {
-    // 两套共用一个闹钟，只在 settingType=1 时调度，避免重复 create 同名闹钟互相覆盖
-    if (settingType === 1) {
-      scheduleAlarm(SETTING_MENU_ALARM_NAME, intervalMinutes, DEFAULT_SETTING_MENU_INTERVAL_MINUTES)
-    }
+    scheduleAlarm(SETTING_MENU_ALARM_NAME, intervalMinutes, DEFAULT_SETTING_MENU_INTERVAL_MINUTES)
   }
 }
 
@@ -608,11 +602,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       await fetchNoticeCache('timer')
       return
     case SETTING_MENU_ALARM_NAME:
-      // 两套菜单共用一个闹钟，gap 判断以 sidepanel（settingType=1）缓存为准；
-      // 通过即同时拉 sidepanel + options 两套
+      // sidepanel 设置菜单（settingType=1）定时拉取
+      // options 设置 tab 菜单（settingType=2）不走此闹钟，由 options 页直接请求
       if (await shouldSkipByGap(SETTING_MENU_CACHE_KEY, DEFAULT_SETTING_MENU_INTERVAL_MINUTES, SETTING_MENU_ALARM_NAME)) return
-      await fetchSettingMenuCache('timer', 1)
-      await fetchSettingMenuCache('timer', 2)
+      await fetchSettingMenuCache('timer')
       return
     default:
       return

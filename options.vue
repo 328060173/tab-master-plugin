@@ -556,7 +556,9 @@ const toggleKnobCls = (on: boolean) => [
 ]
 
 // ========== 刷新菜单内容（向 SW 发 manualRefreshAll，触发全量后端数据同步） ==========
-// 红线：options/sidepanel 均不发广告/版本/通知/设置菜单网络请求，全走 SW。
+// sidepanel 的广告/版本/通知/设置菜单走 SW 缓存（频繁开关需控频率）；
+// options 业务请求（/my/道具/签到/兑换/菜单查询）直接发后端。
+// 本按钮触发 SW 同步 sidepanel 那套数据；options 自身的菜单查询由组件 onMounted 直接发。
 // 异步不阻塞：点击 → loading 态 → 短延时后恢复（不监听 SW 完成信号）。
 // 失败静默（sendMessage 本身极少失败；即便失败也不阻塞 UI，按钮照常恢复）。
 const refreshing = ref(false)
