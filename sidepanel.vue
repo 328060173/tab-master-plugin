@@ -635,14 +635,16 @@
     <!-- 编号选择浮层（右键→设置编号） -->
     <div v-if="popover.isOpen('number-picker') && numberPickerTab" data-popover-content class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-44 p-2.5"
       :style="numberPickerStyle" @click.stop>
-      <p class="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-2">设置快捷键编号 (1-4)</p>
+      <p class="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-2">快捷键编号</p>
       <div class="flex gap-1.5">
-        <input v-model="numberPickerDraft" type="number" min="1" max="4" placeholder="1-4"
-          class="flex-1 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-400"
-          @keyup.enter="confirmNumberPicker" @keyup.escape="popover.close('number-picker')" />
-        <button class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700" @click="confirmNumberPicker">确定</button>
+        <button v-for="n in 4" :key="n"
+          :class="['flex-1 h-7 text-xs rounded border transition-colors',
+            numberPickerTab?.number === n
+              ? 'bg-blue-600 text-white border-blue-600'
+              : 'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600']"
+          @click="pickNumber(n)">{{ n }}</button>
       </div>
-      <button class="mt-1.5 text-[10px] text-gray-400 hover:text-red-500 w-full text-left" @click="clearNumberFromPicker">清除编号</button>
+      <button v-if="numberPickerTab?.number" class="mt-1.5 text-[10px] text-gray-400 hover:text-red-500 w-full text-left" @click="clearNumberFromPicker">清除编号</button>
     </div>
     <button v-if="scrolled && focusMode !== 'focusing'" class="fixed bottom-10 right-3 z-30 p-1.5 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all" @click="scrollToTop" title="回到顶部">
       <ChevronUp :size="14" />
@@ -1077,7 +1079,6 @@ const { toastMsg, showToast } = useToast()
 const ctxMenu = ref<{ tab: TabItem; x: number; y: number } | null>(null)
 // 右键 picker —— 用 PopoverManager 统一管理 open/close，自身只保留"对哪个 tab"
 const rightClickTabId = ref<number | null>(null)
-const numberPickerDraft = ref("")
 
 const rightClickTab = computed(() => rightClickTabId.value !== null ? tabs.value.find(t => t.id === rightClickTabId.value) ?? null : null)
 const numberPickerTab = computed(() => rightClickTabId.value !== null && popover.isOpen('number-picker') ? tabs.value.find(t => t.id === rightClickTabId.value) ?? null : null)
@@ -1094,12 +1095,10 @@ const numberPickerStyle = computed(() => {
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
 
-const confirmNumberPicker = () => {
+const pickNumber = (n: number) => {
   if (rightClickTabId.value === null) return
-  const n = parseInt(numberPickerDraft.value)
-  const val = !isNaN(n) && n >= 1 && n <= 4 ? n : 0
-  updateTabNumber(rightClickTabId.value, val)
-  onNumberSet(val)
+  updateTabNumber(rightClickTabId.value, n)
+  onNumberSet(n)
   popover.close('number-picker')
   rightClickTabId.value = null
 }
@@ -1717,7 +1716,6 @@ const handleCtxAction = (action: string, data?: any) => {
     },
     setNumber: () => {
       rightClickTabId.value = tab.id
-      numberPickerDraft.value = tab.number ? String(tab.number) : ""
       setTimeout(() => popover.openAtRect('number-picker', new DOMRect(x, y, 0, 0)), 0)
     },
     later: () => openLater(tab.id),

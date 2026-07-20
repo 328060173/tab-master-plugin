@@ -22,14 +22,16 @@
             </button>
           </span>
         </div>
-        <!-- 编号设置 -->
-        <div class="flex items-center gap-1">
-          <span class="text-[10px] text-gray-400">编号:</span>
-          <input v-if="editingNumber" ref="numberInput" v-model="numberDraft" type="number" min="1" max="9"
-            class="w-10 h-5 text-[10px] text-center border border-blue-400 rounded outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-            @keyup.enter="confirmNumber" @keyup.escape="editingNumber = false" @blur="confirmNumber" />
-          <button v-else class="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
-            @click="startEditNumber">{{ item.number ? `${modKey}${item.number}` : '点击设置' }}</button>
+        <!-- 快捷键编号点选 -->
+        <div class="flex items-center gap-1 flex-wrap">
+          <span class="text-[10px] text-gray-400">快捷键编号:</span>
+          <button v-for="n in 4" :key="n"
+            :class="['text-[10px] w-5 h-5 rounded border text-center leading-none transition-colors',
+              item.number === n
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600']"
+            @click.stop="emit('updateNumber', n)">{{ n }}</button>
+          <button v-if="item.number" class="text-[10px] text-gray-400 hover:text-red-500 ml-0.5" @click.stop="emit('updateNumber', 0)">清除</button>
         </div>
         <div class="flex flex-wrap gap-1 text-[10px]">
           <span v-if="item.audible && !item.muted" class="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded">🔊 播放中</span>
@@ -63,10 +65,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, computed } from "vue"
+import { computed } from "vue"
 import { RefreshCw, Link, Pin, Clock, X } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
-import { modKey } from "~lib/platform"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 
@@ -98,22 +99,5 @@ const onClose = () => { popover.close(); emit('close') }
 // 不关 hover card，方便连续删多个
 const onRemoveTag = (tag: string) => {
   emit('removeTag', tag)
-}
-
-const editingNumber = ref(false)
-const numberDraft = ref("")
-const numberInput = ref<HTMLInputElement | null>(null)
-
-const startEditNumber = async () => {
-  numberDraft.value = props.item.number ? String(props.item.number) : ""
-  editingNumber.value = true
-  await nextTick()
-  numberInput.value?.select()
-}
-const confirmNumber = () => {
-  editingNumber.value = false
-  const n = parseInt(numberDraft.value)
-  if (!isNaN(n) && n >= 1 && n <= 9) emit('updateNumber', n)
-  else if (!numberDraft.value.trim()) emit('updateNumber', 0)
 }
 </script>
