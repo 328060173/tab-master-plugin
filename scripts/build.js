@@ -23,7 +23,10 @@ function runCommandSync(command, cwd) {
 // 启动开发服务器并等待构建完成
 function runDevServer(cwd) {
   return new Promise((resolve, reject) => {
-    const devProcess = spawn('pnpm', ['dev'], { cwd, stdio: 'inherit' });
+    // 直接 spawn plasmo dev，不走 pnpm dev（后者带 sync-locales --watch 后台进程，
+    // SIGINT 杀不掉孤儿 sync-locales，且 pnpm 不干净退出会中断后续 rename/zip 流程）
+    // build:all 自有 copyLocales() 补 _locales，不需要 sync-locales 守护
+    const devProcess = spawn('plasmo', ['dev'], { cwd, stdio: 'inherit' });
 
     // 设置超时，20秒后停止服务器
     const timeout = setTimeout(() => {
