@@ -21,7 +21,7 @@
         v-if="popover.isOpen('header-menu')"
         :style="menuPos"
         data-popover-content
-        class="fixed z-[60] w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1 max-h-[80vh] overflow-y-auto"
+        class="fixed z-[60] w-[208px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1 max-h-[80vh] overflow-y-auto"
         @click.stop
         @mouseleave="activeSubmenu = null"
       >
@@ -167,7 +167,7 @@
         v-if="popover.isOpen('header-menu') && activeSubmenu === 'theme'"
         :style="themeSubmenuPos"
         data-popover-content
-        class="fixed z-[60] w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+        class="fixed z-[60] w-[144px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
         @click.stop
         @mouseenter="activeSubmenu = 'theme'"
       >
@@ -196,7 +196,7 @@
         v-if="popover.isOpen('header-menu') && activeSubmenu === 'font'"
         :style="fontSubmenuPos"
         data-popover-content
-        class="fixed z-[60] w-32 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+        class="fixed z-[60] w-[128px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
         @click.stop
         @mouseenter="activeSubmenu = 'font'"
       >
@@ -214,7 +214,7 @@
         v-if="popover.isOpen('header-menu') && activeSubmenu === 'position'"
         :style="positionSubmenuPos"
         data-popover-content
-        class="fixed z-[60] w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl p-2.5 text-[11px] leading-relaxed text-gray-600 dark:text-gray-300"
+        class="fixed z-[60] w-[144px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl p-2.5 text-[11px] leading-relaxed text-gray-600 dark:text-gray-300"
         @click.stop
         @mouseenter="activeSubmenu = 'position'"
       >

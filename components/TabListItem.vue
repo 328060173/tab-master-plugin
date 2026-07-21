@@ -32,7 +32,7 @@
     <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" :badge="statusBadge" />
     <div class="flex-1 min-w-0 flex flex-col gap-0.5">
       <div class="flex items-center gap-1.5">
-        <p :class="['text-sm font-medium truncate', item.active ? 'text-blue-900 font-semibold' : 'text-gray-900 dark:text-gray-100']">{{ item.title }}</p>
+        <p :class="['text-[0.92rem] font-medium truncate', item.active ? 'text-blue-900 font-semibold' : 'text-gray-900 dark:text-gray-100']">{{ item.title }}</p>
         <template v-if="item.tags.length">
           <span class="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800 shrink-0">{{ item.tags[0] }}</span>
           <span v-if="item.tags.length > 1" class="text-[10px] text-gray-400 shrink-0">+{{ item.tags.length - 1 }}</span>

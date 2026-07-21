@@ -191,7 +191,7 @@
       <div
         v-if="popover.isOpen(panelId)"
         :style="panelStyle"
-        class="fixed z-[80] w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl"
+        class="fixed z-[80] w-[320px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl"
         @click.stop>
         <!-- panel 头 -->
         <div
@@ -418,7 +418,7 @@
       <div
         v-if="popover.isOpen(morePopoverId)"
         :style="morePopoverStyle"
-        class="fixed z-[80] min-w-[160px] max-w-[240px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl"
+        class="fixed z-[80] w-[200px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl"
         @click.stop>
         <div class="p-2">
           <div class="text-[11px] text-gray-400 dark:text-gray-500 px-2 py-1">更多标记</div>

@@ -26,7 +26,7 @@
           <div
             v-if="popover.isOpen(menuPopoverId)"
             :style="menuPos"
-            class="fixed z-[60] w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+            class="fixed z-[60] w-[160px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
             @click.stop>
             <button :class="btn" @click="startRename"><Edit :size="12" />重命名</button>
             <div class="relative group/colorsubmenu">

@@ -2,7 +2,7 @@
   <Teleport to="body">
     <template v-if="tab">
       <div class="fixed inset-0 z-[109]" @click="emit('close')" @contextmenu.prevent="emit('close')" />
-      <div ref="menuRef" class="fixed z-[110] bg-white border border-gray-200 rounded-lg shadow-xl py-1 w-52 text-xs select-none"
+      <div ref="menuRef" class="fixed z-[110] bg-white border border-gray-200 rounded-lg shadow-xl py-1 w-[208px] text-xs select-none"
         :style="{ left: `${pos.x}px`, top: `${pos.y}px` }">
         <button :class="btn" @click="act('refresh')"><RefreshCw :size="12" />刷新</button>
         <button :class="btn" @click="act('duplicate')"><Copy :size="12" />复制标签页</button>
@@ -22,7 +22,7 @@
             v-if="groupSubmenuOpen"
             :class="[
               submenuOpensLeft ? 'right-full mr-0.5' : 'left-full ml-0.5',
-              'absolute top-0 bg-white border border-gray-200 rounded-lg shadow-xl py-1 w-48'
+              'absolute top-0 bg-white border border-gray-200 rounded-lg shadow-xl py-1 w-[192px]'
             ]"
           >
             <button :class="btn" @click="act('newGroup')"><FolderPlus :size="12" />新建分组...</button>

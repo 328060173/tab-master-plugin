@@ -166,7 +166,7 @@
       <div
         v-if="popover.isOpen('history-help')"
         :style="helpPos"
-        class="fixed z-[70] w-60 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-3 text-[11px] leading-relaxed text-gray-600 dark:text-gray-300"
+        class="fixed z-[70] w-[240px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-3 text-[11px] leading-relaxed text-gray-600 dark:text-gray-300"
         @click.stop
       >
         <template v-if="mode === 'history'">
@@ -199,7 +199,7 @@
       <div
         v-if="popover.isOpen('history-sort')"
         :style="sortPos"
-        class="fixed z-[60] w-32 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+        class="fixed z-[60] w-[128px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
         @click.stop
       >
         <button

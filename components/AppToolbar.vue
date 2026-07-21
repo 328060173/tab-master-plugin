@@ -1,51 +1,51 @@
 <template>
-  <div class="flex items-center gap-1 px-3 py-1.5 border-b border-gray-100">
+  <div class="flex items-center gap-1 px-2 py-1.5 border-b border-gray-100 flex-nowrap">
     <template v-if="!isLaterPage">
       <button
-        class="p-1 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900"
+        class="p-0.5 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900"
         title="新建标签"
         @click="emit('newTab')">
-        <Plus :size="15" :stroke-width="2.5" />
+        <Plus :size="13" :stroke-width="2.5" />
       </button>
       <button
-        class="p-1 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900"
+        class="p-0.5 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900"
         title="刷新当前标签"
         @click="emit('refreshCurrent')">
-        <RotateCw :size="14" :stroke-width="2.25" />
+        <RotateCw :size="12" :stroke-width="2.25" />
       </button>
       <button
-        class="p-1 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900 disabled:opacity-30"
+        class="p-0.5 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900 disabled:opacity-30"
         :disabled="!canGoBack"
         @click="emit('goBack')"
         title="上一个标签">
-        <ChevronLeft :size="15" :stroke-width="2.5" />
+        <ChevronLeft :size="13" :stroke-width="2.5" />
       </button>
       <button
-        class="p-1 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900 disabled:opacity-30"
+        class="p-0.5 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900 disabled:opacity-30"
         :disabled="!canGoForward"
         @click="emit('goForward')"
         title="下一个标签">
-        <ChevronRight :size="15" :stroke-width="2.5" />
+        <ChevronRight :size="13" :stroke-width="2.5" />
       </button>
 
       <!-- 视图切换 -->
       <button
         :class="[
-          'ml-1 flex items-center gap-1 px-2 py-1 text-xs border rounded transition-colors',
+          'ml-0.5 flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] border rounded transition-colors whitespace-nowrap min-w-[56px] justify-start',
           popover.isOpen('toolbar-view')
             ? 'border-blue-400 bg-blue-50 text-blue-700'
             : 'border-gray-200 hover:bg-gray-50'
         ]"
         @click.stop="onViewTriggerClick">
-        <component :is="currentView.icon" :size="12" />{{ currentView.label
-        }}<ChevronDown :size="10" class="text-gray-400" />
+        <component :is="currentView.icon" :size="11" />{{ currentView.label
+        }}<ChevronDown :size="9" class="text-gray-400" />
       </button>
 
       <!-- 排序切换 -->
       <button
         :disabled="viewMode === 'tree'"
         :class="[
-          'flex items-center gap-1 px-2 py-1 text-xs border rounded transition-colors',
+          'flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] border rounded transition-colors whitespace-nowrap min-w-[80px] justify-start',
           viewMode === 'tree'
             ? 'border-gray-100 text-gray-300 cursor-not-allowed bg-gray-50'
             : popover.isOpen('toolbar-sort')
@@ -58,7 +58,7 @@
             : SORT_OPTIONS.find((o) => o.value === sortMode)?.hint || '排序方式'
         "
         @click.stop="onSortTriggerClick">
-        <ArrowUpDown :size="11" />{{
+        <ArrowUpDown :size="10" />{{
           SORT_OPTIONS.find((o) => o.value === sortMode)?.label
         }}
       </button>
@@ -66,14 +66,14 @@
       <!-- 整理（点开是一组整理工具菜单，▾ 提示可展开，不是一键删除）-->
       <button
         :class="[
-          'flex items-center gap-1 px-2 py-1 text-xs border rounded transition-colors',
+          'flex items-center gap-0.5 px-1.5 py-0.5 text-[11px] border rounded transition-colors whitespace-nowrap',
           popover.isOpen('toolbar-clean')
             ? 'border-blue-400 bg-blue-50 text-blue-700'
             : 'border-gray-200 hover:bg-gray-50'
         ]"
         @click.stop="onCleanTriggerClick">
-        <ListChecks :size="12" />整理<ChevronDown
-          :size="10"
+        <ListChecks :size="11" />整理<ChevronDown
+          :size="9"
           class="text-gray-400" />
       </button>
     </template>
@@ -85,7 +85,7 @@
     <div
       v-if="popover.isOpen('toolbar-view')"
       :style="viewPos"
-      class="fixed z-[60] w-28 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+      class="fixed z-[60] w-[112px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
       @click.stop>
       <button
         v-for="o in VIEW_OPTIONS"
@@ -105,7 +105,7 @@
     <div
       v-if="popover.isOpen('toolbar-sort') && viewMode !== 'tree'"
       :style="sortPos"
-      class="fixed z-[60] w-32 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+      class="fixed z-[60] w-[128px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
       @click.stop>
       <button
         v-for="o in SORT_OPTIONS"
@@ -126,7 +126,7 @@
     <div
       v-if="popover.isOpen('toolbar-clean')"
       :style="cleanPos"
-      class="fixed z-[60] w-60 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+      class="fixed z-[60] w-[224px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
       @click.stop>
       <p
         class="px-3 pt-1.5 pb-0.5 text-[10px] font-medium tracking-wide text-red-500">

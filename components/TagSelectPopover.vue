@@ -5,7 +5,7 @@
       ref="popoverRootRef"
       :style="popoverStyle"
       data-popover-content
-      class="fixed z-[85] w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl"
+      class="fixed z-[85] w-[288px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl"
       @click.stop>
       <!-- 顶部新增标记区域 -->
       <div v-if="allTags.length < 15" class="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 dark:border-gray-700">

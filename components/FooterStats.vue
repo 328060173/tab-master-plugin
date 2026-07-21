@@ -28,7 +28,7 @@
     <div
       v-if="popover.isOpen('footer-more')"
       :style="morePos"
-      class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1 min-w-max max-h-[60vh] overflow-y-auto"
+      class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1 w-[200px] max-h-[60vh] overflow-y-auto"
       @click.stop>
       <button
         v-for="s in hiddenStats" :key="s.key" :title="s.desc"

@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="popover.isOpen(hoverCardId)" class="fixed z-[70] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl w-64 text-xs"
+    <div v-if="popover.isOpen(hoverCardId)" class="fixed z-[70] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl w-[256px] text-xs"
       :style="cardStyle"
       @click.stop>
       <!-- 完整标题 -->

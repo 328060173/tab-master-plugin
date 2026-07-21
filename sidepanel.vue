@@ -149,12 +149,12 @@
     </ErrorBoundary>
 
     <!-- Nav Tabs（仅普通态显示） -->
-    <div v-if="focusMode === 'normal'" class="flex items-center border-b border-gray-100 px-3 shrink-0 gap-4">
+    <div v-if="focusMode === 'normal'" class="flex items-center border-b border-gray-100 px-3 shrink-0 gap-2">
       <template v-for="nav in navItems" :key="nav.key">
         <!-- 首页：文字 + 竖三点收进同一容器，让三点明确归属首页且紧贴文字 -->
         <div v-if="nav.key === 'home'" class="flex items-center -mb-px">
           <button
-            :class="['pl-3 pr-1 py-1.5 text-xs transition-colors border-b-2', activeNav === 'home' ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
+            :class="['pl-2.5 pr-1 py-1.5 text-xs transition-colors border-b-2', activeNav === 'home' ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
             @click="activeNav = 'home'">
             {{ nav.label }}
           </button>
@@ -170,7 +170,7 @@
         </div>
         <button
           v-else
-          :class="['px-3 py-1.5 text-xs transition-colors border-b-2 -mb-px', activeNav === nav.key ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
+          :class="['px-2.5 py-1.5 text-xs transition-colors border-b-2 -mb-px', activeNav === nav.key ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
           @click="activeNav = nav.key">
           {{ nav.label }}
           <span v-if="nav.key === 'later' && laterTabs.length" class="ml-1 text-[10px] bg-amber-100 text-amber-700 px-1.5 rounded-full">{{ laterTabs.length }}</span>
@@ -184,7 +184,7 @@
         v-if="popover.isOpen('home-toolbar-options')"
         :style="homeOptionsMenuPos"
         data-popover-content
-        class="fixed z-[60] w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+        class="fixed z-[60] w-[176px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
         @click.stop>
         <label class="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" @click="toggleHomeSearchVisible">
           <span class="w-4 h-4 border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center">
@@ -482,7 +482,7 @@
         v-if="popover.isOpen('normal-batch')"
         :style="batchMenuPos"
         data-popover-content
-        class="fixed z-[60] w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+        class="fixed z-[60] w-[192px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
         @click.stop
         @mouseleave="batchActiveSubmenu = null"
       >
@@ -532,7 +532,7 @@
         v-if="popover.isOpen('normal-batch') && batchActiveSubmenu === 'group'"
         :style="batchGroupSubmenuPos"
         data-popover-content
-        class="fixed z-[60] w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+        class="fixed z-[60] w-[180px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
         @click.stop
         @mouseenter="batchActiveSubmenu = 'group'"
       >
@@ -633,7 +633,7 @@
     <TabContextMenu :tab="ctxMenu?.tab ?? null" :x="ctxMenu?.x ?? 0" :y="ctxMenu?.y ?? 0"
       @action="handleCtxAction" @close="ctxMenu = null" />
     <!-- 编号选择浮层（右键→设置编号） -->
-    <div v-if="popover.isOpen('number-picker') && numberPickerTab" data-popover-content class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-44 p-2.5"
+    <div v-if="popover.isOpen('number-picker') && numberPickerTab" data-popover-content class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-[176px] p-2.5"
       :style="numberPickerStyle" @click.stop>
       <p class="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-2">快捷键编号</p>
       <div class="flex gap-1.5">
@@ -1752,11 +1752,11 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
  * 字号档位 —— 通过改 :root font-size 让 Tailwind rem 类自动响应
  * 影响：text-xs/sm/base/lg 等所有 rem 单位的字号
  * 不影响：硬编码的 text-[10px]/[11px] 等任意值（约 30 处，肉眼差异不大）
- * 默认：fs-normal = 16px（Tailwind base）
+ * 默认：fs-normal = 14px（紧凑标准，工具型 UI）
  * ====================================================================== */
-:root.fs-normal  { font-size: 16px; }
-:root.fs-large   { font-size: 17.5px; }   /* +10% */
-:root.fs-xlarge  { font-size: 19px; }     /* +18% */
+:root.fs-normal  { font-size: 14px; }
+:root.fs-large   { font-size: 15.5px; }   /* +10.7% */
+:root.fs-xlarge  { font-size: 17px; }     /* +21.4% */
 
 /* ======================================================================
  * 字体族

@@ -128,6 +128,9 @@ function onTabActivated(info: chrome.tabs.TabActiveInfo): void {
 chrome.runtime.onInstalled.addListener(async () => {
   // chrome.sidePanel 需 Chrome/Edge 114+（侧边栏核心形态，不支持则插件不可用）
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
+  // 卸载跳转官网卸载反馈页（setUninstallURL 是持久注册，安装/更新时设置一次即可）
+  // URL 用 OFFICIAL_SITE_URL 常量拼接，dev/prod 自动切换；静默失败避免 reject 抛未捕获异常
+  chrome.runtime.setUninstallURL(`${OFFICIAL_SITE_URL}/uninstall`).catch(() => {})
   await loadMap()
   // 广告/版本/通知/设置菜单初始化拉取（fire-and-forget，各模块独立，互不阻塞）
   syncAll('init')
