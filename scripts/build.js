@@ -126,7 +126,7 @@ function renameDirs() {
 
 // 复制项目根 _locales 目录到目标产物目录
 function copyLocales(targetDir) {
-  const srcLocales = path.join(__dirname, '..', '_locales')
+  const srcLocales = path.join(__dirname, '..', 'public', '_locales')
   if (!fs.existsSync(srcLocales)) {
     console.warn('⚠️ 项目根无 _locales 目录，跳过')
     return

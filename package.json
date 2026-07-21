@@ -6,13 +6,13 @@
   "short_name": "TM-标签整理大师",
   "author": "xpd",
   "scripts": {
-    "dev": "plasmo dev",
-    "dev:safe": "pkill -f 'plasmo dev' || true && plasmo dev",
-    "fresh": "pkill -f plasmo || true; rm -rf .plasmo build && plasmo dev",
-    "build": "plasmo build",
+    "dev": "node scripts/sync-locales.js --watch & plasmo dev",
+    "dev:safe": "pkill -f 'plasmo dev' || true; pkill -f 'sync-locales' || true && node scripts/sync-locales.js --watch & plasmo dev",
+    "fresh": "pkill -f plasmo || true; pkill -f sync-locales || true; rm -rf .plasmo build && node scripts/sync-locales.js --watch & plasmo dev",
+    "build": "plasmo build && node scripts/sync-locales.js",
     "package": "plasmo package",
     "clean": "rm -rf build",
-    "kill-dev": "pkill -f 'plasmo dev' || echo '✅ 无残留进程'",
+    "kill-dev": "pkill -f 'plasmo dev' || true; pkill -f 'sync-locales' || true; echo '✅ 无残留进程'",
     "build:all": "node scripts/build.js"
   },
   "dependencies": {

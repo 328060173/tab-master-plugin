@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 
 const rootDir = path.join(__dirname, '..');
-const sourceLocales = path.join(rootDir, '_locales');
+const sourceLocales = path.join(rootDir, 'public', '_locales');
 const buildDir = path.join(rootDir, 'build');
 
 // 所有可能的 build 产物目录名

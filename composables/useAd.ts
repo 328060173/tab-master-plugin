@@ -19,13 +19,12 @@
  * 渲染逻辑：
  * - hideAd=true 且 当前时间 < expireTime → 隐藏广告区
  * - hideAd=false 或免广告已过期 → 用 adData 渲染（受频率上限+去重约束）
- * - 无缓存 → 展示内置静态占位广告（兜底 AdInfo，不发请求）
+ * - 无缓存 → 不弹广告（后端没配广告时保持干净，不硬塞兜底内容）
  */
 
 import { toPure } from "~lib/toPure"
 import { ref, computed } from 'vue'
 import { isDev } from "~lib/env"
-import { OFFICIAL_SITE_URL } from '~lib/api-config'
 import { BUSINESS_CONFIG } from '~config/app-config'
 import type { AdCacheData, AdInfo, AdItem } from '~types/ad'
 
@@ -44,15 +43,6 @@ const DEFAULT_STATE: AdState = {
   date: null,
   shownCount: 0,
   interactedAdIds: []
-}
-
-// 兜底占位广告（无缓存时展示，不发请求）
-const FALLBACK_AD: AdInfo = {
-  id: 0,
-  title: 'TM-浏览器标签整理大师 — 3秒找到任何标签',
-  imageUrl: '',
-  linkUrl: OFFICIAL_SITE_URL,
-  duration: BUSINESS_CONFIG.adDefaultDuration
 }
 
 
@@ -166,7 +156,7 @@ function useAdImpl() {
    * - hideAd 生效 → null
    * - 频率上限 → null
    * - adData 有效且未交互过 → adData
-   * - 无缓存 → 兜底占位广告（FALLBACK_AD）
+   * - 无缓存 → 不弹广告（保持干净）
    * - 有缓存但无可用广告 → null
    */
   function selectAd() {
@@ -191,9 +181,9 @@ function useAdImpl() {
       }
       return
     }
-    // 无缓存 → 兜底占位广告
+    // 无缓存 → 不弹广告（后端没配广告时保持干净，不硬塞兜底内容）
     if (!adCache.value) {
-      currentAd.value = { ...FALLBACK_AD }
+      currentAd.value = null
       return
     }
     // 有缓存但无可用广告（adData 为 null 或已交互过）
