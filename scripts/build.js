@@ -175,10 +175,17 @@ function createZip(srcDir, zipName) {
 
 // 双保险：扫描 zip 内容，确认无开发文档（.md / docs / CLAUDE / README）
 // plasmo build 产物本身已干净，这里加兜底防止未来误打包
-// 注意：此函数对 .crx 同样有效——crx = [二进制头] + [zip 内容]，unzip -l 会跳过头部
-// 列出内层 zip 的文件（stderr 打 "extra bytes at beginning" 警告，stdout 仍是文件清单，不影响扫描）
+// 注意：.crx 也能用 unzip -l 扫——crx = [二进制头] + [zip 内容]，unzip 会跳过头部
+// 列出内层 zip 文件清单。但 crx 头部会让 unzip 退出码=1（stderr 打
+// "extra bytes at beginning" 警告），所以对 .crx 必须忽略退出码（|| true），
+// 只看 stdout 文件清单——否则 execSync 会因退出码非 0 抛错中断构建。
 function verifyZipNoDocs(zipPath, zipName) {
-  const list = execSync(`unzip -l "${zipPath}"`).toString();
+  // .crx 用 || true 容错（unzip 对二进制头报 warning 且退出码 1，但 stdout 清单仍有效）
+  const isCrx = zipPath.endsWith('.crx');
+  const cmd = isCrx
+    ? `unzip -l "${zipPath}" 2>/dev/null || true`
+    : `unzip -l "${zipPath}"`;
+  const list = execSync(cmd, { stdio: ['pipe', 'pipe', 'pipe'] }).toString();
 
   // 匹配开发文档特征：.md 文件 / docs/ 目录 / CLAUDE / README
   const docPattern = /\.md$|\/docs\/|(^|\/)CLAUDE|(^|\/)README/i;
