@@ -12,6 +12,18 @@ const { version } = require('../package.json');
 const PROD_DIR_NAME = 'tm-mv3-prod';
 const DEV_DIR_NAME = 'tm-mv3-dev';
 
+// CRX 签名私钥路径（项目根 .crx-key.pem）
+// ⚠️ 私钥决定 extension ID，必须持久化——每次用同一私钥，否则 extension ID 变、已装用户更新失败。
+// 首次不存在时 crx3 自动生成 RSA-4096 私钥并写入此路径；后续复用。
+// ⚠️ .gitignore 已含 `*.pem`，私钥绝不进仓库（进仓库会被 Google 视为密钥泄露吊销签名）。
+// 不放 build/ 下——build/ 每次构建会被清空，会丢私钥。
+const CRX_KEY_PATH = path.join(rootDir, '.crx-key.pem');
+
+// crx3 模块（纯 JS，无原生依赖；3 个传递依赖 mri/pbf/yazl 均纯 JS）
+// 用法：crx3(zipReadStream, { keyPath, crxPath }) → Promise<info>
+// info.appId 是 base-16 [a-p] 编码的 extension ID
+const crx3 = require('crx3');
+
 // 执行命令（同步）
 function runCommandSync(command, cwd) {
   execSync(command, {
@@ -163,6 +175,8 @@ function createZip(srcDir, zipName) {
 
 // 双保险：扫描 zip 内容，确认无开发文档（.md / docs / CLAUDE / README）
 // plasmo build 产物本身已干净，这里加兜底防止未来误打包
+// 注意：此函数对 .crx 同样有效——crx = [二进制头] + [zip 内容]，unzip -l 会跳过头部
+// 列出内层 zip 的文件（stderr 打 "extra bytes at beginning" 警告，stdout 仍是文件清单，不影响扫描）
 function verifyZipNoDocs(zipPath, zipName) {
   const list = execSync(`unzip -l "${zipPath}"`).toString();
 
@@ -178,6 +192,37 @@ function verifyZipNoDocs(zipPath, zipName) {
   }
 
   console.log(`✅ ${zipName} 内容扫描通过，无开发文档`);
+}
+
+// 打 crx（CRX3 格式，现代 Chrome/Edge/国内 Chromium 内核浏览器通用）
+// 原理：crx = [Cr24 魔数 4B][版本 4B][header_size 4B][protobuf 头][内层 zip]
+// crx3 模块把已打好的 zip 读流接进 CRX3Stream，前置 protobuf 头 + RSA-SHA256 签名，输出 .crx
+//
+// ⚠️ CRX 适用范围（写进脚本免忘）：
+// 1. 现代 Chrome/Edge 拒绝安装非商店签名的 crx（会提示"只能从商店安装"），自签 crx 装不上。
+// 2. 自签 crx 主要给 360/百度/搜狗/腾讯等国内 Chromium 内核浏览器用——它们对自签 crx 较宽松。
+// 3. 所以 crx 是补充产物，zip 手动加载（chrome://extensions 开发者模式）仍是主力分发方式。
+// 4. 只给 prod 打 crx——dev 是调试用，不需要 crx。
+//
+// ⚠️ 私钥持久化（见 CRX_KEY_PATH 注释）：crx3 自动管理，首次生成、后续复用，extension ID 跨构建稳定。
+async function createCrx(prodZipPath, crxName) {
+  const crxPath = path.join(buildDir, crxName);
+
+  // 删除旧 crx（避免上次残留）
+  if (fs.existsSync(crxPath)) {
+    fs.unlinkSync(crxPath);
+  }
+
+  // 把已打好的 prod zip 读流喂给 crx3，输出 crx
+  // 用已有 zip（已 verifyZipNoDocs 扫过）而不是让 crx3 重新打 zip——保证 crx 内层 zip 与分发 zip 完全一致
+  const zipStream = fs.createReadStream(prodZipPath);
+  const info = await crx3(zipStream, {
+    keyPath: CRX_KEY_PATH,
+    crxPath: crxPath
+  });
+
+  console.log(`📦 已打 crx: ${crxName}  (extension ID: ${info.appId})`);
+  return crxPath;
 }
 
 // 读取文件/目录大小（字节）
@@ -201,7 +246,8 @@ function printArtifacts() {
     { name: `${PROD_DIR_NAME}/`, path: path.join(buildDir, PROD_DIR_NAME), type: 'dir' },
     { name: `${DEV_DIR_NAME}/`, path: path.join(buildDir, DEV_DIR_NAME), type: 'dir' },
     { name: `${PROD_DIR_NAME}-${version}.zip`, path: path.join(buildDir, `${PROD_DIR_NAME}-${version}.zip`), type: 'file' },
-    { name: `${DEV_DIR_NAME}-${version}.zip`, path: path.join(buildDir, `${DEV_DIR_NAME}-${version}.zip`), type: 'file' }
+    { name: `${DEV_DIR_NAME}-${version}.zip`, path: path.join(buildDir, `${DEV_DIR_NAME}-${version}.zip`), type: 'file' },
+    { name: `${PROD_DIR_NAME}-${version}.crx`, path: path.join(buildDir, `${PROD_DIR_NAME}-${version}.crx`), type: 'file' }
   ];
 
   artifacts.forEach(art => {
@@ -258,6 +304,14 @@ async function build() {
   console.log('\n🔍 扫描 zip 内容（双保险，防误打包开发文档）...');
   verifyZipNoDocs(prodZip, `${PROD_DIR_NAME}-${version}.zip`);
   verifyZipNoDocs(devZip, `${DEV_DIR_NAME}-${version}.zip`);
+
+  // 打 crx（只给 prod；国内 Chromium 内核浏览器用，现代 Chrome/Edge 拒装自签 crx）
+  console.log('\n📦 打包 crx（CRX3，给国内 Chromium 内核浏览器）...');
+  const prodCrx = await createCrx(prodZip, `${PROD_DIR_NAME}-${version}.crx`);
+
+  // 双保险：扫描 crx 内容（crx 内层就是刚扫过的 prod zip，这里再扫一次兜底）
+  console.log('\n🔍 扫描 crx 内容...');
+  verifyZipNoDocs(prodCrx, `${PROD_DIR_NAME}-${version}.crx`);
 
   // 打印最终产物清单
   printArtifacts();
