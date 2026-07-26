@@ -7,7 +7,7 @@
   <div>
     <!-- 选快照 -->
     <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4">
-      <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">选择要恢复的快照：</p>
+      <p class="text-xs text-gray-500 dark:text-gray-500 dark:text-gray-300 mb-2">选择要恢复的快照：</p>
       <select
         v-model="selectedId"
         class="w-full text-xs border border-gray-200 dark:border-gray-700 rounded px-2 py-1.5 bg-white dark:bg-gray-800"
@@ -18,7 +18,7 @@
           {{ fmtFull(s.createdAt) }} · {{ s.stats.tabCount }} 标签 · 来源 {{ sourceLabel(s.source) }}
         </option>
       </select>
-      <p v-if="!snapshots.length" class="text-[11px] text-gray-400 mt-2">尚无快照可恢复。请先到「快照列表」创建一个。</p>
+      <p v-if="!snapshots.length" class="text-[11px] text-gray-500 dark:text-gray-300 mt-2">尚无快照可恢复。请先到「快照列表」创建一个。</p>
     </div>
 
     <!-- 预览中 -->
@@ -33,7 +33,7 @@
         <p class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
           即将恢复 {{ preview.tabCount }} 个标签 · {{ preview.windowCount }} 个窗口
         </p>
-        <p class="text-[11px] text-gray-500 dark:text-gray-400">
+        <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300">
           标记 {{ preview.taggedCount }} 个 · 待决策冲突 {{ pendingConflictCount }} 项 · 未匹配 {{ unmatched.length }} 项
         </p>
         <p v-if="preview.incognitoWindowCount" class="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
@@ -59,7 +59,7 @@
             class="border border-gray-100 dark:border-gray-700 rounded p-2.5 text-xs"
           >
             <p class="font-medium text-gray-800 dark:text-gray-100 mb-1">{{ c.label }}</p>
-            <p class="text-gray-500 dark:text-gray-400 mb-1.5">
+            <p class="text-gray-500 dark:text-gray-500 dark:text-gray-300 mb-1.5">
               <span class="text-blue-600 dark:text-blue-400">快照：{{ c.snapshotSide }}</span>
               <span class="mx-1">vs</span>
               <span class="text-gray-600 dark:text-gray-300">当前：{{ c.currentSide }}</span>
@@ -105,10 +105,10 @@
               </label>
               <label class="flex items-center gap-1.5 cursor-pointer">
                 <input type="radio" :name="'um-' + u.id" :value="null" v-model="u.assignTo" />
-                <span class="text-gray-400">跳过此条，保留为未绑定</span>
+                <span class="text-gray-500 dark:text-gray-300">跳过此条，保留为未绑定</span>
               </label>
             </div>
-            <p v-else class="text-gray-400">无候选 tab，只能跳过</p>
+            <p v-else class="text-gray-500 dark:text-gray-300">无候选 tab，只能跳过</p>
           </div>
         </div>
       </details>
@@ -127,7 +127,7 @@
 
     <!-- 空态 -->
     <div v-else class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-10 text-center">
-      <p class="text-xs text-gray-400">选择一个快照后，将显示恢复预览与冲突解决界面。</p>
+      <p class="text-xs text-gray-500 dark:text-gray-300">选择一个快照后，将显示恢复预览与冲突解决界面。</p>
     </div>
   </div>
 </template>

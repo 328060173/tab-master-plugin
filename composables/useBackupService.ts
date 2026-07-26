@@ -1,24 +1,10 @@
 /**
- * 标签会话备份服务（单例）- 阶段一完整本地闭环
- *
- * 范围：
- * - 设置/状态/缓存/快照列表 持久化
- * - 手动备份 + 定时备份（chrome.alarms） + 事件触发（onRemoved/onWindowRemoved/idle）
- * - 用户目录备份（File System Access API）+ 权限失效检测 + 双写降级
- * - GFS 分层保留 + 快照锁定
- * - 首次开启 5 条限制告知确认状态
- * - 本地占用统计（storage.local.getBytesInUse + 目录扫描缓存 60s）
- *
- * 守红线：
- * - 独立单例，不侵入 useTabManager
- * - 只读老 key（customTags/tabTagsMap/laterTabs/recentlyClosed/tabGroups/tabMasterSettings），不改老 key
- * - 所有写 storage 走 safeSet + toPure
- * - 不调 chrome.sessions.setTabValue（Chrome 不存在）
- * - chrome.tabs.query({}) 全量所有窗口，不经过 sidepanel filteredTabs
- * - 定时器用 chrome.alarms（MV3 SW 重启不丢）
- * - 监听器在单例初始化时注册一次（不在 onMounted/onUnmounted，避免永久丢失）
- *
- * 恢复/冲突解决/导入导出 逻辑在 useBackupRestore / useBackupIO（同样基于本单例的 cache）
+ * 标签会话备份服务（单例）- 阶段一完整本地闭环。
+ * 范围：设置/状态/缓存持久化 + 手动/定时(alarms)/事件触发备份 + 用户目录(File System Access)+双写降级
+ *   + GFS 分层保留 + 首次5条告知 + 本地占用统计。
+ * 守红线：独立单例不侵入 useTabManager；只读老 key；写 storage 走 safeSet+toPure；不调 setTabValue；
+ *   chrome.tabs.query({}) 全量；定时器用 alarms；监听器初始化注册一次。
+ * 恢复/冲突/导入导出 在 useBackupRestore / useBackupIO（基于本单例 cache）。
  */
 
 import { ref, computed } from "vue"
@@ -26,9 +12,19 @@ import { safeSet, safeRemove } from "~lib/safeStorage"
 import { toPure } from "~lib/toPure"
 import { isDev } from "~lib/env"
 import { APP_VERSION_CODE, APP_VERSION_NAME } from "~lib/api-config"
-import { uuidV4, computeFingerprint, computeWeakFingerprint } from "~lib/backup/fingerprint"
+import { computeFingerprint, computeWeakFingerprint } from "~lib/backup/fingerprint"
+import { getDeviceId, applyTimer as applyTimerFn, refreshNextBackupTime as refreshNextBackupTimeFn } from "~lib/backup/timer"
 import { runBackupPipeline } from "~lib/backup/pipeline"
 import { acquireBackupLock, releaseBackupLock } from "~lib/backup/lock"
+import {
+  saveSettings as saveSettingsFn,
+  saveState as saveStateFn,
+  saveCache as saveCacheFn,
+  saveDirMeta as saveDirMetaFn,
+  saveNoticeAck as saveNoticeAckFn,
+  saveUndo as saveUndoFn,
+} from "~lib/backup/persist"
+import { loadAll as loadAllFn } from "~lib/backup/loader"
 import {
   deleteSnapshot as deleteSnapshotFn,
   toggleLock as toggleLockFn,
@@ -73,7 +69,6 @@ import {
   sanitizeSnapshotList,
   toSummary,
 } from "~lib/backup/sanitize"
-
 const DEBOUNCE_EVENT_MS = 2000
 const DIR_SCAN_CACHE_MS = 60_000
 
@@ -94,72 +89,24 @@ function useBackupServiceImpl() {
   const enabled = computed(() => settings.value.enabled)
   const fsSupported = computed(() => isFsAccessSupported())
 
+  // loadAll 委托给 lib/backup/loader.ts（拆文件控行数）
   async function loadAll() {
-    try {
-      const data = await chrome.storage.local.get([
-        BACKUP_KEYS.settings,
-        BACKUP_KEYS.state,
-        BACKUP_KEYS.cache,
-        BACKUP_KEYS.deviceId,
-        BACKUP_KEYS.dirMeta,
-        BACKUP_KEYS.noticeAck,
-        BACKUP_KEYS.undo,
-      ])
-      settings.value = sanitizeSettings(data[BACKUP_KEYS.settings])
-      state.value = sanitizeState(data[BACKUP_KEYS.state])
-      const list = sanitizeSnapshotList(data[BACKUP_KEYS.cache])
-      snapshots.value = list.map(toSummary).sort((a, b) => b.createdAt - a.createdAt)
-      dirMeta.value = sanitizeDirMeta(data[BACKUP_KEYS.dirMeta])
-      noticeAck.value = sanitizeNoticeAck(data[BACKUP_KEYS.noticeAck])
-      undo.value = (data[BACKUP_KEYS.undo] && typeof data[BACKUP_KEYS.undo] === "object"
-        ? data[BACKUP_KEYS.undo] : DEFAULT_BACKUP_UNDO) as BackupUndo
-      // 撤销窗口 30s 过期清理
-      if (undo.value.createdAt && Date.now() - undo.value.createdAt > 30_000) {
-        undo.value = { ...DEFAULT_BACKUP_UNDO }
-        await safeRemove(BACKUP_KEYS.undo, "backup")
-      }
-      if (typeof data[BACKUP_KEYS.deviceId] !== "string" || !data[BACKUP_KEYS.deviceId]) {
-        await safeSet({ [BACKUP_KEYS.deviceId]: uuidV4() }, "backup")
-      }
-      // 计算下次定时备份时间
-      await refreshNextBackupTime()
-      // 检查目录权限
-      await checkDirPermission()
-    } catch (e) {
-      console.warn("[useBackupService] loadAll 失败", e)
-    }
+    await loadAllFn({
+      settings, state, snapshots, dirMeta, noticeAck, undo,
+      refreshNextBackupTime, checkDirPermission,
+    })
   }
 
-  async function saveSettings() {
-    await safeSet({ [BACKUP_KEYS.settings]: toPure(settings.value) }, "backup")
-  }
-  async function saveState() {
-    await safeSet({ [BACKUP_KEYS.state]: toPure(state.value) }, "backup")
-  }
-  async function saveCache(list: BackupFile[]) {
-    await safeSet({ [BACKUP_KEYS.cache]: toPure(list) }, "backup")
-  }
-  async function saveDirMeta() {
-    await safeSet({ [BACKUP_KEYS.dirMeta]: toPure(dirMeta.value) }, "backup")
-  }
-  async function saveNoticeAck() {
-    await safeSet({ [BACKUP_KEYS.noticeAck]: toPure(noticeAck.value) }, "backup")
-  }
-  async function saveUndo() {
-    if (undo.value.preRestoreSnapshot) {
-      await safeSet({ [BACKUP_KEYS.undo]: toPure(undo.value) }, "backup")
-    } else {
-      await safeRemove(BACKUP_KEYS.undo, "backup")
-    }
-  }
-  async function getDeviceId(): Promise<string> {
-    const data = await chrome.storage.local.get(BACKUP_KEYS.deviceId)
-    const existing = data[BACKUP_KEYS.deviceId]
-    if (typeof existing === "string" && existing) return existing
-    const id = uuidV4()
-    await safeSet({ [BACKUP_KEYS.deviceId]: id }, "backup")
-    return id
-  }
+  // saveXxx 委托给 lib/backup/persist.ts（拆文件控行数）
+  async function saveSettings() { await saveSettingsFn(settings) }
+  async function saveState() { await saveStateFn(state) }
+  async function saveCache(list: BackupFile[]) { await saveCacheFn(list) }
+  async function saveDirMeta() { await saveDirMetaFn(dirMeta) }
+  async function saveNoticeAck() { await saveNoticeAckFn(noticeAck) }
+  async function saveUndo() { await saveUndoFn(undo) }
+  // deviceId / 定时器 / 下次备份时间 委托给 lib/backup/timer.ts（拆文件控行数）
+  async function applyTimer() { await applyTimerFn(settings, nextBackupAt) }
+  async function refreshNextBackupTime() { await refreshNextBackupTimeFn(nextBackupAt) }
 
   // ===== 设置变更 =====
   async function setEnabled(v: boolean) {
@@ -185,42 +132,6 @@ function useBackupServiceImpl() {
   async function resetNoticeAck() {
     noticeAck.value = { ...DEFAULT_BACKUP_NOTICE_ACK }
     await saveNoticeAck()
-  }
-
-  // ===== 定时备份（chrome.alarms）=====
-  async function applyTimer() {
-    try {
-      const existing = await chrome.alarms.get(BACKUP_ALARM_NAME)
-      if (!settings.value.enabled || settings.value.timerMinutes <= 0) {
-        if (existing) await chrome.alarms.clear(BACKUP_ALARM_NAME)
-        nextBackupAt.value = null
-        return
-      }
-      const periodMin = settings.value.timerMinutes
-      // 已存在且周期相同 → 不重设（避免重启时重置）
-      if (existing && existing.periodInMinutes === periodMin) {
-        nextBackupAt.value = existing.scheduledTime
-        return
-      }
-      await chrome.alarms.create(BACKUP_ALARM_NAME, {
-        periodInMinutes: periodMin,
-        // 立即触发一次的延迟 0（避免新建后等一个周期）
-        delayInMinutes: periodMin,
-      })
-      const fresh = await chrome.alarms.get(BACKUP_ALARM_NAME)
-      nextBackupAt.value = fresh?.scheduledTime ?? null
-    } catch (e) {
-      console.warn("[useBackupService] applyTimer 失败", e)
-    }
-  }
-
-  async function refreshNextBackupTime() {
-    try {
-      const a = await chrome.alarms.get(BACKUP_ALARM_NAME)
-      nextBackupAt.value = a?.scheduledTime ?? null
-    } catch {
-      nextBackupAt.value = null
-    }
   }
 
   // ===== 事件备份（防抖 2s）=====

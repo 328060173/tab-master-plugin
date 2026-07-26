@@ -1,6 +1,8 @@
 /**
  * 导入解析器统一入口 - PRD §5.5.4 嗅探 + 分发
  *
+ * 策略模式（开闭原则，修 P1-5d）：新增格式只需往 JSON_PARSERS 注册一项，不改 parseImport 主流程。
+ *
  * 嗅探规则：
  * - JSON 含 kind === "tabmaster.backup.v1" → ours
  * - JSON 含 lists + cards → toby
@@ -17,27 +19,74 @@ import { parseNiceTab } from "./nicetab"
 import { parseToby } from "./toby"
 import { parseVertiTab } from "./vertitab"
 
-/** 嗅探 JSON 顶层特征 */
-function sniffJson(raw: unknown): "ours" | "toby" | "vertitab" | "nicetab" | "unknown" {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    // 顶层数组 → nicetab
-    if (Array.isArray(raw)) return "nicetab"
-    return "unknown"
-  }
+/** 支持的 JSON 格式标识 */
+type JsonFormat = "ours" | "toby" | "vertitab" | "nicetab"
+
+/** 嗅探器：判断 raw 是否匹配某格式 */
+type Sniffer = (raw: unknown) => boolean
+
+/** 解析器：按格式解析文本 */
+type Parser = (text: string) => Promise<ImportResult>
+
+/** JSON 格式注册表（策略模式核心）：新增格式只需 push 一项，不改 parseImport */
+const JSON_PARSERS: { format: JsonFormat; sniff: Sniffer; parse: Parser }[] = [
+  { format: "ours", sniff: isOurs, parse: parseOurs },
+  { format: "toby", sniff: isToby, parse: parseToby },
+  { format: "vertitab", sniff: isVertiTab, parse: parseVertiTab },
+  { format: "nicetab", sniff: isNiceTab, parse: parseNiceTab },
+]
+
+function isOurs(raw: unknown): boolean {
+  return !!raw && typeof raw === "object" && !Array.isArray(raw)
+    && (raw as Record<string, unknown>).kind === "tabmaster.backup.v1"
+}
+
+function isToby(raw: unknown): boolean {
+  return !!raw && typeof raw === "object" && !Array.isArray(raw)
+    && Array.isArray((raw as Record<string, unknown>).lists)
+}
+
+function isVertiTab(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false
   const o = raw as Record<string, unknown>
-  if (o.kind === "tabmaster.backup.v1") return "ours"
-  if (Array.isArray(o.lists)) return "toby"
-  if (typeof o.snapshotId === "string" || (Array.isArray(o.windows) && o.windows.some((w) => w && typeof w === "object" && Array.isArray((w as Record<string, unknown>).tabGroups)))) {
-    return "vertitab"
+  if (typeof o.snapshotId === "string") return true
+  if (Array.isArray(o.windows) && o.windows.some((w) => w && typeof w === "object" && Array.isArray((w as Record<string, unknown>).tabGroups))) {
+    return true
   }
-  if (Array.isArray(o.tagList)) return "nicetab"
-  return "unknown"
+  return false
+}
+
+function isNiceTab(raw: unknown): boolean {
+  if (Array.isArray(raw)) return true // 顶层数组 → nicetab
+  if (!!raw && typeof raw === "object" && Array.isArray((raw as Record<string, unknown>).tagList)) return true
+  return false
+}
+
+/** 嗅探 JSON 顶层特征，返回首个命中的格式（未命中返回 null） */
+function sniffJson(raw: unknown): JsonFormat | null {
+  for (const p of JSON_PARSERS) {
+    if (p.sniff(raw)) return p.format
+  }
+  return null
 }
 
 /** 是否为 JSON 起首字符 */
 function looksLikeJson(text: string): boolean {
   const t = text.trimStart()
   return t.startsWith("{") || t.startsWith("[")
+}
+
+/** 按 JSON 格式查找解析器并执行 */
+async function parseByFormat(format: JsonFormat, text: string): Promise<ImportResult> {
+  const parser = JSON_PARSERS.find((p) => p.format === format)
+  return parser ? parser.parse(text) : {
+    ok: false,
+    file: null,
+    error: "未识别的 JSON 格式，支持 OneTab/NiceTab/Toby/VertiTab/本插件 JSON",
+    warnings: [],
+    skipped: 0,
+    format: "unknown",
+  }
 }
 
 /** 自动嗅探格式并解析 */
@@ -54,10 +103,7 @@ export async function parseImport(text: string): Promise<ImportResult> {
       return { ok: false, file: null, error: `JSON 解析失败：${e instanceof Error ? e.message : String(e)}`, warnings: [], skipped: 0, format: "unknown" }
     }
     const fmt = sniffJson(raw)
-    if (fmt === "ours") return parseOurs(trimmed)
-    if (fmt === "toby") return parseToby(trimmed)
-    if (fmt === "vertitab") return parseVertiTab(trimmed)
-    if (fmt === "nicetab") return parseNiceTab(trimmed)
+    if (fmt) return parseByFormat(fmt, trimmed)
     return {
       ok: false,
       file: null,

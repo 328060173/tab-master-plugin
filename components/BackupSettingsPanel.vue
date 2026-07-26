@@ -9,7 +9,7 @@
       <div class="flex items-center gap-3">
         <div class="flex-1 min-w-0">
           <p class="text-sm font-medium text-gray-900 dark:text-gray-100">备份总开关</p>
-          <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+          <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300 mt-0.5">
             <template v-if="settings.enabled">
               已开启 · 每 {{ settings.timerMinutes > 0 ? settings.timerMinutes + ' 分钟' : '已关闭定时' }}
               <template v-if="state.lastBackupAt"> · 上次 {{ fmtRel(state.lastBackupAt) }}</template>
@@ -37,7 +37,7 @@
       <div class="flex items-center gap-3 mb-3">
         <div class="flex-1 min-w-0">
           <p class="text-sm font-medium text-gray-900 dark:text-gray-100">本地缓存</p>
-          <p class="text-[11px] text-gray-500 dark:text-gray-400">缓存到 chrome.storage.local（默认 5MB，受 10MB 硬限约束）</p>
+          <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300">缓存到 chrome.storage.local（默认 5MB，受 10MB 硬限约束）</p>
         </div>
         <button
           :class="[
@@ -53,7 +53,7 @@
         </button>
       </div>
       <div class="flex items-center gap-2 text-xs">
-        <span class="text-gray-500 dark:text-gray-400 shrink-0">配额上限</span>
+        <span class="text-gray-500 dark:text-gray-500 dark:text-gray-300 shrink-0">配额上限</span>
         <select
           :value="settings.cacheQuotaBytes"
           class="border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800"
@@ -64,7 +64,7 @@
           <option :value="3 * 1024 * 1024">3 MB</option>
           <option :value="5 * 1024 * 1024">5 MB（默认）</option>
         </select>
-        <span class="text-gray-400 ml-auto">{{ fmtBytes(state.cacheBytes) }} / {{ fmtBytes(settings.cacheQuotaBytes) }}</span>
+        <span class="text-gray-500 dark:text-gray-300 ml-auto">{{ fmtBytes(state.cacheBytes) }} / {{ fmtBytes(settings.cacheQuotaBytes) }}</span>
       </div>
     </div>
 
@@ -74,9 +74,9 @@
         <div class="flex-1 min-w-0">
           <p class="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-1">
             用户目录备份
-            <span v-if="!fsSupported" class="text-[10px] text-gray-400" title="当前浏览器不支持">不支持</span>
+            <span v-if="!fsSupported" class="text-xs text-gray-500 dark:text-gray-300" title="当前浏览器不支持">不支持</span>
           </p>
-          <p class="text-[11px] text-gray-500 dark:text-gray-400">额外写快照文件到用户指定目录（云同步友好）</p>
+          <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300">额外写快照文件到用户指定目录（云同步友好）</p>
         </div>
         <button
           :disabled="!fsSupported"
@@ -105,7 +105,7 @@
           <button class="text-[11px] text-gray-500 underline ml-auto" @click="onPickDir">更换目录</button>
           <button class="text-[11px] text-red-500 underline" @click="onUnbindDir">解绑</button>
         </p>
-        <p class="text-gray-400 text-[11px]">目录大小 {{ fmtBytes(dirMeta.dirBytes) }}（缓存 60s）</p>
+        <p class="text-gray-500 dark:text-gray-300 text-[11px]">目录大小 {{ fmtBytes(dirMeta.dirBytes) }}（缓存 60s）</p>
       </div>
     </div>
 
@@ -125,7 +125,7 @@
           <option :value="10">10 分钟</option>
           <option :value="30">30 分钟</option>
         </select>
-        <span class="text-gray-400">对齐 Tab Session Manager，本地不耗云带宽，更密</span>
+        <span class="text-gray-500 dark:text-gray-300">对齐 Tab Session Manager，本地不耗云带宽，更密</span>
       </div>
     </div>
 
@@ -137,25 +137,25 @@
           <input type="checkbox" :checked="settings.eventOnTabRemoved" @change="onUpdate({ eventOnTabRemoved: !settings.eventOnTabRemoved })" class="mt-0.5" />
           <div class="flex-1">
             <p class="text-gray-800 dark:text-gray-100">标签关闭后自动备份</p>
-            <p class="text-[11px] text-gray-500 dark:text-gray-400">防抖 2s · 对齐 Session Buddy 事件监听 · 默认开</p>
+            <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300">防抖 2s · 对齐 Session Buddy 事件监听 · 默认开</p>
           </div>
         </label>
         <label class="flex items-start gap-2 cursor-pointer">
           <input type="checkbox" :checked="settings.eventOnWindowRemoved" @change="onUpdate({ eventOnWindowRemoved: !settings.eventOnWindowRemoved })" class="mt-0.5" />
           <div class="flex-1">
             <p class="text-gray-800 dark:text-gray-100">窗口关闭后自动备份</p>
-            <p class="text-[11px] text-gray-500 dark:text-gray-400">对齐 Tab Session Manager · 默认开</p>
+            <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300">对齐 Tab Session Manager · 默认开</p>
           </div>
         </label>
         <label class="flex items-start gap-2 cursor-pointer">
           <input type="checkbox" :checked="settings.eventOnIdle" @change="onToggleIdle" class="mt-0.5" />
           <div class="flex-1">
             <p class="text-gray-800 dark:text-gray-100">浏览器空闲时备份</p>
-            <p class="text-[11px] text-gray-500 dark:text-gray-400">避免与定时重复 · 省电可选替代定时 · 默认关（需 idle 权限）</p>
+            <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300">避免与定时重复 · 省电可选替代定时 · 默认关（需 idle 权限）</p>
           </div>
         </label>
       </div>
-      <p class="text-[10px] text-gray-400 mt-2">默认值参考 Session Buddy / Tab Session Manager 最佳实践</p>
+      <p class="text-xs text-gray-500 dark:text-gray-300 mt-2">默认值参考 Session Buddy / Tab Session Manager 最佳实践</p>
     </div>
 
     <!-- 恢复行为 -->
@@ -165,7 +165,7 @@
         <input type="checkbox" :checked="settings.restoreMetaOnRestore" @change="onUpdate({ restoreMetaOnRestore: !settings.restoreMetaOnRestore })" class="mt-0.5" />
         <div class="flex-1">
           <p class="text-gray-800 dark:text-gray-100">恢复时同时恢复标记 / 稍后处理 / 分组 / 设置</p>
-          <p class="text-[11px] text-gray-500 dark:text-gray-400">
+          <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300">
             开启后恢复快照会把元数据一并写回（合并去重，不覆盖你现有的）；关闭则只恢复标签 URL，等同 OneTab 行为。默认开。
           </p>
         </div>
@@ -176,7 +176,7 @@
     <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
       <div class="flex items-center gap-2 mb-2">
         <p class="text-sm font-medium text-gray-900 dark:text-gray-100">保留策略</p>
-        <button class="text-gray-400 hover:text-blue-600 p-0.5" title="GFS 分层规则" @click="showGfsHelp = !showGfsHelp">
+        <button class="text-gray-500 dark:text-gray-300 hover:text-blue-600 p-0.5" title="GFS 分层规则" @click="showGfsHelp = !showGfsHelp">
           <HelpCircle :size="12" />
         </button>
       </div>
@@ -191,7 +191,7 @@
           <option :value="30">30 天</option>
           <option :value="90">90 天</option>
         </select>
-        <span class="text-gray-400">下次清理生效</span>
+        <span class="text-gray-500 dark:text-gray-300">下次清理生效</span>
       </div>
       <div v-if="showGfsHelp" class="mt-2 text-[11px] text-gray-600 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded p-2 leading-relaxed">
         GFS 分层保留规则：<br/>
@@ -208,10 +208,10 @@
       <div class="flex items-center gap-3">
         <div class="flex-1 min-w-0">
           <p class="text-sm font-medium text-gray-900 dark:text-gray-100">云同步</p>
-          <p class="text-[11px] text-gray-500 dark:text-gray-400">多设备同步 · 端到端加密 · 90 天云归档</p>
+          <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300">多设备同步 · 端到端加密 · 90 天云归档</p>
         </div>
         <button
-          class="text-xs px-3 py-1.5 rounded bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-700"
+          class="text-xs px-3 py-1.5 rounded bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700"
           title="敬请期待 · Pro 功能 · 阶段二上线"
           @click="showCloudModal = true"
         >敬请期待 · Pro</button>
@@ -221,7 +221,7 @@
     <!-- 重置/清除所有备份 -->
     <div class="bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-lg p-4">
       <p class="text-sm font-medium text-red-600 dark:text-red-400 mb-2">危险操作</p>
-      <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-3">清除所有本地备份快照 + 设置 + 目录绑定（此操作不可恢复，请谨慎）</p>
+      <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300 mb-3">清除所有本地备份快照 + 设置 + 目录绑定（此操作不可恢复，请谨慎）</p>
       <button
         class="text-xs px-3 py-1.5 rounded border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/30"
         @click="onClearAll"

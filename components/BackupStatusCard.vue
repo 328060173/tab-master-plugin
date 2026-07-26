@@ -8,7 +8,7 @@
     <div class="flex items-center gap-2">
       <Shield
         :size="14"
-        :class="enabled ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'"
+        :class="enabled ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-300'"
       />
       <span class="text-xs font-medium text-gray-700 dark:text-gray-200">标签备份</span>
       <span v-if="state.lastBackupError" class="w-1.5 h-1.5 rounded-full bg-red-500" title="上次备份失败"></span>
@@ -30,14 +30,14 @@
     </div>
 
     <!-- 状态行 -->
-    <div v-if="enabled" class="mt-1 text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
+    <div v-if="enabled" class="mt-1 text-xs text-gray-500 dark:text-gray-500 dark:text-gray-300 leading-relaxed">
       <template v-if="isBackingUp">
         <span class="text-blue-600 dark:text-blue-400">{{ lastProgress || '正在备份…' }}</span>
       </template>
       <template v-else-if="state.lastBackupAt">
         上次 {{ fmtRelative(state.lastBackupAt) }}
         <span v-if="nextBackupAt"> · 下次 {{ fmtRelativeNext(nextBackupAt) }}</span>
-        · 快照 {{ state.snapshotCount }} 个 · 缓存 {{ fmtBytes(state.cacheBytes) }}
+        · 快照 {{ snapshotCount }} 个 · 缓存 {{ fmtBytes(state.cacheBytes) }}
       </template>
       <template v-else>
         已开启，尚未备份
@@ -48,7 +48,7 @@
         <button class="underline ml-1" @click="onReauth">重新授权</button>
       </p>
     </div>
-    <div v-else class="mt-1 text-[10px] text-gray-400 leading-relaxed">
+    <div v-else class="mt-1 text-xs text-gray-500 dark:text-gray-300 leading-relaxed">
       备份已暂停。开启即可保护标签数据。
     </div>
 
@@ -59,7 +59,7 @@
         @click="openManage"
       >管理</button>
       <button
-        class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+        class="text-[11px] text-gray-500 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
         title="这是什么？"
         @click="showHelp = !showHelp"
       >
@@ -84,7 +84,7 @@
     <!-- 帮助说明（折叠） -->
     <div
       v-if="showHelp"
-      class="mt-1.5 px-2 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded text-[10px] leading-relaxed text-blue-800 dark:text-blue-200"
+      class="mt-1.5 px-2 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded text-xs leading-relaxed text-blue-800 dark:text-blue-200"
     >
       <p class="mb-0.5"><b>标签备份是什么？</b>把当前所有窗口的标签 + 标记 / 分组 / 稍后 / 设置打包成一个快照存到本机，浏览器崩溃 / 重启 / 误删后可一键恢复。</p>
       <p class="mb-0.5">点「管理」打开管理页查看快照列表与设置。</p>
@@ -108,14 +108,17 @@
  * 数据源：useBackupService 单例（不侵入 useTabManager）。
  * 错误处理：失败时 toast + 卡片底部红色错误行；不阻塞 sidepanel 其它功能。
  */
-import { ref } from "vue"
+import { ref, computed } from "vue"
 import { HelpCircle, Save, Shield } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { showToast } from "~composables/useToast"
 import BackupNoticeDialog from "~components/BackupNoticeDialog.vue"
 
 const svc = useBackupService()
-const { enabled, state, dirMeta, isBackingUp, lastProgress, nextBackupAt } = svc
+const { enabled, state, dirMeta, isBackingUp, lastProgress, nextBackupAt, snapshots } = svc
+
+// P1-8：快照数优先取 snapshots.length（与列表实时一致），fallback state.snapshotCount
+const snapshotCount = computed(() => snapshots.value.length || state.value.snapshotCount || 0)
 
 const showHelp = ref(false)
 const noticeOpen = ref(false)

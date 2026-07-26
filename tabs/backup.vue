@@ -13,7 +13,7 @@
       <div class="max-w-3xl mx-auto flex items-center gap-3">
         <Shield :size="18" class="text-blue-600 dark:text-blue-400" />
         <h1 class="text-base font-semibold">TM-标签整理大师 · 标签备份</h1>
-        <span class="text-xs text-gray-400 ml-auto">{{ state.snapshotCount }} 个快照 · {{ fmtBytes(state.cacheBytes) }}</span>
+        <span class="text-xs text-gray-500 dark:text-gray-300 ml-auto">{{ state.snapshotCount }} 个快照 · {{ fmtBytes(state.cacheBytes) }}</span>
         <button
           class="text-xs px-2 py-1 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
           title="帮助"
@@ -29,11 +29,12 @@
       </div>
     </header>
 
-    <!-- 软删撤销条（P1-1） -->
+    <!-- 软删撤销条（P1-1 + C4：图标+倒计时+触控目标） -->
     <div v-if="canUndoDelete" class="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 px-6 py-2">
       <div class="max-w-3xl mx-auto flex items-center gap-3 text-xs">
-        <span class="text-amber-800 dark:text-amber-200 flex-1">已删除快照 · 30s 内可撤销</span>
-        <button class="px-2 py-1 rounded bg-amber-600 text-white hover:bg-amber-700" @click="onUndoDelete">撤销删除</button>
+        <AlertCircle :size="14" class="text-amber-600 dark:text-amber-400 shrink-0" />
+        <span class="text-amber-800 dark:text-amber-200 flex-1">已删除快照 · {{ deleteUndoLeftSec }}s 后永久删除</span>
+        <button class="px-2.5 py-1.5 min-h-[32px] rounded bg-amber-600 text-white hover:bg-amber-700" @click="onUndoDelete">撤销删除</button>
       </div>
     </div>
 
@@ -60,39 +61,45 @@
           @click="activeTab = t.key"
         >
           {{ t.label }}
-          <span v-if="t.badge" class="ml-1 text-[10px] text-gray-400">({{ t.badge }})</span>
+          <span v-if="t.badge" class="ml-1 text-xs text-gray-500 dark:text-gray-300">({{ t.badge }})</span>
         </button>
       </div>
 
-      <!-- Tab 1：快照列表 -->
-      <BackupSnapshotList
-        v-if="activeTab === 'list'"
-        :snapshots="snapshots"
-        :state="state"
-        :settings="settings"
-        :dir-meta="dirMeta"
-        :is-backing-up="isBackingUp"
-        :last-progress="lastProgress"
-        @backup-now="onBackupNow"
-        @preview="onPreview"
-        @export="onExportSnapshot"
-        @toggle-lock="onToggleLock"
-        @delete="onDelete"
-        @go-settings="activeTab = 'settings'"
-      />
+      <!-- Tab 1：快照列表（独立 ErrorBoundary，崩了不波及其它 Tab，P1-7） -->
+      <ErrorBoundary v-if="activeTab === 'list'" scope="backup.list">
+        <BackupSnapshotList
+          :snapshots="snapshots"
+          :state="state"
+          :settings="settings"
+          :dir-meta="dirMeta"
+          :is-backing-up="isBackingUp"
+          :last-progress="lastProgress"
+          @backup-now="onBackupNow"
+          @preview="onPreview"
+          @export="onExportSnapshot"
+          @toggle-lock="onToggleLock"
+          @delete="onDelete"
+          @go-settings="activeTab = 'settings'"
+        />
+      </ErrorBoundary>
 
       <!-- Tab 2：恢复与冲突 -->
-      <BackupRestorePanel
-        v-else-if="activeTab === 'restore'"
-        :snapshots="snapshots"
-        @restore="onRestoreClick"
-      />
+      <ErrorBoundary v-else-if="activeTab === 'restore'" scope="backup.restore">
+        <BackupRestorePanel
+          :snapshots="snapshots"
+          @restore="onRestoreClick"
+        />
+      </ErrorBoundary>
 
       <!-- Tab 3：导入导出 -->
-      <BackupIOPanel v-else-if="activeTab === 'io'" />
+      <ErrorBoundary v-else-if="activeTab === 'io'" scope="backup.io">
+        <BackupIOPanel />
+      </ErrorBoundary>
 
       <!-- Tab 4：设置 -->
-      <BackupSettingsPanel v-else @request-enable="onRequestEnable" />
+      <ErrorBoundary v-else scope="backup.settings">
+        <BackupSettingsPanel @request-enable="onRequestEnable" />
+      </ErrorBoundary>
     </main>
 
     <!-- 首次开启 5 条限制告知弹窗 -->
@@ -144,7 +151,7 @@
  * 四个 Tab：①快照列表 ②恢复与冲突 ③导入导出 ④设置。
  */
 import { computed, ref, onMounted, onUnmounted } from "vue"
-import { Shield } from "@lucide/vue"
+import { Shield, AlertCircle } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { useBackupRestore } from "~composables/useBackupRestore"
 import { useBackupIO } from "~composables/useBackupIO"
@@ -155,6 +162,7 @@ import BackupIOPanel from "~components/BackupIOPanel.vue"
 import BackupSettingsPanel from "~components/BackupSettingsPanel.vue"
 import BackupNoticeDialog from "~components/BackupNoticeDialog.vue"
 import BackupRestoreConfirmDialog from "~components/BackupRestoreConfirmDialog.vue"
+import ErrorBoundary from "~components/ErrorBoundary.vue"
 import type { RestoreMode } from "~types/backup"
 
 const svc = useBackupService()
@@ -166,6 +174,13 @@ const { settings, state, snapshots, dirMeta, isBackingUp, lastProgress } = svc
 
 // 软删撤销条（P1-1）：undo.deletedSnapshot 存在时显示
 const canUndoDelete = computed(() => !!svc.undo.value.deletedSnapshot)
+// C4 撤销条倒计时（用 undo.createdAt，30s 窗口）
+const deleteUndoLeftSec = computed(() => {
+  const u = svc.undo.value
+  if (!u.deletedSnapshot || !u.createdAt) return 30
+  const left = 30 - Math.floor((now.value - u.createdAt) / 1000)
+  return Math.max(0, left)
+})
 
 const showHelp = ref(false)
 type TabKey = "list" | "restore" | "io" | "settings"
@@ -253,9 +268,14 @@ async function onDelete(id: string) {
     showToast("已锁定快照不可删除，请先解锁")
     return
   }
+  const hadPrevUndo = !!svc.undo.value.deletedSnapshot
   const ok = await svc.deleteSnapshot(id)
   if (ok) {
-    showToast(`已删除快照 · 30s 内点上方"撤销删除"恢复`)
+    showToast(
+      hadPrevUndo
+        ? `已删除快照 · 30s 内可撤销（注意：上一次删除已不可撤销）`
+        : `已删除快照 · 30s 内点上方"撤销删除"恢复`
+    )
   } else {
     showToast("删除失败")
   }
@@ -362,4 +382,13 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 :root.fs-normal  { font-size: 16px; }
 :root.fs-large   { font-size: 17.5px; }
 :root.fs-xlarge  { font-size: 19px; }
+/* C1 focus ring（WCAG 2.4.7）：键盘 Tab 可见焦点环，鼠标点击不显示 */
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible, [tabindex]:focus-visible, summary:focus-visible {
+  outline: 2px solid #3b82f6; /* blue-500 */
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus, select:focus, input:focus, a:focus, summary:focus {
+  outline: none;
+}
 </style>

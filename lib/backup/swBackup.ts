@@ -85,6 +85,87 @@ function mapSource(source: BackupTriggerSource): SnapshotSource {
   return "import"
 }
 
+/** SW 侧构建快照文件（采集 + 元数据 + buildSnapshot） */
+async function buildSwSnapshotFile(source: BackupTriggerSource): Promise<BackupFile> {
+  const allTabs = await chrome.tabs.query({})
+  const meta = await collectMeta()
+  const snapSource = mapSource(source)
+  const snapshot = await buildSnapshot(allTabs, meta, snapSource)
+  snapshot.trigger = source
+  const deviceId = await getDeviceId()
+  return {
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    appVersionCode: APP_VERSION_CODE,
+    appVersionName: APP_VERSION_NAME,
+    kind: BACKUP_KIND,
+    deviceId,
+    customer: { id: null, type: "anonymous" },
+    snapshot,
+    signature: { algo: null, value: null },
+  }
+}
+
+/** SW 侧写缓存：追加 + 超额剔除非锁定项，返回最新列表 */
+async function writeSwCache(settings: BackupSettings, file: BackupFile): Promise<BackupFile[]> {
+  const data = await chrome.storage.local.get(BACKUP_KEYS.cache)
+  const cacheList = sanitizeSnapshotList(data[BACKUP_KEYS.cache])
+  if (settings.cacheEnabled) {
+    cacheList.push(file)
+    while (cacheList.length > settings.cacheMaxSnapshots) {
+      const idx = cacheList.findIndex((f) => !f.snapshot.locked)
+      if (idx === -1) break
+      cacheList.splice(idx, 1)
+    }
+    await safeSet({ [BACKUP_KEYS.cache]: toPure(cacheList) }, "backup")
+  }
+  return cacheList
+}
+
+/** SW 侧 GFS 清理，返回清理后的列表 */
+async function applySwGfsCleanup(settings: BackupSettings, cacheList: BackupFile[]): Promise<BackupFile[]> {
+  const removable = selectGfsRemovable(cacheList, Date.now(), settings.retentionDays)
+  if (!removable.length) return cacheList
+  const next = cacheList.filter((f) => !removable.includes(f.snapshot.id))
+  if (settings.cacheEnabled) {
+    await safeSet({ [BACKUP_KEYS.cache]: toPure(next) }, "backup")
+  }
+  return next
+}
+
+/** SW 侧写状态 + 广播 backup:done */
+async function updateSwState(
+  snapshot: BackupFile["snapshot"],
+  snapSource: string,
+  cacheList: BackupFile[],
+  dirError: string | null,
+  source: BackupTriggerSource
+): Promise<void> {
+  const cacheBytes = await getCacheBytesInUse()
+  const newState: BackupState = {
+    lastBackupAt: snapshot.createdAt,
+    lastBackupSource: snapSource as BackupState["lastBackupSource"],
+    lastBackupError: dirError,
+    snapshotCount: cacheList.length,
+    cacheBytes,
+  }
+  await safeSet({ [BACKUP_KEYS.state]: toPure(newState) }, "backup")
+  // 广播 backup:done 给 UI（storage.onChanged 已同步 settings/state/snapshots，
+  // 这里仅做 nextBackupAt 刷新触发；UI 未打开则下次打开读到最新 state）
+  chrome.runtime.sendMessage({ type: "backup:done", source }).catch(() => {})
+}
+
+/** SW 侧写错误到 state（UI 下次打开能看到） */
+async function persistSwError(msg: string): Promise<void> {
+  try {
+    const data = await chrome.storage.local.get(BACKUP_KEYS.state)
+    const cur = sanitizeState(data[BACKUP_KEYS.state])
+    cur.lastBackupError = msg
+    await safeSet({ [BACKUP_KEYS.state]: toPure(cur) }, "backup")
+  } catch {
+    // 静默
+  }
+}
+
 /**
  * SW 裸备份主入口。
  * @param source 触发源（auto.timer / auto.event.startup / ...）
@@ -104,79 +185,16 @@ export async function runSwBareBackup(
   }
 
   try {
-    const allTabs = await chrome.tabs.query({})
-    const meta = await collectMeta()
-    const snapSource = mapSource(source)
-    const snapshot = await buildSnapshot(allTabs, meta, snapSource)
-    snapshot.trigger = source
-    const deviceId = await getDeviceId()
-    const file: BackupFile = {
-      schemaVersion: BACKUP_SCHEMA_VERSION,
-      appVersionCode: APP_VERSION_CODE,
-      appVersionName: APP_VERSION_NAME,
-      kind: BACKUP_KIND,
-      deviceId,
-      customer: { id: null, type: "anonymous" },
-      snapshot,
-      signature: { algo: null, value: null },
-    }
-
-    // 写缓存（如开启）
-    let cacheList: BackupFile[] = []
-    if (settings.cacheEnabled) {
-      const data = await chrome.storage.local.get(BACKUP_KEYS.cache)
-      cacheList = sanitizeSnapshotList(data[BACKUP_KEYS.cache])
-      cacheList.push(file)
-      while (cacheList.length > settings.cacheMaxSnapshots) {
-        const idx = cacheList.findIndex((f) => !f.snapshot.locked)
-        if (idx === -1) break
-        cacheList.splice(idx, 1)
-      }
-      await safeSet({ [BACKUP_KEYS.cache]: toPure(cacheList) }, "backup")
-    } else {
-      const data = await chrome.storage.local.get(BACKUP_KEYS.cache)
-      cacheList = sanitizeSnapshotList(data[BACKUP_KEYS.cache])
-    }
-
+    const file = await buildSwSnapshotFile(source)
+    let cacheList = await writeSwCache(settings, file)
     // 目录写：SW 无 window，File System Access API 不可用 → 降级跳过
     const dirError = settings.dirEnabled ? "目录备份待UI侧补" : null
-
-    // GFS 清理
-    const removable = selectGfsRemovable(cacheList, Date.now(), settings.retentionDays)
-    if (removable.length) {
-      cacheList = cacheList.filter((f) => !removable.includes(f.snapshot.id))
-      if (settings.cacheEnabled) {
-        await safeSet({ [BACKUP_KEYS.cache]: toPure(cacheList) }, "backup")
-      }
-    }
-
-    // 更新状态
-    const cacheBytes = await getCacheBytesInUse()
-    const newState: BackupState = {
-      lastBackupAt: snapshot.createdAt,
-      lastBackupSource: snapSource as BackupState["lastBackupSource"],
-      lastBackupError: dirError,
-      snapshotCount: cacheList.length,
-      cacheBytes,
-    }
-    await safeSet({ [BACKUP_KEYS.state]: toPure(newState) }, "backup")
-
-    // 广播 backup:done 给 UI（storage.onChanged 已同步 settings/state/snapshots，
-    // 这里仅做 nextBackupAt 刷新触发；UI 未打开则下次打开读到最新 state）
-    chrome.runtime.sendMessage({ type: "backup:done", source }).catch(() => {})
-
+    cacheList = await applySwGfsCleanup(settings, cacheList)
+    await updateSwState(file.snapshot, file.snapshot.source, cacheList, dirError, source)
     return { ok: true }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    // 写错误到 state（UI 下次打开能看到）
-    try {
-      const data = await chrome.storage.local.get(BACKUP_KEYS.state)
-      const cur = sanitizeState(data[BACKUP_KEYS.state])
-      cur.lastBackupError = msg
-      await safeSet({ [BACKUP_KEYS.state]: toPure(cur) }, "backup")
-    } catch {
-      // 静默
-    }
+    await persistSwError(msg)
     console.warn("[swBackup] 失败", e)
     return { ok: false, error: msg }
   } finally {

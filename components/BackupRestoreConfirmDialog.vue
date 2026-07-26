@@ -20,7 +20,7 @@
               <p class="font-medium text-gray-800 dark:text-gray-100">
                 整体替换 <span class="text-blue-600">★推荐</span>
               </p>
-              <p class="text-gray-500 dark:text-gray-400 mt-0.5">
+              <p class="text-gray-500 dark:text-gray-300 mt-0.5">
                 先保存当前为"恢复前快照"→关闭当前所有标签→按快照重建。可撤销恢复。
               </p>
             </div>
@@ -32,7 +32,7 @@
             <input type="radio" value="selected" v-model="mode" class="mt-0.5" />
             <div class="flex-1 min-w-0 text-xs">
               <p class="font-medium text-gray-800 dark:text-gray-100">仅替换我选中的项（最保守）</p>
-              <p class="text-gray-500 dark:text-gray-400 mt-0.5">不动其他标签，只替换你在冲突界面选中的项。</p>
+              <p class="text-gray-500 dark:text-gray-300 mt-0.5">不动其他标签，只替换你在冲突界面选中的项。</p>
             </div>
           </label>
           <label
@@ -42,7 +42,7 @@
             <input type="radio" value="append" v-model="mode" class="mt-0.5" />
             <div class="flex-1 min-w-0 text-xs">
               <p class="font-medium text-gray-800 dark:text-gray-100">仅追加（不关任何当前标签）</p>
-              <p class="text-gray-500 dark:text-gray-400 mt-0.5">只补开快照里有但当前没有的，可能产生重复。</p>
+              <p class="text-gray-500 dark:text-gray-300 mt-0.5">只补开快照里有但当前没有的，可能产生重复。</p>
             </div>
           </label>
         </div>

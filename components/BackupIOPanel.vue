@@ -10,7 +10,7 @@
         <Download :size="14" class="text-blue-600 dark:text-blue-400" />
         <p class="text-sm font-medium text-gray-900 dark:text-gray-100">导出备份</p>
       </div>
-      <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-3">从快照列表选择一条，选择格式后导出文件。</p>
+      <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300 mb-3">从快照列表选择一条，选择格式后导出文件。</p>
       <div class="flex items-center gap-2 flex-wrap">
         <select
           v-model="exportSnapshotId"
@@ -36,7 +36,7 @@
           @click="onExport"
         >导出</button>
       </div>
-      <p class="text-[11px] text-gray-400 mt-2">
+      <p class="text-[11px] text-gray-500 dark:text-gray-300 mt-2">
         JSON 含完整元数据（标记/分组/稍后/关闭历史/设置）；Markdown 人类可读不可回导入；OneTab 仅 URL+标题（与 OneTab 原生一致）。
       </p>
     </div>
@@ -47,7 +47,7 @@
         <Upload :size="14" class="text-blue-600 dark:text-blue-400" />
         <p class="text-sm font-medium text-gray-900 dark:text-gray-100">导入备份</p>
       </div>
-      <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
+      <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300 mb-3">
         支持本插件 JSON / OneTab / NiceTab / Toby / VertiTab；自动嗅探格式。导入后走与"恢复"相同的预览+冲突流程。
       </p>
 
@@ -60,9 +60,9 @@
         @dragleave.prevent="dragging = false"
         @drop.prevent="onDrop"
       >
-        <Upload :size="22" class="mx-auto text-gray-400 mb-1" />
+        <Upload :size="22" class="mx-auto text-gray-500 dark:text-gray-300 mb-1" />
         <p class="text-xs text-gray-600 dark:text-gray-300">点击或拖拽文件到此处</p>
-        <p class="text-[10px] text-gray-400 mt-0.5">支持 .json / .txt / .md</p>
+        <p class="text-xs text-gray-500 dark:text-gray-300 mt-0.5">支持 .json / .txt / .md</p>
         <input
           ref="fileInputEl"
           type="file"
@@ -103,7 +103,7 @@
         </p>
         <p v-else>✗ {{ lastImportResult.error }}</p>
         <ul v-if="lastImportResult.warnings.length" class="mt-1 list-disc list-inside text-gray-500">
-          <li v-for="(w, i) in lastImportResult.warnings" :key="i">{{ w }}</li>
+          <li v-for="(w, i) in lastImportResult.warnings" :key="w + '-' + i">{{ w }}</li>
         </ul>
         <p v-if="lastImportResult.ok" class="mt-1 text-gray-500">导入后请到「恢复与冲突」Tab 选这条导入快照进行恢复。</p>
       </div>
