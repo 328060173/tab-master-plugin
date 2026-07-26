@@ -12,7 +12,7 @@
  * - 队列不存内存（SW 销毁后重建），靠 IndexedDB 事务 + WAL 落盘兜底
  * - runSwBareBackup 只构建快照文件 + 更新 state 元信息；快照真值落 IndexedDB 由
  *   runBackupWithCoordination（persistSnapshot）统一处理
- * - 锁协调 acquireBackupLock 防 SW 与 UI 同时备份（5min TTL 防死锁）
+ * - 锁协调 tryAcquireCoord（coordination 状态机）防 SW 与 UI 同时备份（5min 超时兜底）
  *
  * 兼容：Chrome 88+ / Edge 88+（参见 [[constraint-target-platforms]]）
  */
