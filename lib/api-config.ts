@@ -84,6 +84,10 @@ export const APP_CODE_QUERY_KEY = "app-code"
 // 每次发生产版本必须 +1（用户硬规矩）。当前已发生产，versionName=1.1.0 / versionCode=11（2026-07-20 首发）。
 export const APP_VERSION_CODE = 11
 
+// 版本名（string，用户可见）。单一来源红线：全项目取此变量，禁止多处写死。
+// 备份快照元数据 appVersionName、manifest、下载页等统一引用此处。
+export const APP_VERSION_NAME = "1.1.0"
+
 // 默认请求头（对应后端 Constants.HEAD_APP_*）
 // platform: 1=Web浏览器插件 2=iOS 3=Android 4=微信小程序
 // 这些是所有请求都带的公共头；登录后还会自动追加 Authorization + customerType（在 lib/api.ts 的 buildHeaders 统一处理）

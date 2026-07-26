@@ -473,6 +473,11 @@
     <!-- 底部统计栏（普通/选择态显示） -->
     <FooterStats v-if="focusMode !== 'focusing'" :stats="stats" :active-filter="activeFilter" @filter="activeFilter = $event" />
 
+    <!-- 备份入口卡片：常驻首页底部，崩了不波及其它（ErrorBoundary scope=backup） -->
+    <ErrorBoundary v-if="activeNav === 'home' && focusMode === 'normal'" scope="backup" @reload="reloadPanel">
+      <BackupStatusCard />
+    </ErrorBoundary>
+
     <LaterDialog :open="laterDialogOpen" @close="laterDialogOpen = false" @confirm="confirmLater" />
     <TreeGuideDialog :open="treeGuideOpen" @close="treeGuideOpen = false" />
 
@@ -712,6 +717,7 @@ import CreateGroupDialog from "~components/CreateGroupDialog.vue"
 import LaterList from "~components/LaterList.vue"
 import LaterDialog from "~components/LaterDialog.vue"
 import FooterStats from "~components/FooterStats.vue"
+import BackupStatusCard from "~components/BackupStatusCard.vue"
 import SearchResults from "~components/SearchResults.vue"
 import SearchBox from "~components/SearchBox.vue"
 import TagBar from "~components/TagBar.vue"

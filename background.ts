@@ -29,6 +29,44 @@ import type { AdCacheData, AdSyncResponse } from '~types/ad'
 import type { CheckVersionResponse, VersionCacheData } from '~types/version'
 import type { NoticeCacheData, NoticeSyncResponse } from '~types/notice'
 import type { SettingMenuResponse, SettingMenuCacheData } from '~types/setting'
+import { BACKUP_KEYS, BACKUP_ALARM_NAME, DEFAULT_BACKUP_SETTINGS, type BackupSettings } from '~types/backup'
+import { runSwBareBackup, initSwBackupLock } from '~lib/backup/swBackup'
+
+// ============ 备份定时/启动触发（PRD §B）============
+// 设计：定时备份 + onStartup 备份由 SW 直接执行（runSwBareBackup），不依赖 UI 是否打开。
+// 修复前：SW 只广播 backup:trigger 给 UI，UI 未挂载时定时/启动备份丢失。
+// 修复后：SW 在 service worker 上下文里读设置 → chrome.tabs.query → collectMeta →
+//   buildSnapshot → 写 storage.local 缓存 → GFS 清理 → 更新 state；目录写降级跳过
+//   （SW 无 window，File System Access API 不可用，记 lastBackupError="目录备份待UI侧补"，
+//   下次 UI 打开走 runManualBackup 时会补写目录）。完成后广播 backup:done 给 UI 刷新状态。
+// 锁协调：acquireBackupLock 防 SW 与 UI 同时备份（5min TTL 防死锁）。
+async function triggerTimerBackup(): Promise<void> {
+  await runSwBareBackup('auto.timer')
+}
+
+async function triggerStartupBackup(): Promise<void> {
+  // runSwBareBackup 内部会读设置判断是否 enabled；这里直接调
+  await runSwBareBackup('auto.event.startup')
+}
+
+// 确保 backup alarm 存在（不触发执行，仅当设置已开启）
+async function ensureBackupAlarm(): Promise<void> {
+  try {
+    const data = await chrome.storage.local.get(BACKUP_KEYS.settings)
+    const s: BackupSettings = data[BACKUP_KEYS.settings] && typeof data[BACKUP_KEYS.settings] === 'object'
+      ? { ...DEFAULT_BACKUP_SETTINGS, ...(data[BACKUP_KEYS.settings] as Partial<BackupSettings>) }
+      : { ...DEFAULT_BACKUP_SETTINGS }
+    if (!s.enabled || s.timerMinutes <= 0) return
+    const existing = await chrome.alarms.get(BACKUP_ALARM_NAME)
+    if (existing && existing.periodInMinutes === s.timerMinutes) return
+    await chrome.alarms.create(BACKUP_ALARM_NAME, {
+      periodInMinutes: s.timerMinutes,
+      delayInMinutes: s.timerMinutes,
+    })
+  } catch (e) {
+    console.warn('[backup] ensureBackupAlarm 失败', e)
+  }
+}
 
 const STORAGE_KEY = "treeParentMap"
 const LAST_ACCESSED_KEY = "tabLastAccessedMap"
@@ -132,14 +170,21 @@ chrome.runtime.onInstalled.addListener(async () => {
   // URL 用 OFFICIAL_SITE_URL 常量拼接，dev/prod 自动切换；静默失败避免 reject 抛未捕获异常
   chrome.runtime.setUninstallURL(`${OFFICIAL_SITE_URL}/uninstall`).catch(() => {})
   await loadMap()
+  // 清理过期备份锁（防历史残留死锁）
+  void initSwBackupLock()
   // 广告/版本/通知/设置菜单初始化拉取（fire-and-forget，各模块独立，互不阻塞）
   syncAll('init')
 })
 
 chrome.runtime.onStartup.addListener(async () => {
   await loadMap()
+  // 清理过期备份锁（防 SW 异常崩溃后锁残留）
+  void initSwBackupLock()
   // 浏览器重启：立即拉取广告/版本/通知/设置菜单（fire-and-forget）
   syncAll('init')
+  // 备份：onStartup 时触发一次启动备份（PRD §B）
+  // SW 直接执行裸备份路径，不依赖 UI 是否打开
+  void triggerStartupBackup()
 })
 
 chrome.tabs.onCreated.addListener(onTabCreated)
@@ -610,6 +655,11 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       if (await shouldSkipByGap(SETTING_MENU_CACHE_KEY, DEFAULT_SETTING_MENU_INTERVAL_MINUTES, SETTING_MENU_ALARM_NAME)) return
       await fetchSettingMenuCache('timer')
       return
+    case BACKUP_ALARM_NAME:
+      // 备份定时触发：广播给 UI 侧单例服务执行（SW 无 vue 实例）
+      // 注意：SW 30s 重启会丢内存态，备份服务在 UI 侧；这里 sendMessage 触发
+      void triggerTimerBackup()
+      return
     default:
       return
   }
@@ -621,6 +671,8 @@ ensureAdAlarm()
 ensureAlarm(VERSION_ALARM_NAME, VERSION_CACHE_KEY, DEFAULT_VERSION_INTERVAL_MINUTES)
 ensureAlarm(NOTICE_ALARM_NAME, NOTICE_CACHE_KEY, DEFAULT_NOTICE_INTERVAL_MINUTES)
 ensureAlarm(SETTING_MENU_ALARM_NAME, SETTING_MENU_CACHE_KEY, DEFAULT_SETTING_MENU_INTERVAL_MINUTES)
+// 备份定时闹钟（若用户已开启备份）
+ensureBackupAlarm()
 
 
 // 快捷键切换标签：chrome.commands global 全局捕获（不依赖 sidepanel/sidepanel 焦点，浏览器无焦点也触发）

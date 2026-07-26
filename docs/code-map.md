@@ -193,3 +193,54 @@ node -e "const fs=require('fs');const sfc=require('./node_modules/.pnpm/@vue+com
 | 右键菜单 | `components/TabContextMenu.vue` |
 | 错误边界 | `components/ErrorBoundary.vue` |
 | 官方 API 文档(离线) | `docs/googledocs/INDEX.md` |
+
+## L. 标签会话备份（阶段一完整本地闭环，2026-07-25）
+
+### storage key 全部登记到 `StoragePanel.vue`
+- `tabMasterBackupCache`（USER_DEFS）- 本地缓存快照数组，限长 50，受 5MB 配额约束
+- `tabMasterBackupState`（SYS_DEFS）- 上次备份时间/快照数/缓存大小/失败原因
+- `tabMasterBackupSettings`（SYS_DEFS）- 总开关 + 缓存开关 + 目录开关 + 配额 + 定时频率 + 保留天数 + 事件触发开关
+- `tabMasterDeviceId`（SYS_DEFS）- 设备唯一标识（首次生成）
+- `tabMasterBackupNoticeAck`（SYS_DEFS）- 首次开启 5 条限制告知确认状态
+- `tabMasterBackupDirMeta`（SYS_DEFS）- 用户目录元信息（目录名/大小缓存/权限状态）；handle 本身在 IndexedDB `tabmaster_backup_fs`
+- `tabMasterBackupUndo`（SYS_DEFS）- 恢复前快照 + 30s 撤销窗口
+
+### IndexedDB（非 storage.local，但属于清理范围）
+- `tabmaster_backup_fs` 库 `handles` store 的 `backup_dir_handle` 键 —— 用户目录 handle；解绑目录时清
+
+### 改备份相关要联动
+1. `composables/useBackupService.ts`（单例）—— 备份服务核心：采集 + 构建 BackupFile + 写缓存 + 状态/设置持久化 + 定时/事件/目录/GFS/锁定
+2. `composables/useBackupRestore.ts` —— 恢复流程（预览+冲突解决+执行+撤销）
+3. `composables/useBackupIO.ts` —— 导入导出流程
+4. `types/backup.ts` —— BackupFile / Snapshot / SnapshotSummary / BackupSettings / BackupState / BackupDirMeta / BackupNoticeAck / BackupUndo / RestorePreview / ConflictItem / FpUnmatchedItem / ImportResult / ExportFormat / BACKUP_KEYS / BACKUP_ALARM_NAME
+5. `lib/backup/fingerprint.ts` —— URL 规范化 + sha1 主/弱指纹 + uuidV4
+6. `lib/backup/snapshotBuilder.ts` —— 快照构建（collectMeta + buildSnapshot）
+7. `lib/backup/gfs.ts` —— GFS 分层保留清理
+8. `lib/backup/fsAccess.ts` —— File System Access API 封装 + IndexedDB handle 持久化
+9. `lib/backup/exporters.ts` —— JSON/Markdown/OneTab 导出
+10. `lib/backup/restore.ts` —— 冲突检测 + fingerprint 匹配 + 恢复执行
+11. `lib/backup/importers/{ours,onetab,nicetab,toby,vertitab,index}.ts` —— 五家格式导入解析器 + 嗅探
+12. `components/BackupStatusCard.vue` —— sidepanel 首页底部入口卡片（紧凑态）
+13. `components/BackupNoticeDialog.vue` —— 首次开启 5 条限制告知弹窗
+14. `components/BackupSnapshotList.vue` —— Tab1 快照列表
+15. `components/BackupRestorePanel.vue` —— Tab2 恢复与冲突
+16. `components/BackupConflictDialog.vue` —— 冲突解决 git-merge 风格弹窗
+17. `components/BackupRestoreConfirmDialog.vue` —— 恢复方式三选一弹窗
+18. `components/BackupIOPanel.vue` —— Tab3 导入导出
+19. `components/BackupSettingsPanel.vue` —— Tab4 设置
+20. `tabs/backup.vue` —— 独立管理页（max-w-3xl，仿 logs.vue 范式，组合 4 个 Tab 面板）
+21. `components/StoragePanel.vue` —— 新增 7 个 key 的清理登记
+22. `sidepanel.vue` —— ErrorBoundary scope=backup 包 BackupStatusCard 挂载点
+23. `background.ts` —— BACKUP_ALARM_NAME 闹钟分发 + onStartup 触发 + ensureBackupAlarm
+
+### 红线
+- 备份服务独立单例，**不侵入 useTabManager**（不改其结构 / 不调其方法）
+- 只读 storage 老数据（customTags/tabTagsMap/laterTabs/recentlyClosed/tabGroups/tabMasterSettings），**不改老 key**
+- 所有写 storage 走 `safeSet` + `toPure`（reactive proxy 序列化红线）
+- 不调 `chrome.sessions.setTabValue`（Chrome 不存在）
+- `chrome.tabs.query({})` 全量所有窗口，**不经过 sidepanel filteredTabs**
+- File System Access API 仅在 sidepanel/options/tabs 页面调用，**不在 SW**（无用户手势）
+- 恢复冲突**绝不自动合并**，永远 UI 让用户逐项选
+- 未匹配 fingerprint **绝不强行绑定**，标红让用户手动指派或跳过
+- 隐身窗口默认不恢复（不问，预览告知）
+- manifest 新增 `idle` 可选权限（按需运行时申请，PRD §B）；不申请 `unlimitedStorage`

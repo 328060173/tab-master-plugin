@@ -1,0 +1,167 @@
+/**
+ * 备份导出器 - PRD §5.5
+ * 三种格式：① 我们自己的 JSON（默认）② Markdown（人类可读，不可回导入）③ OneTab 兼容（仅 URL）
+ *
+ * 守红线：
+ * - 禁 v-html（导出本身是文本生成）
+ * - Markdown 转义特殊字符（* _ [ ] ` 等，避免破坏人类可读）
+ * - 文件名用 ISO 时间戳 + deviceId 短 8 位（PRD §5.5.1）
+ */
+
+import type { BackupFile, ExportFormat } from "~types/backup"
+
+export interface ExportOutput {
+  /** 文件名（含扩展名） */
+  fileName: string
+  /** MIME 类型 */
+  mime: string
+  /** 文件内容 */
+  content: string
+}
+
+function isoForFilename(ts: number): string {
+  const d = new Date(ts)
+  const p = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
+}
+
+function shortDeviceId(deviceId: string): string {
+  return (deviceId || "unknown").replace(/-/g, "").slice(0, 8)
+}
+
+function escapeMd(s: string): string {
+  // 转义 markdown 特殊字符（标题/列表/链接/强调）
+  return (s || "").replace(/([\\*_`\[\]()#~!|>])/g, "\\$1")
+}
+
+/** 导出我们自己的 JSON 格式（即完整 BackupFile） */
+export function exportJson(file: BackupFile): ExportOutput {
+  return {
+    fileName: `tabmaster-backup-${isoForFilename(file.snapshot.createdAt)}-${shortDeviceId(file.deviceId)}.json`,
+    mime: "application/json",
+    content: JSON.stringify(file, null, 2),
+  }
+}
+
+/** 导出 OneTab 兼容格式：每行 `标题 | URL`，空行分隔窗口 */
+export function exportOneTab(file: BackupFile): ExportOutput {
+  const lines: string[] = []
+  file.snapshot.windows.forEach((w, wi) => {
+    if (wi > 0) lines.push("")
+    w.tabs.forEach((t) => {
+      const title = (t.title || t.url || "").trim()
+      const url = (t.url || "").trim()
+      if (url) lines.push(`${title} | ${url}`)
+    })
+  })
+  return {
+    fileName: `tabmaster-onetab-${isoForFilename(file.snapshot.createdAt)}.txt`,
+    mime: "text/plain",
+    content: lines.join("\n"),
+  }
+}
+
+/** 导出 Markdown（人类可读，PRD §5.5.2 模板） */
+export function exportMarkdown(file: BackupFile): ExportOutput {
+  const s = file.snapshot
+  const lines: string[] = []
+  lines.push(`# 浏览器标签大师 · 会话快照`)
+  lines.push("")
+  const d = new Date(s.createdAt)
+  const p = (n: number) => String(n).padStart(2, "0")
+  const timeStr = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  lines.push(`- 时间：${timeStr}`)
+  lines.push(`- 来源：${sourceLabel(s.source)}`)
+  lines.push(`- 设备：${shortDeviceId(file.deviceId)}`)
+  lines.push(`- schemaVersion: ${file.schemaVersion}`)
+  if (s.label) lines.push(`- 标签：${escapeMd(s.label)}`)
+  lines.push("")
+  s.windows.forEach((w, wi) => {
+    const focus = w.focused ? "（聚焦）" : ""
+    const incog = w.incognito ? "（隐身）" : ""
+    lines.push(`## 窗口 ${wi + 1}${focus}${incog}`)
+    lines.push("")
+    w.tabs.forEach((t) => {
+      const title = escapeMd(t.title || t.url || "无标题")
+      const url = escapeMd(t.url || "")
+      const pin = t.pinned ? "📌 " : ""
+      lines.push(`- ${pin}[${title}](${url})`)
+    })
+    lines.push("")
+  })
+  // 分组
+  if (s.meta.tabGroups.length) {
+    lines.push(`## 分组`)
+    lines.push("")
+    s.meta.tabGroups.forEach((g) => {
+      lines.push(`- ${escapeMd(g.title || "未命名")}（${g.color}${g.collapsed ? "，已折叠" : ""}）· ${g.tabFingerprints.length} 个标签`)
+    })
+    lines.push("")
+  }
+  // 稍后处理
+  if (s.meta.laterTabs.length) {
+    lines.push(`## 稍后处理`)
+    lines.push("")
+    s.meta.laterTabs.forEach((t) => {
+      const title = escapeMd(t.title || t.url || "无标题")
+      const note = t.note ? ` — 备注：${escapeMd(t.note)}` : ""
+      lines.push(`- [${title}](${escapeMd(t.url)})${note}`)
+    })
+    lines.push("")
+  }
+  // 关闭历史
+  if (s.meta.recentlyClosed.length) {
+    lines.push(`## 关闭历史（最近 ${s.meta.recentlyClosed.length}）`)
+    lines.push("")
+    s.meta.recentlyClosed.forEach((t) => {
+      const title = escapeMd(t.title || t.url || "无标题")
+      lines.push(`- [${title}](${escapeMd(t.url)})`)
+    })
+    lines.push("")
+  }
+  lines.push(`---`)
+  lines.push(`> 由 浏览器标签大师 v${file.appVersionName} 导出 · {schemaVersion:${file.schemaVersion}}`)
+  return {
+    fileName: `tabmaster-snapshot-${isoForFilename(s.createdAt)}.md`,
+    mime: "text/markdown",
+    content: lines.join("\n"),
+  }
+}
+
+function sourceLabel(s: string): string {
+  switch (s) {
+    case "manual": return "手动备份"
+    case "auto.timer": return "定时备份"
+    case "auto.event": return "事件触发"
+    case "preRestore": return "恢复前快照"
+    case "import": return "导入"
+    default: return s
+  }
+}
+
+export function exportByFormat(file: BackupFile, format: ExportFormat): ExportOutput {
+  switch (format) {
+    case "json": return exportJson(file)
+    case "markdown": return exportMarkdown(file)
+    case "onetab": return exportOneTab(file)
+  }
+}
+
+/** 触发浏览器下载（在 sidepanel/options/tabs 页面调用） */
+export function downloadExport(out: ExportOutput): boolean {
+  try {
+    const blob = new Blob([out.content], { type: out.mime })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = out.fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    return true
+  } catch (e) {
+    console.warn("[exporters] 下载失败", e)
+    return false
+  }
+}

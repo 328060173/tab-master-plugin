@@ -109,6 +109,7 @@ const USER_DEFS: StorageDef[] = [
   { key: "tabTagsMap",     label: "标签标记映射",   icon: "🗂️", storage: "local", empty: "object", warning: "会清空标签页与标记的绑定关系，但不删除标记名称本身。" },
   { key: "recentlyClosed", label: "关闭历史",       icon: "📋", storage: "local", empty: "array",  warning: "会清空所有最近关闭的标签页记录。" },
   { key: "tabmaster_search_history", label: "搜索历史", icon: "🔍", storage: "ls", warning: "会清空所有搜索历史记录。" },
+  { key: "tabMasterBackupCache", label: "标签备份缓存", icon: "🛡️", storage: "local", empty: "array", warning: "会清空所有本地备份快照（含标记/分组等元数据快照），不可恢复。" },
 ]
 // 系统数据：插件自动生成、清理会重置相关行为
 const SYS_DEFS: StorageDef[] = [
@@ -130,6 +131,12 @@ const SYS_DEFS: StorageDef[] = [
   { key: "tabMasterNoticeRead", label: "通知已读记录",  icon: "📨", storage: "local", warning: "清空后，已读记录会丢失，已读过的通知会重新展示。" },
   { key: "tabMasterSettingMenuCache", label: "更多菜单缓存",  icon: "📑", storage: "local", empty: "object", warning: "清空后，设置菜单「更多」组会暂时显示内置默认项，下次后台同步后恢复。" },
   { key: "tabMasterSkinTryon", label: "道具试穿态", icon: "⏳", storage: "local", empty: "object", warning: "会立即结束当前试穿（如有），并清除试穿临时数据。不影响已购道具的使用中态。" },
+  { key: "tabMasterBackupState", label: "备份运行状态", icon: "📊", storage: "local", empty: "object", warning: "会清空备份服务的运行状态（上次备份时间/快照数/缓存大小），不影响快照本身。" },
+  { key: "tabMasterBackupSettings", label: "备份设置", icon: "🛡️", storage: "local", empty: "object", warning: "会把备份设置重置为默认（总开关关闭、定时 5 分钟、保留 7 天等）。" },
+  { key: "tabMasterDeviceId", label: "设备标识", icon: "🆔", storage: "local", warning: "会清除本机设备标识，下次备份时自动重新生成。不影响已有快照。" },
+  { key: "tabMasterBackupNoticeAck", label: "备份告知确认", icon: "📌", storage: "local", empty: "object", warning: "会清除首次开启备份的 5 条限制告知确认状态，下次开启时再次弹窗。" },
+  { key: "tabMasterBackupDirMeta", label: "备份目录元信息", icon: "📁", storage: "local", empty: "object", warning: "会清除用户目录备份的元信息（目录名/大小缓存/权限状态）。下次打开管理页会重新读取。" },
+  { key: "tabMasterBackupUndo", label: "备份撤销窗口", icon: "↩️", storage: "local", empty: "object", warning: "会清除恢复前快照（30s 撤销窗口），无法再撤销上次恢复。" },
   // 注：装扮相关动态 key（按账号隔离，不在此静态表展示）：
   //   - `tabMasterSkinActive:{customerId}` 已购道具「使用中」态（头像框 + 背景图/纯色 + bgType）
   //   - `tabMasterSkinOpacity:{customerId}` 背景透明度（用户手动调，按 id 隔离）

@@ -50,7 +50,8 @@
       "alarms"
     ],
     "optional_permissions": [
-      "history"
+      "history",
+      "idle"
     ],
     "commands": {
       "switch-tab-1": {
