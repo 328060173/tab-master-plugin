@@ -4,8 +4,11 @@
  * 用途：chrome.alarms 定时触发 + onStartup 时，UI（sidepanel/options）可能未打开，
  * 原先 SW 只广播 backup:trigger 给 UI，UI 收不到消息 → 定时/启动备份丢失。
  * 本模块让 SW 直接在 service worker 上下文里执行备份：
- * 读设置 → chrome.tabs.query 全量 → collectMeta → buildSnapshot → 写 storage.local 缓存
- * → GFS 清理 → 更新 state。完成后广播 backup:done 给 UI（UI 开着则刷新状态，没开则下次打开读到最新 state）。
+ * 读设置 → chrome.tabs.query 全量 → collectMeta → buildSnapshot → 返回 file
+ * → 由外层 runBackupWithCoordination 统一写 IndexedDB + GFS + state。
+ *
+ * P0-4：本模块只负责"构建快照文件 + 更新 state 元信息"，不再写 storage.local cache。
+ * 快照真值落 IndexedDB 由 coordination 层（persistSnapshot）统一处理，避免双写漂移。
  *
  * 限制：SW 无 window，不能用 File System Access API（目录写降级跳过，记 lastBackupError
  * 提示「目录备份待UI侧补」，下次 UI 打开走 runManualBackup 时会补写目录）。
@@ -32,9 +35,7 @@ import {
 } from "~types/backup"
 import { collectMeta, buildSnapshot } from "./snapshotBuilder"
 import { uuidV4 } from "./fingerprint"
-import { selectGfsRemovable } from "./gfs"
 import {
-  sanitizeSnapshotList,
   sanitizeSettings,
   sanitizeState,
 } from "./sanitize"
@@ -65,12 +66,7 @@ async function getCacheBytesInUse(): Promise<number> {
   } catch {
     // 降级估算
   }
-  try {
-    const data = await chrome.storage.local.get(BACKUP_KEYS.cache)
-    return new Blob([JSON.stringify(data[BACKUP_KEYS.cache] ?? [])]).size
-  } catch {
-    return 0
-  }
+  return 0
 }
 
 function mapSource(source: BackupTriggerSource): SnapshotSource {
@@ -101,52 +97,28 @@ async function buildSwSnapshotFile(source: BackupTriggerSource): Promise<BackupF
   }
 }
 
-/** SW 侧写缓存：追加 + 超额剔除非锁定项，返回最新列表 */
-async function writeSwCache(settings: BackupSettings, file: BackupFile): Promise<BackupFile[]> {
-  const data = await chrome.storage.local.get(BACKUP_KEYS.cache)
-  const cacheList = sanitizeSnapshotList(data[BACKUP_KEYS.cache])
-  if (settings.cacheEnabled) {
-    cacheList.push(file)
-    while (cacheList.length > settings.cacheMaxSnapshots) {
-      const idx = cacheList.findIndex((f) => !f.snapshot.locked)
-      if (idx === -1) break
-      cacheList.splice(idx, 1)
-    }
-    await safeSet({ [BACKUP_KEYS.cache]: toPure(cacheList) }, "backup")
-  }
-  return cacheList
-}
-
-/** SW 侧 GFS 清理，返回清理后的列表 */
-async function applySwGfsCleanup(settings: BackupSettings, cacheList: BackupFile[]): Promise<BackupFile[]> {
-  const removable = selectGfsRemovable(cacheList, Date.now(), settings.retentionDays)
-  if (!removable.length) return cacheList
-  const next = cacheList.filter((f) => !removable.includes(f.snapshot.id))
-  if (settings.cacheEnabled) {
-    await safeSet({ [BACKUP_KEYS.cache]: toPure(next) }, "backup")
-  }
-  return next
-}
-
-/** SW 侧写状态 + 广播 backup:done */
+/**
+ * SW 侧更新 state 元信息（lastBackupAt/source/error）。
+ * snapshotCount/cacheBytes 由 coordination 层在 persistSnapshot + GFS 后刷新。
+ * 这里先写 lastBackupAt/source/dirError，让 UI 下次打开能看到上次备份时间。
+ */
 async function updateSwState(
   snapshot: BackupFile["snapshot"],
   snapSource: string,
-  cacheList: BackupFile[],
   dirError: string | null,
   source: BackupTriggerSource
 ): Promise<void> {
-  const cacheBytes = await getCacheBytesInUse()
+  const data = await chrome.storage.local.get(BACKUP_KEYS.state)
+  const cur = sanitizeState(data[BACKUP_KEYS.state])
   const newState: BackupState = {
     lastBackupAt: snapshot.createdAt,
     lastBackupSource: snapSource as BackupState["lastBackupSource"],
     lastBackupError: dirError,
-    snapshotCount: cacheList.length,
-    cacheBytes,
+    snapshotCount: cur.snapshotCount,
+    cacheBytes: await getCacheBytesInUse(),
   }
   await safeSet({ [BACKUP_KEYS.state]: toPure(newState) }, "backup")
-  // 广播 backup:done 给 UI（storage.onChanged 已同步 settings/state/snapshots，
-  // 这里仅做 nextBackupAt 刷新触发；UI 未打开则下次打开读到最新 state）
+  // 广播 backup:done 给 UI（coordination 层会再广播 backup:changed 携带最新 count）
   chrome.runtime.sendMessage({ type: "backup:done", source }).catch(() => {})
 }
 
@@ -165,10 +137,11 @@ async function persistSwError(msg: string): Promise<void> {
 /**
  * SW 裸备份主入口。
  * @param source 触发源（auto.timer / auto.event.startup / ...）
+ * @returns file 构建出的快照文件（供 coordination 写 IndexedDB）
  */
 export async function runSwBareBackup(
   source: BackupTriggerSource
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; file?: BackupFile }> {
   const settings = await readSettings()
   if (!settings.enabled) {
     return { ok: false, error: "备份未开启" }
@@ -178,11 +151,9 @@ export async function runSwBareBackup(
   // 调用链：triggerTimer/Startup → enqueueBackupOperation → runBackupWithCoordination(tryAcquireCoord) → executeBackupOp → 本函数
   try {
     const file = await buildSwSnapshotFile(source)
-    let cacheList = await writeSwCache(settings, file)
     const dirError = settings.dirEnabled ? "目录备份待UI侧补" : null
-    cacheList = await applySwGfsCleanup(settings, cacheList)
-    await updateSwState(file.snapshot, file.snapshot.source, cacheList, dirError, source)
-    return { ok: true }
+    await updateSwState(file.snapshot, file.snapshot.source, dirError, source)
+    return { ok: true, file }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     await persistSwError(msg)

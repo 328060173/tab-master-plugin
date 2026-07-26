@@ -13,8 +13,9 @@
  * 守红线：不引 fsync（IndexedDB 事务是 JS 层原子）；不依赖 CAS。
  */
 
-import { putWal, getWalByTraceId, getAllWal, deleteWal } from "./db"
-import { sha256 } from "./integrity"
+import { putWal, getWalByTraceId, getAllWal, deleteWal, getAllSnapshots } from "./db"
+import { sha256, verifySnapshot } from "./integrity"
+import { auditRolledback } from "./auditLog"
 import type { WalEntry, BackupOp } from "./types"
 import { deleteSnapshotFromDb, getSnapshot } from "./db"
 
@@ -64,10 +65,27 @@ export async function writeWalAborted(traceId: string, error?: string): Promise<
 }
 
 /**
+ * 补写 WAL 的 snapshotId（backup 操作时，snapshotId 在 execute 返回后才知道）。
+ * commit 前调，让 recoverFromWal 能定位半成品。
+ */
+export async function updateWalSnapshotId(
+  traceId: string,
+  snapshotId: string
+): Promise<void> {
+  const existing = await getWalByTraceId(traceId)
+  if (!existing) return
+  if (existing.snapshotId === snapshotId) return
+  const entry: WalEntry = { ...existing, snapshotId }
+  await putWal(entry)
+}
+
+/**
  * 崩溃恢复 - SW 启动/install 时调一次。
  *
  * 扫所有 WAL，找 status="pending" 的（操作开始但未 commit/abort）：
  * - 若有 snapshotId 且快照存在但 checksum 不匹配（半成品）→ 删快照
+ * - 若无 snapshotId（backup 操作 execute 前写的 pending）→ 扫所有快照，
+ *   checksum 缺失或不匹配的视为半成品删除
  * - WAL 改 aborted
  * - 返回回滚的条目数（供审计日志记录）
  *
@@ -79,13 +97,28 @@ export async function recoverFromWal(): Promise<WalEntry[]> {
   if (!pendings.length) return []
 
   const rolledback: WalEntry[] = []
+  const hasPendingWithoutSnapshotId = pendings.some((p) => !p.snapshotId)
+
+  // 若存在没传 snapshotId 的 pending（backup 操作），扫所有快照删损坏的
+  if (hasPendingWithoutSnapshotId) {
+    const allSnaps = await getAllSnapshots()
+    for (const snap of allSnaps) {
+      const ok = await verifySnapshot(snap)
+      if (!ok) {
+        await deleteSnapshotFromDb(snap.snapshot.id)
+        console.warn(
+          `[wal:recover] 删除损坏快照 ${snap.snapshot.id}（checksum 不匹配，无 snapshotId 的 pending 触发全量扫描）`
+        )
+      }
+    }
+  }
+
   for (const p of pendings) {
     // 若关联快照存在，校验完整性；不匹配（半成品）→ 删除
     if (p.snapshotId) {
       const snap = await getSnapshot(p.snapshotId)
       if (snap) {
         // 半成品快照：checksum 缺失或不匹配（崩溃在写快照中途）
-        const { verifySnapshot } = await import("./integrity")
         const ok = await verifySnapshot(snap)
         if (!ok) {
           await deleteSnapshotFromDb(p.snapshotId)
@@ -93,8 +126,9 @@ export async function recoverFromWal(): Promise<WalEntry[]> {
         }
       }
     }
-    // WAL 改 aborted
+    // WAL 改 aborted + 审计日志（修 D19：崩溃恢复必写审计）
     await writeWalAborted(p.traceId, "崩溃恢复：操作未完成自动回滚")
+    await auditRolledback(p.traceId, "recover", 0, "崩溃恢复：操作未完成自动回滚")
     rolledback.push(p)
   }
   return rolledback

@@ -11,16 +11,14 @@ import { ref, computed } from "vue"
 import { safeSet, safeRemove } from "~lib/safeStorage"
 import { toPure } from "~lib/toPure"
 import { isDev } from "~lib/env"
-import { APP_VERSION_CODE, APP_VERSION_NAME } from "~lib/api-config"
 import { computeFingerprint, computeWeakFingerprint } from "~lib/backup/fingerprint"
 import { getDeviceId, applyTimer as applyTimerFn, refreshNextBackupTime as refreshNextBackupTimeFn } from "~lib/backup/timer"
 import { runBackupPipeline } from "~lib/backup/pipeline"
-import { tryAcquireCoord, releaseCoord } from "~lib/backup/coordination"
+import { tryAcquireCoord, releaseCoord, runBackupWithCoordination } from "~lib/backup/coordination"
 import { uuidV4 } from "~lib/backup/fingerprint"
 import {
   saveSettings as saveSettingsFn,
   saveState as saveStateFn,
-  saveCache as saveCacheFn,
   saveDirMeta as saveDirMetaFn,
   saveNoticeAck as saveNoticeAckFn,
   saveUndo as saveUndoFn,
@@ -33,6 +31,7 @@ import {
   getSnapshotFile as getSnapshotFileFn,
   appendImportedSnapshot as appendImportedSnapshotFn,
 } from "~lib/backup/snapshotMgmt"
+import { listSnapshotSummaries } from "~lib/backup/snapshotStore"
 import {
   isFsAccessSupported,
 } from "~lib/backup/fsAccess"
@@ -67,8 +66,6 @@ import {
   sanitizeState,
   sanitizeDirMeta,
   sanitizeNoticeAck,
-  sanitizeSnapshotList,
-  toSummary,
 } from "~lib/backup/sanitize"
 const DEBOUNCE_EVENT_MS = 2000
 const DIR_SCAN_CACHE_MS = 60_000
@@ -101,7 +98,6 @@ function useBackupServiceImpl() {
   // saveXxx 委托给 lib/backup/persist.ts（拆文件控行数）
   async function saveSettings() { await saveSettingsFn(settings) }
   async function saveState() { await saveStateFn(state) }
-  async function saveCache(list: BackupFile[]) { await saveCacheFn(list) }
   async function saveDirMeta() { await saveDirMetaFn(dirMeta) }
   async function saveNoticeAck() { await saveNoticeAckFn(noticeAck) }
   async function saveUndo() { await saveUndoFn(undo) }
@@ -224,21 +220,21 @@ function useBackupServiceImpl() {
   async function runBackup(
     source: BackupTriggerSource
   ): Promise<{ ok: boolean; error?: string; snapshot?: SnapshotSummary }> {
-    // P0-4 协调锁：UI 侧过协调状态机（防 UI/SW 并发 + 多窗口手动并发）
-    const traceId = uuidV4()
-    if (!(await tryAcquireCoord(traceId))) {
-      return { ok: false, error: "备份进行中，请稍后再试（多窗口请勿同时手动备份）" }
-    }
-    try {
-      const r = await runBackupPipeline(
-        { settings, state, snapshots, isBackingUp, lastProgress, saveCache, saveState, writeSnapshotToDirSafe, getCacheBytesInUse, getDeviceId },
-        source
-      )
-      if (r.ok && r.snapshot && isDev) console.debug("[useBackupService] 备份完成", { source, tabCount: r.snapshot.stats.tabCount })
-      return r
-    } finally {
-      await releaseCoord()
-    }
+    // P0-4: 走 coordination 统一入口（内部 tryAcquire/release + WAL + checksum + 审计 + 广播）
+    // 与 SW 路径一致，崩溃恢复覆盖 UI 路径半成品
+    const r = await runBackupWithCoordination(
+      "backup",
+      { kind: source === "manual" ? "manual-backup" : "auto-backup", source },
+      async (_op, _payload, _traceId) => {
+        const pr = await runBackupPipeline(
+          { settings, state, snapshots, isBackingUp, lastProgress, saveState, writeSnapshotToDirSafe, getCacheBytesInUse, getDeviceId },
+          source
+        )
+        return { ok: pr.ok, error: pr.error, snapshot: pr.file }
+      }
+    )
+    if (r.ok && isDev) console.debug("[useBackupService] 备份完成", { source })
+    return { ok: r.ok, error: r.error, snapshot: r.snapshot as SnapshotSummary | undefined }
   }
 
   /** 手动备份（sidepanel/options 调） */
@@ -255,14 +251,10 @@ function useBackupServiceImpl() {
   function snapshotMgmtDeps() {
     return {
       settings,
+      state,
       snapshots,
-      saveCache,
       saveState,
       getCacheBytesInUse,
-      setSnapshotCount: (count: number, bytes: number) => {
-        state.value.snapshotCount = count
-        state.value.cacheBytes = bytes
-      },
     }
   }
 
@@ -289,25 +281,19 @@ function useBackupServiceImpl() {
     }
   }
 
-  /** 撤销删除（P1-1）：把软删的快照加回缓存列表 */
+  /** 撤销删除（P1-1）：把软删的快照加回 IndexedDB */
   async function undoDelete(): Promise<boolean> {
     const file = undo.value.deletedSnapshot
     if (!file) return false
     try {
-      const data = await chrome.storage.local.get(BACKUP_KEYS.cache)
-      const list = sanitizeSnapshotList(data[BACKUP_KEYS.cache])
-      // 避免重复加回
-      if (list.some((f) => f.snapshot.id === file.snapshot.id)) {
+      // 已在 IndexedDB 的不重复加回
+      const existing = await getSnapshotFile(file.snapshot.id)
+      if (existing) {
         undo.value = { preRestoreSnapshot: undo.value.preRestoreSnapshot, deletedSnapshot: null, createdAt: null }
         await safeSet({ [BACKUP_KEYS.undo]: toPure(undo.value) }, "backup.undoDelete")
         return true
       }
-      const next = [...list, file]
-      await snapshotMgmtDeps().saveCache(next)
-      const bytes = await doGetCacheBytesInUse()
-      snapshotMgmtDeps().setSnapshotCount(next.length, bytes)
-      await snapshotMgmtDeps().saveState()
-      snapshots.value = next.map(toSummary).sort((a, b) => b.createdAt - a.createdAt)
+      await appendImportedSnapshotFn(snapshotMgmtDeps(), file)
       undo.value = { preRestoreSnapshot: undo.value.preRestoreSnapshot, deletedSnapshot: null, createdAt: null }
       await safeSet({ [BACKUP_KEYS.undo]: toPure(undo.value) }, "backup.undoDelete")
       return true
@@ -374,8 +360,12 @@ function useBackupServiceImpl() {
     const traceId = uuidV4()
     if (!(await tryAcquireCoord(traceId))) return false
     try {
-      await safeRemove([BACKUP_KEYS.cache, BACKUP_KEYS.state, BACKUP_KEYS.undo, BACKUP_KEYS.dirMeta, BACKUP_KEYS.noticeAck], "backup")
-      await safeSet({ [BACKUP_KEYS.cache]: [], [BACKUP_KEYS.state]: toPure(DEFAULT_BACKUP_STATE) }, "backup")
+      // 清空 IndexedDB 快照（P0-4 L2）
+      const { clearAllSnapshots } = await import("~lib/backup/snapshotStore")
+      await clearAllSnapshots()
+      // 清 storage.local 元信息（state/undo/dirMeta/noticeAck；cache 已废弃不动）
+      await safeRemove([BACKUP_KEYS.state, BACKUP_KEYS.undo, BACKUP_KEYS.dirMeta, BACKUP_KEYS.noticeAck], "backup")
+      await safeSet({ [BACKUP_KEYS.state]: toPure(DEFAULT_BACKUP_STATE) }, "backup")
       snapshots.value = []
       state.value = { ...DEFAULT_BACKUP_STATE }
       undo.value = { ...DEFAULT_BACKUP_UNDO }
@@ -391,7 +381,7 @@ function useBackupServiceImpl() {
     }
   }
 
-  // ===== 监听 storage 变化（跨页同步）=====
+  // ===== 监听 storage 变化（跨页同步，仅元信息；快照走 backup:changed 消息）=====
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return
     if (changes[BACKUP_KEYS.settings]) {
@@ -399,10 +389,6 @@ function useBackupServiceImpl() {
     }
     if (changes[BACKUP_KEYS.state]) {
       state.value = sanitizeState(changes[BACKUP_KEYS.state].newValue)
-    }
-    if (changes[BACKUP_KEYS.cache]) {
-      const list = sanitizeSnapshotList(changes[BACKUP_KEYS.cache].newValue)
-      snapshots.value = list.map(toSummary).sort((a, b) => b.createdAt - a.createdAt)
     }
     if (changes[BACKUP_KEYS.dirMeta]) {
       dirMeta.value = sanitizeDirMeta(changes[BACKUP_KEYS.dirMeta].newValue)
@@ -425,16 +411,29 @@ function useBackupServiceImpl() {
     }
   })
 
-  // ===== 监听 background.ts 广播的 backup:done 消息（SW 裸备份完成后通知 UI 刷新） =====
-  // 设计：定时/启动备份由 SW 直接执行（runSwBareBackup），不依赖 UI 是否打开。
-  // SW 写完 storage.local 后 storage.onChanged 已自动同步 settings/state/snapshots；
-  // 这里收到 backup:done 仅刷新 nextBackupAt + 提示（如果 UI 开着）。
+  // ===== 监听 background.ts 广播的 backup:done / backup:changed 消息 =====
+  // 设计：
+  // - backup:done：SW 裸备份完成后通知 UI 刷新 nextBackupAt（state 已走 storage.onChanged 同步）
+  // - backup:changed：IndexedDB 快照变更（备份/删除/导入后 SW 广播）→ UI 重新读 IndexedDB 摘要列表
+  //   （IndexedDB 不触发 storage.onChanged，必须靠 runtime 消息广播刷新 snapshots ref）
   chrome.runtime.onMessage.addListener((msg) => {
     if (!msg || typeof msg !== "object" || Array.isArray(msg)) return
     const m = msg as { type?: string }
-    if (m.type !== "backup:done") return
-    // storage.onChanged 已同步 reactive 状态；这里只刷新下次备份时间显示
-    void refreshNextBackupTime()
+    if (m.type === "backup:done") {
+      void refreshNextBackupTime()
+      return
+    }
+    if (m.type === "backup:changed") {
+      // 从 IndexedDB 重新加载快照摘要（IndexedDB 写后 storage.onChanged 不触发）
+      void listSnapshotSummaries().then((list) => {
+        snapshots.value = list
+        // 同步 state.snapshotCount（防漂移）
+        if (state.value.snapshotCount !== list.length) {
+          state.value.snapshotCount = list.length
+        }
+      }).catch(() => {})
+      void refreshNextBackupTime()
+    }
   })
 
   // ===== 初始化 =====

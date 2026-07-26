@@ -3,10 +3,14 @@
  *
  * 一次性读 storage.local 所有备份相关 key，填充到传入的 refs。
  * 纯函数：不持状态，只填充 refs + 调回调。
+ *
+ * P0-4：快照列表从 IndexedDB 读（listSnapshotSummaries），不再读 storage.local cache。
+ * 启动时先跑 migrateStorageLocalToIndexedDb 迁移旧数据。
  */
 
 import type { Ref } from "vue"
 import { safeSet, safeRemove } from "~lib/safeStorage"
+import { toPure } from "~lib/toPure"
 import { uuidV4 } from "./fingerprint"
 import {
   BACKUP_KEYS,
@@ -16,7 +20,6 @@ import {
   type BackupDirMeta,
   type BackupNoticeAck,
   type BackupUndo,
-  type BackupFile,
   type SnapshotSummary,
 } from "~types/backup"
 import {
@@ -24,9 +27,9 @@ import {
   sanitizeState,
   sanitizeDirMeta,
   sanitizeNoticeAck,
-  sanitizeSnapshotList,
-  toSummary,
 } from "./sanitize"
+import { listSnapshotSummaries } from "./snapshotStore"
+import { migrateStorageLocalToIndexedDb } from "./migration"
 
 export interface LoadAllDeps {
   settings: Ref<BackupSettings>
@@ -43,8 +46,9 @@ export interface LoadAllDeps {
 
 /**
  * 一次性加载所有备份状态到 refs。
- * - settings/state/dirMeta/noticeAck/undo 直接填充
- * - cache 转 SnapshotSummary 列表填充
+ * - 先迁移旧 storage.local cache → IndexedDB
+ * - settings/state/dirMeta/noticeAck/undo 直接填充（storage.local）
+ * - cache 从 IndexedDB 读摘要列表填充
  * - 撤销窗口 30s 过期清理
  * - deviceId 不存在则生成
  * - 末尾刷新下次备份时间 + 检查目录权限
@@ -52,10 +56,16 @@ export interface LoadAllDeps {
 export async function loadAll(deps: LoadAllDeps): Promise<void> {
   const { settings, state, snapshots, dirMeta, noticeAck, undo, refreshNextBackupTime, checkDirPermission } = deps
   try {
+    // 先迁移旧 storage.local cache → IndexedDB（在加载快照列表前）
+    try {
+      await migrateStorageLocalToIndexedDb()
+    } catch (e) {
+      console.warn("[backup loader] 迁移旧快照失败（继续用 IndexedDB 现有数据）", e)
+    }
+
     const data = await chrome.storage.local.get([
       BACKUP_KEYS.settings,
       BACKUP_KEYS.state,
-      BACKUP_KEYS.cache,
       BACKUP_KEYS.deviceId,
       BACKUP_KEYS.dirMeta,
       BACKUP_KEYS.noticeAck,
@@ -63,8 +73,13 @@ export async function loadAll(deps: LoadAllDeps): Promise<void> {
     ])
     settings.value = sanitizeSettings(data[BACKUP_KEYS.settings])
     state.value = sanitizeState(data[BACKUP_KEYS.state])
-    const list = sanitizeSnapshotList(data[BACKUP_KEYS.cache])
-    snapshots.value = list.map(toSummary).sort((a, b) => b.createdAt - a.createdAt)
+    // 快照列表从 IndexedDB 读（P0-4 L2）
+    snapshots.value = await listSnapshotSummaries()
+    // 同步 state.snapshotCount（防 IndexedDB 与 state 漂移）
+    if (state.value.snapshotCount !== snapshots.value.length) {
+      state.value.snapshotCount = snapshots.value.length
+      await safeSet({ [BACKUP_KEYS.state]: toPure(state.value) }, "backup")
+    }
     dirMeta.value = sanitizeDirMeta(data[BACKUP_KEYS.dirMeta])
     noticeAck.value = sanitizeNoticeAck(data[BACKUP_KEYS.noticeAck])
     undo.value = (data[BACKUP_KEYS.undo] && typeof data[BACKUP_KEYS.undo] === "object"

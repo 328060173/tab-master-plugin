@@ -10,11 +10,15 @@
  */
 
 import { uuidV4 } from "./fingerprint"
-import { withChecksum, verifySnapshot } from "./integrity"
-import { writeWalPending, writeWalCommitted, writeWalAborted } from "./wal"
+import { writeWalPending, writeWalCommitted, writeWalAborted, updateWalSnapshotId } from "./wal"
 import { auditStarted, auditSuccess, auditFailed, auditConflict } from "./auditLog"
-import { putSnapshot, getSnapshot, deleteSnapshotFromDb, getAllSnapshots } from "./db"
-import type { BackupFile } from "~types/backup"
+import {
+  persistSnapshot,
+  gfsCleanupSnapshots,
+  trimToMaxSnapshots,
+} from "./snapshotStore"
+import { getAllSnapshots } from "./db"
+import type { BackupFile, BackupSettings } from "~types/backup"
 import type { BackupOp, SyncState, BackupOpPayload } from "./types"
 
 const COORD_KEY = "tabMasterBackupCoord"
@@ -74,8 +78,16 @@ export interface CoordinationResult {
   conflict?: boolean
 }
 
-/** 统一协调入口（SW 队列内调） */
-export async function runBackupWithCoordination(op: BackupOp, payload: BackupOpPayload, execute: ExecuteFn): Promise<CoordinationResult> {
+/**
+ * 统一协调入口（SW 队列内调）。
+ * settings 用于 GFS 清理 + 上限裁剪（backup 操作后维护保留策略）。
+ */
+export async function runBackupWithCoordination(
+  op: BackupOp,
+  payload: BackupOpPayload,
+  execute: ExecuteFn,
+  settings?: BackupSettings
+): Promise<CoordinationResult> {
   const traceId = uuidV4()
   const startTs = Date.now()
   const curCoord = await readCoord()
@@ -98,14 +110,19 @@ export async function runBackupWithCoordination(op: BackupOp, payload: BackupOpP
     }
 
     if (result.snapshot) {
-      const file = await withChecksum(result.snapshot)
-      await putSnapshot(file)
-      const reRead = await getSnapshot(file.snapshot.id)
-      if (!reRead || !(await verifySnapshot(reRead))) {
-        await deleteSnapshotFromDb(file.snapshot.id)
-        await writeWalAborted(traceId, "写入后校验失败（快照损坏）")
-        await auditFailed(traceId, op, "syncing", curCoord.version + 1, "快照写入损坏已回滚", Date.now() - startTs)
-        return { ok: false, error: "快照写入损坏，已自动回滚，请重试" }
+      // 写 IndexedDB + checksum 校验
+      const persist = await persistSnapshot(result.snapshot)
+      if (!persist.ok) {
+        await writeWalAborted(traceId, persist.error || "快照写入失败")
+        await auditFailed(traceId, op, "syncing", curCoord.version + 1, persist.error || "快照写入失败", Date.now() - startTs)
+        return { ok: false, error: persist.error || "快照写入失败，已自动回滚，请重试" }
+      }
+      // 补写 WAL 的 snapshotId（backup 操作时 execute 返回后才知道 id）
+      await updateWalSnapshotId(traceId, result.snapshot.snapshot.id)
+      // GFS 清理 + 上限裁剪（仅 backup/import 操作后维护保留策略）
+      if (settings && (op === "backup" || op === "import")) {
+        await gfsCleanupSnapshots(settings.retentionDays)
+        await trimToMaxSnapshots(settings.cacheMaxSnapshots)
       }
     }
 

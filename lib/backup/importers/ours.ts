@@ -13,6 +13,7 @@ import { BACKUP_KIND, BACKUP_SCHEMA_VERSION } from "~types/backup"
 import type { BackupFile, ImportResult } from "~types/backup"
 import { normalizeUrl } from "~lib/backup/fingerprint"
 import { uuidV4 } from "~lib/backup/fingerprint"
+import { verifySnapshot } from "../integrity"
 
 /** migrator 链（vN → vN+1）。当前只有 v1，无迁移 */
 function migrate(raw: Record<string, unknown>): Record<string, unknown> {
@@ -108,7 +109,7 @@ function fillDefaults(raw: Record<string, unknown>, warnings: string[]): BackupF
   return file
 }
 
-export function parseOurs(text: string): ImportResult {
+export async function parseOurs(text: string): Promise<ImportResult> {
   const warnings: string[] = []
   let raw: unknown
   try {
@@ -128,5 +129,24 @@ export function parseOurs(text: string): ImportResult {
   }
   const migrated = migrate(raw as Record<string, unknown>)
   const file = fillDefaults(migrated, warnings)
+  // P0-4 L3：校验 checksum（防文件损坏/撕裂）
+  const rawChecksum = (migrated as Record<string, unknown>).checksum
+  if (typeof rawChecksum === "string" && rawChecksum) {
+    file.checksum = rawChecksum
+    const ok = await verifySnapshot(file)
+    if (!ok) {
+      return {
+        ok: false,
+        file: null,
+        error: "快照文件已损坏（校验和不匹配）",
+        warnings,
+        skipped: 0,
+        format: "ours",
+      }
+    }
+  } else {
+    // 旧快照无 checksum：跳过校验只警告（向后兼容）
+    warnings.push("此快照无校验和（旧版本导出），已跳过完整性校验")
+  }
   return { ok: true, file, error: null, warnings, skipped: 0, format: "ours" }
 }
