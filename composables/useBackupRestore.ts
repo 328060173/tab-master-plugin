@@ -18,7 +18,8 @@ import {
   executeRestore,
   type CurrentTab,
 } from "~lib/backup/restore"
-import { computeFingerprint, computeWeakFingerprint } from "~lib/backup/fingerprint"
+import { computeFingerprint, computeWeakFingerprint, uuidV4 } from "~lib/backup/fingerprint"
+import { tryAcquireCoord, releaseCoord } from "~lib/backup/coordination"
 import { APP_VERSION_CODE, APP_VERSION_NAME } from "~lib/api-config"
 import { buildSnapshot, collectMeta } from "~lib/backup/snapshotBuilder"
 import type { MetaRestoreResult } from "~lib/backup/metaRestore"
@@ -106,6 +107,11 @@ function useBackupRestoreImpl() {
     snapshotId: string,
     mode: RestoreMode
   ): Promise<{ ok: boolean; openedCount: number; closedCount: number; error?: string; canUndo: boolean; metaResult?: MetaRestoreResult }> {
+    // P0-4 协调锁：恢复也是写操作（开/关 tab + 写元数据），防并发
+    const traceId = uuidV4()
+    if (!(await tryAcquireCoord(traceId))) {
+      return { ok: false, openedCount: 0, closedCount: 0, error: "备份进行中，请稍后再试", canUndo: false }
+    }
     isRestoring.value = true
     try {
       const file = await svc.getSnapshotFile(snapshotId)
@@ -160,6 +166,7 @@ function useBackupRestoreImpl() {
       return { ok: false, openedCount: 0, closedCount: 0, error: e instanceof Error ? e.message : String(e), canUndo: false }
     } finally {
       isRestoring.value = false
+      await releaseCoord()
     }
   }
 

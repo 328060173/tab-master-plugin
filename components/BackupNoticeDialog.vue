@@ -9,7 +9,7 @@
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5">
         <h2 class="text-base font-semibold text-center mb-1">开启标签备份前请知悉</h2>
         <p class="text-[11px] text-gray-500 dark:text-gray-500 dark:text-gray-300 text-center mb-4">
-          以下 5 条是浏览器官方 API 限制，非产品缺陷。我们已为每条提供应对方式，请逐条确认：
+          以下 6 条是浏览器官方 API 限制，非产品缺陷。我们已为每条提供应对方式，请逐条确认：
         </p>
         <div class="space-y-2.5">
           <label
@@ -93,16 +93,22 @@ const items = [
     desc: "不会覆盖（不可变快照 + 时间戳文件名），但恢复时需手动选哪一个。",
     action: "恢复界面列多版本让你选。",
   },
+  {
+    id: "concurrency",
+    title: "多窗口同时操作可能导致备份冲突",
+    desc: "浏览器扩展多窗口（多 sidepanel / 多 tab 页）同时备份，或自动定时与手动备份并行，会冲突。",
+    action: "备份进行中会提示『请稍后』；如需手动备份，建议先在设置关闭定时。",
+  },
 ]
 
-const ack = ref<boolean[]>([false, false, false, false, false])
+const ack = ref<boolean[]>(items.map(() => false))
 
 const allChecked = computed(() => ack.value.every((x) => x))
 
 watch(
   () => props.open,
   (v) => {
-    if (v) ack.value = [false, false, false, false, false]
+    if (v) ack.value = items.map(() => false)
   }
 )
 

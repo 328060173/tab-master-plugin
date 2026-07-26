@@ -15,7 +15,8 @@ import { APP_VERSION_CODE, APP_VERSION_NAME } from "~lib/api-config"
 import { computeFingerprint, computeWeakFingerprint } from "~lib/backup/fingerprint"
 import { getDeviceId, applyTimer as applyTimerFn, refreshNextBackupTime as refreshNextBackupTimeFn } from "~lib/backup/timer"
 import { runBackupPipeline } from "~lib/backup/pipeline"
-import { acquireBackupLock, releaseBackupLock } from "~lib/backup/lock"
+import { tryAcquireCoord, releaseCoord } from "~lib/backup/coordination"
+import { uuidV4 } from "~lib/backup/fingerprint"
 import {
   saveSettings as saveSettingsFn,
   saveState as saveStateFn,
@@ -126,7 +127,7 @@ function useBackupServiceImpl() {
     }
   }
   async function setNoticeAck(items: boolean[]) {
-    noticeAck.value = { items: items.slice(0, 5), ackedAt: Date.now() }
+    noticeAck.value = { items: items.slice(0, 6), ackedAt: Date.now() }
     await saveNoticeAck()
   }
   async function resetNoticeAck() {
@@ -223,36 +224,20 @@ function useBackupServiceImpl() {
   async function runBackup(
     source: BackupTriggerSource
   ): Promise<{ ok: boolean; error?: string; snapshot?: SnapshotSummary }> {
-    // 锁协调：防 UI 与 SW 裸备份路径同时执行（5min TTL 防死锁）
-    const gotLock = await acquireBackupLock()
-    if (!gotLock) {
-      return { ok: false, error: "正在备份中（锁被占用）" }
+    // P0-4 协调锁：UI 侧过协调状态机（防 UI/SW 并发 + 多窗口手动并发）
+    const traceId = uuidV4()
+    if (!(await tryAcquireCoord(traceId))) {
+      return { ok: false, error: "备份进行中，请稍后再试（多窗口请勿同时手动备份）" }
     }
     try {
       const r = await runBackupPipeline(
-        {
-          settings,
-          state,
-          snapshots,
-          isBackingUp,
-          lastProgress,
-          saveCache,
-          saveState,
-          writeSnapshotToDirSafe,
-          getCacheBytesInUse,
-          getDeviceId,
-        },
+        { settings, state, snapshots, isBackingUp, lastProgress, saveCache, saveState, writeSnapshotToDirSafe, getCacheBytesInUse, getDeviceId },
         source
       )
-      if (r.ok && r.snapshot && isDev) {
-        console.debug("[useBackupService] 备份完成", {
-          source,
-          tabCount: r.snapshot.stats.tabCount,
-        })
-      }
+      if (r.ok && r.snapshot && isDev) console.debug("[useBackupService] 备份完成", { source, tabCount: r.snapshot.stats.tabCount })
       return r
     } finally {
-      await releaseBackupLock()
+      await releaseCoord()
     }
   }
 
@@ -283,22 +268,25 @@ function useBackupServiceImpl() {
 
   /**
    * 软删快照（P1-1）：删前把完整快照存到 undo.deletedSnapshot，30s 内可撤销。
-   * 30s 后过期清理（initUndo 过期检查已覆盖）。
-   * 返回 true 表示已软删（UI 应提示"已删除，30s 内可撤销"）。
+   * P0-4: 加协调锁防并发写。
    */
   async function deleteSnapshot(id: string): Promise<boolean> {
-    const file = await getSnapshotFile(id)
-    if (!file) return false
-    // 存到 undo 供撤销（覆盖上一次软删，restore 的 preRestoreSnapshot 不动）
-    undo.value = {
-      preRestoreSnapshot: undo.value.preRestoreSnapshot,
-      deletedSnapshot: file,
-      createdAt: Date.now(),
+    const traceId = uuidV4()
+    if (!(await tryAcquireCoord(traceId))) return false
+    try {
+      const file = await getSnapshotFile(id)
+      if (!file) return false
+      undo.value = {
+        preRestoreSnapshot: undo.value.preRestoreSnapshot,
+        deletedSnapshot: file,
+        createdAt: Date.now(),
+      }
+      await safeSet({ [BACKUP_KEYS.undo]: toPure(undo.value) }, "backup.delete")
+      scheduleUndoExpiry()
+      return deleteSnapshotFn(snapshotMgmtDeps(), id)
+    } finally {
+      await releaseCoord()
     }
-    await safeSet({ [BACKUP_KEYS.undo]: toPure(undo.value) }, "backup.delete")
-    // 30s 后自动清 undo（防泄漏；若用户撤销则取消定时）
-    scheduleUndoExpiry()
-    return deleteSnapshotFn(snapshotMgmtDeps(), id)
   }
 
   /** 撤销删除（P1-1）：把软删的快照加回缓存列表 */
@@ -341,7 +329,10 @@ function useBackupServiceImpl() {
   }
 
   async function toggleLock(id: string, locked: boolean, reason?: string): Promise<boolean> {
-    return toggleLockFn(snapshotMgmtDeps(), id, locked, reason)
+    const traceId = uuidV4()
+    if (!(await tryAcquireCoord(traceId))) return false
+    try { return await toggleLockFn(snapshotMgmtDeps(), id, locked, reason) }
+    finally { await releaseCoord() }
   }
 
   async function setSnapshotLabel(id: string, label: string | null): Promise<boolean> {
@@ -355,7 +346,10 @@ function useBackupServiceImpl() {
 
   /** 写入外部导入的快照到缓存（导入后供恢复流程用） */
   async function appendImportedSnapshot(file: BackupFile): Promise<void> {
-    await appendImportedSnapshotFn(snapshotMgmtDeps(), file)
+    const traceId = uuidV4()
+    if (!(await tryAcquireCoord(traceId))) return
+    try { await appendImportedSnapshotFn(snapshotMgmtDeps(), file) }
+    finally { await releaseCoord() }
   }
 
   // ===== 撤销恢复（30s 窗口）=====
@@ -377,6 +371,8 @@ function useBackupServiceImpl() {
 
   // ===== 重置/清除所有备份（破坏性，由 UI 二次确认把关）=====
   async function clearAllBackups(): Promise<boolean> {
+    const traceId = uuidV4()
+    if (!(await tryAcquireCoord(traceId))) return false
     try {
       await safeRemove([BACKUP_KEYS.cache, BACKUP_KEYS.state, BACKUP_KEYS.undo, BACKUP_KEYS.dirMeta, BACKUP_KEYS.noticeAck], "backup")
       await safeSet({ [BACKUP_KEYS.cache]: [], [BACKUP_KEYS.state]: toPure(DEFAULT_BACKUP_STATE) }, "backup")
@@ -390,6 +386,8 @@ function useBackupServiceImpl() {
     } catch (e) {
       console.warn("[useBackupService] clearAllBackups 失败", e)
       return false
+    } finally {
+      await releaseCoord()
     }
   }
 

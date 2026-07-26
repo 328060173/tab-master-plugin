@@ -13,7 +13,7 @@
  * 守红线：
  * - 不依赖 vue ref（纯 storage.local + chrome.tabs API）
  * - 所有 storage 写走 safeSet + toPure
- * - acquireBackupLock 协调 UI 侧（避免 SW/UI 同时备份）
+ * - 锁由外层 runBackupWithCoordination(tryAcquireCoord) 统一管理，本模块不加锁
  * - 不调 chrome.sessions.setTabValue（Chrome 无此 API）
  */
 
@@ -38,11 +38,7 @@ import {
   sanitizeSettings,
   sanitizeState,
 } from "./sanitize"
-import {
-  acquireBackupLock,
-  releaseBackupLock,
-  cleanupExpiredBackupLock,
-} from "./lock"
+import { cleanupExpiredBackupLock } from "./lock"
 
 /** 读备份设置（防御性，防脏数据） */
 async function readSettings(): Promise<BackupSettings> {
@@ -178,16 +174,11 @@ export async function runSwBareBackup(
     return { ok: false, error: "备份未开启" }
   }
 
-  // 锁协调（防 SW 与 UI 同时备份）
-  const got = await acquireBackupLock()
-  if (!got) {
-    return { ok: false, error: "正在备份中（锁被占用）" }
-  }
-
+  // P0-4: 锁由外层 runBackupWithCoordination（tryAcquireCoord）统一管理，此处不再单独加锁
+  // 调用链：triggerTimer/Startup → enqueueBackupOperation → runBackupWithCoordination(tryAcquireCoord) → executeBackupOp → 本函数
   try {
     const file = await buildSwSnapshotFile(source)
     let cacheList = await writeSwCache(settings, file)
-    // 目录写：SW 无 window，File System Access API 不可用 → 降级跳过
     const dirError = settings.dirEnabled ? "目录备份待UI侧补" : null
     cacheList = await applySwGfsCleanup(settings, cacheList)
     await updateSwState(file.snapshot, file.snapshot.source, cacheList, dirError, source)
@@ -197,8 +188,6 @@ export async function runSwBareBackup(
     await persistSwError(msg)
     console.warn("[swBackup] 失败", e)
     return { ok: false, error: msg }
-  } finally {
-    await releaseBackupLock()
   }
 }
 

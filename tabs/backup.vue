@@ -213,7 +213,7 @@ function onRequestEnable() {
 
 async function onNoticeConfirm() {
   noticeOpen.value = false
-  await svc.setNoticeAck([true, true, true, true, true])
+  await svc.setNoticeAck([true, true, true, true, true, true])
   await doEnable()
 }
 
@@ -340,13 +340,24 @@ async function onUndoRestore() {
 // 撤销窗口倒计时
 const now = ref(Date.now())
 let timer: ReturnType<typeof setInterval> | null = null
+
+// P0-4: 监听 SW 广播的 backup:changed（其他上下文写完备份后刷新本页列表）
+const onBackupChanged = (msg: unknown) => {
+  if (!msg || typeof msg !== "object") return
+  const type = (msg as { type?: string }).type
+  if (type === "backup:changed" || type === "backup:done" || type === "backup:recovered") {
+    void svc.loadAll()  // 重新加载快照/状态
+  }
+}
+
 onMounted(() => {
   timer = setInterval(() => (now.value = Date.now()), 1000)
-  // 进入页面后异步刷新目录大小
   void svc.refreshDirSize()
+  chrome.runtime.onMessage.addListener(onBackupChanged)
 })
 onUnmounted(() => {
   if (timer) clearInterval(timer)
+  chrome.runtime.onMessage.removeListener(onBackupChanged)
 })
 
 const undoLeftSec = computed(() => {

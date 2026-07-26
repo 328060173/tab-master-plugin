@@ -31,6 +31,10 @@ import type { NoticeCacheData, NoticeSyncResponse } from '~types/notice'
 import type { SettingMenuResponse, SettingMenuCacheData } from '~types/setting'
 import { BACKUP_KEYS, BACKUP_ALARM_NAME, DEFAULT_BACKUP_SETTINGS, type BackupSettings } from '~types/backup'
 import { runSwBareBackup, initSwBackupLock } from '~lib/backup/swBackup'
+import { runBackupWithCoordination, getCoordState, listSnapshots } from '~lib/backup/coordination'
+import { recoverFromWal, purgeOldWal } from '~lib/backup/wal'
+import { purgeExpiredAudit, getRecentAuditLogs } from '~lib/backup/auditLog'
+import type { BackupMessage, BackupResponse, BackupOp, BackupOpPayload } from '~lib/backup/types'
 
 // ============ 备份定时/启动触发（PRD §B）============
 // 设计：定时备份 + onStartup 备份由 SW 直接执行（runSwBareBackup），不依赖 UI 是否打开。
@@ -41,12 +45,99 @@ import { runSwBareBackup, initSwBackupLock } from '~lib/backup/swBackup'
 //   下次 UI 打开走 runManualBackup 时会补写目录）。完成后广播 backup:done 给 UI 刷新状态。
 // 锁协调：acquireBackupLock 防 SW 与 UI 同时备份（5min TTL 防死锁）。
 async function triggerTimerBackup(): Promise<void> {
-  await runSwBareBackup('auto.timer')
+  await enqueueBackupOperation('backup', { kind: 'auto-backup', source: 'auto.timer' })
 }
 
 async function triggerStartupBackup(): Promise<void> {
-  // runSwBareBackup 内部会读设置判断是否 enabled；这里直接调
-  await runSwBareBackup('auto.event.startup')
+  await enqueueBackupOperation('backup', { kind: 'auto-backup', source: 'auto.event.startup' })
+}
+
+// ============ P0-4 SW 串行写入队列 + 协调入口 ============
+// 调研方案1：所有备份写操作收口到 SW 单 Promise 队列串行执行，0 竞态无死锁。
+// 队列不存内存（SW 销毁后重建），靠 IndexedDB 事务 + WAL 落盘兜底。
+
+let backupWriteQueue: Promise<unknown> = Promise.resolve()
+
+/**
+ * 备份执行函数（适配层）：把 op+payload 转为现有 runSwBareBackup 调用。
+ * P0-4-9 将改造 runSwBareBackup/pipeline 内部写 IndexedDB；本适配层先桥接。
+ */
+async function executeBackupOp(op: BackupOp, payload: BackupOpPayload, traceId: string) {
+  // backup 操作：调现有 runSwBareBackup（它内部读设置+建快照+写缓存+GFS+state）
+  if (op === 'backup') {
+    const source = payload.kind === 'auto-backup' ? payload.source : 'manual'
+    const ok = await runSwBareBackup(source as Parameters<typeof runSwBareBackup>[0])
+    return { ok, error: ok ? undefined : '备份失败' }
+  }
+  // restore/delete/import/clear/lock：这些目前由 UI 侧 useBackupService 直接处理（走消息后改造）
+  // P0-4-7/8/9/10 将逐步把这些操作也收口到这里。本轮先返回 not-implemented。
+  return { ok: false, error: `操作 ${op} 暂未收口到 SW 队列（P0-4-7+改造中）` }
+}
+
+/**
+ * 入队一个备份操作（走协调入口 + 串行队列）。
+ * 定时/启动/手动备份都调本函数。
+ */
+async function enqueueBackupOperation(op: BackupOp, payload: BackupOpPayload): Promise<{ ok: boolean; error?: string; conflict?: boolean }> {
+  // 串行：下一个操作等当前完成。catch 吞错防队列中断。
+  const result = (backupWriteQueue = backupWriteQueue.then(async () => {
+    return runBackupWithCoordination(op, payload, executeBackupOp)
+  }).catch((e) => ({ ok: false, error: e instanceof Error ? e.message : String(e) })))
+
+  const r = await result as { ok: boolean; error?: string; conflict?: boolean }
+  return r
+}
+
+/**
+ * SW 启动恢复：崩溃回滚未提交 + 清过期日志 + 清旧 WAL。
+ */
+async function initBackupRecovery(): Promise<void> {
+  try {
+    const rolledback = await recoverFromWal()
+    if (rolledback.length) {
+      console.warn(`[backup] 崩溃恢复：回滚 ${rolledback.length} 个未提交操作`)
+      for (const e of rolledback) {
+        chrome.runtime.sendMessage({
+          type: 'backup:recovered',
+          traceId: e.traceId,
+          op: e.op,
+        }).catch(() => {})
+      }
+    }
+    await purgeExpiredAudit()
+    await purgeOldWal()
+  } catch (e) {
+    console.warn('[backup] initBackupRecovery 失败', e)
+  }
+}
+
+/**
+ * 处理来自 UI（backup.vue/sidepanel）的备份消息。
+ * 所有写操作走 enqueueBackupOperation 串行队列。
+ */
+async function handleBackupMessage(msg: BackupMessage): Promise<BackupResponse> {
+  const traceId = msg.traceId
+  try {
+    if (msg.type === 'backup:execute') {
+      const r = await enqueueBackupOperation(msg.op, msg.payload)
+      return { ok: r.ok, error: r.error, traceId, data: r.conflict ? { conflict: true } : undefined }
+    }
+    if (msg.type === 'backup:read-snapshots') {
+      const snapshots = await listSnapshots()
+      return { ok: true, traceId, data: snapshots }
+    }
+    if (msg.type === 'backup:read-audit') {
+      const logs = await getRecentAuditLogs(msg.limit)
+      return { ok: true, traceId, data: logs }
+    }
+    if (msg.type === 'backup:recover') {
+      await initBackupRecovery()
+      return { ok: true, traceId }
+    }
+    return { ok: false, error: '未知消息类型', traceId }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e), traceId }
+  }
 }
 
 // 确保 backup alarm 存在（不触发执行，仅当设置已开启）
@@ -172,6 +263,8 @@ chrome.runtime.onInstalled.addListener(async () => {
   await loadMap()
   // 清理过期备份锁（防历史残留死锁）
   void initSwBackupLock()
+  // P0-4: 崩溃恢复 + 清过期审计/WAL
+  void initBackupRecovery()
   // 广告/版本/通知/设置菜单初始化拉取（fire-and-forget，各模块独立，互不阻塞）
   syncAll('init')
 })
@@ -180,10 +273,11 @@ chrome.runtime.onStartup.addListener(async () => {
   await loadMap()
   // 清理过期备份锁（防 SW 异常崩溃后锁残留）
   void initSwBackupLock()
+  // P0-4: 崩溃恢复 + 清过期审计/WAL（必须在触发新备份前跑）
+  void initBackupRecovery()
   // 浏览器重启：立即拉取广告/版本/通知/设置菜单（fire-and-forget）
   syncAll('init')
-  // 备份：onStartup 时触发一次启动备份（PRD §B）
-  // SW 直接执行裸备份路径，不依赖 UI 是否打开
+  // 备份：onStartup 时触发一次启动备份（PRD §B），走 SW 串行队列
   void triggerStartupBackup()
 })
 
@@ -218,9 +312,17 @@ function syncAll(trigger: SyncTrigger): void {
 // 各 fetch 写缓存后各自广播 xxxCacheUpdated，sidepanel 现有监听自动刷新。
 // 同时广播 manualRefreshMy 触发 /my 重拉（/my 架构不同，在 sidepanel 按需拉，未登录则忽略）。
 // 不等全部完成、不广播 done——按钮靠 options 页自身短延时恢复（异步不阻塞 UI）。
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return
-  if ((msg as Record<string, unknown>).type !== 'manualRefreshAll') return
+  const type = (msg as Record<string, unknown>).type
+  // P0-4: backup: 前缀消息走异步响应（return true 保持通道）
+  if (typeof type === 'string' && type.startsWith('backup:')) {
+    handleBackupMessage(msg as BackupMessage).then(sendResponse).catch((e) =>
+      sendResponse({ ok: false, error: String(e), traceId: (msg as { traceId?: string }).traceId || '' } as BackupResponse)
+    )
+    return true // 异步响应必须 return true
+  }
+  if (type !== 'manualRefreshAll') return
   if (isDev) console.log('[sync] 收到手动刷新请求 (manualRefreshAll)，不含广告')
   // 手动刷新不触发广告（避免每次点击都弹广告，体验差）；菜单/通知/版本仍同步
   // 仅刷 sidepanel 设置菜单（settingType=1）；options 设置 tab 菜单由 options 页直接请求，不走 SW

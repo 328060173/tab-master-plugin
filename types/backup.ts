@@ -126,6 +126,8 @@ export interface BackupFile {
   customer: BackupCustomer
   snapshot: Snapshot
   signature: BackupSignature
+  /** 快照内容 SHA-256 校验和（P0-4 文件完整性）。旧快照可能无此字段，导入时跳过校验只警告 */
+  checksum?: string
 }
 
 /** 快照列表摘要（仅用于 UI 列表展示，非完整 BackupFile） */
@@ -248,7 +250,7 @@ export interface BackupNoticeAck {
 }
 
 export const DEFAULT_BACKUP_NOTICE_ACK: BackupNoticeAck = {
-  items: [false, false, false, false, false],
+  items: [false, false, false, false, false, false],
   ackedAt: null,
 }
 

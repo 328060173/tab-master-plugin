@@ -83,8 +83,8 @@ export function sanitizeNoticeAck(raw: unknown): BackupNoticeAck {
     return { ...DEFAULT_BACKUP_NOTICE_ACK }
   }
   const o = raw as Record<string, unknown>
-  const items = Array.isArray(o.items) ? o.items.map((x) => x === true).slice(0, 5) : []
-  while (items.length < 5) items.push(false)
+  const items = Array.isArray(o.items) ? o.items.map((x) => x === true).slice(0, 6) : []
+  while (items.length < 6) items.push(false)
   return {
     items,
     ackedAt: typeof o.ackedAt === "number" ? o.ackedAt : null,

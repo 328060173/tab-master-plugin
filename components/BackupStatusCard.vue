@@ -166,7 +166,7 @@ async function onToggle() {
 
 async function onNoticeConfirm() {
   noticeOpen.value = false
-  await svc.setNoticeAck([true, true, true, true, true])
+  await svc.setNoticeAck([true, true, true, true, true, true])
   await doEnable()
 }
 
