@@ -39,6 +39,89 @@
     </div>
 
     <main class="max-w-3xl mx-auto p-6">
+      <!-- 主卡片（设计稿 §3.4）：首屏可见，在 Tab 切换之上常驻。主 CTA = 立即备份 / 开启标签备份 -->
+      <section class="mb-4 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <!-- 已开启态：状态摘要 + 立即备份 + 暂停 -->
+        <template v-if="enabled">
+          <div class="flex items-start gap-2">
+            <span
+              :class="[
+                'mt-1 w-2 h-2 rounded-full shrink-0',
+                isBackingUp ? 'bg-blue-500 animate-pulse motion-reduce:animate-none'
+                  : (state.lastBackupError || dirPermissionLost) ? 'bg-red-500'
+                  : 'bg-emerald-500'
+              ]"
+              aria-hidden="true"
+            ></span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {{ mainCardTitle }}
+              </p>
+              <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                {{ mainCardSubtitle }}
+              </p>
+              <p v-if="state.lastBackupError" class="mt-1 text-xs text-red-600 dark:text-red-400">
+                {{ state.lastBackupError }}
+              </p>
+              <p v-else-if="dirPermissionLost" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                备份文件夹需重新授权
+              </p>
+            </div>
+          </div>
+          <div class="mt-3 flex items-center gap-2">
+            <button
+              :disabled="isBackingUp"
+              :class="[
+                'inline-flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 text-xs rounded font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500',
+                isBackingUp
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              ]"
+              @click="onBackupNow"
+            >
+              <Save :size="13" />
+              {{ isBackingUp ? '备份中…' : '立即备份' }}
+            </button>
+            <button
+              :disabled="isBackingUp"
+              class="inline-flex items-center min-h-[36px] px-3 py-1.5 text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              @click="onPauseBackup"
+            >
+              暂停备份
+            </button>
+            <span v-if="isBackingUp && lastProgress" class="ml-1 text-[11px] text-blue-600 dark:text-blue-400 truncate">{{ lastProgress }}</span>
+          </div>
+        </template>
+
+        <!-- 未开启态：「标签备份能做什么」3 条 + [开启标签备份] 唯一主 CTA -->
+        <template v-else>
+          <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100">标签备份能做什么</h2>
+          <ul class="mt-2 space-y-1.5 text-xs text-gray-700 dark:text-gray-200">
+            <li class="flex items-start gap-1.5">
+              <Check :size="13" class="mt-0.5 text-emerald-500 shrink-0" />
+              <span>浏览器崩溃/重启后一键恢复所有标签</span>
+            </li>
+            <li class="flex items-start gap-1.5">
+              <Check :size="13" class="mt-0.5 text-emerald-500 shrink-0" />
+              <span>误关窗口/标签可找回</span>
+            </li>
+            <li class="flex items-start gap-1.5">
+              <Check :size="13" class="mt-0.5 text-emerald-500 shrink-0" />
+              <span>仅本地存储，不上传云端</span>
+            </li>
+          </ul>
+          <div class="mt-3">
+            <button
+              class="inline-flex items-center gap-1.5 min-h-[36px] px-4 py-1.5 text-xs rounded font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+              @click="onRequestEnable"
+            >
+              <Shield :size="13" />
+              开启标签备份
+            </button>
+          </div>
+        </template>
+      </section>
+
       <!-- 撤销恢复条幅（30s 内） -->
       <div v-if="svc.undo.value.preRestoreSnapshot && svc.undo.value.createdAt" class="mb-3 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] flex items-center gap-2">
         <span class="flex-1 text-amber-700 dark:text-amber-300">
@@ -151,7 +234,7 @@
  * 四个 Tab：①快照列表 ②恢复与冲突 ③导入导出 ④设置。
  */
 import { computed, ref, onMounted, onUnmounted } from "vue"
-import { Shield, AlertCircle } from "@lucide/vue"
+import { Shield, AlertCircle, Save, Check } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { useBackupRestore } from "~composables/useBackupRestore"
 import { useBackupIO } from "~composables/useBackupIO"
@@ -171,6 +254,55 @@ const io = useBackupIO()
 const { toastMsg } = useToast()
 
 const { settings, state, snapshots, dirMeta, isBackingUp, lastProgress } = svc
+
+// 主卡片状态摘要（设计稿 §3.4 已开启态）
+const enabled = computed(() => svc.enabled.value)
+const dirPermissionLost = computed(
+  () => dirMeta.value.permission === "prompt" || dirMeta.value.permission === "denied"
+)
+const mainCardTitle = computed(() => {
+  if (isBackingUp.value) return "正在备份…"
+  if (state.value.lastBackupError || dirPermissionLost.value) {
+    return dirPermissionLost.value ? "备份文件夹需重新授权" : "上次备份失败"
+  }
+  if (!state.value.lastBackupAt) return "已开启 · 尚未备份"
+  return "已开启"
+})
+const mainCardSubtitle = computed(() => {
+  if (isBackingUp.value) return lastProgress.value || "请稍候…"
+  if (dirPermissionLost.value) return "点下方管理重新授权文件夹"
+  if (state.value.lastBackupError) return "点立即备份重试，或去设置查看原因"
+  if (!state.value.lastBackupAt) return "首次备份将很快自动开始"
+  const parts = [`上次 ${fmtRelative(state.value.lastBackupAt)}`]
+  if (svc.nextBackupAt.value) parts.push(`下次约 ${fmtRelativeNext(svc.nextBackupAt.value)}`)
+  parts.push(`快照 ${snapshots.value.length || state.value.snapshotCount} 个`)
+  return parts.join(" · ")
+})
+
+function fmtRelative(ts: number) {
+  const diff = Date.now() - ts
+  if (diff < 60_000) return "刚刚"
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
+  return `${Math.floor(diff / 86_400_000)} 天前`
+}
+function fmtRelativeNext(ts: number) {
+  const diff = ts - Date.now()
+  if (diff <= 0) return "即将"
+  if (diff < 60_000) return `${Math.floor(diff / 1000)} 秒后`
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟后`
+  return `${Math.floor(diff / 3_600_000)} 小时后`
+}
+
+async function onPauseBackup() {
+  try {
+    await svc.setEnabled(false)
+    showToast("已暂停标签备份")
+  } catch (e) {
+    console.warn("[backup] 暂停失败", e)
+    showToast("暂停失败，请重试")
+  }
+}
 
 // 软删撤销条（P1-1）：undo.deletedSnapshot 存在时显示
 const canUndoDelete = computed(() => !!svc.undo.value.deletedSnapshot)
@@ -203,8 +335,8 @@ const tabsWithBadge = computed(() =>
 const noticeOpen = ref(false)
 
 function onRequestEnable() {
-  // 检查是否已确认过
-  if (svc.noticeAck.value.ackedAt && svc.noticeAck.value.items.every((x) => x)) {
+  // 已确认过（单 bool，设计稿 §4.2）→ 直接开；否则弹轻提示弹窗
+  if (svc.noticeAcked.value) {
     void doEnable()
   } else {
     noticeOpen.value = true
@@ -213,7 +345,7 @@ function onRequestEnable() {
 
 async function onNoticeConfirm() {
   noticeOpen.value = false
-  await svc.setNoticeAck([true, true, true, true, true, true])
+  await svc.setNoticeAcked(true)
   await doEnable()
 }
 

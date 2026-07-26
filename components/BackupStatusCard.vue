@@ -1,97 +1,75 @@
 <template>
   <!--
-    备份入口卡片 - 常驻 sidepanel 首页底部（紧凑态，PRD §4.2 ASCII / §I）。
-    单根：避免多根 fallthrough 刷屏崩浏览器（项目零容忍红线）。
-    状态数据从 useBackupService 单例读；按钮调服务执行 + toast 反馈。
+    备份状态条（瘦身版）- 设计稿 §3.2。
+    常驻 sidepanel 首页底部，高度 ≤56px：主行（状态点+时间）+ 次行（计数+入口）。
+    单根 div：守多根 fallthrough 红线（项目零容忍）。
+    4 种状态：未开启 / 已开启正常 / 备份中 / 失败（含目录权限失效合并显示）。
+    移除：开关按钮、立即备份按钮、帮助折叠（这些挪独立页）。
+    保留：开启入口（触发轻提示弹窗，见 BackupNoticeDialog 块3重写）。
+    数据源：useBackupService 单例。
   -->
-  <div class="px-3 py-2 border-t border-gray-100 dark:border-gray-700 shrink-0">
-    <div class="flex items-center gap-2">
-      <Shield
-        :size="14"
-        :class="enabled ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-300'"
-      />
-      <span class="text-xs font-medium text-gray-700 dark:text-gray-200">标签备份</span>
-      <span v-if="state.lastBackupError" class="w-1.5 h-1.5 rounded-full bg-red-500" title="上次备份失败"></span>
-      <span class="flex-1"></span>
-      <button
-        v-if="!enabled"
-        class="text-[11px] px-2 py-0.5 rounded border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-        @click="onToggle"
-      >
-        开启
-      </button>
-      <button
+  <div class="border-t border-gray-100 dark:border-gray-700 px-3 py-2 shrink-0">
+    <!-- 主行：状态点 + 状态文本 -->
+    <div class="flex items-center gap-1.5 text-xs leading-tight">
+      <!-- 状态点：未开启(○灰) / 已开启(●绿) / 备份中(●蓝脉冲) / 失败(⚠红) -->
+      <span
+        v-if="statusKind === 'off'"
+        class="w-1.5 h-1.5 rounded-full border border-gray-400 dark:border-gray-500 shrink-0"
+        aria-hidden="true"
+      ></span>
+      <span
+        v-else-if="statusKind === 'ok'"
+        class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"
+        aria-hidden="true"
+      ></span>
+      <span
+        v-else-if="statusKind === 'running'"
+        class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0 motion-reduce:animate-none"
+        aria-hidden="true"
+      ></span>
+      <AlertTriangle
         v-else
-        class="text-[11px] px-2 py-0.5 rounded border border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-        @click="onToggle"
-      >
-        暂停
-      </button>
-    </div>
-
-    <!-- 状态行 -->
-    <div v-if="enabled" class="mt-1 text-xs text-gray-500 dark:text-gray-500 dark:text-gray-300 leading-relaxed">
-      <template v-if="isBackingUp">
-        <span class="text-blue-600 dark:text-blue-400">{{ lastProgress || '正在备份…' }}</span>
-      </template>
-      <template v-else-if="state.lastBackupAt">
-        上次 {{ fmtRelative(state.lastBackupAt) }}
-        <span v-if="nextBackupAt"> · 下次 {{ fmtRelativeNext(nextBackupAt) }}</span>
-        · 快照 {{ snapshotCount }} 个 · 缓存 {{ fmtBytes(state.cacheBytes) }}
-      </template>
-      <template v-else>
-        已开启，尚未备份
-      </template>
-      <p v-if="state.lastBackupError" class="text-red-500 mt-0.5">上次备份失败：{{ state.lastBackupError }}</p>
-      <p v-if="dirMeta.permission === 'prompt' || dirMeta.permission === 'denied'" class="text-amber-600 dark:text-amber-400 mt-0.5">
-        目录权限需重新授权
-        <button class="underline ml-1" @click="onReauth">重新授权</button>
-      </p>
-    </div>
-    <div v-else class="mt-1 text-xs text-gray-500 dark:text-gray-300 leading-relaxed">
-      备份已暂停。开启即可保护标签数据。
-    </div>
-
-    <!-- 底部操作 -->
-    <div class="mt-1.5 flex items-center gap-2">
-      <button
-        class="text-[11px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 underline-offset-2 hover:underline"
-        @click="openManage"
-      >管理</button>
-      <button
-        class="text-[11px] text-gray-500 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
-        title="这是什么？"
-        @click="showHelp = !showHelp"
-      >
-        <HelpCircle :size="12" />
-      </button>
-      <span class="flex-1"></span>
-      <button
-        :disabled="isBackingUp"
+        :size="12"
+        class="text-red-500 shrink-0"
+        aria-hidden="true"
+      />
+      <span
         :class="[
-          'text-[11px] px-2 py-0.5 rounded transition-colors flex items-center gap-1',
-          isBackingUp
-            ? 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700'
-            : 'bg-blue-600 text-white hover:bg-blue-700'
+          'min-w-0 truncate',
+          statusKind === 'off' ? 'text-gray-700 dark:text-gray-300'
+            : statusKind === 'running' ? 'text-blue-600 dark:text-blue-400'
+            : statusKind === 'error' ? 'text-red-600 dark:text-red-400'
+            : 'text-gray-700 dark:text-gray-200'
         ]"
-        @click="onBackupNow"
+      >{{ mainText }}</span>
+    </div>
+
+    <!-- 次行：计数/提示 + ⇄ + 主入口 -->
+    <div class="mt-1 flex items-center gap-1 text-[11px] leading-tight">
+      <span class="min-w-0 truncate text-gray-500 dark:text-gray-400">{{ subText }}</span>
+      <span class="flex-1"></span>
+      <!-- 导入/导出小图标 ⇄（已开启时显示，跳独立页 Tab3） -->
+      <button
+        v-if="enabled"
+        class="inline-flex items-center justify-center min-w-[28px] min-h-[28px] -my-1 px-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+        aria-label="导入或导出备份"
+        title="导入 / 导出"
+        @click="openIO"
       >
-        <Save :size="11" />
-        {{ isBackingUp ? '备份中…' : '立即备份' }}
+        <ArrowLeftRight :size="12" />
+      </button>
+      <!-- 主入口：未开启=开启 →；其它=管理 → -->
+      <button
+        class="inline-flex items-center gap-0.5 min-h-[28px] -my-1 px-1.5 rounded text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:underline underline-offset-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+        :aria-label="enabled ? '打开备份管理' : '开启标签备份'"
+        @click="onPrimaryAction"
+      >
+        <span>{{ enabled ? '管理' : '开启' }}</span>
+        <ChevronRight :size="11" />
       </button>
     </div>
 
-    <!-- 帮助说明（折叠） -->
-    <div
-      v-if="showHelp"
-      class="mt-1.5 px-2 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded text-xs leading-relaxed text-blue-800 dark:text-blue-200"
-    >
-      <p class="mb-0.5"><b>标签备份是什么？</b>把当前所有窗口的标签 + 标记 / 分组 / 稍后 / 设置打包成一个快照存到本机，浏览器崩溃 / 重启 / 误删后可一键恢复。</p>
-      <p class="mb-0.5">点「管理」打开管理页查看快照列表与设置。</p>
-      <p>🔒 仅本地保存，不上传云端。</p>
-    </div>
-
-    <!-- 首次开启 5 条限制告知弹窗（紧凑态触发） -->
+    <!-- 首次开启轻提示弹窗（块3重写为 1-2 句建议 + 问号展开） -->
     <BackupNoticeDialog
       :open="noticeOpen"
       @confirm="onNoticeConfirm"
@@ -102,14 +80,12 @@
 
 <script setup lang="ts">
 /**
- * 备份入口卡片 - sidepanel 首页底部常驻紧凑态。
- * PRD §4.2 ASCII 草图对应实现 + PRD §I 增强（下次时间 + 失败角标 + 重新授权）。
- *
- * 数据源：useBackupService 单例（不侵入 useTabManager）。
- * 错误处理：失败时 toast + 卡片底部红色错误行；不阻塞 sidepanel 其它功能。
+ * 备份状态条（瘦身版）- 设计稿 §3.2 / §7。
+ * 仅展示状态 + 入口，所有设置/立即备份/知悉细节都在独立页（tabs/backup.html）。
+ * 4 种状态：未开启 / 已开启正常 / 备份中 / 失败（目录权限失效合并）。
  */
 import { ref, computed } from "vue"
-import { HelpCircle, Save, Shield } from "@lucide/vue"
+import { AlertTriangle, ArrowLeftRight, ChevronRight } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { showToast } from "~composables/useToast"
 import BackupNoticeDialog from "~components/BackupNoticeDialog.vue"
@@ -117,19 +93,65 @@ import BackupNoticeDialog from "~components/BackupNoticeDialog.vue"
 const svc = useBackupService()
 const { enabled, state, dirMeta, isBackingUp, lastProgress, nextBackupAt, snapshots } = svc
 
-// P1-8：快照数优先取 snapshots.length（与列表实时一致），fallback state.snapshotCount
-const snapshotCount = computed(() => snapshots.value.length || state.value.snapshotCount || 0)
-
-const showHelp = ref(false)
 const noticeOpen = ref(false)
 
-function fmtBytes(b: number) {
-  if (!b || b < 1024) return `${b || 0} B`
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
-  return `${(b / 1024 / 1024).toFixed(2)} MB`
-}
+/** 快照数优先取 snapshots.length（与列表实时一致），fallback state.snapshotCount */
+const snapshotCount = computed(() => snapshots.value.length || state.value.snapshotCount || 0)
 
-function fmtRelative(ts: number) {
+/** 目录权限失效（需重新授权） */
+const dirPermissionLost = computed(
+  () => dirMeta.value.permission === "prompt" || dirMeta.value.permission === "denied"
+)
+
+type StatusKind = "off" | "ok" | "running" | "error"
+
+/** 状态分类（决定状态点样式 + 主行文案颜色） */
+const statusKind = computed<StatusKind>(() => {
+  if (!enabled.value) return "off"
+  if (isBackingUp.value) return "running"
+  if (state.value.lastBackupError || dirPermissionLost.value) return "error"
+  return "ok"
+})
+
+/** 主行文本 */
+const mainText = computed(() => {
+  switch (statusKind.value) {
+    case "off":
+      return "未开启 · 浏览器崩溃将丢失标签数据"
+    case "running":
+      return lastProgress.value || "正在备份…"
+    case "error":
+      if (dirPermissionLost.value) return "备份文件夹需重新授权"
+      return `上次备份失败 · ${fmtRelative(state.value.lastBackupAt)}`
+    case "ok":
+    default: {
+      if (!state.value.lastBackupAt) return "已开启 · 尚未备份"
+      const parts = [`已开启 · 上次 ${fmtRelative(state.value.lastBackupAt)}`]
+      if (nextBackupAt.value) parts.push(`下次约 ${fmtRelativeNext(nextBackupAt.value)}`)
+      return parts.join(" · ")
+    }
+  }
+})
+
+/** 次行文本 */
+const subText = computed(() => {
+  switch (statusKind.value) {
+    case "off":
+      return "建议开启备份"
+    case "running":
+      return "请稍候…"
+    case "error":
+      if (dirPermissionLost.value) return "点管理重新授权文件夹"
+      return "点管理查看原因并重试"
+    case "ok":
+    default:
+      if (!state.value.lastBackupAt) return "首次备份将很快自动开始"
+      return `快照 ${snapshotCount.value} 个`
+  }
+})
+
+function fmtRelative(ts: number | null) {
+  if (!ts) return "刚刚"
   const diff = Date.now() - ts
   if (diff < 60_000) return "刚刚"
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
@@ -145,54 +167,38 @@ function fmtRelativeNext(ts: number) {
   return `${Math.floor(diff / 3_600_000)} 小时后`
 }
 
-async function onToggle() {
+/** 主入口点击：未开启→弹轻提示（已 acked 直接开）；其它→跳独立页 */
+function onPrimaryAction() {
   if (!enabled.value) {
-    // 开启：先弹首次告知
-    if (svc.noticeAck.value.ackedAt && svc.noticeAck.value.items.every((x) => x)) {
-      await doEnable()
-    } else {
-      noticeOpen.value = true
+    // §4.2：已确认过的老用户不再弹窗，直接开
+    if (svc.noticeAcked.value) {
+      void onNoticeConfirm()
+      return
     }
+    noticeOpen.value = true
     return
   }
-  try {
-    await svc.setEnabled(false)
-    showToast("已暂停标签备份")
-  } catch (e) {
-    console.warn("[BackupStatusCard] 切换开关失败", e)
-    showToast("切换失败，请重试")
-  }
+  openManage()
 }
 
 async function onNoticeConfirm() {
   noticeOpen.value = false
-  await svc.setNoticeAck([true, true, true, true, true, true])
-  await doEnable()
-}
-
-async function doEnable() {
-  await svc.setEnabled(true)
-  showToast("已开启标签备份 · 立即创建首个快照")
-  void svc.runManualBackup().then((r) => {
-    if (r.ok && r.snapshot) {
-      const s = r.snapshot.stats
-      showToast(`已备份 ${s.tabCount} 标签 · ${s.taggedCount} 标记`)
+  try {
+    // 标记首次知悉已确认（单 bool，下次不再弹）
+    if (!svc.noticeAcked.value) {
+      await svc.setNoticeAcked(true)
     }
-  })
-}
-
-async function onReauth() {
-  const r = await svc.reauthorizeDir()
-  showToast(r.ok ? "已重新授权" : r.error || "授权失败")
-}
-
-async function onBackupNow() {
-  const r = await svc.runManualBackup()
-  if (r.ok && r.snapshot) {
-    const s = r.snapshot.stats
-    showToast(`已备份 ${s.tabCount} 标签 · ${s.taggedCount} 标记`)
-  } else {
-    showToast(r.error || "备份失败")
+    await svc.setEnabled(true)
+    showToast("已开启标签备份 · 立即创建首个快照")
+    void svc.runManualBackup().then((r) => {
+      if (r.ok && r.snapshot) {
+        const s = r.snapshot.stats
+        showToast(`已备份 ${s.tabCount} 标签 · ${s.taggedCount} 标记`)
+      }
+    })
+  } catch (e) {
+    console.warn("[BackupStatusCard] 开启失败", e)
+    showToast("开启失败，请重试")
   }
 }
 
@@ -202,6 +208,15 @@ function openManage() {
   } catch (e) {
     console.warn("[BackupStatusCard] 打开管理页失败", e)
     showToast("打开管理页失败")
+  }
+}
+
+function openIO() {
+  try {
+    chrome.tabs.create({ url: chrome.runtime.getURL("tabs/backup.html?tab=io") })
+  } catch (e) {
+    console.warn("[BackupStatusCard] 打开导入导出失败", e)
+    showToast("打开导入导出失败")
   }
 }
 </script>

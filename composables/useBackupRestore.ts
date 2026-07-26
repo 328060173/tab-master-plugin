@@ -158,6 +158,8 @@ function useBackupRestoreImpl() {
       const r = await executeRestore(tabsToOpen, closeCurrentTabIds, {
         restoreMeta: restoreMetaOn,
         snapshot: file,
+        // 元数据按 mode 分发（设计稿 §4.3：replace=覆盖 / append=只加 / mergeAuto·selected=并集）
+        metaOptions: { mode },
         // 手动指派结果写回（P0-3）：用户在未匹配界面指派的 fingerprint→tabId
         manualAssignments: buildManualAssignments(unmatched.value),
       }, windows)

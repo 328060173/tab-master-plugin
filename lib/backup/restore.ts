@@ -225,6 +225,31 @@ export function resolveConflicts(
       snapTabByUrl.set(t.url, { url: t.url, title: t.title, fingerprint: t.fingerprint, pinned: t.pinned })
     }
   }
+  if (mode === "mergeAuto") {
+    // 合并(自动) ★推荐（设计稿 §4.3）：
+    // - tabs 按 fingerprint 去重保留当前的（不补开同 URL 多开，与 append 区分）
+    // - 不关任何当前 tab
+    // - 按窗口分组补开快照独有的（保留多窗口结构）
+    const currentFpSet = new Set<string>()
+    for (const c of currentTabs) {
+      if (c.fingerprint) currentFpSet.add(c.fingerprint)
+    }
+    let firstNonIncognito = true
+    for (const w of snapshot.snapshot.windows) {
+      if (w.incognito) continue
+      const winTabs: TabToOpen[] = []
+      for (const t of w.tabs) {
+        if (currentFpSet.has(t.fingerprint)) continue // 同 URL 保留当前的，不重开
+        winTabs.push({ url: t.url, pinned: t.pinned, title: t.title, fingerprint: t.fingerprint })
+      }
+      if (winTabs.length) {
+        windows.push({ tabs: winTabs, focused: firstNonIncognito, state: w.state })
+        firstNonIncognito = false
+      }
+    }
+    const tabsToOpen = windows.flatMap((w) => w.tabs)
+    return { windows, tabsToOpen, closeCurrentTabIds }
+  }
   if (mode === "append") {
     // 仅追加：不关任何当前标签，补开快照里有但当前不够数量的。
     // 同 URL 多开场景：快照里有 3 个同 fingerprint 的 tab、当前只有 1 个 → 补开 2 个（按数量补差额，不丢 tab）。

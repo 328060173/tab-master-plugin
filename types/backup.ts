@@ -209,7 +209,10 @@ export const BACKUP_KEYS = {
   state: 'tabMasterBackupState',
   settings: 'tabMasterBackupSettings',
   deviceId: 'tabMasterDeviceId',
+  /** @deprecated 旧版 6 项 boolean 数组知悉确认（已迁移到 noticeAcked 单 bool） */
   noticeAck: 'tabMasterBackupNoticeAck',
+  /** 首次开启知悉是否已确认（单 bool，开启过=true 不再弹，设计稿 §4.2） */
+  noticeAcked: 'tabMasterBackupNoticeAcked',
   /** 用户目录元信息（handle 名/上次扫描大小/扫描时间），handle 本身在 IndexedDB */
   dirMeta: 'tabMasterBackupDirMeta',
   /** 恢复前快照 + 30s 撤销窗口信息 */
@@ -241,18 +244,12 @@ export const DEFAULT_BACKUP_DIR_META: BackupDirMeta = {
   permission: 'unsupported',
 }
 
-/** 首次开启 5 条限制告知确认状态 */
-export interface BackupNoticeAck {
-  /** 每条逐项确认（5 条）；全部 true 才允许开启 */
-  items: boolean[]
-  /** 确认时间戳 */
-  ackedAt: number | null
-}
-
-export const DEFAULT_BACKUP_NOTICE_ACK: BackupNoticeAck = {
-  items: [false, false, false, false, false, false],
-  ackedAt: null,
-}
+/**
+ * 首次开启知悉是否已确认（设计稿 §4.2 重设计）。
+ * 旧版为 6 项 boolean 数组 + ackedAt；新版改为单 bool：开启过=true 不再弹。
+ * 旧 key `tabMasterBackupNoticeAck` 已废弃，loader 迁移到 `tabMasterBackupNoticeAcked`。
+ */
+export const DEFAULT_BACKUP_NOTICE_ACKED = false
 
 /** 恢复前快照 + 删除撤销窗口（持久化到 storage.local tabMasterBackupUndo） */
 export interface BackupUndo {
@@ -270,8 +267,14 @@ export const DEFAULT_BACKUP_UNDO: BackupUndo = {
   createdAt: null,
 }
 
-/** 恢复方式（PRD §4.7.B 三选一，默认整体替换） */
-export type RestoreMode = 'replace' | 'selected' | 'append'
+/**
+ * 恢复方式（设计稿 §4.3 重设计，4 选 1，默认合并(自动)）。
+ * - mergeAuto：合并(自动) ★推荐——tabs 按 URL 去重保留当前的，meta 走并集合并；不丢数据
+ * - append：追加——快照标签全补开到当前窗口后面，meta 只加不删
+ * - selected：合并(手动)——按用户在冲突界面逐项选择执行，meta 走并集合并
+ * - replace：覆盖 ⚠危险——关当前所有 tab 后按快照重建，meta 也覆盖（清空现有再写）
+ */
+export type RestoreMode = 'replace' | 'selected' | 'append' | 'mergeAuto'
 
 /** 冲突项解决选择（每项 radio） */
 export type ConflictChoice = 'snapshot' | 'current' | 'both'

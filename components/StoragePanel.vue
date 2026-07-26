@@ -134,7 +134,7 @@ const SYS_DEFS: StorageDef[] = [
   { key: "tabMasterBackupState", label: "备份运行状态", icon: "📊", storage: "local", empty: "object", warning: "会清空备份服务的运行状态（上次备份时间/快照数/缓存大小），不影响快照本身。" },
   { key: "tabMasterBackupSettings", label: "备份设置", icon: "🛡️", storage: "local", empty: "object", warning: "会把备份设置重置为默认（总开关关闭、定时 5 分钟、保留 7 天等）。" },
   { key: "tabMasterDeviceId", label: "设备标识", icon: "🆔", storage: "local", warning: "会清除本机设备标识，下次备份时自动重新生成。不影响已有快照。" },
-  { key: "tabMasterBackupNoticeAck", label: "备份告知确认", icon: "📌", storage: "local", empty: "object", warning: "会清除首次开启备份的 5 条限制告知确认状态，下次开启时再次弹窗。" },
+  { key: "tabMasterBackupNoticeAcked", label: "备份告知确认", icon: "📌", storage: "local", empty: "boolean", warning: "会清除首次开启备份的知悉确认状态，下次开启时再次弹窗。" },
   { key: "tabMasterBackupDirMeta", label: "备份目录元信息", icon: "📁", storage: "local", empty: "object", warning: "会清除用户目录备份的元信息（目录名/大小缓存/权限状态）。下次打开管理页会重新读取。" },
   { key: "tabMasterBackupUndo", label: "备份撤销窗口", icon: "↩️", storage: "local", empty: "object", warning: "会清除恢复前快照（30s 撤销窗口），无法再撤销上次恢复。" },
   // 注：装扮相关动态 key（按账号隔离，不在此静态表展示）：

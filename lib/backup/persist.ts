@@ -13,7 +13,6 @@ import {
   type BackupSettings,
   type BackupState,
   type BackupDirMeta,
-  type BackupNoticeAck,
   type BackupUndo,
   type BackupFile,
 } from "~types/backup"
@@ -34,8 +33,9 @@ export async function saveDirMeta(dirMeta: Ref<BackupDirMeta>): Promise<void> {
   await safeSet({ [BACKUP_KEYS.dirMeta]: toPure(dirMeta.value) }, "backup")
 }
 
-export async function saveNoticeAck(noticeAck: Ref<BackupNoticeAck>): Promise<void> {
-  await safeSet({ [BACKUP_KEYS.noticeAck]: toPure(noticeAck.value) }, "backup")
+/** 写入首次开启知悉确认状态（单 bool，设计稿 §4.2） */
+export async function saveNoticeAcked(noticeAcked: Ref<boolean>): Promise<void> {
+  await safeSet({ [BACKUP_KEYS.noticeAcked]: !!noticeAcked.value }, "backup")
 }
 
 export async function saveUndo(undo: Ref<BackupUndo>): Promise<void> {

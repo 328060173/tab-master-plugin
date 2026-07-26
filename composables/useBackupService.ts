@@ -20,7 +20,7 @@ import {
   saveSettings as saveSettingsFn,
   saveState as saveStateFn,
   saveDirMeta as saveDirMetaFn,
-  saveNoticeAck as saveNoticeAckFn,
+  saveNoticeAcked as saveNoticeAckedFn,
   saveUndo as saveUndoFn,
 } from "~lib/backup/persist"
 import { loadAll as loadAllFn } from "~lib/backup/loader"
@@ -50,13 +50,12 @@ import {
   DEFAULT_BACKUP_SETTINGS,
   DEFAULT_BACKUP_STATE,
   DEFAULT_BACKUP_DIR_META,
-  DEFAULT_BACKUP_NOTICE_ACK,
+  DEFAULT_BACKUP_NOTICE_ACKED,
   DEFAULT_BACKUP_UNDO,
   type BackupFile,
   type BackupSettings,
   type BackupState,
   type BackupDirMeta,
-  type BackupNoticeAck,
   type BackupUndo,
   type BackupTriggerSource,
   type SnapshotSummary,
@@ -65,7 +64,7 @@ import {
   sanitizeSettings,
   sanitizeState,
   sanitizeDirMeta,
-  sanitizeNoticeAck,
+  sanitizeNoticeAcked,
 } from "~lib/backup/sanitize"
 const DEBOUNCE_EVENT_MS = 2000
 const DIR_SCAN_CACHE_MS = 60_000
@@ -77,7 +76,7 @@ function useBackupServiceImpl() {
   const state = ref<BackupState>({ ...DEFAULT_BACKUP_STATE })
   const snapshots = ref<SnapshotSummary[]>([])
   const dirMeta = ref<BackupDirMeta>({ ...DEFAULT_BACKUP_DIR_META, permission: isFsAccessSupported() ? "prompt" : "unsupported" })
-  const noticeAck = ref<BackupNoticeAck>({ ...DEFAULT_BACKUP_NOTICE_ACK })
+  const noticeAcked = ref<boolean>(DEFAULT_BACKUP_NOTICE_ACKED)
   const undo = ref<BackupUndo>({ ...DEFAULT_BACKUP_UNDO })
   const isBackingUp = ref(false)
   const lastProgress = ref("")
@@ -90,7 +89,7 @@ function useBackupServiceImpl() {
   // loadAll 委托给 lib/backup/loader.ts（拆文件控行数）
   async function loadAll() {
     await loadAllFn({
-      settings, state, snapshots, dirMeta, noticeAck, undo,
+      settings, state, snapshots, dirMeta, noticeAcked, undo,
       refreshNextBackupTime, checkDirPermission,
     })
   }
@@ -99,7 +98,7 @@ function useBackupServiceImpl() {
   async function saveSettings() { await saveSettingsFn(settings) }
   async function saveState() { await saveStateFn(state) }
   async function saveDirMeta() { await saveDirMetaFn(dirMeta) }
-  async function saveNoticeAck() { await saveNoticeAckFn(noticeAck) }
+  async function saveNoticeAcked() { await saveNoticeAckedFn(noticeAcked) }
   async function saveUndo() { await saveUndoFn(undo) }
   // deviceId / 定时器 / 下次备份时间 委托给 lib/backup/timer.ts（拆文件控行数）
   async function applyTimer() { await applyTimerFn(settings, nextBackupAt) }
@@ -122,13 +121,14 @@ function useBackupServiceImpl() {
       rebindIdleListener()
     }
   }
-  async function setNoticeAck(items: boolean[]) {
-    noticeAck.value = { items: items.slice(0, 6), ackedAt: Date.now() }
-    await saveNoticeAck()
+  /** 标记首次开启知悉已确认（设计稿 §4.2：单 bool，开启过=true 不再弹） */
+  async function setNoticeAcked(v: boolean) {
+    noticeAcked.value = v
+    await saveNoticeAcked()
   }
   async function resetNoticeAck() {
-    noticeAck.value = { ...DEFAULT_BACKUP_NOTICE_ACK }
-    await saveNoticeAck()
+    noticeAcked.value = DEFAULT_BACKUP_NOTICE_ACKED
+    await saveNoticeAcked()
   }
 
   // ===== 事件备份（防抖 2s）=====
@@ -230,11 +230,11 @@ function useBackupServiceImpl() {
           { settings, state, snapshots, isBackingUp, lastProgress, saveState, writeSnapshotToDirSafe, getCacheBytesInUse, getDeviceId },
           source
         )
-        return { ok: pr.ok, error: pr.error, snapshot: pr.file }
+        return { ok: pr.ok, error: pr.error, snapshot: pr.snapshot }
       }
     )
     if (r.ok && isDev) console.debug("[useBackupService] 备份完成", { source })
-    return { ok: r.ok, error: r.error, snapshot: r.snapshot as SnapshotSummary | undefined }
+    return { ok: r.ok, error: r.error, snapshot: r.snapshot }
   }
 
   /** 手动备份（sidepanel/options 调） */
@@ -363,13 +363,13 @@ function useBackupServiceImpl() {
       // 清空 IndexedDB 快照（P0-4 L2）
       const { clearAllSnapshots } = await import("~lib/backup/snapshotStore")
       await clearAllSnapshots()
-      // 清 storage.local 元信息（state/undo/dirMeta/noticeAck；cache 已废弃不动）
-      await safeRemove([BACKUP_KEYS.state, BACKUP_KEYS.undo, BACKUP_KEYS.dirMeta, BACKUP_KEYS.noticeAck], "backup")
+      // 清 storage.local 元信息（state/undo/dirMeta/noticeAcked；cache 已废弃不动）
+      await safeRemove([BACKUP_KEYS.state, BACKUP_KEYS.undo, BACKUP_KEYS.dirMeta, BACKUP_KEYS.noticeAcked, BACKUP_KEYS.noticeAck], "backup")
       await safeSet({ [BACKUP_KEYS.state]: toPure(DEFAULT_BACKUP_STATE) }, "backup")
       snapshots.value = []
       state.value = { ...DEFAULT_BACKUP_STATE }
       undo.value = { ...DEFAULT_BACKUP_UNDO }
-      noticeAck.value = { ...DEFAULT_BACKUP_NOTICE_ACK }
+      noticeAcked.value = DEFAULT_BACKUP_NOTICE_ACKED
       dirMeta.value = { ...DEFAULT_BACKUP_DIR_META, permission: isFsAccessSupported() ? "prompt" : "unsupported" }
       await doUnbindDir()
       return true
@@ -393,8 +393,8 @@ function useBackupServiceImpl() {
     if (changes[BACKUP_KEYS.dirMeta]) {
       dirMeta.value = sanitizeDirMeta(changes[BACKUP_KEYS.dirMeta].newValue)
     }
-    if (changes[BACKUP_KEYS.noticeAck]) {
-      noticeAck.value = sanitizeNoticeAck(changes[BACKUP_KEYS.noticeAck].newValue)
+    if (changes[BACKUP_KEYS.noticeAcked]) {
+      noticeAcked.value = sanitizeNoticeAcked(changes[BACKUP_KEYS.noticeAcked].newValue)
     }
     if (changes[BACKUP_KEYS.undo]) {
       const v = changes[BACKUP_KEYS.undo].newValue
@@ -446,7 +446,7 @@ function useBackupServiceImpl() {
     state,
     snapshots,
     dirMeta,
-    noticeAck,
+    noticeAcked,
     undo,
     isBackingUp,
     lastProgress,
@@ -457,7 +457,7 @@ function useBackupServiceImpl() {
     loadAll,
     setEnabled,
     updateSettings,
-    setNoticeAck,
+    setNoticeAcked,
     resetNoticeAck,
     // 备份
     runManualBackup,

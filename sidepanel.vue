@@ -51,6 +51,28 @@
         <span class="text-xs text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">{{ tabs.length }} 个标签</span>
       </div>
       <div class="flex items-center gap-2">
+        <!-- 备份入口（顶置）- 设计稿 §3.3：在「开启聚焦模式」左边，未开启红点/有失败⚠/已开启无角标；点击直接跳独立页 -->
+        <button
+          class="relative inline-flex items-center gap-1 min-h-[32px] px-2 py-1.5 text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          aria-label="打开备份管理"
+          title="标签备份"
+          @click.stop="openBackupManage"
+        >
+          <Shield :size="14" :class="backupBadgeKind === 'off' ? 'text-gray-400 dark:text-gray-500' : 'text-blue-600 dark:text-blue-400'" />
+          <span class="whitespace-nowrap">备份</span>
+          <!-- 角标：未开启红点；有失败⚠ -->
+          <span
+            v-if="backupBadgeKind === 'off'"
+            class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-1 ring-white dark:ring-gray-800"
+            aria-hidden="true"
+          ></span>
+          <AlertTriangle
+            v-else-if="backupBadgeKind === 'error'"
+            :size="10"
+            class="absolute -top-1 -right-1 text-red-500 bg-white dark:bg-gray-800 rounded-full ring-1 ring-white dark:ring-gray-800"
+            aria-hidden="true"
+          />
+        </button>
         <!-- 聚焦模式组：按钮 + 帮助问号（紧贴同组），组外 gap-2 与头像/菜单拉开 -->
         <div class="flex items-center gap-1 shrink-0">
           <button v-if="focusMode === 'normal'"
@@ -685,7 +707,8 @@ import { useToast } from "~composables/useToast"
 import { safeSet } from "~lib/safeStorage"
 import { installGlobalCapture, logError } from "~composables/useLogger"
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn, MoreHorizontal, MoreVertical } from "@lucide/vue"
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn, MoreHorizontal, MoreVertical, Shield, AlertTriangle } from "@lucide/vue"
+import { useBackupService } from "~composables/useBackupService"
 import UpdateBanner from "~components/UpdateBanner.vue"
 import AdBanner from "~components/AdBanner.vue"
 import NoticeBar from "~components/NoticeBar.vue"
@@ -761,6 +784,23 @@ useSkin()
 // 头像点击：跳 options 个人中心（与 HeaderMenu「邮箱行」入口一致）
 const openOptionsForUser = () => {
   try { chrome.runtime.openOptionsPage() } catch (e) { console.warn("openOptionsPage failed", e) }
+}
+
+// 备份服务单例（用于 header 角标状态：未开启红点 / 失败⚠ / 已开启无角标）
+const backupSvc = useBackupService()
+const backupBadgeKind = computed<"off" | "error" | "ok">(() => {
+  if (!backupSvc.enabled.value) return "off"
+  const dirLost = backupSvc.dirMeta.value.permission === "prompt" || backupSvc.dirMeta.value.permission === "denied"
+  if (backupSvc.state.value.lastBackupError || dirLost) return "error"
+  return "ok"
+})
+function openBackupManage() {
+  try {
+    chrome.tabs.create({ url: chrome.runtime.getURL("tabs/backup.html") })
+  } catch (e) {
+    console.warn("[sidepanel] 打开备份管理失败", e)
+    showToast("打开备份管理失败")
+  }
 }
 // 用户邮箱（未登录为空字符串，AvatarWithFrame 仅在 isLoggedIn 时渲染，此处仅传值）
 const userEmail = computed(() => user.value?.email ?? "")

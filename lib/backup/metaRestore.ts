@@ -24,6 +24,7 @@ import { safeSet } from "~lib/safeStorage"
 import { toPure } from "~lib/toPure"
 import type {
   BackupFile,
+  RestoreMode,
   TabGroupSnapshot,
 } from "~types/backup"
 import type { ClosedTabItem, LaterItem } from "~types/tab"
@@ -33,6 +34,14 @@ export interface MetaRestoreOptions {
   restoreSettings?: boolean
   /** 是否恢复原生分组。默认 true */
   restoreGroups?: boolean
+  /**
+   * 恢复模式（设计稿 §4.3 4 选 1）。
+   * - replace：meta 覆盖（清空现有 customTags/laterTabs/recentlyClosed/tabGroups 再写快照的）
+   * - append：meta 只加不删（不去重，直接追加）
+   * - mergeAuto / selected：meta 并集合并（现状行为，按 url 去重）
+   * 默认 mergeAuto（与 BackupRestoreConfirmDialog 默认一致）。
+   */
+  mode?: RestoreMode
   /**
    * 用户在冲突界面手动指派的 fingerprint → tabId 映射（修 P0-3：手动指派结果写回）。
    * 这些是开 tab 时未自动匹配、用户手动选了"指派到当前某 tab"的项；
@@ -69,6 +78,50 @@ function deriveDomain(url: string): string {
   }
 }
 
+/** 快照 LaterTabSnapshot → 当前 LaterItem 形状（补齐 TabItem 必填字段） */
+function toLaterItem(lt: { url: string; title: string; addedAt: number; note: string | null }, id: number): LaterItem {
+  const nowBase = Date.now()
+  return {
+    id,
+    title: lt.title || lt.url,
+    url: lt.url,
+    domain: deriveDomain(lt.url),
+    favIconUrl: "",
+    pinned: false,
+    active: false,
+    audible: false,
+    muted: false,
+    discarded: false,
+    frozen: false,
+    loading: false,
+    recording: false,
+    sharing: false,
+    attention: false,
+    hasUnsavedForm: false,
+    hasConnectedDevice: false,
+    isProtected: false,
+    openedAt: "",
+    number: 0,
+    tags: [],
+    groupId: -1,
+    laterNote: lt.note || "",
+    laterAddedAt: new Date(lt.addedAt || nowBase).toISOString(),
+  }
+}
+
+/** 快照 ClosedTabSnapshot → 当前 ClosedTabItem 形状 */
+function toClosedTab(ct: { url: string; title: string; closedAt: number }, id: number): ClosedTabItem {
+  const nowBase = Date.now()
+  return {
+    id,
+    title: ct.title || ct.url,
+    url: ct.url,
+    domain: deriveDomain(ct.url),
+    favIconUrl: "",
+    closedAt: new Date(ct.closedAt || nowBase).toISOString(),
+  }
+}
+
 /**
  * 恢复快照元数据到 storage.local + 重建原生分组。
  *
@@ -93,6 +146,8 @@ export async function restoreMeta(
   }
   const meta = snapshot.snapshot.meta
   const restoreGroups = opts.restoreGroups !== false
+  // 恢复模式分发（设计稿 §4.3）：默认 mergeAuto（与 BackupRestoreConfirmDialog 默认一致）
+  const mode: RestoreMode = opts.mode ?? "mergeAuto"
 
   // 合并用户手动指派（P0-3）：手动指派的 fingerprint→tabId 优先级高于自动匹配
   // 不直接改入参 fpToTabId（保持纯函数），用 merged map
@@ -112,26 +167,52 @@ export async function restoreMeta(
       "tabMasterSettings",
     ])
 
-    // 1. customTags 并集
+    // 1. customTags 按 mode 分发：
+    //    - replace：清空现有，只写快照的（覆盖）
+    //    - append：保留现有 + 追加快照的（标记名去重，laterTabs/recentlyClosed 不去重）
+    //    - mergeAuto / selected：并集去重（现状）
     const existingCustomTags: string[] = Array.isArray(data.customTags)
       ? data.customTags.filter((x): x is string => typeof x === "string" && x.length > 0)
       : []
-    const customTagsSet = new Set(existingCustomTags)
-    for (const t of meta.customTags) {
-      if (typeof t === "string" && t.length > 0 && !customTagsSet.has(t)) {
-        customTagsSet.add(t)
-        result.customTagsMerged++
+    let newCustomTags: string[]
+    if (mode === "replace") {
+      // 覆盖：清空 + 写快照的
+      newCustomTags = meta.customTags.filter(
+        (x): x is string => typeof x === "string" && x.length > 0
+      )
+      result.customTagsMerged = newCustomTags.length
+    } else if (mode === "append") {
+      // 只加不删：保留现有 + 追加快照的（标记名是集合，去重避免重复 chip）
+      const appendedSet = new Set(existingCustomTags)
+      for (const t of meta.customTags) {
+        if (typeof t === "string" && t.length > 0 && !appendedSet.has(t)) {
+          appendedSet.add(t)
+          result.customTagsMerged++
+        }
       }
+      newCustomTags = Array.from(appendedSet)
+    } else {
+      // mergeAuto / selected：并集去重（现状行为）
+      const customTagsSet = new Set(existingCustomTags)
+      for (const t of meta.customTags) {
+        if (typeof t === "string" && t.length > 0 && !customTagsSet.has(t)) {
+          customTagsSet.add(t)
+          result.customTagsMerged++
+        }
+      }
+      newCustomTags = Array.from(customTagsSet)
     }
-    const newCustomTags = Array.from(customTagsSet)
     await safeSet({ customTags: toPure(newCustomTags) }, "backup.restore")
 
-    // 2. tabTagsMap 按 fingerprint → 新 tabId 写回（快照覆盖该 tabId 现有标记）
+    // 2. tabTagsMap 按 fingerprint → 新 tabId 写回。
+    //    所有模式都用「快照覆盖该 tabId 现有标记」语义（用户意图回到快照状态）；
+    //    差异在「未匹配 fingerprint」的处理由 mode 在 resolveConflicts 层决定（是否补开 tab）。
+    //    replace 模式：先清空现有 tabTagsMap，再写快照的（完全覆盖）。
     const existingTagsMap: Record<string, string[]> =
       data.tabTagsMap && typeof data.tabTagsMap === "object" && !Array.isArray(data.tabTagsMap)
         ? (data.tabTagsMap as Record<string, string[]>)
         : {}
-    const newTagsMap: Record<string, string[]> = { ...existingTagsMap }
+    const newTagsMap: Record<string, string[]> = mode === "replace" ? {} : { ...existingTagsMap }
     for (const [fp, tags] of Object.entries(meta.tabTagsMap)) {
       if (!Array.isArray(tags)) continue
       const cleaned = tags.filter((x): x is string => typeof x === "string" && x.length > 0)
@@ -147,71 +228,85 @@ export async function restoreMeta(
     }
     await safeSet({ tabTagsMap: toPure(newTagsMap) }, "backup.restore")
 
-    // 3. laterTabs 并集（按 url 去重）
+    // 3. laterTabs 按 mode 分发：
+    //    - replace：清空现有，只写快照的
+    //    - append：不去重，追加到末尾
+    //    - mergeAuto / selected：按 url 去重并集（现状）
     const existingLater: LaterItem[] = Array.isArray(data.laterTabs)
       ? (data.laterTabs as LaterItem[])
       : []
-    const existingLaterUrls = new Set(
-      existingLater.map((x) => (x && typeof x.url === "string" ? x.url : "")).filter(Boolean)
-    )
-    const mergedLater: LaterItem[] = [...existingLater]
     const nowBase = Date.now()
-    for (let i = 0; i < meta.laterTabs.length; i++) {
-      const lt = meta.laterTabs[i]
-      if (!lt || typeof lt.url !== "string") continue
-      if (existingLaterUrls.has(lt.url)) continue
-      const id = -(nowBase + i) // 负数 id 避免与真实 tabId 冲突
-      mergedLater.push({
-        id,
-        title: lt.title || lt.url,
-        url: lt.url,
-        domain: deriveDomain(lt.url),
-        favIconUrl: "",
-        pinned: false,
-        active: false,
-        audible: false,
-        muted: false,
-        discarded: false,
-        frozen: false,
-        loading: false,
-        recording: false,
-        sharing: false,
-        attention: false,
-        hasUnsavedForm: false,
-        hasConnectedDevice: false,
-        isProtected: false,
-        openedAt: "",
-        number: 0,
-        tags: [],
-        groupId: -1,
-        laterNote: lt.note || "",
-        laterAddedAt: new Date(lt.addedAt || nowBase).toISOString(),
-      })
-      result.laterTabsMerged++
+    let mergedLater: LaterItem[]
+    if (mode === "replace") {
+      // 覆盖：清空 + 写快照的
+      mergedLater = []
+      for (let i = 0; i < meta.laterTabs.length; i++) {
+        const lt = meta.laterTabs[i]
+        if (!lt || typeof lt.url !== "string") continue
+        mergedLater.push(toLaterItem(lt, -(nowBase + i)))
+        result.laterTabsMerged++
+      }
+    } else if (mode === "append") {
+      // 只加不删：保留现有 + 追加快照的（不去重）
+      mergedLater = [...existingLater]
+      for (let i = 0; i < meta.laterTabs.length; i++) {
+        const lt = meta.laterTabs[i]
+        if (!lt || typeof lt.url !== "string") continue
+        mergedLater.push(toLaterItem(lt, -(nowBase + i)))
+        result.laterTabsMerged++
+      }
+    } else {
+      // mergeAuto / selected：按 url 去重并集
+      const existingLaterUrls = new Set(
+        existingLater.map((x) => (x && typeof x.url === "string" ? x.url : "")).filter(Boolean)
+      )
+      mergedLater = [...existingLater]
+      for (let i = 0; i < meta.laterTabs.length; i++) {
+        const lt = meta.laterTabs[i]
+        if (!lt || typeof lt.url !== "string") continue
+        if (existingLaterUrls.has(lt.url)) continue
+        mergedLater.push(toLaterItem(lt, -(nowBase + i)))
+        result.laterTabsMerged++
+      }
     }
     await safeSet({ laterTabs: toPure(mergedLater) }, "backup.restore")
 
-    // 4. recentlyClosed 并集（按 url 去重，限长 50）
+    // 4. recentlyClosed 按 mode 分发：
+    //    - replace：清空现有，只写快照的
+    //    - append：不去重，追加
+    //    - mergeAuto / selected：按 url 去重并集（限长 50，稳定性红线①）
     const existingClosed: ClosedTabItem[] = Array.isArray(data.recentlyClosed)
       ? (data.recentlyClosed as ClosedTabItem[])
       : []
-    const existingClosedUrls = new Set(
-      existingClosed.map((x) => (x && typeof x.url === "string" ? x.url : "")).filter(Boolean)
-    )
-    const mergedClosed: ClosedTabItem[] = [...existingClosed]
-    for (let i = 0; i < meta.recentlyClosed.length; i++) {
-      const ct = meta.recentlyClosed[i]
-      if (!ct || typeof ct.url !== "string") continue
-      if (existingClosedUrls.has(ct.url)) continue
-      mergedClosed.push({
-        id: -(nowBase + i + 10000),
-        title: ct.title || ct.url,
-        url: ct.url,
-        domain: deriveDomain(ct.url),
-        favIconUrl: "",
-        closedAt: new Date(ct.closedAt || nowBase).toISOString(),
-      })
-      result.recentlyClosedMerged++
+    let mergedClosed: ClosedTabItem[]
+    if (mode === "replace") {
+      mergedClosed = []
+      for (let i = 0; i < meta.recentlyClosed.length; i++) {
+        const ct = meta.recentlyClosed[i]
+        if (!ct || typeof ct.url !== "string") continue
+        mergedClosed.push(toClosedTab(ct, -(nowBase + i + 10000)))
+        result.recentlyClosedMerged++
+      }
+    } else if (mode === "append") {
+      mergedClosed = [...existingClosed]
+      for (let i = 0; i < meta.recentlyClosed.length; i++) {
+        const ct = meta.recentlyClosed[i]
+        if (!ct || typeof ct.url !== "string") continue
+        mergedClosed.push(toClosedTab(ct, -(nowBase + i + 10000)))
+        result.recentlyClosedMerged++
+      }
+    } else {
+      const existingClosedUrls = new Set(
+        existingClosed.map((x) => (x && typeof x.url === "string" ? x.url : "")).filter(Boolean)
+      )
+      mergedClosed = [...existingClosed]
+      for (let i = 0; i < meta.recentlyClosed.length; i++) {
+        const ct = meta.recentlyClosed[i]
+        if (!ct || typeof ct.url !== "string") continue
+        if (existingClosedUrls.has(ct.url)) continue
+        mergedClosed.push(toClosedTab(ct, -(nowBase + i + 10000)))
+        result.recentlyClosedMerged++
+      }
     }
     const trimmedClosed = mergedClosed.slice(0, 50)
     await safeSet({ recentlyClosed: toPure(trimmedClosed) }, "backup.restore")
