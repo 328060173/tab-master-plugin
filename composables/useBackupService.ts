@@ -65,6 +65,7 @@ import {
   sanitizeState,
   sanitizeDirMeta,
   sanitizeNoticeAcked,
+  toSummary,
 } from "~lib/backup/sanitize"
 const DEBOUNCE_EVENT_MS = 2000
 const DIR_SCAN_CACHE_MS = 60_000
@@ -230,11 +231,17 @@ function useBackupServiceImpl() {
           { settings, state, snapshots, isBackingUp, lastProgress, saveState, writeSnapshotToDirSafe, getCacheBytesInUse, getDeviceId },
           source
         )
-        return { ok: pr.ok, error: pr.error, snapshot: pr.snapshot }
+        // execute 必须返回 BackupFile（pr.file）给 coordination 持久化（persistSnapshot 期望 BackupFile，
+        // 内部访问 file.snapshot 算 checksum）。返回 pr.snapshot（SnapshotSummary）会导致
+        // persistSnapshot 把 Summary 当 BackupFile 处理 → crypto.subtle.digest 抛 TypeError → 备份失败。
+        return { ok: pr.ok, error: pr.error, snapshot: pr.file }
       }
     )
     if (r.ok && isDev) console.debug("[useBackupService] 备份完成", { source })
-    return { ok: r.ok, error: r.error, snapshot: r.snapshot }
+    // coordination 持久化后 r.snapshot 是 BackupFile；UI 调用方期望 SnapshotSummary（读 .stats.tabCount），
+    // 这里转一下，避免每个调用方自己转。
+    const file = r.snapshot as BackupFile | undefined
+    return { ok: r.ok, error: r.error, snapshot: file ? toSummary(file) : undefined }
   }
 
   /** 手动备份（sidepanel/options 调） */
