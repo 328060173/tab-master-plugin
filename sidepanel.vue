@@ -114,6 +114,23 @@
       </div>
     </div>
 
+    <!-- 备份状态条（顶置醒目，仅首页+普通态）：状态点 + 状态文案 + 快照数 + 入口 -->
+    <div
+      v-if="activeNav === 'home' && focusMode === 'normal'"
+      class="px-3 py-1.5 flex items-center gap-2 text-[11px] border-b border-gray-100 dark:border-gray-700 shrink-0"
+    >
+      <span
+        :class="['w-1.5 h-1.5 rounded-full shrink-0', backupBadgeKind === 'off' ? 'border border-gray-400 dark:border-gray-500' : backupBadgeKind === 'error' ? 'bg-red-500' : 'bg-emerald-500']"
+        aria-hidden="true"
+      ></span>
+      <span class="min-w-0 truncate" :class="backupBadgeKind === 'error' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300'">{{ backupStatusText }}</span>
+      <span class="flex-1"></span>
+      <button
+        class="inline-flex items-center gap-0.5 min-h-[24px] px-1.5 rounded text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+        @click="openBackupManage"
+      >{{ backupBadgeKind === 'off' ? '开启' : '管理' }}<ChevronRight :size="11" /></button>
+    </div>
+
     <!-- 选择态顶部提示 -->
     <div v-if="focusMode === 'selecting'" class="bg-blue-50 border-b border-blue-200 px-4 py-2.5 flex items-center gap-2">
       <Zap :size="14" class="text-blue-600" />
@@ -495,11 +512,6 @@
     <!-- 底部统计栏（普通/选择态显示） -->
     <FooterStats v-if="focusMode !== 'focusing'" :stats="stats" :active-filter="activeFilter" @filter="activeFilter = $event" />
 
-    <!-- 备份入口卡片：常驻首页底部，崩了不波及其它（ErrorBoundary scope=backup） -->
-    <ErrorBoundary v-if="activeNav === 'home' && focusMode === 'normal'" scope="backup" @reload="reloadPanel">
-      <BackupStatusCard />
-    </ErrorBoundary>
-
     <LaterDialog :open="laterDialogOpen" @close="laterDialogOpen = false" @confirm="confirmLater" />
     <TreeGuideDialog :open="treeGuideOpen" @close="treeGuideOpen = false" />
 
@@ -740,7 +752,6 @@ import CreateGroupDialog from "~components/CreateGroupDialog.vue"
 import LaterList from "~components/LaterList.vue"
 import LaterDialog from "~components/LaterDialog.vue"
 import FooterStats from "~components/FooterStats.vue"
-import BackupStatusCard from "~components/BackupStatusCard.vue"
 import SearchResults from "~components/SearchResults.vue"
 import SearchBox from "~components/SearchBox.vue"
 import TagBar from "~components/TagBar.vue"
@@ -794,6 +805,26 @@ const backupBadgeKind = computed<"off" | "error" | "ok">(() => {
   if (backupSvc.state.value.lastBackupError || dirLost) return "error"
   return "ok"
 })
+/** 顶部备份状态文案：未开启 / 备份中 / 失败 / 已开启·上次X·N快照 */
+const backupSnapshotCount = computed(() => backupSvc.snapshots.value.length || backupSvc.state.value.snapshotCount || 0)
+const backupStatusText = computed(() => {
+  if (backupSvc.isBackingUp.value) return backupSvc.lastProgress.value || "正在备份…"
+  if (backupBadgeKind.value === "off") return "未开启备份 · 崩溃将丢标签"
+  if (backupBadgeKind.value === "error") {
+    const dirLost = backupSvc.dirMeta.value.permission === "prompt" || backupSvc.dirMeta.value.permission === "denied"
+    return dirLost ? "备份文件夹需重新授权" : "上次备份失败 · 点管理重试"
+  }
+  const last = backupSvc.state.value.lastBackupAt
+  const lastLabel = last ? `上次 ${fmtBackupRelative(last)}` : "尚未备份"
+  return `${lastLabel} · ${backupSnapshotCount.value} 快照`
+})
+function fmtBackupRelative(ts: number): string {
+  const diff = Date.now() - ts
+  if (diff < 60_000) return "刚刚"
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
+  return `${Math.floor(diff / 86_400_000)} 天前`
+}
 function openBackupManage() {
   try {
     chrome.tabs.create({ url: chrome.runtime.getURL("tabs/backup.html") })

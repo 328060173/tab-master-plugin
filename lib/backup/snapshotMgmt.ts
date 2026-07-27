@@ -9,7 +9,7 @@ import { type Ref } from "vue"
 import { type BackupFile, type BackupSettings, type BackupState, type SnapshotSummary } from "~types/backup"
 import {
   deleteSnapshotById,
-  getSnapshotFile,
+  getSnapshotFile as getSnapshotFileFromStore,
   mutateSnapshot,
   appendImportedSnapshot as appendImportedToStore,
   listSnapshotSummaries,
@@ -89,7 +89,7 @@ export async function setSnapshotLabel(
 
 /** 获取完整快照（恢复/导出用） */
 export async function getSnapshotFile(id: string): Promise<BackupFile | null> {
-  return getSnapshotFile(id)
+  return getSnapshotFileFromStore(id)
 }
 
 /** 写入外部导入的快照（IndexedDB + checksum + GFS + 上限裁剪） */

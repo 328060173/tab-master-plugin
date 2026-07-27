@@ -19,7 +19,7 @@
         :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
         :width="chartWidth"
         :height="chartHeight"
-        class="w-full h-auto"
+        class="block max-w-full h-auto mx-auto"
         role="img"
         aria-label="近 7 天备份趋势柱状图"
       >
