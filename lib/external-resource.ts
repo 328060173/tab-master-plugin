@@ -98,8 +98,9 @@ const BROWSER_INTERNAL_PROTOCOLS: readonly string[] = [
  *
  * 放行：
  * - 通过 {@link isValidExternalUrl} 的 http(s) URL（含黑名单过滤）
- * - 浏览器内部协议（chrome / chrome-extension / edge / about / moz-extension）：
- *   浏览器可自行加载，非外部资源
+ * - 浏览器内部协议（chrome / edge / about）：浏览器可自行加载，非外部资源
+ * - 本扩展的 chrome-extension: / moz-extension: 资源（host === chrome.runtime.id）；
+ *   跨扩展资源未列入 web_accessible_resources，加载会被拦截报错，故不放行
  * - data:image/* URI：站点内联 favicon（<link rel="icon" href="data:...">），合法
  *
  * 拦截：
@@ -116,7 +117,13 @@ export function isRenderableImgSrc(url: unknown): boolean {
   } catch {
     return false
   }
-  // 浏览器内部协议：放行
+  // 浏览器内部协议：放行（chrome-extension 需额外校验本扩展，见下）
+  if (u.protocol === 'chrome-extension:' || u.protocol === 'moz-extension:') {
+    // 仅放行本扩展资源：跨扩展资源（如其他扩展的 icon）未列入本扩展
+    // web_accessible_resources，加载必被浏览器拦截并报错。回退字母占位。
+    const selfId = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id
+    return selfId === u.host
+  }
   if (BROWSER_INTERNAL_PROTOCOLS.includes(u.protocol)) return true
   // data: 仅放行 image/* 子类型（站点内联 favicon）
   if (u.protocol === 'data:') return /^data:image\//i.test(url)
