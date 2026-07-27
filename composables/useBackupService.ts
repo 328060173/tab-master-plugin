@@ -13,7 +13,7 @@ import { toPure } from "~lib/toPure"
 import { isDev } from "~lib/env"
 import { computeFingerprint, computeWeakFingerprint } from "~lib/backup/fingerprint"
 import { getDeviceId, applyTimer as applyTimerFn, refreshNextBackupTime as refreshNextBackupTimeFn } from "~lib/backup/timer"
-import { runBackupPipeline } from "~lib/backup/pipeline"
+import { runBackupPipeline, type RunPipelineOptions } from "~lib/backup/pipeline"
 import { tryAcquireCoord, releaseCoord, runBackupWithCoordination } from "~lib/backup/coordination"
 import { uuidV4 } from "~lib/backup/fingerprint"
 import {
@@ -219,17 +219,17 @@ function useBackupServiceImpl() {
 
   // ===== 备份执行（委托给 lib/backup/pipeline.ts）=====
   async function runBackup(
-    source: BackupTriggerSource
+    source: BackupTriggerSource,
+    options?: RunPipelineOptions,
   ): Promise<{ ok: boolean; error?: string; snapshot?: SnapshotSummary }> {
     // P0-4: 走 coordination 统一入口（内部 tryAcquire/release + WAL + checksum + 审计 + 广播）
-    // 与 SW 路径一致，崩溃恢复覆盖 UI 路径半成品
     const r = await runBackupWithCoordination(
       "backup",
       { kind: source === "manual" ? "manual-backup" : "auto-backup", source },
       async (_op, _payload, _traceId) => {
         const pr = await runBackupPipeline(
           { settings, state, snapshots, isBackingUp, lastProgress, saveState, writeSnapshotToDirSafe, getCacheBytesInUse, getDeviceId },
-          source
+          source, options,
         )
         // execute 必须返回 BackupFile（pr.file）给 coordination 持久化（persistSnapshot 期望 BackupFile，
         // 内部访问 file.snapshot 算 checksum）。返回 pr.snapshot（SnapshotSummary）会导致
@@ -244,9 +244,9 @@ function useBackupServiceImpl() {
     return { ok: r.ok, error: r.error, snapshot: file ? toSummary(file) : undefined }
   }
 
-  /** 手动备份（sidepanel/options 调） */
-  async function runManualBackup() {
-    return runBackup("manual")
+  /** 手动备份（sidepanel/options 调）。§10.8：可传 selectedTabIds 只备份勾选的标签；不传则全量。 */
+  async function runManualBackup(options?: RunPipelineOptions) {
+    return runBackup("manual", options)
   }
 
   /** 启动备份（chrome.runtime.onStartup 时由 background 触发） */

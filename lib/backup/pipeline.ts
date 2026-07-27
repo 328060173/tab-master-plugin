@@ -10,7 +10,7 @@
 
 import { type Ref } from "vue"
 import { APP_VERSION_CODE, APP_VERSION_NAME } from "~lib/api-config"
-import { collectMeta, buildSnapshot } from "./snapshotBuilder"
+import { collectMeta, buildSnapshot, type BuildSnapshotOptions } from "./snapshotBuilder"
 import {
   BACKUP_KIND,
   BACKUP_SCHEMA_VERSION,
@@ -60,14 +60,23 @@ function mapSnapSource(source: string): "auto.timer" | "auto.event" | "manual" |
 }
 
 /** 采集标签 + 元数据 + 构建快照文件 */
-async function buildBackupFile(deps: PipelineDeps, source: string, lastProgress: Ref<string>): Promise<BackupFile> {
+async function buildBackupFile(
+  deps: PipelineDeps,
+  source: string,
+  lastProgress: Ref<string>,
+  options?: { selectedTabIds?: number[] },
+): Promise<BackupFile> {
   lastProgress.value = "采集标签…"
   const allTabs = await chrome.tabs.query({})
   lastProgress.value = "读取元数据…"
   const meta = await collectMeta()
   lastProgress.value = "构建快照…"
   const snapSource = mapSnapSource(source)
-  const snapshot = await buildSnapshot(allTabs, meta, snapSource)
+  // §10.8：手动备份选部分标签 → 传 selectedTabIds 子集；其他路径（自动/事件/preRestore/import）不传，全量不变
+  const buildOpts: BuildSnapshotOptions | undefined = options?.selectedTabIds
+    ? { selectedTabIds: options.selectedTabIds, totalTabCount: allTabs.length }
+    : undefined
+  const snapshot = await buildSnapshot(allTabs, meta, snapSource, buildOpts)
   snapshot.trigger = source
   const deviceId = await deps.getDeviceId()
   return {
@@ -90,19 +99,30 @@ async function writeDir(deps: PipelineDeps, file: BackupFile, lastProgress: Ref<
   return r.ok ? null : (r.error || "目录写入失败")
 }
 
+/** runBackupPipeline 的可选参数（§10.8 手动备份选部分标签） */
+export interface RunPipelineOptions {
+  /**
+   * 手动备份选了哪些标签（按 tabId）。仅 manual 路径使用。
+   * 不传 / 空数组 = 全量备份（自动备份/事件备份/preRestore/import 路径行为不变）。
+   */
+  selectedTabIds?: number[]
+}
+
 /**
  * 执行一次备份。
  * @param source 触发源（auto.timer / auto.event.* / manual / preRestore / import）
+ * @param options §10.8 手动备份选部分标签时传 selectedTabIds
  */
 export async function runBackupPipeline(
   deps: PipelineDeps,
-  source: string
+  source: string,
+  options?: RunPipelineOptions,
 ): Promise<PipelineResult> {
   const { state, snapshots, isBackingUp, lastProgress } = deps
   if (isBackingUp.value) return { ok: false, error: "正在备份中…" }
   isBackingUp.value = true
   try {
-    const file = await buildBackupFile(deps, source, lastProgress)
+    const file = await buildBackupFile(deps, source, lastProgress, options)
     // P0-4: 持久化（IndexedDB + checksum + 回读校验）由外层 coordination 统一负责，
     // pipeline 只负责 build + 目录写 + GFS + state，避免双写（修 D18）
     const dirError = await writeDir(deps, file, lastProgress)

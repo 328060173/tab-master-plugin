@@ -94,6 +94,16 @@ export interface SnapshotStats {
   groupCount: number
   taggedCount: number
   laterCount: number
+  /**
+   * 手动备份选了几个标签（§10.8）。
+   * 仅手动备份且用户勾选了部分标签时存在；全量备份时等于 tabCount 或留空。
+   */
+  selectedTabCount?: number
+  /**
+   * 当时浏览器共几个标签（§10.8）。
+   * 手动选部分时与 selectedTabCount 配对显示「12/34」；全量备份时等于 tabCount 或留空。
+   */
+  totalTabCount?: number
 }
 
 export interface Snapshot {
