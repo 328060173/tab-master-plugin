@@ -58,7 +58,8 @@
               <BackupOverviewTab
                 @open-manual-backup="manualBackupOpen = true"
                 @open-auto-settings="autoSettingsOpen = true"
-                @open-import-restore="onImportRestore"
+                @open-import="importDialogOpen = true"
+                @open-export="onOpenExportOverview"
                 @request-enable="onRequestEnable"
               />
             </ErrorBoundary>
@@ -128,13 +129,21 @@
       @restored="onDetailRestored"
     />
 
-    <!-- 导出弹框（P1） -->
+    <!-- 导出弹框（P1）：列表导出传具体 snapshotId；概览导出传 null（弹框内选快照） -->
     <ExportDialog
       :open="exportDialogOpen"
       :snapshot-id="exportSnapshotId"
       :snapshot-label="exportSnapshotLabel"
       @cancel="exportDialogOpen = false"
       @display-json="onDisplayJson"
+    />
+
+    <!-- 导入弹框（概览用，我们自己的 JSON 导入；其他格式跳导入管理） -->
+    <ImportDialog
+      :open="importDialogOpen"
+      @cancel="importDialogOpen = false"
+      @imported="onImportedFromDialog"
+      @other-formats="onOtherFormatsFromDialog"
     />
 
     <!-- JSON 串查看弹框（导出"展示 JSON 串"去向） -->
@@ -221,6 +230,7 @@ import BackupListTab from "~components/backup/BackupListTab.vue"
 import BackupImportTab from "~components/backup/BackupImportTab.vue"
 import BackupDetailDialog from "~components/backup/BackupDetailDialog.vue"
 import ExportDialog from "~components/backup/ExportDialog.vue"
+import ImportDialog from "~components/backup/ImportDialog.vue"
 import ManualBackupDialog from "~components/backup/ManualBackupDialog.vue"
 import AutoBackupSettingsDialog from "~components/backup/AutoBackupSettingsDialog.vue"
 import BackupNoticeDialog from "~components/BackupNoticeDialog.vue"
@@ -255,6 +265,9 @@ const detailSnapshotId = ref<string | null>(null)
 const exportDialogOpen = ref(false)
 const exportSnapshotId = ref<string | null>(null)
 const exportSnapshotLabel = ref<string | null>(null)
+
+// 导入弹框（概览用，我们自己的 JSON 导入）
+const importDialogOpen = ref(false)
 
 // JSON 串查看弹框（导出"展示 JSON 串"去向）
 const jsonViewOpen = ref(false)
@@ -325,8 +338,9 @@ async function onManualBackupConfirm(payload: { tabIds: number[]; label: string 
 }
 
 // ===== 导入还原（P2：跳导入管理菜单） =====
-function onImportRestore() {
-  // §8.7：备份概览的「导入还原」按钮跳导入管理菜单（不再 toast 占位）
+function onOtherFormatsFromDialog() {
+  // 概览导入弹框底部「其他格式导入」→ 关弹框，跳导入管理菜单
+  importDialogOpen.value = false
   activeMenu.value = 'import'
 }
 
@@ -338,6 +352,12 @@ function onImported(snapshotId: string) {
   // 高亮新记录（BackupListTab 暴露 highlightRecord；导入管理页也可高亮）
   // 注：BackupListTab 高亮由其内部 watch snapshots 自动定位，这里仅切视图
   void snapshotId
+}
+
+/** 概览导入弹框导入成功：关弹框 + 跳备份列表（复用 onImported 跳转） */
+function onImportedFromDialog(snapshotId: string) {
+  importDialogOpen.value = false
+  onImported(snapshotId)
 }
 
 // ===== 备份详情弹框（P1） =====
@@ -356,6 +376,13 @@ function onDetailRestored() {
 function onOpenExport(snapshotId: string, label: string | null) {
   exportSnapshotId.value = snapshotId
   exportSnapshotLabel.value = label
+  exportDialogOpen.value = true
+}
+
+/** 概览导出：无上下文快照，传 null 让 ExportDialog 显示快照选择下拉 */
+function onOpenExportOverview() {
+  exportSnapshotId.value = null
+  exportSnapshotLabel.value = null
   exportDialogOpen.value = true
 }
 

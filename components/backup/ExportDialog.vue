@@ -34,6 +34,21 @@
         </div>
 
         <div class="px-5 pb-5 space-y-4 overflow-y-auto">
+          <!-- 快照选择（概览导出无上下文快照时显示） -->
+          <div v-if="needSelectSnapshot" class="space-y-1.5">
+            <label class="text-xs font-medium text-gray-700 dark:text-gray-200">选择备份</label>
+            <select
+              v-model="selectedSnapshotId"
+              class="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option :value="null" disabled>请选择要导出的备份…</option>
+              <option v-for="s in snapshotOptions" :key="s.id" :value="s.id">
+                {{ formatSnapshotOption(s) }}
+              </option>
+            </select>
+            <p v-if="snapshotOptions.length === 0" class="text-[11px] text-gray-400 dark:text-gray-500">暂无备份可导出，请先创建备份</p>
+          </div>
+
           <!-- 格式 -->
           <div class="space-y-1.5">
             <label class="text-xs font-medium text-gray-700 dark:text-gray-200">导出格式</label>
@@ -127,6 +142,25 @@ const emit = defineEmits<{
 
 const svc = useBackupService()
 
+/** 概览导出无上下文快照（snapshotId=null）时需让用户选哪个备份导出 */
+const needSelectSnapshot = computed(() => !props.snapshotId)
+const selectedSnapshotId = ref<string | null>(null)
+const snapshotOptions = computed(() => svc.snapshots.value)
+const effectiveSnapshotId = computed(() => props.snapshotId ?? selectedSnapshotId.value)
+const effectiveLabel = computed(() => {
+  if (props.snapshotId) return props.snapshotLabel ?? null
+  const s = snapshotOptions.value.find((x) => x.id === selectedSnapshotId.value)
+  return s?.label ?? null
+})
+
+function formatSnapshotOption(s: { id: string; createdAt: number; label: string | null; stats: { tabCount: number } }): string {
+  const d = new Date(s.createdAt)
+  const p = (n: number) => String(n).padStart(2, '0')
+  const time = `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  const label = s.label ? ` · ${s.label}` : ''
+  return `${time} · ${s.stats.tabCount} 标签${label}`
+}
+
 const FORMAT_OPTIONS: { value: ExportFormat; label: string }[] = [
   { value: 'json', label: 'JSON（完整，可回导入）' },
   { value: 'markdown', label: 'Markdown（人类可读）' },
@@ -143,6 +177,8 @@ watch(() => props.open, (v) => {
     format.value = 'json'
     destination.value = 'download'
     exporting.value = false
+    // 概览导出：默认选最新一条（若有）
+    selectedSnapshotId.value = snapshotOptions.value[0]?.id ?? null
   }
 })
 
@@ -157,13 +193,14 @@ const formatHint = computed(() => {
 
 async function onExport() {
   if (exporting.value) return
-  if (!props.snapshotId) {
+  const id = effectiveSnapshotId.value
+  if (!id) {
     showToast('未选定备份')
     return
   }
   exporting.value = true
   try {
-    const file: BackupFile | null = await svc.getSnapshotFile(props.snapshotId)
+    const file: BackupFile | null = await svc.getSnapshotFile(id)
     if (!file) {
       showToast('备份不存在')
       return
@@ -172,7 +209,7 @@ async function onExport() {
     if (destination.value === 'display') {
       // 展示 JSON 串（无论 format 是什么，display 总是展示 JSON；其他格式意义不大，强制 JSON）
       const jsonContent = format.value === 'json' ? out.content : JSON.stringify(file, null, 2)
-      emit('display-json', jsonContent, file.snapshot.label)
+      emit('display-json', jsonContent, effectiveLabel.value)
       emit('cancel')
       return
     }

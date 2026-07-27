@@ -27,10 +27,17 @@
         </button>
         <button
           class="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-          @click="emit('open-import-restore')"
+          @click="emit('open-import')"
+        >
+          <Upload :size="14" />
+          导入
+        </button>
+        <button
+          class="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="emit('open-export')"
         >
           <Download :size="14" />
-          导入还原
+          导出
         </button>
       </div>
 
@@ -162,7 +169,7 @@
  * 广告数据来自 useBackupPageAd 单例（与左菜单辅位共享同一次请求）。
  */
 import { computed } from "vue"
-import { Shield, Save, Settings, Download, LayoutGrid, ArrowLeftRight, AlertTriangle } from "@lucide/vue"
+import { Shield, Save, Settings, Download, Upload, LayoutGrid, ArrowLeftRight, AlertTriangle } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
 import { currentLimits } from "~types/backup"
@@ -173,7 +180,8 @@ import BackupTrendChart from "./BackupTrendChart.vue"
 const emit = defineEmits<{
   (e: 'open-manual-backup'): void
   (e: 'open-auto-settings'): void
-  (e: 'open-import-restore'): void
+  (e: 'open-import'): void
+  (e: 'open-export'): void
   (e: 'request-enable'): void
 }>()
 
