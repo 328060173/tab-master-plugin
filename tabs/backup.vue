@@ -144,6 +144,7 @@
 import { ref, onMounted, onUnmounted } from "vue"
 import { Shield, X, Cloud, Download, Trash2 } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
+import { useBackupPageAd } from "~composables/useBackupPageAd"
 import { showToast, useToast } from "~composables/useToast"
 import BackupSidebar, { type BackupMenuKey } from "~components/backup/BackupSidebar.vue"
 import BackupStatusBar from "~components/backup/BackupStatusBar.vue"
@@ -155,6 +156,8 @@ import ErrorBoundary from "~components/ErrorBoundary.vue"
 
 const svc = useBackupService()
 const { toastMsg } = useToast()
+// 独立页广告：单例，左菜单辅位 + 概览主位共享同一次请求
+const backupPageAd = useBackupPageAd()
 
 // 左菜单当前选中项（默认备份管理）
 const activeMenu = ref<BackupMenuKey>('manage')
@@ -253,6 +256,9 @@ const onBackupChanged = (msg: unknown) => {
 
 onMounted(() => {
   chrome.runtime.onMessage.addListener(onBackupChanged)
+  // 进入备份页即异步拉广告（不阻塞业务，报错/超时静默显占位）。
+  // 刷新页面 = 重新挂载 = 自动触发；切 Tab 不重复请求（共享单例 adData + 并发去重）。
+  void backupPageAd.fetchAd()
 })
 onUnmounted(() => {
   chrome.runtime.onMessage.removeListener(onBackupChanged)

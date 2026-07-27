@@ -37,14 +37,18 @@
       </button>
     </nav>
 
-    <!-- 底部推广位（§11 辅位，160×60，可折叠） -->
+    <!-- 底部推广位（§11 辅位，160×60，可折叠）。
+         独立 ErrorBoundary 兜底：广告崩不波及左菜单。 -->
     <div class="p-3 border-t border-gray-200 dark:border-gray-700">
-      <AdSlot
-        slot-id="backup-sidebar-promo"
-        size="160x60"
-        :dismissible="true"
-        fallback="placeholder"
-      />
+      <ErrorBoundary scope="backup.ad.sidebar">
+        <AdSlot
+          slot-id="backup-sidebar-promo"
+          size="160x60"
+          :ad="adData"
+          :dismissible="true"
+          fallback="placeholder"
+        />
+      </ErrorBoundary>
     </div>
   </aside>
 </template>
@@ -53,9 +57,14 @@
 /**
  * 左菜单（§8.3：4 项 + 底部推广位）。
  * 选中项通过 v-model 双向绑定（activeKey + update:activeKey）。
+ * 广告数据来自 useBackupPageAd 单例（与概览 Tab 主位共享同一次请求）。
  */
 import { Shield, Cloud, Download, Trash2 } from "@lucide/vue"
 import AdSlot from "./AdSlot.vue"
+import ErrorBoundary from "~components/ErrorBoundary.vue"
+import { useBackupPageAd } from "~composables/useBackupPageAd"
+
+const { adData } = useBackupPageAd()
 
 export type BackupMenuKey = 'manage' | 'cloud' | 'import' | 'trash'
 

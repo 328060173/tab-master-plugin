@@ -83,6 +83,7 @@
         <AdSlot
           slot-id="backup-overview-main"
           size="728x90"
+          :ad="adData"
           :dismissible="true"
           fallback="placeholder"
         />
@@ -132,6 +133,7 @@
         <AdSlot
           slot-id="backup-overview-main"
           size="728x90"
+          :ad="adData"
           :dismissible="true"
           fallback="placeholder"
         />
@@ -146,10 +148,12 @@
  * 已开启态：3 主按钮 + 状态块 + 趋势占位 + 广告位主位
  * 未开启态：3 卖点 + [开启标签备份] CTA + 广告位主位
  * 文案守 §2 术语（禁黑话）。
+ * 广告数据来自 useBackupPageAd 单例（与左菜单辅位共享同一次请求）。
  */
 import { computed } from "vue"
 import { Shield, Save, Settings, Download, LayoutGrid, ArrowLeftRight } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
+import { useBackupPageAd } from "~composables/useBackupPageAd"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
 import AdSlot from "./AdSlot.vue"
 
@@ -162,6 +166,7 @@ const emit = defineEmits<{
 
 const svc = useBackupService()
 const { state, snapshots, isBackingUp, enabled, nextBackupAt } = svc
+const { adData } = useBackupPageAd()
 
 const nextBackupLabel = computed(() => {
   if (!enabled.value) return '未开启自动备份'
