@@ -51,51 +51,107 @@
         <span class="text-xs text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">{{ tabs.length }} 个标签</span>
       </div>
       <div class="flex items-center gap-2">
-        <!-- 备份入口（顶置）- 设计稿 §3.3：在「开启聚焦模式」左边，未开启红点/有失败⚠/已开启无角标；点击直接跳独立页 -->
-        <button
-          class="relative inline-flex items-center gap-1 min-h-[32px] px-2 py-1.5 text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-          aria-label="打开备份管理"
-          title="标签备份"
-          @click.stop="openBackupManage"
-        >
-          <Shield :size="14" :class="backupBadgeKind === 'off' ? 'text-gray-400 dark:text-gray-500' : 'text-blue-600 dark:text-blue-400'" />
-          <span class="whitespace-nowrap">备份</span>
-          <!-- 角标：未开启红点；有失败⚠ -->
-          <span
-            v-if="backupBadgeKind === 'off'"
-            class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-1 ring-white dark:ring-gray-800"
-            aria-hidden="true"
-          ></span>
-          <AlertTriangle
-            v-else-if="backupBadgeKind === 'error'"
-            :size="10"
-            class="absolute -top-1 -right-1 text-red-500 bg-white dark:bg-gray-800 rounded-full ring-1 ring-white dark:ring-gray-800"
-            aria-hidden="true"
-          />
-        </button>
-        <!-- 聚焦模式组：按钮 + 帮助问号（紧贴同组），组外 gap-2 与头像/菜单拉开 -->
-        <div class="flex items-center gap-1 shrink-0">
+        <!-- 标签导入导出（下拉）：未开启红点/失败⚠；下拉项含手动备份/自动备份/导入/导出/管理 -->
+        <div class="relative shrink-0">
+          <button
+            ref="backupMenuBtnRef"
+            class="relative inline-flex items-center gap-1 min-h-[32px] px-2 py-1.5 text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :aria-expanded="popover.isOpen('backup-menu')"
+            aria-haspopup="menu"
+            :title="backupMenuTooltip"
+            @click.stop="toggleBackupMenu"
+          >
+            <Shield :size="14" :class="backupBadgeKind === 'off' ? 'text-gray-400 dark:text-gray-500' : 'text-blue-600 dark:text-blue-400'" />
+            <span class="whitespace-nowrap">标签导入导出</span>
+            <ChevronDown :size="11" class="text-gray-400" />
+            <!-- 角标：未开启红点；有失败⚠ -->
+            <span
+              v-if="backupBadgeKind === 'off'"
+              class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-1 ring-white dark:ring-gray-800"
+              aria-hidden="true"
+            ></span>
+            <AlertTriangle
+              v-else-if="backupBadgeKind === 'error'"
+              :size="10"
+              class="absolute -top-1 -right-1 text-red-500 bg-white dark:bg-gray-800 rounded-full ring-1 ring-white dark:ring-gray-800"
+              aria-hidden="true"
+            />
+          </button>
+          <!-- 下拉菜单 -->
+          <div
+            v-if="popover.isOpen('backup-menu')"
+            data-popover-content
+            class="fixed z-[60] w-[180px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+            :style="backupMenuPos"
+            @click.stop
+          >
+            <!-- 未开启时置顶：开启自动备份（醒目 CTA） -->
+            <button
+              v-if="backupBadgeKind === 'off'"
+              class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+              @click="onBackupMenuEnable"
+            >
+              <Shield :size="12" />
+              <span class="flex-1">开启自动备份</span>
+            </button>
+            <div v-if="backupBadgeKind === 'off'" class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+            <!-- 状态行（已开启时显示） -->
+            <div v-if="backupBadgeKind !== 'off'" class="px-3 py-1 text-[10px] text-gray-400">
+              {{ backupStatusText }}
+            </div>
+            <div v-if="backupBadgeKind !== 'off'" class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuManual">
+              <Save :size="12" />手动备份
+            </button>
+            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuAuto">
+              <Settings :size="12" />自动备份设置
+            </button>
+            <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuImport">
+              <Upload :size="12" />导入备份
+            </button>
+            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuExport">
+              <Download :size="12" />导出备份
+            </button>
+            <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuManage">
+              <FolderOpen :size="12" />打开管理页
+            </button>
+          </div>
+        </div>
+        <!-- 聚焦模式（下拉合并）：按钮 + 帮助合并；选择态显示取消 -->
+        <div class="relative shrink-0">
           <button v-if="focusMode === 'normal'"
-            :class="['px-2 py-1 text-xs rounded border transition-colors flex items-center gap-1',
-              !SUPPORTS_FOCUS_MODE ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-600 hover:bg-gray-50']"
+            ref="focusMenuBtnRef"
+            :class="['inline-flex items-center gap-1 min-h-[32px] px-2 py-1 text-xs rounded border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500',
+              !SUPPORTS_FOCUS_MODE ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700']"
             :disabled="!SUPPORTS_FOCUS_MODE"
-            :title="!SUPPORTS_FOCUS_MODE ? '聚焦模式需要 Chrome 102+ 或 Edge 102+' : ''"
-            @click="enterFocusSelectMode">
-            开启聚焦模式
+            :title="!SUPPORTS_FOCUS_MODE ? '聚焦模式需要 Chrome 102+ 或 Edge 102+' : '聚焦模式：只显示选中的标签，其余隐藏'"
+            @click.stop="toggleFocusMenu"
+          >
+            <Zap :size="13" />
+            <span>聚焦</span>
+            <ChevronDown :size="11" class="text-gray-400" />
           </button>
           <button v-else-if="focusMode === 'selecting'"
             class="px-2 py-1 text-xs text-blue-600 hover:underline"
             @click="exitFocusSelectMode">
-            取消
+            取消选择
           </button>
-          <button v-if="SUPPORTS_FOCUS_MODE"
-            :class="['p-1 rounded transition-colors',
-              popover.isOpen('focus-help')
-                ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-100'
-                : 'hover:bg-gray-100 text-gray-400 hover:text-gray-600 dark:hover:bg-gray-700']"
-            @click.stop="toggleFocusHelpFromEvent">
-            <HelpCircle :size="14" />
-          </button>
+          <div
+            v-if="focusMode === 'normal' && popover.isOpen('focus-menu')"
+            data-popover-content
+            class="fixed z-[60] w-[160px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+            :style="focusMenuPos"
+            @click.stop
+          >
+            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onFocusMenuEnter">
+              <Zap :size="12" />开启聚焦模式
+            </button>
+            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onFocusMenuHelp">
+              <HelpCircle :size="12" />聚焦说明
+            </button>
+          </div>
         </div>
         <!-- 已登录态头像（含装扮头像框）：点按跳 options 个人中心；头像框走 useSkin 单例 purchasedFrameUrl/tryonFrameUrl -->
         <button
@@ -112,23 +168,6 @@
           @show-toast="showToast"
         />
       </div>
-    </div>
-
-    <!-- 备份状态条（顶置醒目，仅首页+普通态）：状态点 + 状态文案 + 快照数 + 入口 -->
-    <div
-      v-if="activeNav === 'home' && focusMode === 'normal'"
-      class="px-3 py-1.5 flex items-center gap-2 text-[11px] border-b border-gray-100 dark:border-gray-700 shrink-0"
-    >
-      <span
-        :class="['w-1.5 h-1.5 rounded-full shrink-0', backupBadgeKind === 'off' ? 'border border-gray-400 dark:border-gray-500' : backupBadgeKind === 'error' ? 'bg-red-500' : 'bg-emerald-500']"
-        aria-hidden="true"
-      ></span>
-      <span class="min-w-0 truncate" :class="backupBadgeKind === 'error' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300'">{{ backupStatusText }}</span>
-      <span class="flex-1"></span>
-      <button
-        class="inline-flex items-center gap-0.5 min-h-[24px] px-1.5 rounded text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-        @click="openBackupManage"
-      >{{ backupBadgeKind === 'off' ? '开启' : '管理' }}<ChevronRight :size="11" /></button>
     </div>
 
     <!-- 选择态顶部提示 -->
@@ -719,7 +758,7 @@ import { useToast } from "~composables/useToast"
 import { safeSet } from "~lib/safeStorage"
 import { installGlobalCapture, logError } from "~composables/useLogger"
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, Plus, Clock, Tag, XCircle, LogIn, MoreHorizontal, MoreVertical, Shield, AlertTriangle } from "@lucide/vue"
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, FolderOpen, Plus, Clock, Tag, XCircle, LogIn, MoreHorizontal, MoreVertical, Shield, AlertTriangle, Save, Settings, Upload, Download } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import UpdateBanner from "~components/UpdateBanner.vue"
 import AdBanner from "~components/AdBanner.vue"
@@ -831,6 +870,79 @@ function openBackupManage() {
   } catch (e) {
     console.warn("[sidepanel] 打开备份管理失败", e)
     showToast("打开备份管理失败")
+  }
+}
+
+// ========== 顶部「标签导入导出」下拉菜单 ==========
+const backupMenuBtnRef = ref<HTMLElement | null>(null)
+const backupMenuPos = computed(() => {
+  if (!popover.isOpen("backup-menu") || !popover.activeAnchorRect.value) return { left: "0px", top: "0px" }
+  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 180, height: 320 }, "bottom-right")
+  return { left: `${p.left}px`, top: `${p.top}px` }
+})
+/** 按钮 hover 说明：未开启/失败/已开启 给不同文案，让用户一眼知道是干啥的 */
+const backupMenuTooltip = computed(() => {
+  if (backupBadgeKind.value === "off") return "标签导入导出 · 崩溃找回 / 多档还原 / 兼容导入（未开启）"
+  if (backupBadgeKind.value === "error") return "标签导入导出 · 上次备份失败，点开重试"
+  return "标签导入导出 · 崩溃找回 / 多档还原 / 兼容导入"
+})
+function toggleBackupMenu(e: MouseEvent) {
+  popover.toggle("backup-menu", e.currentTarget as HTMLElement)
+}
+function closeBackupMenu() { popover.close("backup-menu") }
+/** 开启自动备份（sidepanel 内直接开 + 首次备份，不跳页） */
+async function onBackupMenuEnable() {
+  closeBackupMenu()
+  try {
+    await backupSvc.setEnabled(true)
+    showToast("已开启自动备份 · 立即创建首个快照")
+    void backupSvc.runManualBackup().then((r) => {
+      if (r.ok && r.snapshot) {
+        const n = r.snapshot.stats.selectedTabCount ?? r.snapshot.stats.tabCount
+        showToast(`已备份 ${n} 标签`)
+      } else if (!r.ok) {
+        showToast(r.error || "首次备份失败，请重试")
+      }
+    }).catch(() => showToast("首次备份失败，请重试"))
+  } catch (e) {
+    console.warn("[sidepanel] 开启备份失败", e)
+    showToast("开启失败，请重试")
+  }
+}
+/** 跳独立页并带 action query 自动打开对应弹框 */
+function openBackupPage(action: "manual" | "auto" | "import" | "export" | "manage") {
+  try {
+    chrome.tabs.create({ url: chrome.runtime.getURL(`tabs/backup.html?action=${action}`) })
+  } catch (e) {
+    console.warn("[sidepanel] 打开备份页失败", e)
+    showToast("打开备份页失败")
+  }
+}
+function onBackupMenuManual() { closeBackupMenu(); openBackupPage("manual") }
+function onBackupMenuAuto() { closeBackupMenu(); openBackupPage("auto") }
+function onBackupMenuImport() { closeBackupMenu(); openBackupPage("import") }
+function onBackupMenuExport() { closeBackupMenu(); openBackupPage("export") }
+function onBackupMenuManage() { closeBackupMenu(); openBackupPage("manage") }
+
+// ========== 顶部「聚焦」下拉菜单 ==========
+const focusMenuBtnRef = ref<HTMLElement | null>(null)
+const focusMenuPos = computed(() => {
+  if (!popover.isOpen("focus-menu") || !popover.activeAnchorRect.value) return { left: "0px", top: "0px" }
+  const p = computePopoverPos(popover.activeAnchorRect.value, { width: 160, height: 80 }, "bottom-right")
+  return { left: `${p.left}px`, top: `${p.top}px` }
+})
+function toggleFocusMenu(e: MouseEvent) {
+  popover.toggle("focus-menu", e.currentTarget as HTMLElement)
+}
+function onFocusMenuEnter() {
+  popover.close("focus-menu")
+  enterFocusSelectMode()
+}
+function onFocusMenuHelp() {
+  // 关 focus-menu，开 focus-help 气泡（复用既有 toggleFocusHelpFromEvent 用的 'focus-help' id）
+  popover.close("focus-menu")
+  if (focusMenuBtnRef.value) {
+    popover.open("focus-help", focusMenuBtnRef.value)
   }
 }
 // 用户邮箱（未登录为空字符串，AvatarWithFrame 仅在 isLoggedIn 时渲染，此处仅传值）

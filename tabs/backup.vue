@@ -434,6 +434,19 @@ onMounted(() => {
   // 进入备份页即异步拉广告（不阻塞业务，报错/超时静默显占位）。
   // 刷新页面 = 重新挂载 = 自动触发；切 Tab 不重复请求（共享单例 adData + 并发去重）。
   void backupPageAd.fetchAd()
+  // 解析 URL query：sidepanel 顶部下拉跳转时带 ?action= 直接打开对应弹框/Tab
+  // action: manual=手动备份弹框 / auto=自动备份设置弹框 / import=导入弹框 / export=导出弹框 / manage=备份列表
+  try {
+    const params = new URLSearchParams(location.search)
+    const action = params.get('action')
+    if (action === 'manual') manualBackupOpen.value = true
+    else if (action === 'auto') autoSettingsOpen.value = true
+    else if (action === 'import') importDialogOpen.value = true
+    else if (action === 'export') void onOpenExportOverview()
+    else if (action === 'manage') { activeMenu.value = 'manage'; manageTab.value = 'list' }
+  } catch (e) {
+    console.warn('[backup] 解析 URL action 失败', e)
+  }
 })
 onUnmounted(() => {
   chrome.runtime.onMessage.removeListener(onBackupChanged)
