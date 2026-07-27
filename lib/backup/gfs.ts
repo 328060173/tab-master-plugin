@@ -76,18 +76,24 @@ export function computeGfsKeepIds(
     if (b.keepId) keep.add(b.keepId)
   }
   // 5. 近 4 周（已含 7 天）：每周一个桶
-  for (let w = 1; w < 4; w++) {
-    const start = now - (w + 1) * 7 * DAY_MS
-    const end = now - w * 7 * DAY_MS
-    const b = bucketKeepId(inWindow, start, end)
-    if (b.keepId) keep.add(b.keepId)
+  // §4.3 retentionDays 守卫：7~29 天只跑前 2 层（24h + 7d），4w 桶不可达——跳过避免空跑
+  if (retentionDays >= 30) {
+    for (let w = 1; w < 4; w++) {
+      const start = now - (w + 1) * 7 * DAY_MS
+      const end = now - w * 7 * DAY_MS
+      const b = bucketKeepId(inWindow, start, end)
+      if (b.keepId) keep.add(b.keepId)
+    }
   }
   // 6. 近 12 月（已含 4 周）：每月一个桶
-  for (let m = 1; m < 12; m++) {
-    const start = now - (m + 1) * 30 * DAY_MS
-    const end = now - m * 30 * DAY_MS
-    const b = bucketKeepId(inWindow, start, end)
-    if (b.keepId) keep.add(b.keepId)
+  // §4.3 retentionDays 守卫：30~89 天只跑前 3 层（24h + 7d + 4w），12m 桶不可达——跳过
+  if (retentionDays >= 90) {
+    for (let m = 1; m < 12; m++) {
+      const start = now - (m + 1) * 30 * DAY_MS
+      const end = now - m * 30 * DAY_MS
+      const b = bucketKeepId(inWindow, start, end)
+      if (b.keepId) keep.add(b.keepId)
+    }
   }
   return keep
 }

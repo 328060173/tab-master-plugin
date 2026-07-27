@@ -27,13 +27,14 @@ import {
   BACKUP_KEYS,
   BACKUP_KIND,
   BACKUP_SCHEMA_VERSION,
+  currentLimits,
   type BackupFile,
   type BackupSettings,
   type BackupState,
   type BackupTriggerSource,
   type SnapshotSource,
 } from "~types/backup"
-import { collectMeta, buildSnapshot } from "./snapshotBuilder"
+import { collectMeta, buildSnapshot, type BuildSnapshotOptions } from "./snapshotBuilder"
 import { uuidV4 } from "./fingerprint"
 import {
   sanitizeSettings,
@@ -82,7 +83,12 @@ async function buildSwSnapshotFile(source: BackupTriggerSource): Promise<BackupF
   const allTabs = await chrome.tabs.query({})
   const meta = await collectMeta()
   const snapSource = mapSource(source)
-  const snapshot = await buildSnapshot(allTabs, meta, snapSource)
+  // §3.2：SW 裸备份只跑 auto.* / startup 路径，超 maxTabsPerSnapshot 自动截断
+  const isManual = source === 'manual'
+  const buildOpts: BuildSnapshotOptions | undefined = isManual
+    ? undefined
+    : { truncateAt: currentLimits().maxTabsPerSnapshot, totalTabCount: allTabs.length }
+  const snapshot = await buildSnapshot(allTabs, meta, snapSource, buildOpts)
   snapshot.trigger = source
   const deviceId = await getDeviceId()
   return {

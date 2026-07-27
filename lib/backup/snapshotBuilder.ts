@@ -70,7 +70,7 @@ export async function collectMeta(): Promise<{
   }
 }
 
-/** buildSnapshot 的可选参数（§10.8 手动备份选部分标签） */
+/** buildSnapshot 的可选参数（§10.8 手动备份选部分标签 / §3.2 自动备份截断） */
 export interface BuildSnapshotOptions {
   /**
    * 手动备份选了哪些标签（按 tabId）。提供时：
@@ -81,6 +81,12 @@ export interface BuildSnapshotOptions {
   selectedTabIds?: number[]
   /** 当时浏览器全量标签数（用于 totalTabCount 显示），由调用方传入避免重复 query */
   totalTabCount?: number
+  /**
+   * 自动备份超标签上限时按窗口顺序截断到前 N 个（§3.2 方案 B）。
+   * 仅非手动路径传入；手动备份走 selectedTabIds 子集，不与 truncateAt 同用。
+   * 触发截断时 stats.truncated=true，selectedTabCount/totalTabCount 写入显示「200/320」。
+   */
+  truncateAt?: number
 }
 
 /** 从 chrome.tabs.query({}) 全量 + storage 元数据构建一个 Snapshot */
@@ -91,11 +97,23 @@ export async function buildSnapshot(
   options?: BuildSnapshotOptions,
 ): Promise<Snapshot> {
   // §10.8：手动备份选部分标签 → 过滤 allTabs 只保留选中的（含其窗口结构/标记/稍后）
-  const effectiveTabs = options?.selectedTabIds && options.selectedTabIds.length > 0
-    ? filterTabsByIds(allTabs, options.selectedTabIds)
-    : allTabs
+  // §3.2：自动备份超 maxTabsPerSnapshot → 截断到前 N 个（按 allTabs 顺序）
+  let effectiveTabs: chrome.tabs.Tab[]
+  let truncated = false
+  if (options?.selectedTabIds && options.selectedTabIds.length > 0) {
+    effectiveTabs = filterTabsByIds(allTabs, options.selectedTabIds)
+  } else {
+    effectiveTabs = allTabs
+    const cap = options?.truncateAt
+    if (typeof cap === 'number' && cap > 0 && effectiveTabs.length > cap) {
+      effectiveTabs = effectiveTabs.slice(0, cap)
+      truncated = true
+    }
+  }
   const selectedCount = options?.selectedTabIds ? options.selectedTabIds.length : effectiveTabs.length
   const totalCount = options?.totalTabCount ?? allTabs.length
+  // 是否写入 selectedTabCount/totalTabCount：手动选部分 OR 自动截断
+  const hasSubsetMeta = !!options?.selectedTabIds || truncated
   // 1. tabId -> fingerprint（基于实际写入快照的 effectiveTabs，未选中的 tab 不进 fingerprint 表）
   const tabIdToFp = new Map<number, string>()
   const windowsMap = new Map<number, chrome.tabs.Tab[]>()
@@ -251,9 +269,11 @@ export async function buildSnapshot(
       taggedCount,
       laterCount: laterSnaps.length,
       // §10.8：手动备份选部分时记录 selectedTabCount/totalTabCount，备份列表显示「12/34」
+      // §3.2：自动备份超上限截断时同样写入（200/320），并置 truncated=true
       // 全量路径不传 options，两个值保持 undefined（向后兼容老快照读取）
-      selectedTabCount: options?.selectedTabIds ? selectedCount : undefined,
-      totalTabCount: options?.selectedTabIds ? totalCount : undefined,
+      selectedTabCount: hasSubsetMeta ? selectedCount : undefined,
+      totalTabCount: hasSubsetMeta ? totalCount : undefined,
+      truncated: truncated || undefined,
     },
   }
 }

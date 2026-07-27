@@ -176,9 +176,16 @@
                   :disabled="selectedCount === 0 || submitting"
                   class="px-3 py-1.5 min-h-[36px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
                   @click="onConfirm"
-                >{{ submitting ? '备份中…' : '确认备份' }}</button>
+                >{{ confirmButtonText }}</button>
               </div>
             </div>
+            <!-- §3.2 超标签上限提示 -->
+            <p
+              v-if="overLimit"
+              class="text-[11px] text-amber-600 dark:text-amber-400 leading-relaxed"
+            >
+              当前选中 {{ selectedCount }} 个标签，超过单次备份上限 {{ MAX_TABS_PER_SNAPSHOT }} 个。点击「只备份前 {{ MAX_TABS_PER_SNAPSHOT }} 个」将按窗口顺序只备份前 {{ MAX_TABS_PER_SNAPSHOT }} 个。
+            </p>
           </div>
         </template>
       </div>
@@ -197,6 +204,7 @@
 import { ref, computed, watch, reactive } from "vue"
 import { X } from "@lucide/vue"
 import FavIcon from "~components/FavIcon.vue"
+import { currentLimits } from "~types/backup"
 
 interface TabItem {
   id: number
@@ -321,6 +329,15 @@ const selectedCount = computed(() => selectedSet.size)
 const allSelected = computed(() => tabs.value.length > 0 && selectedSet.size === tabs.value.length)
 const someSelected = computed(() => selectedSet.size > 0)
 
+// §3.2 单次备份超标签上限：选中数超过 maxTabsPerSnapshot 时按钮文案变化 + 提示
+const MAX_TABS_PER_SNAPSHOT = currentLimits().maxTabsPerSnapshot
+const overLimit = computed(() => selectedCount.value > MAX_TABS_PER_SNAPSHOT)
+const confirmButtonText = computed(() => {
+  if (submitting.value) return '备份中…'
+  if (overLimit.value) return `只备份前 ${MAX_TABS_PER_SNAPSHOT} 个`
+  return '确认备份'
+})
+
 function onToggleAll() {
   if (allSelected.value) {
     selectedSet.clear()
@@ -371,7 +388,13 @@ function onConfirm() {
   if (submitting.value) return
   if (selectedCount.value === 0) return
   submitting.value = true
-  const tabIds = Array.from(selectedSet)
+  // §3.2：超 maxTabsPerSnapshot 时截断到前 N 个（按 chrome.tabs.query 返回顺序，即窗口顺序）
+  let tabIds = Array.from(selectedSet)
+  if (tabIds.length > MAX_TABS_PER_SNAPSHOT) {
+    // 按 tabs.value 顺序（窗口/索引顺序）取前 N 个选中
+    const limit = new Set(tabIds)
+    tabIds = tabs.value.filter((t) => limit.has(t.id)).slice(0, MAX_TABS_PER_SNAPSHOT).map((t) => t.id)
+  }
   const trimmed = label.value.trim()
   emit('confirm', { tabIds, label: trimmed ? trimmed.slice(0, 20) : null })
 }

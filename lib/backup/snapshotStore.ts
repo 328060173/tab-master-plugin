@@ -61,24 +61,49 @@ export async function gfsCleanupSnapshots(
 }
 
 /**
- * 上限裁剪：超过 cacheMaxSnapshots 时，从非锁定项里删最早的。
+ * 上限裁剪：自动备份（source: auto.*）非锁定项超过 cacheMaxSnapshots 时删最早的。
+ *
+ * §3.3 用户硬要求：手动备份（source: 'manual'）和锁定项一样永不自动删。
+ * 导入（import）/恢复前（preRestore）同样不参与自动裁剪（与手动同等保护）。
+ * cacheMaxSnapshots 仅约束 auto.* 来源。
+ *
+ * @param maxSnapshots 自动备份保留条数上限（settings.cacheMaxSnapshots）
  * @returns 被删除的快照 id 列表
  */
 export async function trimToMaxSnapshots(
   maxSnapshots: number
 ): Promise<string[]> {
   const all = await getAllSnapshots()
-  if (all.length <= maxSnapshots) return []
-  // 非锁定项按时间升序，删最早的
-  const nonLocked = all
-    .filter((f) => !f.snapshot.locked)
+  // 仅 auto.* 来源 + 非锁定参与条数裁剪
+  const autoNonLocked = all.filter(
+    (f) => !f.snapshot.locked && f.snapshot.source.startsWith('auto.')
+  )
+  if (autoNonLocked.length <= maxSnapshots) return []
+  const overflow = autoNonLocked.length - maxSnapshots
+  const toRemove = autoNonLocked
+    .slice()
     .sort((a, b) => a.snapshot.createdAt - b.snapshot.createdAt)
-  const overflow = all.length - maxSnapshots
-  const toRemove = nonLocked.slice(0, overflow).map((f) => f.snapshot.id)
+    .slice(0, overflow)
+    .map((f) => f.snapshot.id)
   for (const id of toRemove) {
     await deleteSnapshotFromDb(id)
   }
   return toRemove
+}
+
+/**
+ * 手动备份超限统计（§3.3 trimManualOverLimit）。
+ * 手动备份不自动删——仅返回超限数量给 UI 持续提示用户清理。
+ *
+ * @param manualMax 手动备份条数上限（BACKUP_LIMITS.*.manualMaxSnapshots）
+ * @returns 超出上限的条数（0 表示未超限）
+ */
+export async function getManualOverLimitCount(
+  manualMax: number
+): Promise<number> {
+  const all = await getAllSnapshots()
+  const manualCount = all.filter((f) => f.snapshot.source === 'manual').length
+  return Math.max(0, manualCount - manualMax)
 }
 
 /**

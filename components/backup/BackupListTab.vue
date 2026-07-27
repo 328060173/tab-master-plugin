@@ -72,6 +72,20 @@
       </div>
     </div>
 
+    <!-- §3.3 自动保留条数配置入口（只管 auto.* 来源；手动永不删） -->
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 flex items-center gap-2 text-xs flex-wrap">
+      <span class="text-gray-600 dark:text-gray-300 shrink-0">自动备份保留</span>
+      <select
+        v-model.number="retainCount"
+        :disabled="retainSaving"
+        class="border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+        @change="onRetainChange(retainCount)"
+      >
+        <option v-for="opt in RETAIN_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+      </select>
+      <span class="text-[11px] text-gray-500 dark:text-gray-400">仅自动备份受此限制，手动备份永不自动删除</span>
+    </div>
+
     <!-- 空状态 -->
     <div v-if="filteredSnapshots.length === 0" class="bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
       <Inbox :size="32" class="mx-auto text-gray-300 dark:text-gray-600 mb-2" />
@@ -264,7 +278,7 @@ import ConfirmDialog from '~components/ConfirmDialog.vue'
 import { useBackupService } from '~composables/useBackupService'
 import { useBackupRestore, type OpenTarget } from '~composables/useBackupRestore'
 import { showToast } from '~composables/useToast'
-import type { SnapshotSource, SnapshotSummary } from '~types/backup'
+import { currentLimits, type SnapshotSource, type SnapshotSummary } from '~types/backup'
 
 const emit = defineEmits<{
   (e: 'open-manual-backup'): void
@@ -297,6 +311,38 @@ const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
 ]
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const
+
+// §3.3 "保留近 X 条"配置入口（只管 auto.* 保留条数；手动永不删）
+const RETAIN_OPTIONS = [
+  { value: 10, label: '10 条' },
+  { value: 30, label: '30 条（默认）' },
+  { value: 50, label: '50 条' },
+  { value: 100, label: '100 条' },
+] as const
+const LIM = currentLimits()
+const retainCount = ref<number>(svc.settings.value.cacheMaxSnapshots || LIM.autoMaxSnapshots)
+const retainSaving = ref(false)
+
+async function onRetainChange(v: number) {
+  if (retainSaving.value) return
+  retainSaving.value = true
+  try {
+    await svc.updateSettings({ cacheMaxSnapshots: v })
+    showToast(`已设置自动保留近 ${v} 条`)
+  } catch (e) {
+    console.warn('[BackupListTab] 设置保留条数失败', e)
+    showToast('保存失败，请重试')
+    // 回滚
+    retainCount.value = svc.settings.value.cacheMaxSnapshots
+  } finally {
+    retainSaving.value = false
+  }
+}
+
+// 外部（如设置弹框）改了 settings 时同步本地 ref
+watch(() => svc.settings.value.cacheMaxSnapshots, (v) => {
+  if (v !== retainCount.value) retainCount.value = v
+})
 
 const filters = reactive({
   timeRange: 'all' as TimeRange,

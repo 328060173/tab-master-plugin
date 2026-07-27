@@ -119,7 +119,7 @@
             <p class="text-xs font-medium text-gray-700 dark:text-gray-200">保留策略</p>
             <div class="grid grid-cols-2 gap-2 text-xs">
               <div>
-                <label class="text-[11px] text-gray-500 dark:text-gray-400 block mb-1">最多保留</label>
+                <label class="text-[11px] text-gray-500 dark:text-gray-400 block mb-1">自动保留</label>
                 <select
                   v-model.number="draft.cacheMaxSnapshots"
                   class="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -146,7 +146,11 @@
                 </select>
               </div>
             </div>
-            <p class="text-[11px] text-gray-500 dark:text-gray-400">超限后自动清理最旧的未锁定快照</p>
+            <!-- §3.5 保留策略摘要行（默认配置一目了然，无技术黑话） -->
+            <p class="text-[11px] text-gray-500 dark:text-gray-400">
+              自动保留 {{ draft.cacheMaxSnapshots }} 条 · 保留 {{ draft.retentionDays }} 天 · 缓存 {{ Math.round(draft.cacheQuotaBytes / 1024 / 1024) }} MB
+            </p>
+            <p class="text-[11px] text-gray-500 dark:text-gray-400">仅自动备份受条数限制；手动备份永不自动删除</p>
           </div>
         </div>
 
@@ -177,7 +181,7 @@ import { ref, watch, reactive } from "vue"
 import { X } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { showToast } from "~composables/useToast"
-import type { BackupSettings } from "~types/backup"
+import { currentLimits, type BackupSettings } from "~types/backup"
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{
@@ -188,20 +192,22 @@ const emit = defineEmits<{
 const svc = useBackupService()
 
 // 备份频次可选项（设计稿 §2.2：5/10/15/30/60 分钟；外加 0=关闭定时与 1/3 兼容旧设置）
+// §3.5 默认 10 分钟（普通档）
 const TIMER_MINUTES_OPTIONS = [
   { value: 0, label: '关闭定时' },
-  { value: 5, label: '5 分钟（默认）' },
-  { value: 10, label: '10 分钟' },
+  { value: 5, label: '5 分钟' },
+  { value: 10, label: '10 分钟（默认）' },
   { value: 15, label: '15 分钟' },
   { value: 30, label: '30 分钟' },
   { value: 60, label: '60 分钟' },
 ] as const
 
+// §3.3 自动保留条数：仅管 auto.* 来源；手动永不删
 const MAX_SNAPSHOTS_OPTIONS = [
   { value: 10, label: '10 个' },
-  { value: 50, label: '50 个（默认）' },
+  { value: 30, label: '30 个（默认）' },
+  { value: 50, label: '50 个' },
   { value: 100, label: '100 个' },
-  { value: 200, label: '200 个' },
 ] as const
 
 const RETENTION_DAYS_OPTIONS = [
@@ -211,24 +217,26 @@ const RETENTION_DAYS_OPTIONS = [
   { value: 90, label: '90 天' },
 ] as const
 
+// §3.4 cacheQuotaBytes 语义重构为 IndexedDB 快照总配额；选项以 MB 为粒度
+const MB = 1024 * 1024
 const CACHE_QUOTA_OPTIONS = [
-  { value: 1 * 1024 * 1024, label: '1 MB' },
-  { value: 2 * 1024 * 1024, label: '2 MB' },
-  { value: 3 * 1024 * 1024, label: '3 MB' },
-  { value: 5 * 1024 * 1024, label: '5 MB（默认）' },
-  { value: 10 * 1024 * 1024, label: '10 MB' },
+  { value: 10 * MB, label: '10 MB' },
+  { value: 30 * MB, label: '30 MB（默认）' },
+  { value: 50 * MB, label: '50 MB' },
+  { value: 80 * MB, label: '80 MB' },
 ] as const
 
-// 本地草稿（保存时才同步到 svc）
+// 本地草稿（保存时才同步到 svc）——默认值由当前限制档派生（§3.5）
+const LIM = currentLimits()
 const draft = reactive<Pick<BackupSettings, 'enabled' | 'timerMinutes' | 'eventOnTabRemoved' | 'eventOnWindowRemoved' | 'eventOnIdle' | 'cacheMaxSnapshots' | 'retentionDays' | 'cacheQuotaBytes'>>({
   enabled: false,
-  timerMinutes: 5,
+  timerMinutes: LIM.defaultTimerMinutes,
   eventOnTabRemoved: true,
   eventOnWindowRemoved: true,
   eventOnIdle: false,
-  cacheMaxSnapshots: 50,
-  retentionDays: 7,
-  cacheQuotaBytes: 5 * 1024 * 1024,
+  cacheMaxSnapshots: LIM.autoMaxSnapshots,
+  retentionDays: LIM.retentionDays,
+  cacheQuotaBytes: LIM.cacheQuotaBytes,
 })
 
 const saving = ref(false)

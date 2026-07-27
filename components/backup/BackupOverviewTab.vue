@@ -70,6 +70,22 @@
         </dl>
       </div>
 
+      <!-- §3.3 / §3.2 状态提示条（amber：非阻断，提醒用户） -->
+      <div
+        v-if="manualOverLimit || lastAutoTruncated"
+        class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 space-y-1.5"
+        role="status"
+      >
+        <p v-if="manualOverLimit" class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+          <AlertTriangle :size="14" class="mt-0.5 shrink-0" />
+          <span>手动备份已达 {{ LIM.manualMaxSnapshots }} 条上限，请清理之前的手动备份后继续。手动备份不会被自动删除。</span>
+        </p>
+        <p v-if="lastAutoTruncated" class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+          <AlertTriangle :size="14" class="mt-0.5 shrink-0" />
+          <span>上次自动备份截断：标签数超过上限 {{ LIM.maxTabsPerSnapshot }}，仅备份了 {{ lastAutoTruncated.backed }} / {{ lastAutoTruncated.total }} 个。</span>
+        </p>
+      </div>
+
       <!-- 近 7 天备份趋势（P1：柱状图） -->
       <BackupTrendChart />
 
@@ -146,9 +162,10 @@
  * 广告数据来自 useBackupPageAd 单例（与左菜单辅位共享同一次请求）。
  */
 import { computed } from "vue"
-import { Shield, Save, Settings, Download, LayoutGrid, ArrowLeftRight } from "@lucide/vue"
+import { Shield, Save, Settings, Download, LayoutGrid, ArrowLeftRight, AlertTriangle } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
+import { currentLimits } from "~types/backup"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
 import AdSlot from "./AdSlot.vue"
 import BackupTrendChart from "./BackupTrendChart.vue"
@@ -173,6 +190,23 @@ const nextBackupLabel = computed(() => {
   if (diff < 60_000) return `${Math.floor(diff / 1000)} 秒后`
   if (diff < 3_600_000) return `约 ${Math.floor(diff / 60_000)} 分钟后`
   return `约 ${Math.floor(diff / 3_600_000)} 小时后`
+})
+
+// §3.3 手动备份超 20 条上限提示（不阻断，持续提示让用户清理）
+const LIM = currentLimits()
+const manualCount = computed(() => snapshots.value.filter((s) => s.source === 'manual').length)
+const manualOverLimit = computed(() => manualCount.value > LIM.manualMaxSnapshots)
+
+// §3.2 上次自动备份截断提示：找最新一条 auto.* 快照，看 stats.truncated
+const lastAutoTruncated = computed(() => {
+  const autoSnaps = snapshots.value.filter((s) => s.source.startsWith('auto.'))
+  if (autoSnaps.length === 0) return null
+  // snapshots 已按 createdAt 倒序，取第一条 auto.*
+  const latest = autoSnaps[0]
+  if (!latest.stats.truncated) return null
+  const backed = latest.stats.selectedTabCount ?? latest.stats.tabCount
+  const total = latest.stats.totalTabCount ?? latest.stats.tabCount
+  return { backed, total }
 })
 
 function fmtBytes(b: number): string {

@@ -14,6 +14,7 @@ import { collectMeta, buildSnapshot, type BuildSnapshotOptions } from "./snapsho
 import {
   BACKUP_KIND,
   BACKUP_SCHEMA_VERSION,
+  currentLimits,
   type BackupFile,
   type BackupSettings,
   type BackupState,
@@ -72,10 +73,15 @@ async function buildBackupFile(
   const meta = await collectMeta()
   lastProgress.value = "构建快照…"
   const snapSource = mapSnapSource(source)
-  // §10.8：手动备份选部分标签 → 传 selectedTabIds 子集；其他路径（自动/事件/preRestore/import）不传，全量不变
-  const buildOpts: BuildSnapshotOptions | undefined = options?.selectedTabIds
-    ? { selectedTabIds: options.selectedTabIds, totalTabCount: allTabs.length }
-    : undefined
+  // §10.8：手动备份选部分标签 → 传 selectedTabIds 子集
+  // §3.2：非手动路径（auto.*/preRestore/import）超 maxTabsPerSnapshot → 自动截断到前 N 个
+  const isManual = source === 'manual'
+  let buildOpts: BuildSnapshotOptions | undefined
+  if (options?.selectedTabIds && options.selectedTabIds.length > 0) {
+    buildOpts = { selectedTabIds: options.selectedTabIds, totalTabCount: allTabs.length }
+  } else if (!isManual) {
+    buildOpts = { truncateAt: currentLimits().maxTabsPerSnapshot, totalTabCount: allTabs.length }
+  }
   const snapshot = await buildSnapshot(allTabs, meta, snapSource, buildOpts)
   snapshot.trigger = source
   const deviceId = await deps.getDeviceId()

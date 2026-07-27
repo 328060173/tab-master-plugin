@@ -102,8 +102,59 @@ export interface SnapshotStats {
   /**
    * 当时浏览器共几个标签（§10.8）。
    * 手动选部分时与 selectedTabCount 配对显示「12/34」；全量备份时等于 tabCount 或留空。
+   * 自动备份超上限截断时同样写入（selectedTabCount=截断后条数，totalTabCount=实际标签数），配合 truncated 显示「200/320」。
    */
   totalTabCount?: number
+  /**
+   * 自动备份超 maxTabsPerSnapshot 上限被截断时置 true（§3.2 方案 B）。
+   * 手动备份不截断（用户在弹框内已选择）；导入/恢复前快照不置此位。
+   */
+  truncated?: boolean
+}
+
+/**
+ * 备份限制配置常量（普通/会员两档，§3.1 配置表）。
+ * 会员档本期预留不暴露 UI（§3.5 用户决策：本次只上线非会员配置）。
+ * 所有"200/30/20/7/30MB"等数值统此一处定义，禁止散落魔法值（守阿里规约常量子集）。
+ */
+export const BACKUP_LIMITS = {
+  /** 普通用户档（本期上线） */
+  normal: {
+    /** 单次备份标签上限（超此走 §3.2 截断/弹选） */
+    maxTabsPerSnapshot: 200,
+    /** 自动备份保留条数（cacheMaxSnapshots 默认值；只管 auto.* 来源） */
+    autoMaxSnapshots: 30,
+    /** 手动备份上限（超此不自动删，仅 UI 持续提示用户清理，§3.3） */
+    manualMaxSnapshots: 20,
+    /** 默认定时间隔（分钟） */
+    defaultTimerMinutes: 10,
+    /** GFS 保留天数窗口 */
+    retentionDays: 7,
+    /** IndexedDB 快照总配额字节（§3.4 语义重构：原 storage.local 10MB 约束已废弃） */
+    cacheQuotaBytes: 30 * 1024 * 1024,
+  },
+  /**
+   * 会员档（本期预留，UI 不暴露，文案禁出现「会员/VIP/升级」字样）。
+   * 后续接 useAuth isVip 后通过 currentLimits() 切换。
+   */
+  vip: {
+    maxTabsPerSnapshot: 500,
+    autoMaxSnapshots: 100,
+    // 手动上限会员也 20（用户 2026-07-27 决策：只说手动 20）
+    manualMaxSnapshots: 20,
+    defaultTimerMinutes: 5,
+    retentionDays: 30,
+    cacheQuotaBytes: 80 * 1024 * 1024,
+  },
+} as const
+
+/**
+ * 取当前用户适用的限制档（本期 isVip 恒 false 走 normal 档）。
+ * 会员判断入口预留：后续接 useAuth isVip 后改为 `isVip ? BACKUP_LIMITS.vip : BACKUP_LIMITS.normal`。
+ */
+export function currentLimits(): typeof BACKUP_LIMITS.normal {
+  // TODO(stage-2): 接 useAuth isVip 判断
+  return BACKUP_LIMITS.normal
 }
 
 export interface Snapshot {
@@ -169,11 +220,18 @@ export interface BackupSettings {
   cacheEnabled: boolean
   /** 用户目录备份开关（默认关） */
   dirEnabled: boolean
-  /** 本地缓存配额上限（字节）。受 chrome.storage.local 10MB 硬限约束 */
+  /**
+   * IndexedDB 快照总配额字节（§3.4 语义重构）。
+   * 原"受 chrome.storage.local 10MB 硬限约束"注释已废弃——快照真值已迁 IndexedDB（db.ts）。
+   * 默认 30MB（普通）/ 80MB（会员预留），达到上限停止自动备份并提示清理手动备份。
+   */
   cacheQuotaBytes: number
-  /** 本地缓存快照数上限。默认 50 */
+  /**
+   * 自动备份保留条数上限（§3.3 仅对 auto.* 来源生效）。
+   * 手动备份永不自动删（与锁定项同等保护）；默认 30。
+   */
   cacheMaxSnapshots: number
-  /** 定时频率（分钟）。0=关闭。默认 5 */
+  /** 定时频率（分钟）。0=关闭。默认 10 */
   timerMinutes: number
   /** 保留天数。默认 7 */
   retentionDays: number
@@ -188,19 +246,23 @@ export interface BackupSettings {
   restoreMetaOnRestore: boolean
 }
 
-export const DEFAULT_BACKUP_SETTINGS: BackupSettings = {
-  enabled: false,
-  cacheEnabled: true,
-  dirEnabled: false,
-  cacheQuotaBytes: 5 * 1024 * 1024,
-  cacheMaxSnapshots: 50,
-  timerMinutes: 5,
-  retentionDays: 7,
-  eventOnTabRemoved: true,
-  eventOnWindowRemoved: true,
-  eventOnIdle: false,
-  restoreMetaOnRestore: true,
-}
+export const DEFAULT_BACKUP_SETTINGS: BackupSettings = (() => {
+  // 默认值由当前限制档派生（§3.5 会员档预留；本期恒走 normal）
+  const lim = currentLimits()
+  return {
+    enabled: false,
+    cacheEnabled: true,
+    dirEnabled: false,
+    cacheQuotaBytes: lim.cacheQuotaBytes,
+    cacheMaxSnapshots: lim.autoMaxSnapshots,
+    timerMinutes: lim.defaultTimerMinutes,
+    retentionDays: lim.retentionDays,
+    eventOnTabRemoved: true,
+    eventOnWindowRemoved: true,
+    eventOnIdle: false,
+    restoreMetaOnRestore: true,
+  }
+})()
 
 export const DEFAULT_BACKUP_STATE: BackupState = {
   lastBackupAt: null,
