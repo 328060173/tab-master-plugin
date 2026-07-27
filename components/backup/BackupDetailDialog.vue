@@ -106,77 +106,12 @@
 
           <!-- 标签视图 -->
           <template v-else-if="view === 'tabs' && file">
-            <!-- 全选 -->
-            <div class="flex items-center gap-2 mb-2 text-xs">
-              <label class="inline-flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  :checked="allSelected"
-                  :indeterminate.prop="someSelected && !allSelected"
-                  @change="onToggleAll"
-                />
-                <span>全选</span>
-              </label>
-              <span class="text-[11px] text-gray-500 dark:text-gray-400">已选 {{ selectedCount }} / {{ totalCount }} 个标签</span>
-            </div>
-
-            <!-- 按窗口分组列出（当前页） -->
-            <div
-              v-for="w in pagedWindowGroups"
-              :key="w.windowId"
-              class="mb-3"
-            >
-              <div class="flex items-center gap-2 px-2 py-1 text-[11px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/30 rounded sticky top-0">
-                <label class="inline-flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    :checked="isWindowAllSelected(w.windowId)"
-                    :indeterminate.prop="isWindowSomeSelected(w.windowId)"
-                    @change="onToggleWindow(w.windowId)"
-                  />
-                  <span>窗口{{ w.index + 1 }}（{{ w.tabs.length }} 个标签{{ w.incognito ? ' · 无痕' : '' }}）</span>
-                </label>
-              </div>
-              <ul class="mt-1 divide-y divide-gray-50 dark:divide-gray-700/50">
-                <li
-                  v-for="tab in w.tabs"
-                  :key="tab.fingerprint"
-                >
-                  <label class="flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40 rounded">
-                    <input
-                      type="checkbox"
-                      :checked="selectedFps.has(tab.fingerprint)"
-                      @change="onToggleTab(tab.fingerprint)"
-                    />
-                    <FavIcon :src="tab.favIconUrl || ''" :domain="tab.domain" size="sm" />
-                    <span class="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-100">{{ tab.title || '(无标题)' }}</span>
-                    <span class="text-[10px] text-gray-400 shrink-0 truncate max-w-[160px]" :title="tab.url">{{ tab.domain }}</span>
-                  </label>
-                </li>
-              </ul>
-            </div>
-
-            <!-- 空状态 -->
-            <div v-if="pagedWindowGroups.length === 0" class="py-8 text-center text-xs text-gray-500 dark:text-gray-400">
-              此备份无标签数据
-            </div>
-
-            <!-- 分页 -->
-            <div v-if="totalPages > 1" class="flex items-center justify-between pt-2 text-[11px] text-gray-500 dark:text-gray-400">
-              <span>第 {{ page }} / {{ totalPages }} 页 · 每页 {{ PAGE_SIZE }} 个</span>
-              <div class="flex items-center gap-1">
-                <button
-                  :disabled="page <= 1"
-                  class="px-2 py-1 rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  @click="page--"
-                >上一页</button>
-                <button
-                  :disabled="page >= totalPages"
-                  class="px-2 py-1 rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  @click="page++"
-                >下一页</button>
-              </div>
-            </div>
+            <TabSelectPanel
+              :windows="selectWindows"
+              v-model="selectedFps"
+              empty-hint="此备份无标签数据"
+              max-height="50vh"
+            />
           </template>
 
           <!-- JSON 视图 -->
@@ -241,14 +176,14 @@
  * - 可改备注（inline 编辑，调 svc.setSnapshotLabel）
  * 守红线：禁 v-html（URL/标题用 {{ }} 文本插值）；textarea 只读防 XSS。
  */
-import { ref, computed, watch, reactive, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { X, Pencil } from '@lucide/vue'
-import FavIcon from '~components/FavIcon.vue'
 import { useBackupService } from '~composables/useBackupService'
 import { useBackupRestore } from '~composables/useBackupRestore'
 import { showToast } from '~composables/useToast'
 import { exportByFormat, downloadExportWithPicker } from '~lib/backup/exporters'
-import type { BackupFile, TabSnapshot } from '~types/backup'
+import TabSelectPanel from '~components/backup/TabSelectPanel.vue'
+import type { BackupFile } from '~types/backup'
 
 const props = defineProps<{ open: boolean; snapshotId: string | null }>()
 const emit = defineEmits<{ (e: 'cancel'): void; (e: 'restored'): void }>()
@@ -262,14 +197,11 @@ const VIEW_TABS: { key: ViewTab; label: string }[] = [
   { key: 'json', label: 'JSON 视图' },
 ]
 
-const PAGE_SIZE = 50
-
 const view = ref<ViewTab>('tabs')
 const loading = ref(false)
 const restoring = ref(false)
 const file = ref<BackupFile | null>(null)
-const selectedFps = reactive<Set<string>>(new Set())
-const page = ref(1)
+const selectedFps = ref<Set<string>>(new Set())
 
 // 备注 inline 编辑
 const editingLabel = ref(false)
@@ -281,8 +213,7 @@ const jsonTextareaRef = ref<HTMLTextAreaElement | null>(null)
 watch(() => props.open, async (v) => {
   if (v && props.snapshotId) {
     view.value = 'tabs'
-    page.value = 1
-    selectedFps.clear()
+    selectedFps.value = new Set()
     editingLabel.value = false
     loading.value = true
     try {
@@ -355,115 +286,42 @@ const summaryText = computed(() => {
   }).join(' · ')
 })
 
-// ===== 标签视图：按窗口分组 =====
-interface TabItem {
+// ===== 标签视图：按窗口分组喂给 TabSelectPanel =====
+/** TabSelectPanel 期望的标签项形状（结构兼容，无需导入） */
+interface SelectTabItem {
   fingerprint: string
   title: string
   url: string
   domain: string
-  favIconUrl: string
+  favIconUrl?: string
+}
+interface SelectWindow {
   windowId: number
-  incognito: boolean
+  tabs: SelectTabItem[]
 }
 
-interface WindowGroup {
-  windowId: number
-  index: number
-  incognito: boolean
-  tabs: TabItem[]
-}
-
-const allTabs = computed<TabItem[]>(() => {
+/** 当前快照所有标签按窗口分组（保留隐身窗口分组，与原行为一致：用户可选隐身标签还原） */
+const selectWindows = computed<SelectWindow[]>(() => {
   const f = file.value
   if (!f) return []
-  const out: TabItem[] = []
+  const map = new Map<number, SelectTabItem[]>()
   for (const w of f.snapshot.windows) {
     for (const t of w.tabs) {
-      out.push({
+      if (!map.has(w.windowId)) map.set(w.windowId, [])
+      map.get(w.windowId)!.push({
         fingerprint: t.fingerprint,
         title: t.title || '',
         url: t.url || '',
         domain: safeDomain(t.url),
-        favIconUrl: '', // 备份不存 favIconUrl，用 domain 首字母占位
-        windowId: w.windowId,
-        incognito: w.incognito,
+        favIconUrl: '', // 备份不存 favIconUrl，FavIcon 退化为首字母色块
       })
     }
   }
-  return out
-})
-
-const windowGroups = computed<WindowGroup[]>(() => {
-  const map = new Map<number, TabItem[]>()
-  for (const t of allTabs.value) {
-    if (!map.has(t.windowId)) map.set(t.windowId, [])
-    map.get(t.windowId)!.push(t)
-  }
   const wids = Array.from(map.keys()).sort((a, b) => a - b)
-  return wids.map((wid, idx) => {
-    const ts = map.get(wid)!
-    return {
-      windowId: wid,
-      index: idx,
-      incognito: ts.some((t) => t.incognito),
-      tabs: ts,
-    }
-  })
+  return wids.map((wid) => ({ windowId: wid, tabs: map.get(wid)! }))
 })
 
-const totalCount = computed(() => allTabs.value.length)
-const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / PAGE_SIZE)))
-const pagedTabs = computed<TabItem[]>(() => {
-  const start = (page.value - 1) * PAGE_SIZE
-  return allTabs.value.slice(start, start + PAGE_SIZE)
-})
-const pagedWindowGroups = computed<WindowGroup[]>(() => {
-  const ids = new Set(pagedTabs.value.map((t) => t.fingerprint))
-  return windowGroups.value
-    .map((w) => ({ ...w, tabs: w.tabs.filter((t) => ids.has(t.fingerprint)) }))
-    .filter((w) => w.tabs.length > 0)
-})
-
-const selectedCount = computed(() => selectedFps.size)
-const allSelected = computed(() => totalCount.value > 0 && selectedFps.size === totalCount.value)
-const someSelected = computed(() => selectedFps.size > 0)
-
-function onToggleAll() {
-  if (allSelected.value) {
-    selectedFps.clear()
-  } else {
-    selectedFps.clear()
-    for (const t of allTabs.value) selectedFps.add(t.fingerprint)
-  }
-}
-
-function onToggleTab(fp: string) {
-  if (selectedFps.has(fp)) selectedFps.delete(fp)
-  else selectedFps.add(fp)
-}
-
-function isWindowAllSelected(windowId: number): boolean {
-  const w = windowGroups.value.find((x) => x.windowId === windowId)
-  if (!w || w.tabs.length === 0) return false
-  return w.tabs.every((t) => selectedFps.has(t.fingerprint))
-}
-
-function isWindowSomeSelected(windowId: number): boolean {
-  const w = windowGroups.value.find((x) => x.windowId === windowId)
-  if (!w || w.tabs.length === 0) return false
-  const sel = w.tabs.filter((t) => selectedFps.has(t.fingerprint)).length
-  return sel > 0 && sel < w.tabs.length
-}
-
-function onToggleWindow(windowId: number) {
-  const w = windowGroups.value.find((x) => x.windowId === windowId)
-  if (!w) return
-  if (isWindowAllSelected(windowId)) {
-    for (const t of w.tabs) selectedFps.delete(t.fingerprint)
-  } else {
-    for (const t of w.tabs) selectedFps.add(t.fingerprint)
-  }
-}
+const selectedCount = computed(() => selectedFps.value.size)
 
 // ===== JSON 视图 =====
 const jsonContent = computed(() => {
@@ -540,7 +398,7 @@ async function onOpenSelected(openInNewWindow: boolean) {
   restoring.value = true
   try {
     const r = await restoreSvc.openSnapshot(props.snapshotId, 'selected', {
-      selectedFingerprints: new Set(selectedFps),
+      selectedFingerprints: new Set(selectedFps.value),
       openInNewWindow,
     })
     if (r.ok) {

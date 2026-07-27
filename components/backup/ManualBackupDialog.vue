@@ -3,15 +3,13 @@
     手动备份弹框（设计稿 §2.1：选标签 + 备注）。
     单根：Teleport + 单 div（守多根 fallthrough 红线）。
     内容：
-    - 标签列表按窗口分组（favicon + 标题 + 打开时间）
-    - 顶部批量操作：全选 / 按窗口选 / 反选
-    - 默认全选
-    - 分页 100/页（P0 简版，不做虚拟滚动；P1 再换虚拟滚动）
+    - 标签列表按窗口分组（favicon + 标题）—— 复用 TabSelectPanel 统一组件
+    - 默认全选；上方「反选」按钮（TabSelectPanel 内置全选/窗口选/单条勾三态）
     - 备注 ≤20 字
-    - 已选 X/Y 个标签
+    - 已选 X 个标签（计数由 TabSelectPanel 内部展示，此处保留 selectedCount 用于按钮态）
     - [取消] [确认备份]
-    确认 → emit confirm({ tabIds, label })
-  -->
+    选中态用 fingerprint(string) 对接 TabSelectPanel；确认时按 fingerprint 反查 tab.id 喂 svc.runManualBackup({ selectedTabIds })。
+    -->
   <Teleport to="body">
     <div
       v-if="open"
@@ -47,107 +45,23 @@
 
         <!-- 主体 -->
         <template v-else>
-          <div class="px-5 pb-2 text-xs text-gray-600 dark:text-gray-300 shrink-0">
-            选择要备份的标签（默认全选，可按窗口选 / 反选 / 单条勾）
-          </div>
-
-          <!-- 批量操作栏 -->
-          <div class="mx-5 mb-2 px-3 py-2 bg-gray-50 dark:bg-gray-900/40 rounded-lg flex items-center gap-2 text-xs flex-wrap shrink-0">
-            <label class="inline-flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="checkbox"
-                :checked="allSelected"
-                :indeterminate.prop="someSelected && !allSelected"
-                class="mt-0"
-                @change="onToggleAll"
-              />
-              <span>全选</span>
-            </label>
-            <span class="text-gray-300 dark:text-gray-600">|</span>
+          <div class="px-5 pb-2 text-xs text-gray-600 dark:text-gray-300 shrink-0 flex items-center justify-between gap-2">
+            <span>选择要备份的标签（默认全选，可按窗口选 / 反选 / 单条勾）</span>
             <button
+              type="button"
               class="text-blue-600 dark:text-blue-400 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
               @click="onInvert"
             >反选</button>
-            <span class="text-gray-300 dark:text-gray-600">|</span>
-            <span class="text-gray-500 dark:text-gray-400">按窗口：</span>
-            <button
-              v-for="w in windowGroups"
-              :key="w.windowId"
-              class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              @click="onToggleWindow(w.windowId)"
-            >
-              <span
-                :class="['w-1.5 h-1.5 rounded-full', w.incognito ? 'bg-purple-500' : 'bg-blue-500']"
-                aria-hidden="true"
-              ></span>
-              <span>窗口{{ w.index + 1 }}（{{ w.tabs.length }}）</span>
-              <span
-                v-if="isWindowAllSelected(w.windowId)"
-                class="text-[10px] text-emerald-600 dark:text-emerald-400"
-              >✓</span>
-            </button>
           </div>
 
-          <!-- 标签列表（按窗口分组 + 分页） -->
+          <!-- 标签列表（按窗口分组，TabSelectPanel 内部 max-height 滚动） -->
           <div class="flex-1 overflow-y-auto px-5 pb-3 min-h-[280px]">
-            <div
-              v-for="w in pagedWindowGroups"
-              :key="w.windowId"
-              class="mb-3"
-            >
-              <!-- 窗口分组标题 -->
-              <div class="flex items-center gap-2 px-2 py-1 text-[11px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/30 rounded sticky top-0">
-                <label class="inline-flex items-center gap-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    :checked="isWindowAllSelected(w.windowId)"
-                    :indeterminate.prop="isWindowSomeSelected(w.windowId)"
-                    @change="onToggleWindow(w.windowId)"
-                  />
-                  <span>窗口{{ w.index + 1 }}（{{ w.tabs.length }} 个标签{{ w.incognito ? ' · 无痕' : '' }}）</span>
-                </label>
-              </div>
-              <!-- 标签条目 -->
-              <ul class="mt-1 divide-y divide-gray-50 dark:divide-gray-700/50">
-                <li
-                  v-for="tab in w.tabs"
-                  :key="tab.id"
-                >
-                  <label class="flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40 rounded">
-                    <input
-                      type="checkbox"
-                      :checked="selectedSet.has(tab.id)"
-                      @change="onToggleTab(tab.id)"
-                    />
-                    <FavIcon :src="tab.favIconUrl || ''" :domain="tab.domain" size="sm" />
-                    <span class="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-100">{{ tab.title || '(无标题)' }}</span>
-                    <span class="text-[10px] text-gray-400 shrink-0">{{ fmtRelative(tab.lastAccessed) }}</span>
-                  </label>
-                </li>
-              </ul>
-            </div>
-
-            <!-- 空状态 -->
-            <div v-if="windowGroups.length === 0" class="py-12 text-center text-xs text-gray-500 dark:text-gray-400">
-              没有可备份的标签
-            </div>
-
-            <!-- 分页 -->
-            <div v-if="totalPages > 1" class="flex items-center justify-between pt-2 text-[11px] text-gray-500 dark:text-gray-400">
-              <span>第 {{ page }} / {{ totalPages }} 页 · 每页 {{ PAGE_SIZE }} 个</span>
-              <div class="flex items-center gap-1">
-                <button
-                  :disabled="page <= 1"
-                  class="px-2 py-1 rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  @click="page--"
-                >上一页</button>
-                <button
-                  :disabled="page >= totalPages"
-                  class="px-2 py-1 rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  @click="page++"
-                >下一页</button>
-              </div>
-            </div>
+            <TabSelectPanel
+              :windows="selectWindows"
+              v-model="selectedFps"
+              empty-hint="没有可备份的标签"
+              max-height="50vh"
+            />
           </div>
 
           <!-- 底部：备注 + 计数 + 操作 -->
@@ -165,7 +79,7 @@
             </div>
             <div class="flex items-center justify-between gap-2">
               <span class="text-[11px] text-gray-500 dark:text-gray-400">
-                已选 {{ selectedCount }} / {{ totalCount }} 个标签
+                已选 {{ selectedCount }} 个标签
               </span>
               <div class="flex gap-2">
                 <button
@@ -196,32 +110,37 @@
 <script setup lang="ts">
 /**
  * 手动备份弹框（设计稿 §2.1）。
- * - 打开时 chrome.tabs.query({}) 读全量标签，按 windowId 分组
+ * - 打开时 chrome.tabs.query({}) 读全量标签，过滤 chrome:// / edge:// / about: 等内部页（保留 file:// 与 http(s))
+ * - 计算 fingerprint（sha1(urlNormalized + '|' + titleNorm)）用于 TabSelectPanel 选中态
  * - 默认全选
- * - P0 简版分页 100/页（设计稿要求 >500 虚拟滚动，留 P1 升级）
- * - 确认 emit confirm({ tabIds, label })，父组件调 svc.runManualBackup({ selectedTabIds })
+ * - 确认 emit confirm({ tabIds, label })：按 fingerprint 反查 tab.id；超 maxTabsPerSnapshot 时按窗口顺序截断
+ *   父组件调 svc.runManualBackup({ selectedTabIds })
  */
-import { ref, computed, watch, reactive } from "vue"
+import { ref, computed, watch } from "vue"
 import { X } from "@lucide/vue"
-import FavIcon from "~components/FavIcon.vue"
 import { currentLimits } from "~types/backup"
+import { computeFingerprint } from "~lib/backup/fingerprint"
+import TabSelectPanel from "~components/backup/TabSelectPanel.vue"
 
-interface TabItem {
-  id: number
+/** TabSelectPanel 期望的标签项形状（结构兼容，无需导入） */
+interface SelectTabItem {
+  fingerprint: string
   title: string
   url: string
-  favIconUrl: string
   domain: string
+  favIconUrl?: string
+}
+interface SelectWindow {
   windowId: number
-  incognito: boolean
-  lastAccessed: number
+  tabs: SelectTabItem[]
 }
 
-interface WindowGroup {
+/** 浏览器实时标签条目：原始 chrome.tabs.Tab + 预算 fingerprint/domain，供反查与分组 */
+interface LiveTabEntry {
+  tab: chrome.tabs.Tab
+  fingerprint: string
+  domain: string
   windowId: number
-  index: number
-  incognito: boolean
-  tabs: TabItem[]
 }
 
 const props = defineProps<{ open: boolean }>()
@@ -230,21 +149,16 @@ const emit = defineEmits<{
   (e: 'cancel'): void
 }>()
 
-// 每页标签数（P0 简版分页；P1 换虚拟滚动）
-const PAGE_SIZE = 100
-
 const loading = ref(false)
 const submitting = ref(false)
-const tabs = ref<TabItem[]>([])
-const selectedSet = reactive<Set<number>>(new Set())
+const liveTabs = ref<LiveTabEntry[]>([])
+const selectedFps = ref<Set<string>>(new Set())
 const label = ref('')
-const page = ref(1)
 
 // 打开时加载标签
 watch(() => props.open, async (v) => {
   if (v) {
     label.value = ''
-    page.value = 1
     await loadTabs()
   }
 })
@@ -253,30 +167,29 @@ async function loadTabs() {
   loading.value = true
   try {
     const all = await chrome.tabs.query({})
-    const items: TabItem[] = []
+    const items: LiveTabEntry[] = []
     for (const t of all) {
       if (typeof t.id !== 'number') continue
       // 过滤 about: / chrome:// 等内部页（无意义备份；保留 file:// 与正常 http(s))
       const url = t.url || ''
       if (url.startsWith('chrome://') || url.startsWith('chrome-extension://') || url.startsWith('edge://') || url.startsWith('about:')) continue
+      const title = t.title || ''
       items.push({
-        id: t.id,
-        title: t.title || '',
-        url,
-        favIconUrl: t.favIconUrl || '',
+        tab: t,
+        fingerprint: await computeFingerprint(url, title),
         domain: safeDomain(url),
-        windowId: t.windowId,
-        incognito: !!t.incognito,
-        lastAccessed: (t as unknown as { lastAccessed?: number }).lastAccessed ?? Date.now(),
+        windowId: typeof t.windowId === 'number' ? t.windowId : -1,
       })
     }
-    tabs.value = items
+    liveTabs.value = items
     // 默认全选
-    selectedSet.clear()
-    for (const it of items) selectedSet.add(it.id)
+    const fps = new Set<string>()
+    for (const it of items) fps.add(it.fingerprint)
+    selectedFps.value = fps
   } catch (e) {
     console.warn('[ManualBackupDialog] 读取标签失败', e)
-    tabs.value = []
+    liveTabs.value = []
+    selectedFps.value = new Set()
   } finally {
     loading.value = false
   }
@@ -290,44 +203,24 @@ function safeDomain(url: string): string {
   }
 }
 
-// 按窗口分组
-const windowGroups = computed<WindowGroup[]>(() => {
-  const map = new Map<number, TabItem[]>()
-  for (const t of tabs.value) {
-    if (!map.has(t.windowId)) map.set(t.windowId, [])
-    map.get(t.windowId)!.push(t)
+/** 按窗口分组喂给 TabSelectPanel（结构兼容 SelectWindow[]） */
+const selectWindows = computed<SelectWindow[]>(() => {
+  const map = new Map<number, SelectTabItem[]>()
+  for (const e of liveTabs.value) {
+    if (!map.has(e.windowId)) map.set(e.windowId, [])
+    map.get(e.windowId)!.push({
+      fingerprint: e.fingerprint,
+      title: e.tab.title || '',
+      url: e.tab.url || '',
+      domain: e.domain,
+      favIconUrl: e.tab.favIconUrl || '',
+    })
   }
   const wids = Array.from(map.keys()).sort((a, b) => a - b)
-  return wids.map((wid, idx) => {
-    const ts = map.get(wid)!.slice().sort((a, b) => a.id - b.id)
-    return {
-      windowId: wid,
-      index: idx,
-      incognito: ts.some((t) => t.incognito),
-      tabs: ts,
-    }
-  })
+  return wids.map((wid) => ({ windowId: wid, tabs: map.get(wid)! }))
 })
 
-// 分页（按所有标签平铺后切片；窗口分组在当前页内展示）
-const totalCount = computed(() => tabs.value.length)
-const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / PAGE_SIZE)))
-const pagedTabs = computed<TabItem[]>(() => {
-  const start = (page.value - 1) * PAGE_SIZE
-  return tabs.value.slice(start, start + PAGE_SIZE)
-})
-
-// 当前页涉及的窗口分组
-const pagedWindowGroups = computed<WindowGroup[]>(() => {
-  const ids = new Set(pagedTabs.value.map((t) => t.id))
-  return windowGroups.value
-    .map((w) => ({ ...w, tabs: w.tabs.filter((t) => ids.has(t.id)) }))
-    .filter((w) => w.tabs.length > 0)
-})
-
-const selectedCount = computed(() => selectedSet.size)
-const allSelected = computed(() => tabs.value.length > 0 && selectedSet.size === tabs.value.length)
-const someSelected = computed(() => selectedSet.size > 0)
+const selectedCount = computed(() => selectedFps.value.size)
 
 // §3.2 单次备份超标签上限：选中数超过 maxTabsPerSnapshot 时按钮文案变化 + 提示
 const MAX_TABS_PER_SNAPSHOT = currentLimits().maxTabsPerSnapshot
@@ -338,63 +231,28 @@ const confirmButtonText = computed(() => {
   return '确认备份'
 })
 
-function onToggleAll() {
-  if (allSelected.value) {
-    selectedSet.clear()
-  } else {
-    selectedSet.clear()
-    for (const t of tabs.value) selectedSet.add(t.id)
-  }
-}
-
-function onToggleTab(id: number) {
-  if (selectedSet.has(id)) selectedSet.delete(id)
-  else selectedSet.add(id)
-}
-
-function isWindowAllSelected(windowId: number): boolean {
-  const w = windowGroups.value.find((x) => x.windowId === windowId)
-  if (!w || w.tabs.length === 0) return false
-  return w.tabs.every((t) => selectedSet.has(t.id))
-}
-
-function isWindowSomeSelected(windowId: number): boolean {
-  const w = windowGroups.value.find((x) => x.windowId === windowId)
-  if (!w || w.tabs.length === 0) return false
-  const sel = w.tabs.filter((t) => selectedSet.has(t.id)).length
-  return sel > 0 && sel < w.tabs.length
-}
-
-function onToggleWindow(windowId: number) {
-  const w = windowGroups.value.find((x) => x.windowId === windowId)
-  if (!w) return
-  if (isWindowAllSelected(windowId)) {
-    for (const t of w.tabs) selectedSet.delete(t.id)
-  } else {
-    for (const t of w.tabs) selectedSet.add(t.id)
-  }
-}
-
+/** 反选：对全部 liveTabs 的 fingerprint 取补集 */
 function onInvert() {
-  const newSet = new Set<number>()
-  for (const t of tabs.value) {
-    if (!selectedSet.has(t.id)) newSet.add(t.id)
+  const next = new Set<string>()
+  const cur = selectedFps.value
+  for (const e of liveTabs.value) {
+    if (!cur.has(e.fingerprint)) next.add(e.fingerprint)
   }
-  selectedSet.clear()
-  for (const id of newSet) selectedSet.add(id)
+  selectedFps.value = next
 }
 
 function onConfirm() {
   if (submitting.value) return
   if (selectedCount.value === 0) return
   submitting.value = true
-  // §3.2：超 maxTabsPerSnapshot 时截断到前 N 个（按 chrome.tabs.query 返回顺序，即窗口顺序）
-  let tabIds = Array.from(selectedSet)
-  if (tabIds.length > MAX_TABS_PER_SNAPSHOT) {
-    // 按 tabs.value 顺序（窗口/索引顺序）取前 N 个选中
-    const limit = new Set(tabIds)
-    tabIds = tabs.value.filter((t) => limit.has(t.id)).slice(0, MAX_TABS_PER_SNAPSHOT).map((t) => t.id)
-  }
+  const fpSet = new Set(selectedFps.value)
+  // 按 liveTabs 顺序（chrome.tabs.query 返回顺序，即窗口顺序）保留选中
+  const entries = liveTabs.value.filter((e) => fpSet.has(e.fingerprint))
+  // §3.2：超 maxTabsPerSnapshot 时截断到前 N 个（按窗口顺序）
+  const sliced = entries.length > MAX_TABS_PER_SNAPSHOT ? entries.slice(0, MAX_TABS_PER_SNAPSHOT) : entries
+  const tabIds = sliced
+    .map((e) => e.tab.id)
+    .filter((x): x is number => typeof x === 'number')
   const trimmed = label.value.trim()
   emit('confirm', { tabIds, label: trimmed ? trimmed.slice(0, 20) : null })
 }
@@ -408,14 +266,5 @@ defineExpose({ resetSubmitting })
 
 function onCancel() {
   emit('cancel')
-}
-
-function fmtRelative(ts: number): string {
-  if (!ts) return ''
-  const diff = Date.now() - ts
-  if (diff < 60_000) return '刚刚'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
-  return `${Math.floor(diff / 86_400_000)} 天前`
 }
 </script>

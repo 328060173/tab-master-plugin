@@ -117,59 +117,12 @@
               <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ previewSummaryText }}</span>
             </div>
 
-            <!-- 全选 + 计数 -->
-            <div class="flex items-center gap-2 text-xs">
-              <label class="inline-flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  :checked="allSelected"
-                  :indeterminate.prop="someSelected && !allSelected"
-                  @change="onToggleAll"
-                />
-                <span>全选</span>
-              </label>
-              <span class="text-[11px] text-gray-500 dark:text-gray-400">已选 {{ selectedCount }} / {{ totalCount }} 个标签</span>
-            </div>
-
-            <!-- 标签列表（按窗口分组，仅非隐身） -->
-            <div class="max-h-[220px] overflow-y-auto border border-gray-100 dark:border-gray-700 rounded">
-              <div
-                v-for="(g, idx) in previewWindowGroups"
-                :key="idx"
-                class="border-b border-gray-50 dark:border-gray-700/50 last:border-b-0"
-              >
-                <div class="flex items-center gap-2 px-2 py-1 text-[11px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/30 sticky top-0">
-                  <label class="inline-flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      :checked="isWindowAllSelected(g)"
-                      :indeterminate.prop="isWindowSomeSelected(g)"
-                      @change="onToggleWindow(g)"
-                    />
-                    <span>窗口{{ idx + 1 }}（{{ g.tabs.length }} 个标签）</span>
-                  </label>
-                </div>
-                <ul class="divide-y divide-gray-50 dark:divide-gray-700/50">
-                  <li
-                    v-for="tab in g.tabs"
-                    :key="tab.fingerprint"
-                  >
-                    <label class="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                      <input
-                        type="checkbox"
-                        :checked="selectedFps.has(tab.fingerprint)"
-                        @change="onToggleTab(tab.fingerprint)"
-                      />
-                      <span class="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-100">{{ tab.title || '(无标题)' }}</span>
-                      <span class="text-[10px] text-gray-400 dark:text-gray-500 shrink-0 truncate max-w-[140px]" :title="tab.url">{{ tab.domain }}</span>
-                    </label>
-                  </li>
-                </ul>
-              </div>
-              <div v-if="previewWindowGroups.length === 0" class="py-6 text-center text-xs text-gray-500 dark:text-gray-400">
-                无可预览的标签（已自动跳过隐身窗口）
-              </div>
-            </div>
+            <TabSelectPanel
+              :windows="previewWindowGroups"
+              v-model="selectedFps"
+              empty-hint="无可预览的标签（已自动跳过隐身窗口）"
+              max-height="220px"
+            />
           </div>
         </div>
 
@@ -217,11 +170,12 @@
  * 底部「其他格式导入」emit('other-formats') 由父组件跳导入管理菜单。
  * 复用 parseImport（自动嗅探，命中 ours）+ svc.appendImportedSnapshot + openTabsFromMemory。
  */
-import { ref, reactive, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { X, FileUp, Clipboard, Search } from '@lucide/vue'
 import { showToast } from '~composables/useToast'
 import { parseImport, readFileText } from '~lib/backup/importers'
 import { openTabsFromMemory } from '~lib/backup/openFromMemory'
+import TabSelectPanel from '~components/backup/TabSelectPanel.vue'
 import type { BackupFile } from '~types/backup'
 
 const props = defineProps<{ open: boolean }>()
@@ -244,7 +198,7 @@ watch(() => props.open, (v) => {
     fileName.value = null
     previewFile.value = null
     previewError.value = null
-    selectedFps.clear()
+    selectedFps.value = new Set()
   }
 })
 
@@ -282,7 +236,7 @@ function onClear() {
   fileName.value = null
   previewFile.value = null
   previewError.value = null
-  selectedFps.clear()
+  selectedFps.value = new Set()
 }
 
 // ===== 预览 =====
@@ -290,7 +244,7 @@ const previewLoading = ref(false)
 const previewFile = ref<BackupFile | null>(null)
 const previewError = ref<string | null>(null)
 const detectedFormat = ref<string>('')
-const selectedFps = reactive<Set<string>>(new Set())
+const selectedFps = ref<Set<string>>(new Set())
 
 const FORMAT_LABEL_MAP: Record<string, string> = {
   ours: '本插件 JSON',
@@ -322,11 +276,13 @@ async function onPreview() {
     }
     previewFile.value = r.file
     detectedFormat.value = r.format
-    selectedFps.clear()
+    // 默认全选非隐身窗口的标签
+    const fps = new Set<string>()
     for (const w of r.file.snapshot.windows) {
       if (w.incognito) continue
-      for (const t of w.tabs) selectedFps.add(t.fingerprint)
+      for (const t of w.tabs) fps.add(t.fingerprint)
     }
+    selectedFps.value = fps
   } catch (err) {
     console.warn('[ImportDialog] 预览失败', err)
     previewError.value = err instanceof Error ? err.message : '不是合法的数据文件（仅支持 JSON）'
@@ -341,6 +297,7 @@ const detectedFormatLabel = computed(() => {
   return FORMAT_LABEL_MAP[detectedFormat.value] || detectedFormat.value
 })
 
+/** TabSelectPanel 期望的窗口分组形状（结构兼容，无需导入） */
 interface PreviewTabItem {
   fingerprint: string
   title: string
@@ -369,10 +326,7 @@ const previewWindowGroups = computed<PreviewWindowGroup[]>(() => {
   return groups
 })
 
-const totalCount = computed(() => previewWindowGroups.value.reduce((n, g) => n + g.tabs.length, 0))
-const selectedCount = computed(() => selectedFps.size)
-const allSelected = computed(() => totalCount.value > 0 && selectedFps.size === totalCount.value)
-const someSelected = computed(() => selectedFps.size > 0)
+const selectedCount = computed(() => selectedFps.value.size)
 
 const previewSummaryText = computed(() => {
   const f = previewFile.value
@@ -383,35 +337,6 @@ const previewSummaryText = computed(() => {
   return parts.join(' · ')
 })
 
-function onToggleAll() {
-  if (allSelected.value) {
-    selectedFps.clear()
-  } else {
-    selectedFps.clear()
-    for (const g of previewWindowGroups.value) {
-      for (const t of g.tabs) selectedFps.add(t.fingerprint)
-    }
-  }
-}
-function onToggleTab(fp: string) {
-  if (selectedFps.has(fp)) selectedFps.delete(fp)
-  else selectedFps.add(fp)
-}
-function isWindowAllSelected(g: PreviewWindowGroup): boolean {
-  return g.tabs.length > 0 && g.tabs.every((t) => selectedFps.has(t.fingerprint))
-}
-function isWindowSomeSelected(g: PreviewWindowGroup): boolean {
-  const sel = g.tabs.filter((t) => selectedFps.has(t.fingerprint)).length
-  return sel > 0 && sel < g.tabs.length
-}
-function onToggleWindow(g: PreviewWindowGroup) {
-  if (isWindowAllSelected(g)) {
-    for (const t of g.tabs) selectedFps.delete(t.fingerprint)
-  } else {
-    for (const t of g.tabs) selectedFps.add(t.fingerprint)
-  }
-}
-
 // ===== 立即打开（不写备份列表，仅创建浏览器标签） =====
 const opening = ref(false)
 async function onOpenSelected(openInNewWindow: boolean) {
@@ -419,7 +344,7 @@ async function onOpenSelected(openInNewWindow: boolean) {
   if (!f || selectedCount.value === 0 || opening.value) return
   opening.value = true
   try {
-    const count = await openTabsFromMemory(f, new Set(selectedFps), openInNewWindow)
+    const count = await openTabsFromMemory(f, new Set(selectedFps.value), openInNewWindow)
     if (count > 0) showToast(`已打开 ${count} 个标签`)
     else showToast('选中的标签都已打开，无需重复打开')
   } catch (err) {
