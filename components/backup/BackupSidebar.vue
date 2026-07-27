@@ -81,7 +81,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { key: 'manage', label: '备份管理', icon: Shield },
   { key: 'cloud', label: '云同步', icon: Cloud, placeholder: true },
-  { key: 'import', label: '导入管理', icon: Download, placeholder: true },
+  { key: 'import', label: '导入管理', icon: Download },
   { key: 'trash', label: '回收站', icon: Trash2, placeholder: true },
 ]
 

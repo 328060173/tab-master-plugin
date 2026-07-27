@@ -80,12 +80,13 @@
             <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">多设备同步 · 端到端加密 · 会员功能（阶段二）</p>
           </div>
 
-          <!-- 导入管理占位 -->
-          <div v-else-if="activeMenu === 'import'" class="bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
-            <Download :size="24" class="mx-auto text-gray-300 dark:text-gray-600 mb-2" />
-            <p class="text-xs text-gray-500 dark:text-gray-400">导入管理即将完成</p>
-            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">支持本插件 JSON / OneTab / Nice-Tab / Toby / VertiTab 五种格式</p>
-          </div>
+          <!-- 导入管理（§8.7：导入区+预览区+导入记录列表） -->
+          <ErrorBoundary v-else-if="activeMenu === 'import'" scope="backup.import">
+            <BackupImportTab
+              ref="importTabRef"
+              @imported="onImported"
+            />
+          </ErrorBoundary>
 
           <!-- 回收站占位 -->
           <div v-else-if="activeMenu === 'trash'" class="bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
@@ -209,7 +210,7 @@
  * P1/P2 留：备份列表表格 / 还原多档 / 导入管理 / 回收站 / 趋势柱状图 / 云同步
  */
 import { ref, onMounted, onUnmounted } from "vue"
-import { Shield, X, Cloud, Download, Trash2 } from "@lucide/vue"
+import { Shield, X, Cloud, Trash2 } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
 import { showToast, useToast } from "~composables/useToast"
@@ -217,6 +218,7 @@ import BackupSidebar, { type BackupMenuKey } from "~components/backup/BackupSide
 import BackupStatusBar from "~components/backup/BackupStatusBar.vue"
 import BackupOverviewTab from "~components/backup/BackupOverviewTab.vue"
 import BackupListTab from "~components/backup/BackupListTab.vue"
+import BackupImportTab from "~components/backup/BackupImportTab.vue"
 import BackupDetailDialog from "~components/backup/BackupDetailDialog.vue"
 import ExportDialog from "~components/backup/ExportDialog.vue"
 import ManualBackupDialog from "~components/backup/ManualBackupDialog.vue"
@@ -262,6 +264,9 @@ const jsonViewTextareaRef = ref<HTMLTextAreaElement | null>(null)
 
 // 手动备份弹框 ref（用于重置 submitting 态）
 const manualBackupDialogRef = ref<InstanceType<typeof ManualBackupDialog> | null>(null)
+
+// 导入管理 Tab ref（用于高亮新导入记录）
+const importTabRef = ref<InstanceType<typeof BackupImportTab> | null>(null)
 
 // ===== 首次开启告知弹窗 =====
 function onRequestEnable() {
@@ -319,10 +324,20 @@ async function onManualBackupConfirm(payload: { tabIds: number[]; label: string 
   }
 }
 
-// ===== 导入还原（P0 占位） =====
+// ===== 导入还原（P2：跳导入管理菜单） =====
 function onImportRestore() {
-  showToast('导入还原即将上线')
+  // §8.7：备份概览的「导入还原」按钮跳导入管理菜单（不再 toast 占位）
   activeMenu.value = 'import'
+}
+
+// ===== 导入成功回调（§8.7：跳备份列表 Tab + 高亮新记录） =====
+function onImported(snapshotId: string) {
+  // 跳备份管理 → 备份列表 Tab，让用户看到刚导入的记录
+  activeMenu.value = 'manage'
+  manageTab.value = 'list'
+  // 高亮新记录（BackupListTab 暴露 highlightRecord；导入管理页也可高亮）
+  // 注：BackupListTab 高亮由其内部 watch snapshots 自动定位，这里仅切视图
+  void snapshotId
 }
 
 // ===== 备份详情弹框（P1） =====
