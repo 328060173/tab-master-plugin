@@ -52,7 +52,8 @@ import { ref, computed, watch, nextTick } from "vue"
 import { Plus } from "@lucide/vue"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
-import { validateTag } from "~lib/tagValidate"
+import { validateTag, TAG_INVALID_MSG } from "~lib/tagValidate"
+import { showToast } from "~composables/useToast"
 
 const props = withDefaults(defineProps<{
   /** 浮层唯一 ID，用于 PopoverManager */
@@ -164,10 +165,13 @@ const handleTagClick = (tag: string) => {
   }
 }
 
-// 处理创建标记：用统一校验 validateTag（与所有入口一致）
+// 处理创建标记：用统一校验 validateTag（与所有入口一致），失败 toast 提示（不静默）
 const handleCreate = () => {
   const r = validateTag(newTag.value, props.allTags)
-  if (!r.ok) return
+  if (!r.ok) {
+    showToast(TAG_INVALID_MSG[r.reason])
+    return
+  }
   emit("create", r.name)
   newTag.value = ""
 }

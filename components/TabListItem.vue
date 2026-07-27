@@ -50,7 +50,6 @@
       <TagPicker ref="tagPickerRef"
         :tabId="item.id" :currentTags="item.tags" :allTags="customTags"
         @toggleTag="emit('toggleTag', $event)" @addTag="emit('addTag', $event)" />
-      <button class="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="稍后处理" @click.stop="emit('later')"><Clock :size="13" /></button>
       <button :class="['p-1 rounded', popover.isOpen(hoverCardId) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700']" title="更多操作" @click.stop="onMenuClick"><Menu :size="14" :stroke-width="2.25" /></button>
       <button class="p-1 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" @click.stop="emit('close')" title="关闭"><X :size="13" :stroke-width="2.5" /></button>
     </div>
@@ -68,7 +67,7 @@
  * - 选中态视觉：浅蓝底 + 蓝边
  */
 import { computed, inject, ref } from "vue"
-import { Menu, X, Link, Clock } from "@lucide/vue"
+import { Menu, X, Link } from "@lucide/vue"
 import type { TabItem } from "~types/tab"
 import FavIcon from "./FavIcon.vue"
 import StatusBadge from "./StatusBadge.vue"

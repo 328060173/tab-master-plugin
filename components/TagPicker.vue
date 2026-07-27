@@ -24,7 +24,8 @@ import { ref, computed } from "vue"
 import { Tag } from "@lucide/vue"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import TagSelectPopover from "~components/TagSelectPopover.vue"
-import { validateTag } from "~lib/tagValidate"
+import { validateTag, TAG_INVALID_MSG } from "~lib/tagValidate"
+import { showToast } from "~composables/useToast"
 
 const props = withDefaults(defineProps<{
   currentTags: string[]
@@ -49,7 +50,10 @@ const popoverId = computed(() => `tag-picker-${props.tabId}`)
 // toggleTag 让 sidepanel 调 toggleTabTag（主实例 tabs.value 查，新标记不在则加），不依赖 props.currentTags
 const handleCreate = (tag: string) => {
   const r = validateTag(tag, props.allTags)
-  if (!r.ok) return
+  if (!r.ok) {
+    showToast(TAG_INVALID_MSG[r.reason])
+    return
+  }
   emit("addTag", r.name)
   emit("toggleTag", r.name)
 }
