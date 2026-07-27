@@ -25,9 +25,6 @@
       </button>
     </header>
 
-    <!-- 状态条 32px（顶部，全页常驻） -->
-    <BackupStatusBar />
-
     <!-- 主体：左菜单 + 右内容 -->
     <div class="flex-1 flex min-h-0">
       <BackupSidebar v-model:active-key="activeMenu" />
@@ -225,7 +222,6 @@ import { useBackupService } from "~composables/useBackupService"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
 import { showToast, useToast } from "~composables/useToast"
 import BackupSidebar, { type BackupMenuKey } from "~components/backup/BackupSidebar.vue"
-import BackupStatusBar from "~components/backup/BackupStatusBar.vue"
 import BackupOverviewTab from "~components/backup/BackupOverviewTab.vue"
 import BackupListTab from "~components/backup/BackupListTab.vue"
 import BackupImportTab from "~components/backup/BackupImportTab.vue"

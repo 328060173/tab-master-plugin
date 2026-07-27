@@ -139,13 +139,6 @@
     </template>
 
     <!-- 未开启自动备份时的轻提示 -->
-    <div
-      v-else
-      class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-xs text-gray-500 dark:text-gray-400"
-    >
-      自动备份未开启 · 手动备份 / 导入 / 导出 可照常使用。崩溃不会自动备份标签。
-    </div>
-
     <!-- 广告位主位 728×90 -->
     <ErrorBoundary scope="backup.ad.main">
       <AdSlot

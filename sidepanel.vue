@@ -64,9 +64,14 @@
             <Shield :size="14" :class="backupBadgeKind === 'off' ? 'text-gray-400 dark:text-gray-500' : 'text-blue-600 dark:text-blue-400'" />
             <span class="whitespace-nowrap">标签导入导出</span>
             <ChevronDown :size="11" class="text-gray-400" />
-            <!-- 角标：仅失败时⚠提醒（未开启引导红点在「打开管理页」菜单项上） -->
+            <!-- 角标：未阅引导红点（进页点「知道了」消除）；失败⚠异常提醒 -->
+            <span
+              v-if="!backupSvc.firstVisitAcked.value"
+              class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-1 ring-white dark:ring-gray-800"
+              aria-hidden="true"
+            ></span>
             <AlertTriangle
-              v-if="backupBadgeKind === 'error'"
+              v-else-if="backupBadgeKind === 'error'"
               :size="10"
               class="absolute -top-1 -right-1 text-red-500 bg-white dark:bg-gray-800 rounded-full ring-1 ring-white dark:ring-gray-800"
               aria-hidden="true"
