@@ -191,6 +191,7 @@
       <div
         v-if="popover.isOpen(panelId)"
         :style="panelStyle"
+        data-popover-content
         class="fixed z-[80] w-[320px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl"
         @click.stop>
         <!-- panel 头 -->
@@ -418,6 +419,7 @@
       <div
         v-if="popover.isOpen(morePopoverId)"
         :style="morePopoverStyle"
+        data-popover-content
         class="fixed z-[80] w-[200px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl"
         @click.stop>
         <div class="p-2">
