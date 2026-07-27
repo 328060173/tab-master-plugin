@@ -165,3 +165,43 @@ export function downloadExport(out: ExportOutput): boolean {
     return false
   }
 }
+
+/**
+ * 用 File System Access API 让用户选保存位置（Chrome/Edge 86+）。
+ * 不支持时降级为 <a download> 直接下载到默认下载目录。
+ * 一次性下载，不需要持久文件夹权限（§10.1 决策）。
+ *
+ * @returns ok=true 表示已成功触发（含降级）；ok=false 表示用户取消或失败
+ */
+export async function downloadExportWithPicker(out: ExportOutput): Promise<{ ok: boolean; error?: string; fallback: boolean }> {
+  // 类型守卫：showSaveFilePicker 在 Chrome 86+ / Edge 86+ 可用
+  const picker: typeof window.showSaveFilePicker | undefined =
+    (typeof window !== 'undefined' ? (window as unknown as { showSaveFilePicker?: typeof window.showSaveFilePicker }).showSaveFilePicker : undefined)
+  if (picker) {
+    try {
+      // 按 MIME 推断扩展名（json → .json / markdown → .md / plain → .txt）
+      const ext = out.fileName.includes('.') ? out.fileName.slice(out.fileName.lastIndexOf('.')) : '.txt'
+      const handle = await picker({
+        suggestedName: out.fileName,
+        types: [{
+          description: '备份文件',
+          accept: { [out.mime]: [ext] },
+        }],
+      })
+      const writable = await handle.createWritable()
+      await writable.write(out.content)
+      await writable.close()
+      return { ok: true, fallback: false }
+    } catch (e) {
+      // 用户取消（AbortError）→ 静默返回，不算失败也不降级
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        return { ok: false, error: '用户取消' }
+      }
+      console.warn('[exporters] showSaveFilePicker 失败，降级 <a download>', e)
+      // 其他错误降级到 <a download>
+    }
+  }
+  // 降级：<a download> 直接下载到默认下载目录
+  const ok = downloadExport(out)
+  return { ok, error: ok ? undefined : '下载失败', fallback: true }
+}

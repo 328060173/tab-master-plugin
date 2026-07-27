@@ -63,11 +63,14 @@
               />
             </ErrorBoundary>
 
-            <!-- 备份列表 Tab（P0 占位，P1 做完整表格） -->
-            <div v-else class="bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
-              <p class="text-xs text-gray-400 dark:text-gray-500">备份列表即将完成</p>
-              <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">P0 先用「备份概览」做手动备份，P1 补条件查询 + 表格 + 分页</p>
-            </div>
+            <!-- 备份列表 Tab（P1：完整表格 + 查询 + 分页） -->
+            <ErrorBoundary v-else scope="backup.list">
+              <BackupListTab
+                @open-manual-backup="manualBackupOpen = true"
+                @open-detail="onOpenDetail"
+                @open-export="onOpenExport"
+              />
+            </ErrorBoundary>
           </template>
 
           <!-- 云同步占位 -->
@@ -116,6 +119,70 @@
       @cancel="autoSettingsOpen = false"
     />
 
+    <!-- 备份详情弹框（P1） -->
+    <BackupDetailDialog
+      :open="detailDialogOpen"
+      :snapshot-id="detailSnapshotId"
+      @cancel="detailDialogOpen = false"
+      @restored="onDetailRestored"
+    />
+
+    <!-- 导出弹框（P1） -->
+    <ExportDialog
+      :open="exportDialogOpen"
+      :snapshot-id="exportSnapshotId"
+      :snapshot-label="exportSnapshotLabel"
+      @cancel="exportDialogOpen = false"
+      @display-json="onDisplayJson"
+    />
+
+    <!-- JSON 串查看弹框（导出"展示 JSON 串"去向） -->
+    <Teleport to="body">
+      <div
+        v-if="jsonViewOpen"
+        class="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4"
+        @click.self="jsonViewOpen = false"
+      >
+        <div
+          class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="json-view-title"
+          tabindex="-1"
+          @keydown.esc="jsonViewOpen = false"
+        >
+          <div class="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
+            <h2 id="json-view-title" class="text-base font-semibold text-gray-900 dark:text-gray-100">
+              JSON 串<span v-if="jsonViewLabel"> · {{ jsonViewLabel }}</span>
+            </h2>
+            <button
+              class="inline-flex items-center justify-center w-7 h-7 -mt-1 -mr-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="关闭"
+              @click="jsonViewOpen = false"
+            >
+              <X :size="16" />
+            </button>
+          </div>
+          <div class="px-5 pb-5 flex-1 overflow-hidden flex flex-col">
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">完整 JSON 串，可全选复制：</p>
+            <textarea
+              ref="jsonViewTextareaRef"
+              class="flex-1 w-full min-h-[300px] border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-900/40 text-[11px] font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              readonly
+              :value="jsonViewContent"
+              aria-label="完整 JSON 串"
+            ></textarea>
+            <div class="flex justify-end gap-2 mt-3">
+              <button
+                class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                @click="onCopyJsonView"
+              >全选复制</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- 本地 toast -->
     <Teleport to="body">
       <div
@@ -149,6 +216,9 @@ import { showToast, useToast } from "~composables/useToast"
 import BackupSidebar, { type BackupMenuKey } from "~components/backup/BackupSidebar.vue"
 import BackupStatusBar from "~components/backup/BackupStatusBar.vue"
 import BackupOverviewTab from "~components/backup/BackupOverviewTab.vue"
+import BackupListTab from "~components/backup/BackupListTab.vue"
+import BackupDetailDialog from "~components/backup/BackupDetailDialog.vue"
+import ExportDialog from "~components/backup/ExportDialog.vue"
 import ManualBackupDialog from "~components/backup/ManualBackupDialog.vue"
 import AutoBackupSettingsDialog from "~components/backup/AutoBackupSettingsDialog.vue"
 import BackupNoticeDialog from "~components/BackupNoticeDialog.vue"
@@ -174,6 +244,21 @@ const manageTab = ref<ManageTab>('overview')
 const manualBackupOpen = ref(false)
 const autoSettingsOpen = ref(false)
 const noticeOpen = ref(false)
+
+// 详情弹框（P1）
+const detailDialogOpen = ref(false)
+const detailSnapshotId = ref<string | null>(null)
+
+// 导出弹框（P1）
+const exportDialogOpen = ref(false)
+const exportSnapshotId = ref<string | null>(null)
+const exportSnapshotLabel = ref<string | null>(null)
+
+// JSON 串查看弹框（导出"展示 JSON 串"去向）
+const jsonViewOpen = ref(false)
+const jsonViewContent = ref('')
+const jsonViewLabel = ref<string | null>(null)
+const jsonViewTextareaRef = ref<HTMLTextAreaElement | null>(null)
 
 // 手动备份弹框 ref（用于重置 submitting 态）
 const manualBackupDialogRef = ref<InstanceType<typeof ManualBackupDialog> | null>(null)
@@ -238,6 +323,54 @@ async function onManualBackupConfirm(payload: { tabIds: number[]; label: string 
 function onImportRestore() {
   showToast('导入还原即将上线')
   activeMenu.value = 'import'
+}
+
+// ===== 备份详情弹框（P1） =====
+function onOpenDetail(snapshotId: string) {
+  detailSnapshotId.value = snapshotId
+  detailDialogOpen.value = true
+}
+
+function onDetailRestored() {
+  // 详情弹框内勾选还原成功后，可选关闭；这里保留弹框让用户继续操作
+  // 仅刷新数据（svc 已通过 storage.onChanged / backup:changed 同步）
+  void svc.loadAll()
+}
+
+// ===== 导出弹框（P1） =====
+function onOpenExport(snapshotId: string, label: string | null) {
+  exportSnapshotId.value = snapshotId
+  exportSnapshotLabel.value = label
+  exportDialogOpen.value = true
+}
+
+function onDisplayJson(content: string, label: string | null) {
+  jsonViewContent.value = content
+  jsonViewLabel.value = label
+  jsonViewOpen.value = true
+}
+
+function onCopyJsonView() {
+  const ta = jsonViewTextareaRef.value
+  if (!ta) return
+  ta.select()
+  try {
+    const ok = document.execCommand('copy')
+    if (ok) {
+      showToast('已复制到剪贴板')
+      return
+    }
+  } catch (e) {
+    console.warn('[backup] 复制失败', e)
+  }
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(jsonViewContent.value).then(
+      () => showToast('已复制到剪贴板'),
+      () => showToast('复制失败，请手动全选复制'),
+    )
+  } else {
+    showToast('复制失败，请手动全选复制')
+  }
 }
 
 // ===== 关闭页面 =====

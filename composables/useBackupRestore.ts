@@ -17,19 +17,24 @@ import {
   resolveConflicts,
   executeRestore,
   type CurrentTab,
+  type TabToOpen,
 } from "~lib/backup/restore"
 import { computeFingerprint, computeWeakFingerprint, uuidV4 } from "~lib/backup/fingerprint"
 import { tryAcquireCoord, releaseCoord } from "~lib/backup/coordination"
+import { restoreMeta, type MetaRestoreOptions, type MetaRestoreResult } from "~lib/backup/metaRestore"
 import { APP_VERSION_CODE, APP_VERSION_NAME } from "~lib/api-config"
 import { buildSnapshot, collectMeta } from "~lib/backup/snapshotBuilder"
-import type { MetaRestoreResult } from "~lib/backup/metaRestore"
-import type {
-  BackupFile,
-  ConflictItem,
-  FpUnmatchedItem,
-  RestoreMode,
-  RestorePreview,
-} from "~types/backup"
+import type { BackupFile, ConflictItem, FpUnmatchedItem, RestoreMode, RestorePreview, TabSnapshot, WindowSnapshot } from "~types/backup"
+
+/** 简化还原目标（§8.6 OneTab 风格三档） */
+export type OpenTarget = 'current' | 'newWindow' | 'selected'
+
+export interface OpenSnapshotOptions {
+  /** target='selected' 时必填：用户勾选的 fingerprint 集合 */
+  selectedFingerprints?: Set<string>
+  /** target='selected' 时：true=新窗口打开选中，false=本窗口打开选中 */
+  openInNewWindow?: boolean
+}
 
 // 单例化（修 R-1：backup.vue 与 BackupRestorePanel.vue 各调一次会拿到不同实例，
 // 导致 preview/conflicts/unmatched 不共享，execute 侧永远拿空，手动指派/全部接受推荐失效）
@@ -194,6 +199,179 @@ function useBackupRestoreImpl() {
     return { ...r, ok: !r.error }
   }
 
+  /**
+   * 简化还原（§8.6 OneTab 风格三档，§10.6 方案 A 自动写回元数据）。
+   * - target='current'：把该备份标签补开到当前窗口（同 URL 已存在不重开），不关任何当前 tab
+   * - target='newWindow'：按备份 windows[] 结构新建窗口还原（每个非隐身窗口一个新窗口），不关任何当前 tab
+   * - target='selected'：仅打开用户勾选的标签（selectedFingerprints），openInNewWindow 决定本窗口/新窗口
+   * 元数据方案 A：还原后自动写回标记/稍后/分组（走 restoreMeta 合并语义），用户无感
+   */
+  async function openSnapshot(
+    snapshotId: string,
+    target: OpenTarget,
+    options: OpenSnapshotOptions = {},
+  ): Promise<{ ok: boolean; openedCount: number; closedCount: number; error?: string; metaResult?: MetaRestoreResult }> {
+    const traceId = uuidV4()
+    if (!(await tryAcquireCoord(traceId))) {
+      return { ok: false, openedCount: 0, closedCount: 0, error: '备份进行中，请稍后再试' }
+    }
+    isRestoring.value = true
+    try {
+      const file = await svc.getSnapshotFile(snapshotId)
+      if (!file) return { ok: false, openedCount: 0, closedCount: 0, error: '快照不存在' }
+      const allTabs = await chrome.tabs.query({})
+      const currentUrls = new Set<string>()
+      for (const t of allTabs) {
+        if (t.url) currentUrls.add(t.url)
+      }
+      const selFps = options.selectedFingerprints
+      const filterTab = (tab: TabSnapshot): boolean => {
+        if (target === 'selected') {
+          return !!selFps && selFps.has(tab.fingerprint)
+        }
+        return true
+      }
+      // 构建要打开的窗口分组（保留快照多窗口结构，跳过已存在同 URL）
+      const snapshotWindows: WindowSnapshot[] = file.snapshot.windows.filter((w) => !w.incognito)
+      const windowsToOpen: { tabs: TabToOpen[]; focused: boolean }[] = []
+      let firstFocused = true
+      for (const w of snapshotWindows) {
+        const winTabs: TabToOpen[] = []
+        for (const t of w.tabs) {
+          if (!filterTab(t)) continue
+          if (currentUrls.has(t.url)) continue
+          winTabs.push({ url: t.url, pinned: t.pinned, title: t.title, fingerprint: t.fingerprint })
+        }
+        if (winTabs.length > 0) {
+          windowsToOpen.push({ tabs: winTabs, focused: firstFocused })
+          firstFocused = false
+        }
+      }
+      // current / selected+本窗口：合并到当前窗口
+      if (target === 'current' || (target === 'selected' && !options.openInNewWindow)) {
+        const allTabsToOpen: TabToOpen[] = windowsToOpen.flatMap((w) => w.tabs)
+        if (allTabsToOpen.length === 0) {
+          return { ok: true, openedCount: 0, closedCount: 0 }
+        }
+        return await doOpenInCurrentWindow(file, allTabsToOpen)
+      }
+      // newWindow / selected+新窗口：按窗口分组新建窗口还原
+      if (windowsToOpen.length === 0) {
+        return { ok: true, openedCount: 0, closedCount: 0 }
+      }
+      return await doOpenInNewWindows(file, windowsToOpen)
+    } catch (e) {
+      return { ok: false, openedCount: 0, closedCount: 0, error: e instanceof Error ? e.message : String(e) }
+    } finally {
+      isRestoring.value = false
+      await releaseCoord()
+    }
+  }
+
+  /** 把标签补开到当前窗口 + 写回元数据（元数据方案 A） */
+  async function doOpenInCurrentWindow(
+    file: BackupFile,
+    tabsToOpen: TabToOpen[],
+  ): Promise<{ ok: boolean; openedCount: number; closedCount: number; error?: string; metaResult?: MetaRestoreResult }> {
+    let openedCount = 0
+    const fpToTabId = new Map<string, number>()
+    try {
+      let currentWindowId: number | undefined
+      try {
+        const cw = await chrome.windows.getCurrent()
+        currentWindowId = cw.id
+      } catch {}
+      for (const t of tabsToOpen) {
+        try {
+          const tab = await chrome.tabs.create({ url: t.url, active: false, windowId: currentWindowId })
+          if (t.pinned && typeof tab.id === 'number') {
+            await chrome.tabs.update(tab.id, { pinned: true }).catch(() => {})
+          }
+          if (typeof tab.id === 'number' && t.fingerprint) {
+            fpToTabId.set(t.fingerprint, tab.id)
+          }
+          openedCount++
+        } catch (e) {
+          console.warn('[openSnapshot] 打开 tab 失败', t.url, e)
+        }
+      }
+      const metaResult = await writeBackMeta(file, fpToTabId)
+      return { ok: true, openedCount, closedCount: 0, metaResult }
+    } catch (e) {
+      return { ok: false, openedCount, closedCount: 0, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+
+  /** 按窗口分组新建窗口还原 + 写回元数据（守 C1：多窗口分别 create） */
+  async function doOpenInNewWindows(
+    file: BackupFile,
+    windowsToOpen: { tabs: TabToOpen[]; focused: boolean }[],
+  ): Promise<{ ok: boolean; openedCount: number; closedCount: number; error?: string; metaResult?: MetaRestoreResult }> {
+    let openedCount = 0
+    const fpToTabId = new Map<string, number>()
+    try {
+      for (let wi = 0; wi < windowsToOpen.length; wi++) {
+        const win = windowsToOpen[wi]
+        if (!win.tabs.length) continue
+        // windows.create 用第一个 tab 的 url 创建窗口，后续 tab 用 tabs.create 补开（避免每个新窗口多 1 个 New Tab）
+        const firstTab = win.tabs[0]
+        let targetWindowId: number | undefined
+        try {
+          const newWin = await chrome.windows.create({
+            url: firstTab.url,
+            focused: !!win.focused,
+          })
+          if (typeof newWin.id === 'number') {
+            targetWindowId = newWin.id
+            const firstTabId = newWin.tabs?.[0]?.id
+            if (typeof firstTabId === 'number') {
+              if (firstTab.pinned) {
+                await chrome.tabs.update(firstTabId, { pinned: true }).catch(() => {})
+              }
+              if (firstTab.fingerprint) fpToTabId.set(firstTab.fingerprint, firstTabId)
+              openedCount++
+            }
+          }
+        } catch (e) {
+          console.warn('[openSnapshot] 新建窗口失败', e)
+        }
+        for (let i = 1; i < win.tabs.length; i++) {
+          const t = win.tabs[i]
+          try {
+            const tab = await chrome.tabs.create({ url: t.url, active: false, windowId: targetWindowId })
+            if (t.pinned && typeof tab.id === 'number') {
+              await chrome.tabs.update(tab.id, { pinned: true }).catch(() => {})
+            }
+            if (typeof tab.id === 'number' && t.fingerprint) {
+              fpToTabId.set(t.fingerprint, tab.id)
+            }
+            openedCount++
+          } catch (e) {
+            console.warn('[openSnapshot] 打开 tab 失败', t.url, e)
+          }
+        }
+      }
+      const metaResult = await writeBackMeta(file, fpToTabId)
+      return { ok: true, openedCount, closedCount: 0, metaResult }
+    } catch (e) {
+      return { ok: false, openedCount, closedCount: 0, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+
+  /** 元数据方案 A：写回标记/稍后/分组（走 restoreMeta 合并语义，用户无感） */
+  async function writeBackMeta(file: BackupFile, fpToTabId: Map<string, number>): Promise<MetaRestoreResult | undefined> {
+    const restoreMetaOn = svc.settings.value.restoreMetaOnRestore !== false
+    if (!restoreMetaOn) return undefined
+    const tagCount = Object.keys(file.snapshot.meta.tabTagsMap).length
+    const laterCount = file.snapshot.meta.laterTabs.length
+    const groupCount = file.snapshot.meta.tabGroups.length
+    if (tagCount || laterCount || groupCount) {
+      showToast(`正在恢复 ${tagCount} 个标记 / ${laterCount} 个稍后处理 / ${groupCount} 个分组…`)
+    }
+    const opts: MetaRestoreOptions = { mode: 'mergeAuto' }
+    return await restoreMeta(file, fpToTabId, opts)
+  }
+
   return {
     preview,
     isPreviewing,
@@ -206,5 +384,6 @@ function useBackupRestoreImpl() {
     setUnmatchedAssign,
     execute,
     undoRestore,
+    openSnapshot,
   }
 }

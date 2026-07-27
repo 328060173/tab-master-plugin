@@ -70,13 +70,8 @@
         </dl>
       </div>
 
-      <!-- 近 7 天备份趋势（P0 占位，P1 做柱状图） -->
-      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-        <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">近 7 天备份趋势</h3>
-        <div class="h-32 flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 border border-dashed border-gray-200 dark:border-gray-700 rounded">
-          趋势图即将完成
-        </div>
-      </div>
+      <!-- 近 7 天备份趋势（P1：柱状图） -->
+      <BackupTrendChart />
 
       <!-- 广告位主位 728×90（独立 ErrorBoundary 由父包；延迟加载由父控制） -->
       <ErrorBoundary scope="backup.ad.main">
@@ -156,6 +151,7 @@ import { useBackupService } from "~composables/useBackupService"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
 import AdSlot from "./AdSlot.vue"
+import BackupTrendChart from "./BackupTrendChart.vue"
 
 const emit = defineEmits<{
   (e: 'open-manual-backup'): void
