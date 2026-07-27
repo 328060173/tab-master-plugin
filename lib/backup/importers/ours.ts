@@ -128,12 +128,16 @@ export async function parseOurs(text: string): Promise<ImportResult> {
     return { ok: false, file: null, error: "JSON 顶层不是对象", warnings, skipped: 0, format: "ours" }
   }
   const migrated = migrate(raw as Record<string, unknown>)
-  const file = fillDefaults(migrated, warnings)
   // P0-4 L3：校验 checksum（防文件损坏/撕裂）
+  // ⚠️ 必须在 fillDefaults 之前对原始 raw.snapshot 校验——fillDefaults 会重建
+  // windows/tabs/meta 为新对象（补默认值、规整字段），重建后结构变了，重算 checksum 必然不匹配，
+  // 会把完好的文件误判为"已损坏"。校验通过后再 fillDefaults 重建。
   const rawChecksum = (migrated as Record<string, unknown>).checksum
-  if (typeof rawChecksum === "string" && rawChecksum) {
-    file.checksum = rawChecksum
-    const ok = await verifySnapshot(file)
+  const rawSnapshot = (migrated as Record<string, unknown>).snapshot
+  if (typeof rawChecksum === "string" && rawChecksum && rawSnapshot && typeof rawSnapshot === "object") {
+    // 构造仅用于校验的临时 file（只取 snapshot + checksum，不 fillDefaults）
+    const verifyFile = { snapshot: rawSnapshot, checksum: rawChecksum } as unknown as BackupFile
+    const ok = await verifySnapshot(verifyFile)
     if (!ok) {
       return {
         ok: false,
@@ -147,6 +151,11 @@ export async function parseOurs(text: string): Promise<ImportResult> {
   } else {
     // 旧快照无 checksum：跳过校验只警告（向后兼容）
     warnings.push("此快照无校验和（旧版本导出），已跳过完整性校验")
+  }
+  const file = fillDefaults(migrated, warnings)
+  // 校验通过后，把原始 checksum 带回（导入写 IDB 时 withChecksum 会重算，此处仅保留供下游参考）
+  if (typeof rawChecksum === "string" && rawChecksum) {
+    file.checksum = rawChecksum
   }
   return { ok: true, file, error: null, warnings, skipped: 0, format: "ours" }
 }

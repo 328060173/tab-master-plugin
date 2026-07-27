@@ -446,7 +446,8 @@ const pagedSnapshots = computed<SnapshotSummary[]>(() => {
 function typeLabel(source: SnapshotSource): string {
   switch (source) {
     case 'manual': return '手动备份'
-    case 'auto.timer':
+    case 'auto.timer': return '定时备份'
+    case 'auto.event':
     case 'auto.event.tabRemoved':
     case 'auto.event.windowRemoved':
     case 'auto.event.idle':
@@ -454,7 +455,7 @@ function typeLabel(source: SnapshotSource): string {
       return '自动备份'
     case 'import': return '导入'
     case 'preRestore': return '还原前'
-    default: return source
+    default: return source.startsWith('auto.') ? '自动备份' : source
   }
 }
 

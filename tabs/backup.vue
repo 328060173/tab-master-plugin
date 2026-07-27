@@ -146,7 +146,7 @@
       @other-formats="onOtherFormatsFromDialog"
     />
 
-    <!-- JSON 串查看弹框（导出"展示 JSON 串"去向） -->
+    <!-- JSON 串查看弹框（导出"展示 JSON 串"去向）：大面板，占满屏幕，方便阅读+复制 -->
     <Teleport to="body">
       <div
         v-if="jsonViewOpen"
@@ -154,40 +154,40 @@
         @click.self="jsonViewOpen = false"
       >
         <div
-          class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+          class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full h-[90vh] flex flex-col"
           role="dialog"
           aria-modal="true"
           aria-labelledby="json-view-title"
           tabindex="-1"
           @keydown.esc="jsonViewOpen = false"
         >
-          <div class="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
+          <div class="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
             <h2 id="json-view-title" class="text-base font-semibold text-gray-900 dark:text-gray-100">
               JSON 串<span v-if="jsonViewLabel"> · {{ jsonViewLabel }}</span>
             </h2>
-            <button
-              class="inline-flex items-center justify-center w-7 h-7 -mt-1 -mr-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-              aria-label="关闭"
-              @click="jsonViewOpen = false"
-            >
-              <X :size="16" />
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                class="px-3 py-1.5 min-h-[32px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                @click="onCopyJsonView"
+              >复制全部</button>
+              <button
+                class="inline-flex items-center justify-center w-7 h-7 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="关闭"
+                @click="jsonViewOpen = false"
+              >
+                <X :size="16" />
+              </button>
+            </div>
           </div>
-          <div class="px-5 pb-5 flex-1 overflow-hidden flex flex-col">
-            <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">完整 JSON 串，可全选复制：</p>
+          <div class="px-5 pb-4 flex-1 overflow-hidden flex flex-col">
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">完整 JSON 串，可全选复制或点右上「复制全部」：</p>
             <textarea
               ref="jsonViewTextareaRef"
-              class="flex-1 w-full min-h-[300px] border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-900/40 text-[11px] font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="flex-1 w-full border border-gray-200 dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-900/40 text-xs font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               readonly
               :value="jsonViewContent"
               aria-label="完整 JSON 串"
             ></textarea>
-            <div class="flex justify-end gap-2 mt-3">
-              <button
-                class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                @click="onCopyJsonView"
-              >全选复制</button>
-            </div>
           </div>
         </div>
       </div>

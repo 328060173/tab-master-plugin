@@ -109,7 +109,7 @@
             :disabled="exporting"
             class="px-3 py-1.5 min-h-[36px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
             @click="onExport"
-          >{{ exporting ? '导出中…' : '导出' }}</button>
+          >{{ primaryBtnText }}</button>
         </div>
       </div>
     </div>
@@ -189,6 +189,12 @@ const formatHint = computed(() => {
     case 'onetab': return '仅 URL 列表，兼容 OneTab'
     default: return ''
   }
+})
+
+/** 主按钮文案：下载=「导出」；展示JSON串=「查看 JSON 串」（不是导出文件，是查看） */
+const primaryBtnText = computed(() => {
+  if (exporting.value) return '导出中…'
+  return destination.value === 'display' ? '查看 JSON 串' : '导出'
 })
 
 async function onExport() {
