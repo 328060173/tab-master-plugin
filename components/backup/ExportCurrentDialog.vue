@@ -124,11 +124,8 @@ import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { X } from '@lucide/vue'
 import FavIcon from '~components/FavIcon.vue'
 import { showToast } from '~composables/useToast'
-import { collectMeta, buildSnapshot } from '~lib/backup/snapshotBuilder'
-import { exportJson, downloadExportWithPicker } from '~lib/backup/exporters'
-import { APP_VERSION_CODE, APP_VERSION_NAME } from '~lib/api-config'
-import { uuidV4 } from '~lib/backup/fingerprint'
-import { BACKUP_KIND, BACKUP_SCHEMA_VERSION } from '~types/backup'
+import { buildBackupFileFromTabs, serializeBackupJson, downloadExportWithPicker } from '~lib/backup/exporters'
+import { getDeviceId } from '~lib/backup/timer'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (e: 'cancel'): void }>()
@@ -226,36 +223,25 @@ function onToggleWindow(g: WindowGroup) {
   }
 }
 
-/** 生成 JSON：抓选中标签构造 BackupFile */
+/** 生成数据：抓选中标签 → buildBackupFileFromTabs 统一构造 → serializeBackupJson 统一序列化 */
 async function onGenerate() {
   if (selectedCount.value === 0 || generating.value) return
   generating.value = true
   try {
     const allTabs = await chrome.tabs.query({})
     // ⚠️ selectedIds 是 reactive Set，没有 .value；用 Array.from 复制（new Set(selectedIds.value) 会得到空集合 → windows 空）
-    const ids = new Set(Array.from(selectedIds))
-    const selected = allTabs.filter((t) => typeof t.id === 'number' && ids.has(t.id))
-    const meta = await collectMeta()
-    const snapshot = await buildSnapshot(selected, meta, 'manual', {
-      selectedTabIds: Array.from(ids),
+    const ids = Array.from(selectedIds)
+    const selected = allTabs.filter((t) => typeof t.id === 'number' && ids.includes(t.id))
+    const deviceId = await getDeviceId()
+    const file = await buildBackupFileFromTabs(selected, 'manual', deviceId, 'export', {
+      selectedTabIds: ids,
       totalTabCount: allTabs.length,
     })
-    snapshot.trigger = 'export'
-    const file = {
-      schemaVersion: BACKUP_SCHEMA_VERSION,
-      appVersionCode: APP_VERSION_CODE,
-      appVersionName: APP_VERSION_NAME,
-      kind: BACKUP_KIND,
-      deviceId: uuidV4(),
-      customer: { id: null, type: 'anonymous' as const },
-      snapshot,
-      signature: { algo: null, value: null },
-    }
-    jsonContent.value = exportJson(file).content
+    jsonContent.value = serializeBackupJson(file)
     step.value = 'json'
   } catch (e) {
-    console.warn('[ExportCurrentDialog] 生成 JSON 失败', e)
-    showToast('生成 JSON 失败')
+    console.warn('[ExportCurrentDialog] 生成数据失败', e)
+    showToast('生成数据失败')
   } finally {
     generating.value = false
   }

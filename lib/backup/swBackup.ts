@@ -20,13 +20,10 @@
  * - 不调 chrome.sessions.setTabValue（Chrome 无此 API）
  */
 
-import { APP_VERSION_CODE, APP_VERSION_NAME } from "~lib/api-config"
 import { safeSet } from "~lib/safeStorage"
 import { toPure } from "~lib/toPure"
 import {
   BACKUP_KEYS,
-  BACKUP_KIND,
-  BACKUP_SCHEMA_VERSION,
   currentLimits,
   type BackupFile,
   type BackupSettings,
@@ -34,7 +31,8 @@ import {
   type BackupTriggerSource,
   type SnapshotSource,
 } from "~types/backup"
-import { collectMeta, buildSnapshot, type BuildSnapshotOptions } from "./snapshotBuilder"
+import { type BuildSnapshotOptions } from "./snapshotBuilder"
+import { buildBackupFileFromTabs } from "./exporters"
 import { uuidV4 } from "./fingerprint"
 import {
   sanitizeSettings,
@@ -78,29 +76,17 @@ function mapSource(source: BackupTriggerSource): SnapshotSource {
   return "import"
 }
 
-/** SW 侧构建快照文件（采集 + 元数据 + buildSnapshot） */
+/** SW 侧构建快照文件（复用 buildBackupFileFromTabs，统一 BackupFile 外层包装） */
 async function buildSwSnapshotFile(source: BackupTriggerSource): Promise<BackupFile> {
   const allTabs = await chrome.tabs.query({})
-  const meta = await collectMeta()
   const snapSource = mapSource(source)
   // §3.2：SW 裸备份只跑 auto.* / startup 路径，超 maxTabsPerSnapshot 自动截断
   const isManual = source === 'manual'
   const buildOpts: BuildSnapshotOptions | undefined = isManual
     ? undefined
     : { truncateAt: currentLimits().maxTabsPerSnapshot, totalTabCount: allTabs.length }
-  const snapshot = await buildSnapshot(allTabs, meta, snapSource, buildOpts)
-  snapshot.trigger = source
   const deviceId = await getDeviceId()
-  return {
-    schemaVersion: BACKUP_SCHEMA_VERSION,
-    appVersionCode: APP_VERSION_CODE,
-    appVersionName: APP_VERSION_NAME,
-    kind: BACKUP_KIND,
-    deviceId,
-    customer: { id: null, type: "anonymous" },
-    snapshot,
-    signature: { algo: null, value: null },
-  }
+  return buildBackupFileFromTabs(allTabs, snapSource, deviceId, source, buildOpts)
 }
 
 /**

@@ -8,7 +8,10 @@
  * - 文件名用 ISO 时间戳 + deviceId 短 8 位（PRD §5.5.1）
  */
 
-import type { BackupFile, ExportFormat } from "~types/backup"
+import type { BackupFile, ExportFormat, SnapshotSource } from "~types/backup"
+import { BACKUP_KIND, BACKUP_SCHEMA_VERSION } from "~types/backup"
+import { APP_VERSION_CODE, APP_VERSION_NAME } from "~lib/api-config"
+import { collectMeta, buildSnapshot, type BuildSnapshotOptions } from "./snapshotBuilder"
 
 export interface ExportOutput {
   /** 文件名（含扩展名） */
@@ -39,7 +42,49 @@ export function exportJson(file: BackupFile): ExportOutput {
   return {
     fileName: `tabmaster-backup-${isoForFilename(file.snapshot.createdAt)}-${shortDeviceId(file.deviceId)}.json`,
     mime: "application/json",
-    content: JSON.stringify(file, null, 2),
+    content: serializeBackupJson(file),
+  }
+}
+
+/**
+ * 统一 JSON 序列化（所有「展示数据串」入口共用，避免各处 JSON.stringify(file,null,2) 各写各的）。
+ * - 概览导出大面板、列表导出大面板、详情弹框 JSON 视图、导入「展示 JSON 串」均走这里。
+ * - 保证序列化口径一致：2 空格缩进、保留全部字段（与 exportJson 一致，可回导入）。
+ */
+export function serializeBackupJson(file: BackupFile): string {
+  return JSON.stringify(file, null, 2)
+}
+
+/**
+ * 从当前浏览器标签构造完整 BackupFile（概览导出 / SW 裸备份 / 手动备份 pipeline 共用）。
+ * 收口 BackupFile 外层包装逻辑（schemaVersion/appVersion/kind/deviceId/customer/signature），
+ * 避免散落多处各写各的字面量、字段漂移。
+ *
+ * @param allTabs chrome.tabs.query 结果（已按需过滤/截断的 effectiveTabs 由 options 控制）
+ * @param source 快照来源（manual / auto.* / import / preRestore）
+ * @param deviceId 设备 ID（SW 侧从 storage 读，UI 侧用 getDeviceId）
+ * @param trigger 触发源（写入 snapshot.trigger，自由字符串）
+ * @param options buildSnapshot 选项（selectedTabIds 子集 / truncateAt 截断 / totalTabCount）
+ */
+export async function buildBackupFileFromTabs(
+  allTabs: chrome.tabs.Tab[],
+  source: SnapshotSource,
+  deviceId: string,
+  trigger: string,
+  options?: BuildSnapshotOptions,
+): Promise<BackupFile> {
+  const meta = await collectMeta()
+  const snapshot = await buildSnapshot(allTabs, meta, source, options)
+  snapshot.trigger = trigger
+  return {
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    appVersionCode: APP_VERSION_CODE,
+    appVersionName: APP_VERSION_NAME,
+    kind: BACKUP_KIND,
+    deviceId,
+    customer: { id: null, type: "anonymous" },
+    snapshot,
+    signature: { algo: null, value: null },
   }
 }
 

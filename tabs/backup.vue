@@ -375,14 +375,15 @@ function onDetailRestored() {
 
 // ===== 导出弹框（P1） =====
 async function onOpenExport(snapshotId: string, label: string | null) {
-  // 列表导出：读快照 → 大 JSON 面板（复制/下载），不走 ExportDialog 格式选择
+  // 列表导出：读快照 → 统一 serializeBackupJson → 大面板（复制/下载）
   try {
     const file = await svc.getSnapshotFile(snapshotId)
     if (!file) {
       showToast('备份不存在')
       return
     }
-    jsonViewContent.value = JSON.stringify(file, null, 2)
+    const { serializeBackupJson } = await import('~lib/backup/exporters')
+    jsonViewContent.value = serializeBackupJson(file)
     jsonViewLabel.value = label
     jsonViewOpen.value = true
   } catch (e) {
