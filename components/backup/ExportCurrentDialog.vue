@@ -73,14 +73,15 @@
           </div>
         </div>
 
-        <!-- 步骤 2：JSON 大面板 -->
-        <div v-else class="px-5 pb-5 flex-1 overflow-hidden flex flex-col">
-          <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">已选 {{ selectedCount }} 个标签的 JSON 串，可复制或下载到文件夹：</p>
+        <!-- 步骤 2：数据大面板（高度自适应内容，超过 70vh 才固定+滚动） -->
+        <div v-else class="px-5 pb-5 flex-1 overflow-y-auto">
+          <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">已选 {{ selectedCount }} 个标签的数据，可复制或下载到文件夹：</p>
           <textarea
-            class="flex-1 w-full min-h-[300px] border border-gray-200 dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-900/40 text-xs font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            class="w-full border border-gray-200 dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-900/40 text-xs font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            :style="{ height: textareaHeight }"
             readonly
             :value="jsonContent"
-            aria-label="JSON 串"
+            aria-label="数据串"
           ></textarea>
         </div>
 
@@ -95,7 +96,7 @@
             :disabled="selectedCount === 0 || generating"
             class="px-3 py-1.5 min-h-[36px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             @click="onGenerate"
-          >{{ generating ? '生成中…' : '生成 JSON' }}</button>
+          >{{ generating ? '生成中…' : '生成数据' }}</button>
           <template v-else>
             <button
               class="px-3 py-1.5 min-h-[36px] text-xs rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -190,6 +191,15 @@ const selectedCount = computed(() => selectedIds.size)
 const allSelected = computed(() => totalCount.value > 0 && selectedIds.size === totalCount.value)
 const someSelected = computed(() => selectedIds.size > 0)
 
+/** textarea 高度：按内容行数估算，最小 200px，最大 70vh（超过滚动）。自适应内容量，不固定大面板。 */
+const textareaHeight = computed(() => {
+  if (!jsonContent.value) return '200px'
+  const lines = jsonContent.value.split('\n').length
+  const est = lines * 18 + 24 // 每行 ~18px + padding
+  const max = Math.floor(window.innerHeight * 0.7)
+  return `${Math.min(Math.max(est, 200), max)}px`
+})
+
 function onToggleAll() {
   if (allSelected.value) selectedIds.clear()
   else {
@@ -222,7 +232,8 @@ async function onGenerate() {
   generating.value = true
   try {
     const allTabs = await chrome.tabs.query({})
-    const ids = new Set(selectedIds.value)
+    // ⚠️ selectedIds 是 reactive Set，没有 .value；用 Array.from 复制（new Set(selectedIds.value) 会得到空集合 → windows 空）
+    const ids = new Set(Array.from(selectedIds))
     const selected = allTabs.filter((t) => typeof t.id === 'number' && ids.has(t.id))
     const meta = await collectMeta()
     const snapshot = await buildSnapshot(selected, meta, 'manual', {

@@ -129,20 +129,10 @@
       @restored="onDetailRestored"
     />
 
-    <!-- 导出弹框（P1）：列表导出传具体 snapshotId；概览导出传 null（弹框内选快照） -->
-    <ExportDialog
-      :open="exportDialogOpen"
-      :snapshot-id="exportSnapshotId"
-      :snapshot-label="exportSnapshotLabel"
-      @cancel="exportDialogOpen = false"
-      @display-json="onDisplayJson"
-    />
-
-    <!-- 导入弹框（概览用，我们自己的 JSON 导入；其他格式跳导入管理） -->
+    <!-- 导入弹框（概览用，我们自己的 JSON 导入；导入=打开标签，不写备份列表） -->
     <ImportDialog
       :open="importDialogOpen"
       @cancel="importDialogOpen = false"
-      @imported="onImportedFromDialog"
       @other-formats="onOtherFormatsFromDialog"
     />
 
@@ -160,7 +150,7 @@
         @click.self="jsonViewOpen = false"
       >
         <div
-          class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full h-[90vh] flex flex-col"
+          class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col"
           role="dialog"
           aria-modal="true"
           aria-labelledby="json-view-title"
@@ -169,9 +159,13 @@
         >
           <div class="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
             <h2 id="json-view-title" class="text-base font-semibold text-gray-900 dark:text-gray-100">
-              JSON 串<span v-if="jsonViewLabel"> · {{ jsonViewLabel }}</span>
+              数据<span v-if="jsonViewLabel"> · {{ jsonViewLabel }}</span>
             </h2>
             <div class="flex items-center gap-2">
+              <button
+                class="px-3 py-1.5 min-h-[32px] text-xs rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                @click="onDownloadJsonView"
+              >下载到文件夹</button>
               <button
                 class="px-3 py-1.5 min-h-[32px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 @click="onCopyJsonView"
@@ -185,14 +179,15 @@
               </button>
             </div>
           </div>
-          <div class="px-5 pb-4 flex-1 overflow-hidden flex flex-col">
-            <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">完整 JSON 串，可全选复制或点右上「复制全部」：</p>
+          <div class="px-5 pb-4 flex-1 overflow-y-auto">
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">完整数据，可复制或点右上「复制全部」：</p>
             <textarea
               ref="jsonViewTextareaRef"
-              class="flex-1 w-full border border-gray-200 dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-900/40 text-xs font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              class="w-full border border-gray-200 dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-900/40 text-xs font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              :style="{ height: jsonViewTextareaHeight }"
               readonly
               :value="jsonViewContent"
-              aria-label="完整 JSON 串"
+              aria-label="完整数据串"
             ></textarea>
           </div>
         </div>
@@ -235,7 +230,6 @@ import BackupOverviewTab from "~components/backup/BackupOverviewTab.vue"
 import BackupListTab from "~components/backup/BackupListTab.vue"
 import BackupImportTab from "~components/backup/BackupImportTab.vue"
 import BackupDetailDialog from "~components/backup/BackupDetailDialog.vue"
-import ExportDialog from "~components/backup/ExportDialog.vue"
 import ExportCurrentDialog from "~components/backup/ExportCurrentDialog.vue"
 import ImportDialog from "~components/backup/ImportDialog.vue"
 import ManualBackupDialog from "~components/backup/ManualBackupDialog.vue"
@@ -267,11 +261,6 @@ const noticeOpen = ref(false)
 // 详情弹框（P1）
 const detailDialogOpen = ref(false)
 const detailSnapshotId = ref<string | null>(null)
-
-// 导出弹框（P1）：列表导出传具体 snapshotId
-const exportDialogOpen = ref(false)
-const exportSnapshotId = ref<string | null>(null)
-const exportSnapshotLabel = ref<string | null>(null)
 
 // 导出当前标签弹框（概览「导出」用：抓当前浏览器标签，不选历史快照）
 const exportCurrentOpen = ref(false)
@@ -364,20 +353,12 @@ function onOtherFormatsFromDialog() {
   activeMenu.value = 'import'
 }
 
-// ===== 导入成功回调（§8.7：跳备份列表 Tab + 高亮新记录） =====
+// ===== 导入成功回调（导入管理菜单 BackupImportTab 写入 IDB 后跳列表） =====
 function onImported(snapshotId: string) {
-  // 跳备份管理 → 备份列表 Tab，让用户看到刚导入的记录
   activeMenu.value = 'manage'
   manageTab.value = 'list'
-  // 高亮新记录（BackupListTab 暴露 highlightRecord；导入管理页也可高亮）
-  // 注：BackupListTab 高亮由其内部 watch snapshots 自动定位，这里仅切视图
+  void svc.loadAll() // 刷新备份列表
   void snapshotId
-}
-
-/** 概览导入弹框导入成功：关弹框 + 跳备份列表（复用 onImported 跳转） */
-function onImportedFromDialog(snapshotId: string) {
-  importDialogOpen.value = false
-  onImported(snapshotId)
 }
 
 // ===== 备份详情弹框（P1） =====
@@ -393,10 +374,21 @@ function onDetailRestored() {
 }
 
 // ===== 导出弹框（P1） =====
-function onOpenExport(snapshotId: string, label: string | null) {
-  exportSnapshotId.value = snapshotId
-  exportSnapshotLabel.value = label
-  exportDialogOpen.value = true
+async function onOpenExport(snapshotId: string, label: string | null) {
+  // 列表导出：读快照 → 大 JSON 面板（复制/下载），不走 ExportDialog 格式选择
+  try {
+    const file = await svc.getSnapshotFile(snapshotId)
+    if (!file) {
+      showToast('备份不存在')
+      return
+    }
+    jsonViewContent.value = JSON.stringify(file, null, 2)
+    jsonViewLabel.value = label
+    jsonViewOpen.value = true
+  } catch (e) {
+    console.warn('[backup] 导出失败', e)
+    showToast('导出失败，请重试')
+  }
 }
 
 /** 概览导出：抓当前浏览器标签（不选历史快照），开 ExportCurrentDialog */
@@ -408,6 +400,42 @@ function onDisplayJson(content: string, label: string | null) {
   jsonViewContent.value = content
   jsonViewLabel.value = label
   jsonViewOpen.value = true
+}
+
+/** 数据面板 textarea 高度：按内容行数估算，自适应，封顶 70vh 滚动 */
+const jsonViewTextareaHeight = computed(() => {
+  if (!jsonViewContent.value) return '200px'
+  const lines = jsonViewContent.value.split('\n').length
+  const est = lines * 18 + 24
+  const max = Math.floor(window.innerHeight * 0.7)
+  return `${Math.min(Math.max(est, 200), max)}px`
+})
+
+/** 下载当前数据面板内容到文件 */
+async function onDownloadJsonView() {
+  try {
+    const { downloadExportWithPicker } = await import('~lib/backup/exporters')
+    const out = {
+      fileName: `tabmaster-export-${isoNow()}.json`,
+      mime: 'application/json',
+      content: jsonViewContent.value,
+    }
+    const r = await downloadExportWithPicker(out)
+    if (r.ok) {
+      showToast(r.fallback ? '已下载到默认目录' : '已导出到所选位置')
+    } else if (r.error && r.error !== '用户取消') {
+      showToast(r.error || '下载失败')
+    }
+  } catch (e) {
+    console.warn('[backup] 下载失败', e)
+    showToast('下载失败，请重试')
+  }
+}
+
+function isoNow(): string {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
 }
 
 function onCopyJsonView() {
@@ -462,6 +490,10 @@ onMounted(() => {
     else if (action === 'import') importDialogOpen.value = true
     else if (action === 'export') void onOpenExportOverview()
     else if (action === 'manage') { activeMenu.value = 'manage'; manageTab.value = 'list' }
+    // 解析后清掉 URL query，防刷新页面又跳回弹框
+    if (action && history.replaceState) {
+      history.replaceState(null, '', location.pathname)
+    }
   } catch (e) {
     console.warn('[backup] 解析 URL action 失败', e)
   }

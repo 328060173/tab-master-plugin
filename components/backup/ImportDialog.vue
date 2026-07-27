@@ -24,7 +24,7 @@
         <!-- 标题 -->
         <div class="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
           <h2 id="import-dialog-title" class="text-base font-semibold text-gray-900 dark:text-gray-100">
-            导入备份
+            导入数据
           </h2>
           <button
             class="inline-flex items-center justify-center w-7 h-7 -mt-1 -mr-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -62,7 +62,7 @@
               @click="onSwitchSource('paste')"
             >
               <Clipboard :size="12" />
-              粘贴 JSON
+              粘贴数据
             </button>
             <span v-if="fileName" class="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[200px]" :title="fileName">
               {{ fileName }}
@@ -81,7 +81,7 @@
           <textarea
             v-model="content"
             class="w-full min-h-[100px] max-h-[200px] border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-900/40 text-[11px] font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-            :placeholder="sourceMode === 'file' ? '点上方「选择文件」加载备份文件…' : '粘贴本插件导出的 JSON 串到这里…'"
+            :placeholder="sourceMode === 'file' ? '点上方「选择文件」加载数据文件…' : '粘贴本插件导出的数据串到这里…'"
             aria-label="导入内容"
           ></textarea>
 
@@ -175,31 +175,26 @@
 
         <!-- 操作行 -->
         <div class="flex items-center gap-2 justify-end px-5 pb-3 pt-1 border-t border-gray-100 dark:border-gray-700 shrink-0 flex-wrap">
-          <!-- 预览后次操作：立即打开（不写备份列表） -->
+          <button
+            type="button"
+            class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @click="onCancel"
+          >取消</button>
+          <!-- 预览后：打开选中标签（不写备份列表，导入就是打开） -->
           <button
             v-if="previewFile"
             type="button"
-            :disabled="selectedCount === 0 || opening || importing"
+            :disabled="selectedCount === 0 || opening"
             class="inline-flex items-center gap-1 min-h-[36px] px-3 py-1.5 text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             @click="onOpenSelected(false)"
           >本窗口打开</button>
           <button
             v-if="previewFile"
             type="button"
-            :disabled="selectedCount === 0 || opening || importing"
-            class="inline-flex items-center gap-1 min-h-[36px] px-3 py-1.5 text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="selectedCount === 0 || opening"
+            class="inline-flex items-center gap-1 min-h-[36px] px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             @click="onOpenSelected(true)"
-          >新窗口打开</button>
-          <button
-            type="button"
-            class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @click="onCancel"
-          >取消</button>
-          <button
-            :disabled="!previewFile || selectedCount === 0 || importing || opening"
-            class="px-3 py-1.5 min-h-[36px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="onConfirmImport"
-          >{{ importing ? '导入中…' : '导入到备份列表' }}</button>
+          >{{ opening ? '打开中…' : '新窗口打开选中' }}</button>
         </div>
 
         <!-- 底部：其他格式导入入口 -->
@@ -224,7 +219,6 @@
  */
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { X, FileUp, Clipboard, Search } from '@lucide/vue'
-import { useBackupService } from '~composables/useBackupService'
 import { showToast } from '~composables/useToast'
 import { parseImport, readFileText } from '~lib/backup/importers'
 import { openTabsFromMemory } from '~lib/backup/openFromMemory'
@@ -233,11 +227,8 @@ import type { BackupFile } from '~types/backup'
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{
   (e: 'cancel'): void
-  (e: 'imported', snapshotId: string): void
   (e: 'other-formats'): void
 }>()
-
-const svc = useBackupService()
 
 type SourceMode = 'file' | 'paste'
 const sourceMode = ref<SourceMode>('file')
@@ -313,7 +304,7 @@ const FORMAT_LABEL_MAP: Record<string, string> = {
 async function onPreview() {
   const text = content.value.trim()
   if (!text) {
-    previewError.value = '请先选择文件或粘贴 JSON 串'
+    previewError.value = '请先选择文件或粘贴数据串'
     return
   }
   previewLoading.value = true
@@ -321,7 +312,7 @@ async function onPreview() {
   try {
     const r = await parseImport(text)
     if (!r.ok || !r.file) {
-      previewError.value = r.error || '解析失败，请检查格式'
+      previewError.value = r.error || '不是合法的数据文件（仅支持 JSON）'
       previewFile.value = null
       return
     }
@@ -338,7 +329,7 @@ async function onPreview() {
     }
   } catch (err) {
     console.warn('[ImportDialog] 预览失败', err)
-    previewError.value = err instanceof Error ? err.message : '解析失败'
+    previewError.value = err instanceof Error ? err.message : '不是合法的数据文件（仅支持 JSON）'
     previewFile.value = null
   } finally {
     previewLoading.value = false
@@ -436,27 +427,6 @@ async function onOpenSelected(openInNewWindow: boolean) {
     showToast('打开失败，请重试')
   } finally {
     opening.value = false
-  }
-}
-
-// ===== 确认导入到备份列表 =====
-const importing = ref(false)
-async function onConfirmImport() {
-  const f = previewFile.value
-  if (!f || importing.value) return
-  importing.value = true
-  try {
-    const formatTag = detectedFormat.value || 'unknown'
-    f.snapshot.trigger = `import:${formatTag}`
-    await svc.appendImportedSnapshot(f)
-    const newId = f.snapshot.id
-    showToast(`已导入 ${f.snapshot.stats.tabCount} 个标签到备份列表`)
-    emit('imported', newId)
-  } catch (err) {
-    console.warn('[ImportDialog] 导入失败', err)
-    showToast('导入失败，请重试')
-  } finally {
-    importing.value = false
   }
 }
 

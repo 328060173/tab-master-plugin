@@ -24,7 +24,7 @@
           <ArrowLeftRight :size="16" class="mt-0.5 text-purple-500 shrink-0" />
           <div class="flex-1">
             <p class="font-medium text-gray-900 dark:text-gray-100">导入 / 导出能干什么</p>
-            <p class="text-gray-600 dark:text-gray-300 mt-0.5">把当前标签导出成 JSON 文件备份或转移；可从本插件 / OneTab / Nice-Tab / Toby / VertiTab 导入。不开启自动备份也能用。</p>
+            <p class="text-gray-600 dark:text-gray-300 mt-0.5">把当前标签导出成数据文件备份或转移；可从本插件 / OneTab / Nice-Tab / Toby / VertiTab 导入。不开启自动备份也能用。</p>
           </div>
         </div>
         <div class="flex items-start gap-2">
