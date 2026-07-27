@@ -219,7 +219,7 @@
  * - pipeline 加 selectedTabIds 子集参数（默认全量，不动现有调用方）
  * P1/P2 留：备份列表表格 / 还原多档 / 导入管理 / 回收站 / 趋势柱状图 / 云同步
  */
-import { ref, onMounted, onUnmounted } from "vue"
+import { ref, computed, onMounted, onUnmounted } from "vue"
 import { Shield, X, Cloud, Trash2 } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { useBackupPageAd } from "~composables/useBackupPageAd"

@@ -37,10 +37,12 @@
       </div>
       <div class="mt-4 flex justify-end">
         <button
-          class="inline-flex items-center gap-1.5 min-h-[36px] px-4 py-2 text-xs rounded font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+          class="relative inline-flex items-center gap-1.5 min-h-[36px] px-4 py-2 text-xs rounded font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
           @click="emit('ack-first-visit')"
         >
           知道了
+          <!-- 红点：提示用户点此消除所有备份导入导出引导红点 -->
+          <span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-800" aria-hidden="true"></span>
         </button>
       </div>
     </div>

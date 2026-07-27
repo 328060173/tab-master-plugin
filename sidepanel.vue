@@ -64,14 +64,9 @@
             <Shield :size="14" :class="backupBadgeKind === 'off' ? 'text-gray-400 dark:text-gray-500' : 'text-blue-600 dark:text-blue-400'" />
             <span class="whitespace-nowrap">标签导入导出</span>
             <ChevronDown :size="11" class="text-gray-400" />
-            <!-- 角标：未开启红点；有失败⚠ -->
-            <span
-              v-if="backupBadgeKind === 'off'"
-              class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-1 ring-white dark:ring-gray-800"
-              aria-hidden="true"
-            ></span>
+            <!-- 角标：仅失败时⚠提醒（未开启引导红点在「打开管理页」菜单项上） -->
             <AlertTriangle
-              v-else-if="backupBadgeKind === 'error'"
+              v-if="backupBadgeKind === 'error'"
               :size="10"
               class="absolute -top-1 -right-1 text-red-500 bg-white dark:bg-gray-800 rounded-full ring-1 ring-white dark:ring-gray-800"
               aria-hidden="true"
@@ -85,37 +80,25 @@
             :style="backupMenuPos"
             @click.stop
           >
-            <!-- 未开启时置顶：开启自动备份（醒目 CTA） -->
-            <button
-              v-if="backupBadgeKind === 'off'"
-              class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-              @click="onBackupMenuEnable"
-            >
-              <Shield :size="12" />
-              <span class="flex-1">开启自动备份</span>
-            </button>
-            <div v-if="backupBadgeKind === 'off'" class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-            <!-- 状态行（已开启时显示） -->
-            <div v-if="backupBadgeKind !== 'off'" class="px-3 py-1 text-[10px] text-gray-400">
-              {{ backupStatusText }}
-            </div>
-            <div v-if="backupBadgeKind !== 'off'" class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
             <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuManual">
               <Save :size="12" />手动备份
             </button>
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuAuto">
-              <Settings :size="12" />自动备份设置
-            </button>
             <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
             <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuImport">
-              <Upload :size="12" />导入备份
+              <Upload :size="12" />导入
             </button>
             <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuExport">
-              <Download :size="12" />导出备份
+              <Download :size="12" />导出
             </button>
             <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuManage">
+            <!-- 打开管理页：未阅引导时带小红点（进页点「知道了」后消除） -->
+            <button class="relative flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuManage">
               <FolderOpen :size="12" />打开管理页
+              <span
+                v-if="!backupSvc.firstVisitAcked.value"
+                class="absolute top-1 right-2 w-2 h-2 rounded-full bg-red-500"
+                aria-hidden="true"
+              ></span>
             </button>
           </div>
         </div>
@@ -890,13 +873,8 @@ function toggleBackupMenu(e: MouseEvent) {
   popover.toggle("backup-menu", e.currentTarget as HTMLElement)
 }
 function closeBackupMenu() { popover.close("backup-menu") }
-/** 「开启自动备份」→ 跳转 backup.html（首次进显示引导块，不在 sidepanel 内直接开） */
-function onBackupMenuEnable() {
-  closeBackupMenu()
-  openBackupManage()
-}
 /** 跳独立页并带 action query 自动打开对应弹框 */
-function openBackupPage(action: "manual" | "auto" | "import" | "export" | "manage") {
+function openBackupPage(action: "manual" | "import" | "export" | "manage") {
   try {
     chrome.tabs.create({ url: chrome.runtime.getURL(`tabs/backup.html?action=${action}`) })
   } catch (e) {
@@ -905,7 +883,6 @@ function openBackupPage(action: "manual" | "auto" | "import" | "export" | "manag
   }
 }
 function onBackupMenuManual() { closeBackupMenu(); openBackupPage("manual") }
-function onBackupMenuAuto() { closeBackupMenu(); openBackupPage("auto") }
 function onBackupMenuImport() { closeBackupMenu(); openBackupPage("import") }
 function onBackupMenuExport() { closeBackupMenu(); openBackupPage("export") }
 function onBackupMenuManage() { closeBackupMenu(); openBackupPage("manage") }
