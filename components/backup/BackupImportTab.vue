@@ -323,7 +323,7 @@ import { useBackupService } from '~composables/useBackupService'
 import { useBackupRestore } from '~composables/useBackupRestore'
 import { showToast } from '~composables/useToast'
 import { parseImport, readFileText } from '~lib/backup/importers'
-import { openTabsFromMemory } from '~lib/backup/openFromMemory'
+import { openTabs } from '~lib/backup/openTabs'
 import type { BackupFile, SnapshotSummary } from '~types/backup'
 
 const emit = defineEmits<{
@@ -505,7 +505,25 @@ async function onOpenSelected(openInNewWindow: boolean) {
   opening.value = true
   openHint.value = ''
   try {
-    const count = await openTabsFromMemory(f, new Set(selectedFps.value), openInNewWindow)
+    // 快照 windows → openTabs 的 windows 分组（跳过隐身窗口，按 fingerprint 过滤选中项）
+    const fps = new Set(selectedFps.value)
+    const windows: { tabs: { url: string; pinned?: boolean }[]; focused?: boolean }[] = []
+    let firstFocused = true
+    for (const w of f.snapshot.windows) {
+      if (w.incognito) continue
+      const tabs = w.tabs
+        .filter((t) => fps.has(t.fingerprint))
+        .map((t) => ({ url: t.url, pinned: t.pinned }))
+      if (tabs.length > 0) {
+        windows.push({ tabs, focused: firstFocused })
+        firstFocused = false
+      }
+    }
+    const count = await openTabs({
+      windows,
+      openInNewWindow,
+      skipDuplicateUrls: true,
+    })
     openHint.value = count > 0 ? `已打开 ${count} 个标签` : '选中的标签都已打开，无需重复打开'
     if (count > 0) showToast(`已打开 ${count} 个标签`)
   } catch (err) {

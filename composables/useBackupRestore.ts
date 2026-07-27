@@ -22,6 +22,7 @@ import {
 import { computeFingerprint, computeWeakFingerprint, uuidV4 } from "~lib/backup/fingerprint"
 import { tryAcquireCoord, releaseCoord } from "~lib/backup/coordination"
 import { restoreMeta, type MetaRestoreOptions, type MetaRestoreResult } from "~lib/backup/metaRestore"
+import { openTabs } from "~lib/backup/openTabs"
 import { APP_VERSION_CODE, APP_VERSION_NAME } from "~lib/api-config"
 import { buildSnapshot, collectMeta } from "~lib/backup/snapshotBuilder"
 import type { BackupFile, ConflictItem, FpUnmatchedItem, RestoreMode, RestorePreview, TabSnapshot, WindowSnapshot } from "~types/backup"
@@ -273,32 +274,23 @@ function useBackupRestoreImpl() {
     file: BackupFile,
     tabsToOpen: TabToOpen[],
   ): Promise<{ ok: boolean; openedCount: number; closedCount: number; error?: string; metaResult?: MetaRestoreResult }> {
-    let openedCount = 0
     const fpToTabId = new Map<string, number>()
     try {
-      let currentWindowId: number | undefined
-      try {
-        const cw = await chrome.windows.getCurrent()
-        currentWindowId = cw.id
-      } catch {}
-      for (const t of tabsToOpen) {
-        try {
-          const tab = await chrome.tabs.create({ url: t.url, active: false, windowId: currentWindowId })
-          if (t.pinned && typeof tab.id === 'number') {
-            await chrome.tabs.update(tab.id, { pinned: true }).catch(() => {})
+      // 调用方已按 currentUrls 过滤过重复 url，这里 skipDuplicateUrls=false 直接开
+      const openedCount = await openTabs({
+        windows: [{ tabs: tabsToOpen.map((t) => ({ url: t.url, pinned: t.pinned, fingerprint: t.fingerprint })) }],
+        openInNewWindow: false,
+        skipDuplicateUrls: false,
+        onTabOpened: (item, tabId) => {
+          if (item.fingerprint && typeof tabId === 'number') {
+            fpToTabId.set(item.fingerprint, tabId)
           }
-          if (typeof tab.id === 'number' && t.fingerprint) {
-            fpToTabId.set(t.fingerprint, tab.id)
-          }
-          openedCount++
-        } catch (e) {
-          console.warn('[openSnapshot] 打开 tab 失败', t.url, e)
-        }
-      }
+        },
+      })
       const metaResult = await writeBackMeta(file, fpToTabId)
       return { ok: true, openedCount, closedCount: 0, metaResult }
     } catch (e) {
-      return { ok: false, openedCount, closedCount: 0, error: e instanceof Error ? e.message : String(e) }
+      return { ok: false, openedCount: 0, closedCount: 0, error: e instanceof Error ? e.message : String(e) }
     }
   }
 
@@ -307,54 +299,25 @@ function useBackupRestoreImpl() {
     file: BackupFile,
     windowsToOpen: { tabs: TabToOpen[]; focused: boolean }[],
   ): Promise<{ ok: boolean; openedCount: number; closedCount: number; error?: string; metaResult?: MetaRestoreResult }> {
-    let openedCount = 0
     const fpToTabId = new Map<string, number>()
     try {
-      for (let wi = 0; wi < windowsToOpen.length; wi++) {
-        const win = windowsToOpen[wi]
-        if (!win.tabs.length) continue
-        // windows.create 用第一个 tab 的 url 创建窗口，后续 tab 用 tabs.create 补开（避免每个新窗口多 1 个 New Tab）
-        const firstTab = win.tabs[0]
-        let targetWindowId: number | undefined
-        try {
-          const newWin = await chrome.windows.create({
-            url: firstTab.url,
-            focused: !!win.focused,
-          })
-          if (typeof newWin.id === 'number') {
-            targetWindowId = newWin.id
-            const firstTabId = newWin.tabs?.[0]?.id
-            if (typeof firstTabId === 'number') {
-              if (firstTab.pinned) {
-                await chrome.tabs.update(firstTabId, { pinned: true }).catch(() => {})
-              }
-              if (firstTab.fingerprint) fpToTabId.set(firstTab.fingerprint, firstTabId)
-              openedCount++
-            }
+      const openedCount = await openTabs({
+        windows: windowsToOpen.map((w) => ({
+          tabs: w.tabs.map((t) => ({ url: t.url, pinned: t.pinned, fingerprint: t.fingerprint })),
+          focused: w.focused,
+        })),
+        openInNewWindow: true,
+        skipDuplicateUrls: false,
+        onTabOpened: (item, tabId) => {
+          if (item.fingerprint && typeof tabId === 'number') {
+            fpToTabId.set(item.fingerprint, tabId)
           }
-        } catch (e) {
-          console.warn('[openSnapshot] 新建窗口失败', e)
-        }
-        for (let i = 1; i < win.tabs.length; i++) {
-          const t = win.tabs[i]
-          try {
-            const tab = await chrome.tabs.create({ url: t.url, active: false, windowId: targetWindowId })
-            if (t.pinned && typeof tab.id === 'number') {
-              await chrome.tabs.update(tab.id, { pinned: true }).catch(() => {})
-            }
-            if (typeof tab.id === 'number' && t.fingerprint) {
-              fpToTabId.set(t.fingerprint, tab.id)
-            }
-            openedCount++
-          } catch (e) {
-            console.warn('[openSnapshot] 打开 tab 失败', t.url, e)
-          }
-        }
-      }
+        },
+      })
       const metaResult = await writeBackMeta(file, fpToTabId)
       return { ok: true, openedCount, closedCount: 0, metaResult }
     } catch (e) {
-      return { ok: false, openedCount, closedCount: 0, error: e instanceof Error ? e.message : String(e) }
+      return { ok: false, openedCount: 0, closedCount: 0, error: e instanceof Error ? e.message : String(e) }
     }
   }
 

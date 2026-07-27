@@ -5,7 +5,7 @@
     定位：备份概览里完成「我们自己的 JSON」导入，不跳页面。
     流程：选文件 / 粘贴 JSON → 自动解析预览（标签列表勾选）→ 导入到备份列表 / 立即打开。
     底部小字「其他格式导入 →」跳导入管理菜单（OneTab/Nice-Tab/Toby/VertiTab/粘贴文本）。
-    复用：lib/backup/importers.parseImport（嗅探，命中 ours）+ svc.appendImportedSnapshot + openTabsFromMemory。
+    复用：lib/backup/importers.parseImport（嗅探，命中 ours）+ lib/backup/openTabs.openTabs（纯打开，不写 IDB）。
   -->
   <Teleport to="body">
     <div
@@ -168,13 +168,13 @@
  * 导入弹框（备份概览用）。
  * 完成我们自己的 JSON 导入：选文件/粘贴 → 解析预览 → 导入到备份列表 / 立即打开。
  * 底部「其他格式导入」emit('other-formats') 由父组件跳导入管理菜单。
- * 复用 parseImport（自动嗅探，命中 ours）+ svc.appendImportedSnapshot + openTabsFromMemory。
+ * 复用 parseImport（自动嗅探，命中 ours）+ lib/backup/openTabs.openTabs（纯打开，不写 IDB）。
  */
 import { ref, computed, watch, nextTick } from 'vue'
 import { X, FileUp, Clipboard, Search } from '@lucide/vue'
 import { showToast } from '~composables/useToast'
 import { parseImport, readFileText } from '~lib/backup/importers'
-import { openTabsFromMemory } from '~lib/backup/openFromMemory'
+import { openTabs } from '~lib/backup/openTabs'
 import TabSelectPanel from '~components/backup/TabSelectPanel.vue'
 import type { BackupFile } from '~types/backup'
 
@@ -344,7 +344,25 @@ async function onOpenSelected(openInNewWindow: boolean) {
   if (!f || selectedCount.value === 0 || opening.value) return
   opening.value = true
   try {
-    const count = await openTabsFromMemory(f, new Set(selectedFps.value), openInNewWindow)
+    // 快照 windows → openTabs 的 windows 分组（跳过隐身窗口，按 fingerprint 过滤选中项）
+    const fps = new Set(selectedFps.value)
+    const windows: { tabs: { url: string; pinned?: boolean }[]; focused?: boolean }[] = []
+    let firstFocused = true
+    for (const w of f.snapshot.windows) {
+      if (w.incognito) continue
+      const tabs = w.tabs
+        .filter((t) => fps.has(t.fingerprint))
+        .map((t) => ({ url: t.url, pinned: t.pinned }))
+      if (tabs.length > 0) {
+        windows.push({ tabs, focused: firstFocused })
+        firstFocused = false
+      }
+    }
+    const count = await openTabs({
+      windows,
+      openInNewWindow,
+      skipDuplicateUrls: true,
+    })
     if (count > 0) showToast(`已打开 ${count} 个标签`)
     else showToast('选中的标签都已打开，无需重复打开')
   } catch (err) {

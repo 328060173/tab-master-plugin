@@ -22,6 +22,7 @@ import type {
   SnapshotMeta,
 } from "~types/backup"
 import { restoreMeta, type MetaRestoreOptions, type MetaRestoreResult } from "./metaRestore"
+import { openTabs, type OpenWindowGroup } from "./openTabs"
 
 /** 当前浏览器标签（用于冲突检测/匹配） */
 export interface CurrentTab {
@@ -379,88 +380,47 @@ export async function executeRestore(
   // fingerprint → 新 tabId 映射（元数据写回用）
   const fpToTabId = new Map<string, number>()
   try {
-    if (windows && windows.length) {
-      // P0-2：按窗口结构重建多窗口
-      // 找当前窗口作为第一个窗口的容器（避免无谓新建）
-      let currentWindowId: number | undefined
-      try {
-        const cw = await chrome.windows.getCurrent()
-        currentWindowId = cw.id
-      } catch {}
-      for (let wi = 0; wi < windows.length; wi++) {
-        const win = windows[wi]
-        if (!win.tabs.length) continue
-        // 第一个窗口复用当前窗口（若有），后续窗口新建
-        let targetWindowId: number | undefined
-        let skipFirst = false // 新建窗口时首个 tab 的 url 传给 windows.create，循环跳过
-        if (wi === 0 && typeof currentWindowId === "number") {
-          targetWindowId = currentWindowId
-        } else {
-          try {
-            // D09 修复：chrome.windows.create 不传 url 会默认开 New Tab（docs/googledocs/windows.md:862），
-            // 把第一个 tab 的 url 传进去，循环里跳过首项，避免每个新建窗口多 1 个 New Tab
-            const firstTab = win.tabs[0]
-            const newWin = await chrome.windows.create({
-              url: firstTab.url,
-              focused: !!win.focused,
-              state: win.state,
-            })
-            if (typeof newWin.id === "number") {
-              targetWindowId = newWin.id
-              skipFirst = true
-              // 首个 tab 已由 windows.create 打开，记录 fingerprint 映射 + pinned 置位
-              const firstTabId = newWin.tabs?.[0]?.id
-              if (typeof firstTabId === "number") {
-                if (firstTab.pinned) {
-                  await chrome.tabs.update(firstTabId, { pinned: true }).catch(() => {})
-                }
-                if (firstTab.fingerprint) fpToTabId.set(firstTab.fingerprint, firstTabId)
-                openedCount++
-              }
-            }
-          } catch (e) {
-            console.warn("[restore] 新建窗口失败，退化为当前窗口", e)
-            targetWindowId = currentWindowId
-          }
-        }
-        for (let i = 0; i < win.tabs.length; i++) {
-          if (skipFirst && i === 0) continue // 首项已由 windows.create 打开
-          const t = win.tabs[i]
-          try {
-            const tab = await chrome.tabs.create({
+    // 收口到 openTabs：把 windows（按窗口分组）/ tabsToOpen（扁平，向后兼容）
+    // 统一转成 OpenTabsOptions 调用。元数据写回通过 onTabOpened 收集 fp→tabId。
+    //
+    // 多窗口重建语义（P0-2，保行为不变）：
+    // - 有 windows 时：第一个窗口复用当前窗口（openInNewWindow=false），
+    //   后续窗口新建（openInNewWindow=true），与原实现一致
+    // - 无 windows（selected/undo 扁平路径）：全部开到当前窗口
+    const hasWindows = !!windows && windows.length > 0
+    const groups: OpenWindowGroup[] = hasWindows
+      ? windows!.map((w, idx) => ({
+          tabs: w.tabs.map((t) => ({
+            url: t.url,
+            pinned: t.pinned,
+            fingerprint: t.fingerprint,
+          })),
+          focused: w.focused,
+          state: w.state,
+          // 第一个窗口复用当前窗口，后续窗口新建（保 P0-2 行为）
+          openInNewWindow: idx !== 0,
+        }))
+      : [
+          {
+            tabs: tabsToOpen.map((t) => ({
               url: t.url,
-              active: false,
-              windowId: targetWindowId,
-            })
-            if (t.pinned && typeof tab.id === "number") {
-              await chrome.tabs.update(tab.id, { pinned: true }).catch(() => {})
-            }
-            if (typeof tab.id === "number" && t.fingerprint) {
-              fpToTabId.set(t.fingerprint, tab.id)
-            }
-            openedCount++
-          } catch (e) {
-            console.warn("[restore] 打开 tab 失败", t.url, e)
-          }
+              pinned: t.pinned,
+              fingerprint: t.fingerprint,
+            })),
+          },
+        ]
+    // restore 路径已由 resolveConflicts 算好要开的列表，不重复跳过已开同 url
+    openedCount = await openTabs({
+      windows: groups,
+      // 全局默认 true（被首组的 per-group false 覆盖时复用当前窗口）
+      openInNewWindow: hasWindows ? true : false,
+      skipDuplicateUrls: false,
+      onTabOpened: (item, tabId) => {
+        if (item.fingerprint && typeof tabId === "number") {
+          fpToTabId.set(item.fingerprint, tabId)
         }
-      }
-    } else if (tabsToOpen.length) {
-      // 向后兼容：无 windows 时在当前窗口逐个开（selected/undo 路径）
-      for (const t of tabsToOpen) {
-        try {
-          const tab = await chrome.tabs.create({ url: t.url, active: false })
-          if (t.pinned && typeof tab.id === "number") {
-            await chrome.tabs.update(tab.id, { pinned: true }).catch(() => {})
-          }
-          if (typeof tab.id === "number" && t.fingerprint) {
-            fpToTabId.set(t.fingerprint, tab.id)
-          }
-          openedCount++
-        } catch (e) {
-          console.warn("[restore] 打开 tab 失败", t.url, e)
-        }
-      }
-    }
+      },
+    })
     if (closeCurrentTabIds.length) {
       try {
         await chrome.tabs.remove(closeCurrentTabIds)
