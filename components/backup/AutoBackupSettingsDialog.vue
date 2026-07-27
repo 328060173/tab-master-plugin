@@ -286,17 +286,17 @@ async function onSave() {
     }
     showToast('已保存设置')
     emit('saved')
-    // §首次反馈：开启自动备份立即触发一次首次备份，避免干等一个周期（timerMinutes）无反馈
+    // §首次反馈：开启自动备份立即触发第一次自动备份（source=auto.event.startup → 类型显示「自动备份」非手动）
     if (justEnabled) {
-      showToast('已开启自动备份 · 立即创建首个快照')
-      void svc.runManualBackup().then((r) => {
+      showToast('已开启自动备份 · 立即进行第一次自动备份')
+      void svc.runBackup('auto.event.startup').then((r) => {
         if (r.ok && r.snapshot) {
           const n = r.snapshot.stats.selectedTabCount ?? r.snapshot.stats.tabCount
-          showToast(`已备份 ${n} 标签`)
+          showToast(`第一次自动备份成功 · 已备份 ${n} 标签`)
         } else if (!r.ok) {
-          showToast(r.error || '首次备份失败，请重试')
+          showToast(r.error || '第一次自动备份失败，请重试')
         }
-      }).catch(() => showToast('首次备份失败，请重试'))
+      }).catch(() => showToast('第一次自动备份失败，请重试'))
     }
   } catch (e) {
     console.warn('[AutoBackupSettingsDialog] 保存失败', e)
