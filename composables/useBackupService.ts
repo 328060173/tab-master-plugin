@@ -78,6 +78,8 @@ function useBackupServiceImpl() {
   const snapshots = ref<SnapshotSummary[]>([])
   const dirMeta = ref<BackupDirMeta>({ ...DEFAULT_BACKUP_DIR_META, permission: isFsAccessSupported() ? "prompt" : "unsupported" })
   const noticeAcked = ref<boolean>(DEFAULT_BACKUP_NOTICE_ACKED)
+  /** backup.html 首次引导是否已阅（点过「知道了」=true） */
+  const firstVisitAcked = ref<boolean>(false)
   const undo = ref<BackupUndo>({ ...DEFAULT_BACKUP_UNDO })
   const isBackingUp = ref(false)
   const lastProgress = ref("")
@@ -90,7 +92,7 @@ function useBackupServiceImpl() {
   // loadAll 委托给 lib/backup/loader.ts（拆文件控行数）
   async function loadAll() {
     await loadAllFn({
-      settings, state, snapshots, dirMeta, noticeAcked, undo,
+      settings, state, snapshots, dirMeta, noticeAcked, firstVisitAcked, undo,
       refreshNextBackupTime, checkDirPermission,
     })
   }
@@ -130,6 +132,15 @@ function useBackupServiceImpl() {
   async function resetNoticeAck() {
     noticeAcked.value = DEFAULT_BACKUP_NOTICE_ACKED
     await saveNoticeAcked()
+  }
+  /** 标记 backup.html 首次引导已阅（点「知道了」=true，以后不再显示引导块） */
+  async function setFirstVisitAcked(v: boolean) {
+    firstVisitAcked.value = v
+    try {
+      await safeSet({ [BACKUP_KEYS.firstVisitAcked]: v }, "backup")
+    } catch (e) {
+      console.warn("[useBackupService] 保存 firstVisitAcked 失败", e)
+    }
   }
 
   // ===== 事件备份（防抖 2s）=====
@@ -371,7 +382,7 @@ function useBackupServiceImpl() {
       const { clearAllSnapshots } = await import("~lib/backup/snapshotStore")
       await clearAllSnapshots()
       // 清 storage.local 元信息（state/undo/dirMeta/noticeAcked；cache 已废弃不动）
-      await safeRemove([BACKUP_KEYS.state, BACKUP_KEYS.undo, BACKUP_KEYS.dirMeta, BACKUP_KEYS.noticeAcked, BACKUP_KEYS.noticeAck], "backup")
+      await safeRemove([BACKUP_KEYS.state, BACKUP_KEYS.undo, BACKUP_KEYS.dirMeta, BACKUP_KEYS.noticeAcked, BACKUP_KEYS.noticeAck, BACKUP_KEYS.firstVisitAcked], "backup")
       await safeSet({ [BACKUP_KEYS.state]: toPure(DEFAULT_BACKUP_STATE) }, "backup")
       snapshots.value = []
       state.value = { ...DEFAULT_BACKUP_STATE }
@@ -454,6 +465,7 @@ function useBackupServiceImpl() {
     snapshots,
     dirMeta,
     noticeAcked,
+    firstVisitAcked,
     undo,
     isBackingUp,
     lastProgress,
@@ -465,6 +477,7 @@ function useBackupServiceImpl() {
     setEnabled,
     updateSettings,
     setNoticeAcked,
+    setFirstVisitAcked,
     resetNoticeAck,
     // 备份
     runManualBackup,

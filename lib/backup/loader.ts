@@ -38,6 +38,8 @@ export interface LoadAllDeps {
   dirMeta: Ref<BackupDirMeta>
   /** 是否已确认首次开启知悉（单 bool，设计稿 §4.2） */
   noticeAcked: Ref<boolean>
+  /** backup.html 首次引导是否已阅（点过「知道了」=true） */
+  firstVisitAcked: Ref<boolean>
   undo: Ref<BackupUndo>
   /** 计算下次定时备份时间（load 完调） */
   refreshNextBackupTime: () => Promise<void>
@@ -55,7 +57,7 @@ export interface LoadAllDeps {
  * - 末尾刷新下次备份时间 + 检查目录权限
  */
 export async function loadAll(deps: LoadAllDeps): Promise<void> {
-  const { settings, state, snapshots, dirMeta, noticeAcked, undo, refreshNextBackupTime, checkDirPermission } = deps
+  const { settings, state, snapshots, dirMeta, noticeAcked, firstVisitAcked, undo, refreshNextBackupTime, checkDirPermission } = deps
   try {
     // 先迁移旧 storage.local cache → IndexedDB（在加载快照列表前）
     try {
@@ -71,6 +73,7 @@ export async function loadAll(deps: LoadAllDeps): Promise<void> {
       BACKUP_KEYS.dirMeta,
       BACKUP_KEYS.noticeAcked,
       BACKUP_KEYS.noticeAck, // 旧 key 用于迁移
+      BACKUP_KEYS.firstVisitAcked,
       BACKUP_KEYS.undo,
     ])
     settings.value = sanitizeSettings(data[BACKUP_KEYS.settings])
@@ -97,6 +100,8 @@ export async function loadAll(deps: LoadAllDeps): Promise<void> {
     } else {
       noticeAcked.value = DEFAULT_BACKUP_NOTICE_ACKED
     }
+    // 首次引导是否已阅
+    firstVisitAcked.value = data[BACKUP_KEYS.firstVisitAcked] === true
     undo.value = (data[BACKUP_KEYS.undo] && typeof data[BACKUP_KEYS.undo] === "object"
       ? data[BACKUP_KEYS.undo] : DEFAULT_BACKUP_UNDO) as BackupUndo
     // 撤销窗口 30s 过期清理

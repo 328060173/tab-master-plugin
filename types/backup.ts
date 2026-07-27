@@ -285,6 +285,8 @@ export const BACKUP_KEYS = {
   noticeAck: 'tabMasterBackupNoticeAck',
   /** 首次开启知悉是否已确认（单 bool，开启过=true 不再弹，设计稿 §4.2） */
   noticeAcked: 'tabMasterBackupNoticeAcked',
+  /** backup.html 首次引导是否已阅（单 bool，点过「知道了」=true 以后不再显示引导块） */
+  firstVisitAcked: 'tabMasterBackupFirstVisitAcked',
   /** 用户目录元信息（handle 名/上次扫描大小/扫描时间），handle 本身在 IndexedDB */
   dirMeta: 'tabMasterBackupDirMeta',
   /** 恢复前快照 + 30s 撤销窗口信息 */

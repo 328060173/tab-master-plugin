@@ -57,10 +57,10 @@
             <ErrorBoundary v-if="manageTab === 'overview'" scope="backup.overview">
               <BackupOverviewTab
                 @open-manual-backup="manualBackupOpen = true"
-                @open-auto-settings="autoSettingsOpen = true"
+                @open-auto-settings="onRequestEnable"
                 @open-import="importDialogOpen = true"
                 @open-export="onOpenExportOverview"
-                @request-enable="onRequestEnable"
+                @ack-first-visit="onAckFirstVisit"
               />
             </ErrorBoundary>
 
@@ -144,6 +144,12 @@
       @cancel="importDialogOpen = false"
       @imported="onImportedFromDialog"
       @other-formats="onOtherFormatsFromDialog"
+    />
+
+    <!-- 导出当前标签弹框（概览「导出」用：抓当前浏览器标签 → 勾选 → JSON 大面板） -->
+    <ExportCurrentDialog
+      :open="exportCurrentOpen"
+      @cancel="exportCurrentOpen = false"
     />
 
     <!-- JSON 串查看弹框（导出"展示 JSON 串"去向）：大面板，占满屏幕，方便阅读+复制 -->
@@ -230,6 +236,7 @@ import BackupListTab from "~components/backup/BackupListTab.vue"
 import BackupImportTab from "~components/backup/BackupImportTab.vue"
 import BackupDetailDialog from "~components/backup/BackupDetailDialog.vue"
 import ExportDialog from "~components/backup/ExportDialog.vue"
+import ExportCurrentDialog from "~components/backup/ExportCurrentDialog.vue"
 import ImportDialog from "~components/backup/ImportDialog.vue"
 import ManualBackupDialog from "~components/backup/ManualBackupDialog.vue"
 import AutoBackupSettingsDialog from "~components/backup/AutoBackupSettingsDialog.vue"
@@ -261,10 +268,13 @@ const noticeOpen = ref(false)
 const detailDialogOpen = ref(false)
 const detailSnapshotId = ref<string | null>(null)
 
-// 导出弹框（P1）
+// 导出弹框（P1）：列表导出传具体 snapshotId
 const exportDialogOpen = ref(false)
 const exportSnapshotId = ref<string | null>(null)
 const exportSnapshotLabel = ref<string | null>(null)
+
+// 导出当前标签弹框（概览「导出」用：抓当前浏览器标签，不选历史快照）
+const exportCurrentOpen = ref(false)
 
 // 导入弹框（概览用，我们自己的 JSON 导入）
 const importDialogOpen = ref(false)
@@ -281,7 +291,12 @@ const manualBackupDialogRef = ref<InstanceType<typeof ManualBackupDialog> | null
 // 导入管理 Tab ref（用于高亮新导入记录）
 const importTabRef = ref<InstanceType<typeof BackupImportTab> | null>(null)
 
-// ===== 首次开启告知弹窗 =====
+// ===== 首次引导「知道了」=====
+async function onAckFirstVisit() {
+  await svc.setFirstVisitAcked(true)
+}
+
+// ===== 开启自动备份（点「自动备份」按钮 → 弹确认 → 开启 + 首次自动备份 + 跳列表）=====
 function onRequestEnable() {
   // 已确认过（单 bool）→ 直接开；否则弹知悉弹窗
   if (svc.noticeAcked.value) {
@@ -299,13 +314,18 @@ async function onNoticeConfirm() {
 
 async function doEnable() {
   await svc.setEnabled(true)
-  showToast('已开启标签备份 · 立即创建首个快照')
-  // 触发首次备份（全量）
-  void svc.runManualBackup().then((r) => {
+  showToast('已开启自动备份 · 立即进行第一次自动备份')
+  // 首次备份用 auto.event.startup 来源 → 备份列表类型显示「自动备份」（不是手动）
+  void svc.runBackup('auto.event.startup').then((r) => {
     if (r.ok && r.snapshot) {
-      showToast(`已备份 ${r.snapshot.stats.tabCount} 标签`)
+      showToast(`第一次自动备份成功 · 已备份 ${r.snapshot.stats.tabCount} 标签`)
+      // 跳备份列表 + 刷新（让用户立即看到这条自动备份）
+      manageTab.value = 'list'
+      void svc.loadAll()
+    } else if (!r.ok) {
+      showToast(r.error || '第一次自动备份失败，请重试')
     }
-  }).catch(() => {})
+  }).catch(() => showToast('第一次自动备份失败，请重试'))
 }
 
 // ===== 手动备份弹框 =====
@@ -379,11 +399,9 @@ function onOpenExport(snapshotId: string, label: string | null) {
   exportDialogOpen.value = true
 }
 
-/** 概览导出：无上下文快照，传 null 让 ExportDialog 显示快照选择下拉 */
+/** 概览导出：抓当前浏览器标签（不选历史快照），开 ExportCurrentDialog */
 function onOpenExportOverview() {
-  exportSnapshotId.value = null
-  exportSnapshotLabel.value = null
-  exportDialogOpen.value = true
+  exportCurrentOpen.value = true
 }
 
 function onDisplayJson(content: string, label: string | null) {

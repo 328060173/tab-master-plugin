@@ -890,24 +890,10 @@ function toggleBackupMenu(e: MouseEvent) {
   popover.toggle("backup-menu", e.currentTarget as HTMLElement)
 }
 function closeBackupMenu() { popover.close("backup-menu") }
-/** 开启自动备份（sidepanel 内直接开 + 首次备份，不跳页） */
-async function onBackupMenuEnable() {
+/** 「开启自动备份」→ 跳转 backup.html（首次进显示引导块，不在 sidepanel 内直接开） */
+function onBackupMenuEnable() {
   closeBackupMenu()
-  try {
-    await backupSvc.setEnabled(true)
-    showToast("已开启自动备份 · 立即创建首个快照")
-    void backupSvc.runManualBackup().then((r) => {
-      if (r.ok && r.snapshot) {
-        const n = r.snapshot.stats.selectedTabCount ?? r.snapshot.stats.tabCount
-        showToast(`已备份 ${n} 标签`)
-      } else if (!r.ok) {
-        showToast(r.error || "首次备份失败，请重试")
-      }
-    }).catch(() => showToast("首次备份失败，请重试"))
-  } catch (e) {
-    console.warn("[sidepanel] 开启备份失败", e)
-    showToast("开启失败，请重试")
-  }
+  openBackupManage()
 }
 /** 跳独立页并带 action query 自动打开对应弹框 */
 function openBackupPage(action: "manual" | "auto" | "import" | "export" | "manage") {
