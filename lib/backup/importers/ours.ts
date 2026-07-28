@@ -85,6 +85,8 @@ function fillDefaults(raw: Record<string, unknown>, warnings: string[]): BackupF
       locked: false,
       lockedReason: null,
       label: typeof snapRaw.label === "string" ? snapRaw.label : null,
+      status: 'success',
+      errorMessage: null,
       windows,
       meta: {
         customTags: Array.isArray(metaRaw.customTags) ? metaRaw.customTags.filter((x): x is string => typeof x === "string") : [],

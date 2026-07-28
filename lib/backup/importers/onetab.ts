@@ -110,6 +110,8 @@ export function parseOneTab(text: string): Promise<ImportResult> {
         locked: false,
         lockedReason: null,
         label: "OneTab 导入",
+        status: 'success',
+        errorMessage: null,
         windows,
         meta: {
           customTags: [],

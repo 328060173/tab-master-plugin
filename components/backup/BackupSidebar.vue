@@ -1,8 +1,8 @@
 <template>
   <!--
-    左菜单（设计稿 §0 / §8.3：220px 4 项 + 底部推广位 160×60 可折叠）。
+    左菜单（设计稿 §0 / §8.3：220px 3 项 + 底部推广位 160×60 可折叠）。
     单根（外层 aside），无 fallthrough。
-    4 项：备份管理（默认）/ 云同步（占位）/ 导入管理（占位）/ 回收站（占位）。
+    3 项：备份管理（默认）/ 云同步（开发中，催作者页）/ 导入管理。
     选中项高亮：蓝底 + 左 3px 蓝条。
   -->
   <aside class="w-[220px] shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
@@ -12,7 +12,7 @@
         v-for="item in menuItems"
         :key="item.key"
         :class="[
-          'relative w-full flex items-center gap-2 px-3 py-2.5 text-xs transition-colors text-left',
+          'relative w-full flex items-center gap-2 px-4 py-3.5 text-base transition-colors text-left',
           'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset',
           activeKey === item.key
             ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium'
@@ -28,12 +28,8 @@
           class="absolute left-0 top-0 bottom-0 w-[3px] bg-blue-600"
           aria-hidden="true"
         ></span>
-        <component :is="item.icon" :size="14" class="shrink-0" />
+        <component :is="item.icon" :size="18" class="shrink-0" />
         <span class="flex-1 truncate">{{ item.label }}</span>
-        <span
-          v-if="item.placeholder"
-          class="text-[10px] text-gray-400 dark:text-gray-500 shrink-0"
-        >占位</span>
       </button>
     </nav>
 
@@ -44,7 +40,7 @@
         <AdSlot
           slot-id="backup-sidebar-promo"
           size="160x60"
-          :ad="adData"
+          :ad="getAd('backup-sidebar')"
           :dismissible="true"
           fallback="placeholder"
         />
@@ -59,30 +55,28 @@
  * 选中项通过 v-model 双向绑定（activeKey + update:activeKey）。
  * 广告数据来自 useBackupPageAd 单例（与概览 Tab 主位共享同一次请求）。
  */
-import { Shield, Cloud, Download, Trash2 } from "@lucide/vue"
+import { Shield, Cloud, Download } from "@lucide/vue"
 import AdSlot from "./AdSlot.vue"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
 
-const { adData } = useBackupPageAd()
+// 广告多槽位：取左菜单辅位广告（backup-sidebar），adMap 由 backup.vue onMounted 单例 fetchAd 拉取
+const { getAd } = useBackupPageAd()
 
-export type BackupMenuKey = 'manage' | 'cloud' | 'import' | 'trash'
+export type BackupMenuKey = 'manage' | 'cloud' | 'import'
 
 interface MenuItem {
   key: BackupMenuKey
   label: string
   icon: typeof Shield
-  /** 占位项：true 时右侧显示「占位」标签，点击仍 emit 事件（让父显示占位页） */
-  placeholder?: boolean
-  /** 禁用（无功能时不让点）—— 占位项暂不禁用，让用户能切过去看「即将上线」 */
+  /** 禁用（无功能时不让点） */
   disabled?: boolean
 }
 
 const menuItems: MenuItem[] = [
   { key: 'manage', label: '备份管理', icon: Shield },
-  { key: 'cloud', label: '云同步', icon: Cloud, placeholder: true },
+  { key: 'cloud', label: '云同步', icon: Cloud },
   { key: 'import', label: '导入管理', icon: Download },
-  { key: 'trash', label: '回收站', icon: Trash2, placeholder: true },
 ]
 
 defineProps<{ activeKey: BackupMenuKey }>()

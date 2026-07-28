@@ -55,3 +55,25 @@ export interface AdSyncResponse {
     nextSyncIntervalMinutes: number | null
   } | null
 }
+
+/**
+ * POST /ad/listbypositions 请求体（备份独立页多槽位广告，2026-07-28 立）。
+ * - customerType：0=匿名 / 1=登录（后端按此做登录态灰度/统计）
+ * - positions：槽位数组（备份独立页 4 个：backup-overview/backup-sidebar/backup-list/backup-import）
+ * - trigger：触发场景，默认 'manual'
+ */
+export interface AdListByPositionsRequest {
+  customerType: number
+  positions: string[]
+  trigger?: string
+}
+
+/**
+ * POST /ad/listbypositions 响应体。
+ * data.adMap：{ [position]: AdItem | null }，缺失 position 取不到时前端按 null 处理（显占位）。
+ */
+export interface AdListByPositionsResponse {
+  code: number
+  msg: string
+  data?: { adMap: Record<string, AdItem | null> }
+}

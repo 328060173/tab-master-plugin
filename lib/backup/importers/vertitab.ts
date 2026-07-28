@@ -130,6 +130,8 @@ export function parseVertiTab(text: string): Promise<ImportResult> {
         locked: false,
         lockedReason: null,
         label: "VertiTab 导入",
+        status: 'success',
+        errorMessage: null,
         windows,
         meta: { customTags: [], tabTagsMap: {}, tabGroups, laterTabs: [], recentlyClosed: [], settings: null },
         stats: {

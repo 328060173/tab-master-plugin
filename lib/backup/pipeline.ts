@@ -18,14 +18,17 @@ import {
   type BackupFile,
   type BackupSettings,
   type BackupState,
+  type SnapshotSource,
   type SnapshotSummary,
 } from "~types/backup"
 import {
+  persistSnapshot,
   gfsCleanupSnapshots,
   trimToMaxSnapshots,
   listSnapshotSummaries,
 } from "./snapshotStore"
 import { toSummary } from "./sanitize"
+import { uuidV4 } from "./fingerprint"
 
 export interface PipelineDeps {
   settings: Ref<BackupSettings>
@@ -105,6 +108,62 @@ async function writeDir(deps: PipelineDeps, file: BackupFile, lastProgress: Ref<
   return r.ok ? null : (r.error || "目录写入失败")
 }
 
+/**
+ * 构造失败快照（§2.2 失败也落库）。
+ * 备份执行失败时构造一条 status='failed' 的记录写入 IndexedDB，让列表能显示失败记录。
+ * - windows=[]（无标签数据）
+ * - stats 全 0（无实际标签统计）
+ * - status='failed'，errorMessage=失败原因
+ * - 不计入保留上限（trimToMaxSnapshots / getManualOverLimitCount / GFS 均跳过 status='failed'）
+ */
+async function buildFailedFile(
+  deps: PipelineDeps,
+  source: string,
+  errorMessage: string,
+): Promise<BackupFile> {
+  const now = Date.now()
+  const snapSource = mapSnapSource(source)
+  const deviceId = await deps.getDeviceId()
+  return {
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    appVersionCode: APP_VERSION_CODE,
+    appVersionName: APP_VERSION_NAME,
+    kind: BACKUP_KIND,
+    deviceId,
+    customer: { id: null, type: 'anonymous' },
+    snapshot: {
+      id: uuidV4(),
+      createdAt: now,
+      createdAtISO: new Date(now).toISOString(),
+      source: snapSource as SnapshotSource,
+      trigger: source,
+      locked: false,
+      lockedReason: null,
+      label: null,
+      status: 'failed',
+      errorMessage,
+      windows: [],
+      meta: {
+        customTags: [],
+        tabTagsMap: {},
+        tabGroups: [],
+        laterTabs: [],
+        recentlyClosed: [],
+        settings: null,
+      },
+      stats: {
+        tabCount: 0,
+        windowCount: 0,
+        pinnedCount: 0,
+        groupCount: 0,
+        taggedCount: 0,
+        laterCount: 0,
+      },
+    },
+    signature: { algo: null, value: null },
+  }
+}
+
 /** runBackupPipeline 的可选参数（§10.8 手动备份选部分标签） */
 export interface RunPipelineOptions {
   /**
@@ -126,6 +185,22 @@ export async function runBackupPipeline(
 ): Promise<PipelineResult> {
   const { state, snapshots, isBackingUp, lastProgress } = deps
   if (isBackingUp.value) return { ok: false, error: "正在备份中…" }
+  // 配额 gate（2026-07-28 立）：超 cacheQuotaBytes 则不自动备份，提示用户清理手动备份。
+  // - 只对自动备份生效（source !== 'manual'）。手动备份不受限（用户主动操作，让他备）。
+  // - 失败不落库（这是配额拦截，不是备份失败，不该进失败列表）。
+  // - 不拼魔法值，阈值用 settings.cacheQuotaBytes（默认 30MB，会员档 80MB 预留）。
+  // - 提示文案落到 state.lastBackupError（BackupOverviewTab amber 状态条会显示）。
+  if (source !== 'manual') {
+    const used = await deps.getCacheBytesInUse()
+    const quota = deps.settings.value.cacheQuotaBytes
+    if (used >= quota) {
+      const usedMB = Math.round(used / 1024 / 1024)
+      const quotaMB = Math.round(quota / 1024 / 1024)
+      state.value.lastBackupError = `缓存已满（${usedMB}MB ≥ ${quotaMB}MB），请清理手动备份后继续`
+      await deps.saveState()
+      return { ok: false, error: '缓存已满，请清理手动备份' }
+    }
+  }
   isBackingUp.value = true
   try {
     const file = await buildBackupFile(deps, source, lastProgress, options)
@@ -152,6 +227,31 @@ export async function runBackupPipeline(
     return { ok: true, snapshot: justWritten ?? toSummary(file), file }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
+    // §2.2 失败也落库：构造 failed 快照写入 IndexedDB，让列表能显示失败记录。
+    // 失败快照不计入保留上限（trimToMaxSnapshots / GFS 均跳过 status='failed'），不挤掉成功备份。
+    // persistSnapshot 失败不影响主流程（已在 catch 中，不再抛）。
+    try {
+      const failedFile = await buildFailedFile(deps, source, msg)
+      const persist = await persistSnapshot(failedFile)
+      if (persist.ok) {
+        // 失败快照不触发 GFS/trim（跳过保留策略裁剪，避免误删成功备份）
+        // 刷新 UI 列表（让用户看到失败记录）
+        const summaries = await listSnapshotSummaries()
+        snapshots.value = summaries
+        const cacheBytes = await deps.getCacheBytesInUse()
+        state.value = {
+          lastBackupAt: failedFile.snapshot.createdAt,
+          lastBackupSource: failedFile.snapshot.source as BackupState["lastBackupSource"],
+          lastBackupError: msg,
+          snapshotCount: summaries.length,
+          cacheBytes,
+        }
+        await deps.saveState()
+        return { ok: false, error: msg, snapshot: toSummary(failedFile) }
+      }
+    } catch (inner) {
+      console.warn("[backup pipeline] 失败快照落库也失败", inner)
+    }
     state.value.lastBackupError = msg
     await deps.saveState()
     console.warn("[backup pipeline] 失败", e)

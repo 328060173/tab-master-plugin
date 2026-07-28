@@ -76,18 +76,14 @@
           <ChevronLeft :size="11" class="text-gray-400" />
         </button>
 
-        <!-- 显示位置：hover 展开「如何手动切换」指引（扩展无法直接设置位置，Chrome 没给 setter）-->
+        <!-- 显示位置：点击弹独立提示框（扩展无法直接设置左右位置，由浏览器控制；不编操作路径） -->
         <button
-          ref="positionRowRef"
           class="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-          :class="activeSubmenu === 'position' && 'bg-gray-50 dark:bg-gray-700'"
-          @mouseenter="onEnterSubmenuRow('position', positionRowRef)"
+          @mouseenter="activeSubmenu = null"
+          @click="onShowPositionTip"
         >
           <span class="flex items-center gap-2"><Layout :size="13" />{{ t('menu.displayPosition') }}</span>
-          <span class="flex items-center gap-1">
-            <span v-if="sidePanelSide !== 'unknown'" class="text-[10px] text-gray-400">{{ sidePanelSide === 'left' ? '左侧' : '右侧' }}</span>
-            <ChevronLeft :size="11" class="text-gray-400" />
-          </span>
+          <span v-if="sidePanelSide !== 'unknown'" class="text-[10px] text-gray-400">{{ sidePanelSide === 'left' ? '左侧' : '右侧' }}</span>
         </button>
 
         <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
@@ -209,21 +205,40 @@
           <Check v-if="settings.fontSize === opt.value" :size="12" class="text-blue-600 dark:text-blue-400" />
         </button>
       </div>
-      <!-- ====== 二级子菜单：显示位置指引（窄·浮在左侧，不压菜单）====== -->
-      <div
-        v-if="popover.isOpen('header-menu') && activeSubmenu === 'position'"
-        :style="positionSubmenuPos"
-        data-popover-content
-        class="fixed z-[60] w-[144px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl p-2.5 text-[11px] leading-relaxed text-gray-600 dark:text-gray-300"
-        @click.stop
-        @mouseenter="activeSubmenu = 'position'"
-      >
-        <p class="font-semibold text-gray-800 dark:text-gray-100 mb-1">显示位置</p>
-        <p class="mb-1">左右位置<b>由浏览器控制</b>，扩展改不了。</p>
-        <p>右键侧边栏<b>顶部标题栏</b> → 选「显示在{{ sidePanelSide === 'left' ? '右' : '左' }}侧」即可切换。</p>
-        <p v-if="sidePanelSide !== 'unknown'" class="mt-1 text-gray-400">当前：{{ sidePanelSide === 'left' ? '左侧' : '右侧' }}</p>
-      </div>
+    </Teleport>
 
+    <!-- ====== 显示位置提示框（点击触发，独立于主菜单，不挡主菜单）====== -->
+    <Teleport to="body">
+      <div
+        v-if="positionTipOpen"
+        class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center"
+        @click="onPositionTipMaskClick"
+      >
+        <div
+          class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-[360px] p-5"
+          role="dialog"
+          aria-label="侧边栏显示位置"
+          @click.stop
+        >
+          <h3 class="text-sm font-bold mb-3 text-gray-900 dark:text-gray-100">侧边栏显示位置</h3>
+          <div class="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed space-y-2">
+            <p>这是浏览器行为，插件控制不了。</p>
+            <p>
+              Chrome 浏览器：在地址栏输入
+              <span class="font-mono text-[12px] px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">chrome://settings/appearance</span>
+              回车，或进入 设置 → 外观，找到「侧边栏位置」→ Chrome 面板，选择「向左」或「向右」。
+            </p>
+            <p>Edge 浏览器：目前请查看最新浏览器版本是否支持侧边栏位置切换。</p>
+            <p v-if="sidePanelSide !== 'unknown'" class="text-gray-400">当前：{{ sidePanelSide === 'left' ? '左侧' : '右侧' }}</p>
+          </div>
+          <div class="flex gap-2 mt-4 justify-end">
+            <button
+              class="px-4 py-1.5 text-sm rounded-lg text-white bg-blue-600 hover:bg-blue-700"
+              @click="positionTipOpen = false"
+            >知道了</button>
+          </div>
+        </div>
+      </div>
     </Teleport>
   </div>
 </template>
@@ -304,10 +319,22 @@ const onTriggerClick = (e: MouseEvent) => {
 }
 const themeRowRef = ref<HTMLElement | null>(null)
 const fontRowRef = ref<HTMLElement | null>(null)
-const positionRowRef = ref<HTMLElement | null>(null)
 
-const activeSubmenu = ref<"theme" | "font" | "position" | null>(null)
+const activeSubmenu = ref<"theme" | "font" | null>(null)
 const submenuAnchorRect = ref<DOMRect | null>(null)
+
+// 显示位置提示框（点击触发，独立弹窗，不走 hover 子菜单机制）
+const positionTipOpen = ref(false)
+const onShowPositionTip = () => {
+  // 关闭主菜单，避免提示框遮罩下方还浮着主菜单
+  popover.close("header-menu")
+  positionTipOpen.value = true
+}
+const onPositionTipMaskClick = (e: MouseEvent) => {
+  // 阻止冒泡到 document，避免触发 PopoverManager 全局 closeAll；点遮罩自身才关闭
+  e.stopPropagation()
+  if (e.target === e.currentTarget) positionTipOpen.value = false
+}
 
 // 主菜单位置：anchor 在触发按钮的 bottom-right（右对齐）
 const menuPos = computed(() => {
@@ -317,7 +344,7 @@ const menuPos = computed(() => {
 })
 
 // 子菜单位置：统一走 computeFlyoutPos（双向兜底 clamp，绝不溢出窄面板）
-// w-36=144px, w-32=128px, 显示位置 w-56=224px（含较多文字，给 height 让它纵向也能 clamp）
+// w-36=144px, w-32=128px
 const themeSubmenuPos = computed(() => {
   if (!submenuAnchorRect.value) return { left: "0px", top: "0px" }
   const p = computeFlyoutPos(submenuAnchorRect.value, { width: 144 }, "left")
@@ -328,15 +355,16 @@ const fontSubmenuPos = computed(() => {
   const p = computeFlyoutPos(submenuAnchorRect.value, { width: 128 }, "left")
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
-// 显示位置指引 flyout：用和「字体大小」一致的窄宽度（w-36=144px），
-// 才能干净地浮在菜单旁、不压住下面的菜单项；文案务必精简
-const positionSubmenuPos = computed(() => {
-  if (!submenuAnchorRect.value) return { left: "0px", top: "0px" }
-  const p = computeFlyoutPos(submenuAnchorRect.value, { width: 144, height: 150 }, "left")
-  return { left: `${p.left}px`, top: `${p.top}px` }
+
+// 浏览器类型检测（参考 lib/device-info.ts 的正则）：Edge UA 同时含 Chrome，先判 Edg
+const currentBrowser = computed<'Chrome' | 'Edge' | '其他'>(() => {
+  const ua = navigator.userAgent
+  if (/Edg\//.test(ua)) return 'Edge'
+  if (/Chrome\//.test(ua)) return 'Chrome'
+  return '其他'
 })
 
-const onEnterSubmenuRow = (type: "theme" | "font" | "position", rowEl: HTMLElement | null) => {
+const onEnterSubmenuRow = (type: "theme" | "font", rowEl: HTMLElement | null) => {
   activeSubmenu.value = type
   submenuAnchorRect.value = rowEl?.getBoundingClientRect() ?? null
 }

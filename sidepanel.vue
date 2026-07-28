@@ -85,15 +85,15 @@
             :style="backupMenuPos"
             @click.stop
           >
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuManual">
-              <Save :size="12" />手动备份
+            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuExport">
+              <Download :size="12" />导出
             </button>
-            <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
             <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuImport">
               <Upload :size="12" />导入
             </button>
-            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuExport">
-              <Download :size="12" />导出
+            <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuManual">
+              <Save :size="12" />手动备份
             </button>
             <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
             <!-- 打开管理页：未阅引导时带小红点（进页点「知道了」后消除） -->
@@ -215,12 +215,12 @@
     </ErrorBoundary>
 
     <!-- Nav Tabs（仅普通态显示） -->
-    <div v-if="focusMode === 'normal'" class="flex items-center border-b border-gray-100 px-3 shrink-0 gap-2">
+    <div v-if="focusMode === 'normal'" class="flex items-center border-b border-gray-100 px-2 shrink-0">
       <template v-for="nav in navItems" :key="nav.key">
         <!-- 首页：文字 + 竖三点收进同一容器，让三点明确归属首页且紧贴文字 -->
-        <div v-if="nav.key === 'home'" class="flex items-center -mb-px">
+        <div v-if="nav.key === 'home'" class="flex items-center -mb-px flex-1 justify-center">
           <button
-            :class="['pl-2.5 pr-1 py-1.5 text-xs transition-colors border-b-2', activeNav === 'home' ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
+            :class="['px-2 py-1.5 text-sm text-center transition-colors border-b-2', activeNav === 'home' ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
             @click="activeNav = 'home'">
             {{ nav.label }}
           </button>
@@ -236,7 +236,7 @@
         </div>
         <button
           v-else
-          :class="['px-2.5 py-1.5 text-xs transition-colors border-b-2 -mb-px', activeNav === nav.key ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
+          :class="['px-2 py-1.5 text-sm text-center flex-1 transition-colors border-b-2 -mb-px', activeNav === nav.key ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
           @click="activeNav = nav.key">
           {{ nav.label }}
           <span v-if="nav.key === 'later' && laterTabs.length" class="ml-1 text-[10px] bg-amber-100 text-amber-700 px-1.5 rounded-full">{{ laterTabs.length }}</span>
@@ -374,6 +374,12 @@
           @revoke-permission="revokeHistoryPermission"
           @delete-history="deleteHistoryUrl"
         />
+      </ErrorBoundary>
+      <!-- 小工具页面 -->
+      <ErrorBoundary v-else-if="activeNav === 'tools'" scope="tools" @reload="reloadPanel">
+        <ToolsList v-if="toolsView === 'list'" @select="onToolSelect" />
+        <NotesTool v-else-if="toolsView === 'notes'" @back="toolsView = 'list'" />
+        <TimestampTool v-else-if="toolsView === 'timestamp'" @back="toolsView = 'list'" />
       </ErrorBoundary>
       <!-- 首页 -->
       <ErrorBoundary v-else scope="home" @reload="reloadPanel">
@@ -796,6 +802,9 @@ import FocusBanner from "~components/FocusBanner.vue"
 import GroupListPage from "~components/GroupListPage.vue"
 import GroupBadge from "~components/GroupBadge.vue"
 import HistoryList from "~components/HistoryList.vue"
+import ToolsList from "~components/tools/ToolsList.vue"
+import NotesTool from "~components/tools/NotesTool.vue"
+import TimestampTool from "~components/tools/TimestampTool.vue"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
 import AvatarWithFrame from "~components/AvatarWithFrame.vue"
 import type { TabItem } from "~types/tab"
@@ -878,10 +887,19 @@ function toggleBackupMenu(e: MouseEvent) {
   popover.toggle("backup-menu", e.currentTarget as HTMLElement)
 }
 function closeBackupMenu() { popover.close("backup-menu") }
-/** 跳独立页并带 action query 自动打开对应弹框 */
+/** 跳独立页并带 action + page query：action 开弹框（一次性），page 定位页面（刷新可恢复） */
 function openBackupPage(action: "manual" | "import" | "export" | "manage") {
+  // action → page 映射：manual/export/manage 在概览页、import 跳导入管理
+  // 2026-07-28：manage 改跳概览（用户从侧栏「打开管理页」默认看概览，非列表）
+  const pageMap: Record<"manual" | "import" | "export" | "manage", "overview" | "list" | "import"> = {
+    manual: "overview",
+    import: "import",
+    export: "overview",
+    manage: "overview",
+  }
+  const page = pageMap[action]
   try {
-    chrome.tabs.create({ url: chrome.runtime.getURL(`tabs/backup.html?action=${action}`) })
+    chrome.tabs.create({ url: chrome.runtime.getURL(`tabs/backup.html?action=${action}&page=${page}`) })
   } catch (e) {
     console.warn("[sidepanel] 打开备份页失败", e)
     showToast("打开备份页失败")
@@ -1444,7 +1462,18 @@ const navItems = [
   { key: "later", label: "稍后处理" },
   { key: "groups", label: "分组" },
   { key: "history", label: "历史" },
+  { key: "tools", label: "小工具" },
 ]
+
+// 小工具子路由：list 显示工具卡片，notes/timestamp 切到对应工具
+const toolsView = ref<'list' | 'notes' | 'timestamp'>('list')
+// 切走 tools tab 时重置回列表（避免回来时停在子工具）
+watch(activeNav, (v) => {
+  if (v !== 'tools') toolsView.value = 'list'
+})
+const onToolSelect = (t: 'notes' | 'timestamp') => {
+  toolsView.value = t
+}
 
 // 首次给标签绑定标记时，弹告知确认框（替代一晃没的 toast，文案通俗化）
 // 用 storage.onChanged 监听而非 watch ref —— useTabManager 非单例，各入口（TagPicker/右键/

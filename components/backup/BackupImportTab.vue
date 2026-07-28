@@ -35,7 +35,7 @@
             <span class="text-gray-700 dark:text-gray-200">{{ f.label }}</span>
           </label>
         </div>
-        <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">默认本插件 JSON；其他格式自动嗅探，识别失败会提示</p>
+        <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">默认本插件数据；其他格式自动嗅探，识别失败会提示</p>
       </div>
 
       <!-- 来源切换 -->
@@ -66,7 +66,7 @@
             @click="onSwitchSource('paste')"
           >
             <Clipboard :size="12" />
-            粘贴 JSON 串
+            粘贴数据
           </button>
           <span v-if="fileName" class="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[260px]" :title="fileName">
             {{ fileName }}
@@ -104,9 +104,10 @@
         <textarea
           v-model="content"
           class="w-full min-h-[160px] max-h-[320px] border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-900/40 text-[11px] font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-          :placeholder="sourceMode === 'file' ? '点上方「选择文件…」加载文件内容…' : '粘贴 JSON 串到这里…'"
+          :placeholder="sourceMode === 'file' ? '点上方「选择文件…」加载文件内容…' : '粘贴数据到这里…'"
           aria-label="导入内容"
         ></textarea>
+        <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">数据为 JSON 格式</p>
       </div>
 
       <!-- 导入预览按钮 -->
@@ -194,7 +195,7 @@
       <div v-if="importSnapshots.length === 0" class="p-10 text-center">
         <Inbox :size="28" class="mx-auto text-gray-300 dark:text-gray-600 mb-2" />
         <p class="text-xs text-gray-500 dark:text-gray-400">暂无导入记录</p>
-        <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">在上方选择文件或粘贴 JSON 后点「导入预览」</p>
+        <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">在上方选择文件或粘贴数据后点「导入预览」</p>
       </div>
 
       <!-- 表格 -->
@@ -289,7 +290,7 @@
     <Teleport to="body">
       <div
         v-if="undoInfo.show"
-        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs px-3 py-2 rounded shadow-lg flex items-center gap-3 max-w-[90vw]"
+        class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs px-3 py-2 rounded shadow-lg flex items-center gap-3 max-w-[90vw]"
       >
         <span>已删除导入记录</span>
         <button
@@ -298,6 +299,17 @@
         >撤销（{{ undoInfo.remainSec }}s）</button>
       </div>
     </Teleport>
+
+    <!-- 底部广告位 728×90（独立 ErrorBoundary 降级，崩不波及其它） -->
+    <ErrorBoundary scope="backup.ad.import">
+      <AdSlot
+        slot-id="backup-import-bottom"
+        size="728x90"
+        :ad="getAd('backup-import')"
+        :dismissible="true"
+        fallback="placeholder"
+      />
+    </ErrorBoundary>
   </div>
 </template>
 
@@ -318,9 +330,12 @@
 import { ref, reactive, computed, onUnmounted } from 'vue'
 import { FileUp, Clipboard, Search, ExternalLink, SquareArrowOutUpRight, Check, Inbox } from '@lucide/vue'
 import ConfirmDialog from '~components/ConfirmDialog.vue'
+import ErrorBoundary from '~components/ErrorBoundary.vue'
+import AdSlot from './AdSlot.vue'
 import TabSelectPanel from '~components/backup/TabSelectPanel.vue'
 import { useBackupService } from '~composables/useBackupService'
 import { useBackupRestore } from '~composables/useBackupRestore'
+import { useBackupPageAd } from '~composables/useBackupPageAd'
 import { showToast } from '~composables/useToast'
 import { parseImport, readFileText } from '~lib/backup/importers'
 import { openTabs } from '~lib/backup/openTabs'
@@ -332,12 +347,14 @@ const emit = defineEmits<{
 
 const svc = useBackupService()
 const restoreSvc = useBackupRestore()
+// 广告多槽位：取导入底位广告（backup-import），adMap 由 backup.vue onMounted 单例 fetchAd 拉取
+const { getAd } = useBackupPageAd()
 
 // ===== 格式选项 =====
 type ImportFormat = 'auto' | 'ours' | 'onetab' | 'nicetab' | 'toby' | 'vertitab'
 
 const FORMAT_OPTIONS: { value: ImportFormat; label: string }[] = [
-  { value: 'ours', label: '本插件 JSON' },
+  { value: 'ours', label: '本插件数据' },
   { value: 'onetab', label: 'OneTab' },
   { value: 'nicetab', label: 'Nice-Tab' },
   { value: 'toby', label: 'Toby' },
@@ -345,7 +362,7 @@ const FORMAT_OPTIONS: { value: ImportFormat; label: string }[] = [
 ]
 
 const FORMAT_LABEL_MAP: Record<string, string> = {
-  ours: '本插件 JSON',
+  ours: '本插件数据',
   onetab: 'OneTab',
   nicetab: 'Nice-Tab',
   toby: 'Toby',
@@ -404,7 +421,7 @@ const selectedFps = ref<Set<string>>(new Set())
 async function onPreview() {
   const text = content.value.trim()
   if (!text) {
-    previewError.value = '请先选择文件或粘贴 JSON 串'
+    previewError.value = '请先选择文件或粘贴数据'
     return
   }
   previewLoading.value = true

@@ -170,6 +170,15 @@ export interface Snapshot {
   windows: WindowSnapshot[]
   meta: SnapshotMeta
   stats: SnapshotStats
+  /**
+   * 备份执行状态（§2.2 失败也落库）。
+   * - success：备份成功，windows 含实际标签数据
+   * - failed：备份失败，windows=[] ，errorMessage 存失败原因
+   * 旧快照（无此字段）读取时由 toSummary 兜底为 'success'。
+   */
+  status: 'success' | 'failed'
+  /** 失败原因（status='failed' 时有值；success 为 null）。旧快照无此字段兜底为 null */
+  errorMessage?: string | null
 }
 
 export interface BackupSignature {
@@ -201,6 +210,10 @@ export interface SnapshotSummary {
   locked: boolean
   label: string | null
   stats: SnapshotStats
+  /** 备份执行状态（success/failed），列表「状态」列展示 */
+  status: 'success' | 'failed'
+  /** 失败原因（status='failed' 时有值；success/旧快照为 null），列表 hover 显示 */
+  errorMessage?: string | null
 }
 
 /** 备份服务运行状态（持久化到 tabMasterBackupState） */

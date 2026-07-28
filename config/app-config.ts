@@ -12,6 +12,8 @@
 export const BUSINESS_CONFIG = {
   /** 广告位标识（@backend 后续后端 ad/list 接口可按此返回，或配置下发） */
   adPosition: 'banner',
+  /** 备份独立页广告位标识（与 sidepanel/SW 的 banner 区分，独立页常驻展示位） */
+  adPositionBackup: 'backup',
   /** 广告每天最多展示次数（@backend 后续可后端下发，控制打扰频率） */
   adMaxShowPerDay: 3,
   /** 广告展示时长（秒，@backend 后端 AdItemVO.duration 已返回，此为兜底） */

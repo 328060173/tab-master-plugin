@@ -30,11 +30,21 @@
           type="button"
           class="w-full text-left px-3 py-1.5 text-[11px] text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 inline-flex items-center gap-1.5"
           role="menuitem"
+          @click="onViewDetail"
+        >
+          <Eye :size="12" />
+          <span>查看详情</span>
+        </button>
+        <button
+          type="button"
+          class="w-full text-left px-3 py-1.5 text-[11px] text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 inline-flex items-center gap-1.5"
+          role="menuitem"
+          :title="locked ? '允许后这条备份可被自动清理' : '禁止后这条备份不会被自动清理（手动备份本就不自动删，主要保护自动备份）'"
           @click="onToggleLock"
         >
           <Lock v-if="!locked" :size="12" />
           <Unlock v-else :size="12" />
-          <span>{{ locked ? '解锁' : '锁定' }}</span>
+          <span>{{ locked ? '允许自动删除' : '禁止自动删除' }}</span>
         </button>
         <button
           type="button"
@@ -64,10 +74,11 @@
  * 更多…下拉菜单（锁定/改备注/删除）。
  */
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
-import { MoreHorizontal, Lock, Unlock, Pencil, Trash2 } from '@lucide/vue'
+import { MoreHorizontal, Lock, Unlock, Pencil, Trash2, Eye } from '@lucide/vue'
 
 defineProps<{ locked?: boolean }>()
 const emit = defineEmits<{
+  (e: 'view-detail'): void
   (e: 'lock'): void
   (e: 'edit-label'): void
   (e: 'delete'): void
@@ -97,6 +108,7 @@ function close() {
   open.value = false
 }
 
+function onViewDetail() { close(); emit('view-detail') }
 function onToggleLock() { close(); emit('lock') }
 function onEditLabel() { close(); emit('edit-label') }
 function onDelete() { close(); emit('delete') }

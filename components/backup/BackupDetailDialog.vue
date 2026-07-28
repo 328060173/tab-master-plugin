@@ -163,6 +163,17 @@
           </div>
         </div>
       </div>
+
+      <!-- 还原确认弹框（勾选还原有重复时让用户选去重 / 全部打开 / 取消） -->
+      <RestoreConfirmDialog
+        :open="restorePreview.open"
+        :total="restorePreview.total"
+        :duplicate="restorePreview.duplicate"
+        :to-open="restorePreview.toOpen"
+        :target="restorePreview.openInNewWindow ? 'newWindow' : 'current'"
+        @confirm="onRestoreConfirm"
+        @cancel="restorePreview.open = false"
+      />
     </div>
   </Teleport>
 </template>
@@ -176,13 +187,14 @@
  * - 可改备注（inline 编辑，调 svc.setSnapshotLabel）
  * 守红线：禁 v-html（URL/标题用 {{ }} 文本插值）；textarea 只读防 XSS。
  */
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { X, Pencil } from '@lucide/vue'
 import { useBackupService } from '~composables/useBackupService'
-import { useBackupRestore } from '~composables/useBackupRestore'
+import { useBackupRestore, type OpenTarget } from '~composables/useBackupRestore'
 import { showToast } from '~composables/useToast'
 import { exportByFormat, downloadExportWithPicker } from '~lib/backup/exporters'
 import TabSelectPanel from '~components/backup/TabSelectPanel.vue'
+import RestoreConfirmDialog from '~components/backup/RestoreConfirmDialog.vue'
 import type { BackupFile } from '~types/backup'
 
 const props = defineProps<{ open: boolean; snapshotId: string | null }>()
@@ -391,8 +403,46 @@ async function onSaveLabel() {
   editingLabel.value = false
 }
 
-// ===== 勾选还原 =====
+// ===== 勾选还原（先预览重复数，有重复弹 RestoreConfirmDialog 让用户选） =====
+const restorePreview = reactive<{
+  open: boolean
+  openInNewWindow: boolean
+  total: number
+  duplicate: number
+  toOpen: number
+}>({
+  open: false,
+  openInNewWindow: false,
+  total: 0,
+  duplicate: 0,
+  toOpen: 0,
+})
+
 async function onOpenSelected(openInNewWindow: boolean) {
+  if (!props.snapshotId || selectedCount.value === 0) return
+  if (restoring.value) return
+  // 先预览重复数
+  const p = await restoreSvc.previewRestore(props.snapshotId, 'selected', {
+    selectedFingerprints: new Set(selectedFps.value),
+  })
+  if (!p.ok) {
+    showToast(p.error || '打开失败')
+    return
+  }
+  // 有重复 → 弹框让用户选
+  if (p.duplicate > 0) {
+    restorePreview.open = true
+    restorePreview.openInNewWindow = openInNewWindow
+    restorePreview.total = p.total
+    restorePreview.duplicate = p.duplicate
+    restorePreview.toOpen = p.toOpen
+    return
+  }
+  // 无重复 → 直接执行
+  await doOpenSelected(openInNewWindow, true)
+}
+
+async function doOpenSelected(openInNewWindow: boolean, skipDuplicate: boolean) {
   if (!props.snapshotId || selectedCount.value === 0) return
   if (restoring.value) return
   restoring.value = true
@@ -400,6 +450,7 @@ async function onOpenSelected(openInNewWindow: boolean) {
     const r = await restoreSvc.openSnapshot(props.snapshotId, 'selected', {
       selectedFingerprints: new Set(selectedFps.value),
       openInNewWindow,
+      skipDuplicateUrls: skipDuplicate,
     })
     if (r.ok) {
       showToast(`已打开 ${r.openedCount} 个标签` + (r.metaResult ? `（标记 ${r.metaResult.tabTagsRestored} / 稍后 ${r.metaResult.laterTabsMerged} / 分组 ${r.metaResult.groupsRestored}）` : ''))
@@ -410,6 +461,12 @@ async function onOpenSelected(openInNewWindow: boolean) {
   } finally {
     restoring.value = false
   }
+}
+
+async function onRestoreConfirm(payload: { skipDuplicate: boolean }) {
+  const inNewWin = restorePreview.openInNewWindow
+  restorePreview.open = false
+  await doOpenSelected(inNewWin, payload.skipDuplicate)
 }
 
 function onCancel() {

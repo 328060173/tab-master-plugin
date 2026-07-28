@@ -11,8 +11,8 @@
       v-if="!firstVisitAcked"
       class="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-lg p-5"
     >
-      <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">欢迎使用标签备份</h2>
-      <div class="space-y-3 text-xs">
+      <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">欢迎使用标签备份</h2>
+      <div class="space-y-3 text-sm">
         <div class="flex items-start gap-2">
           <Shield :size="16" class="mt-0.5 text-blue-500 shrink-0" />
           <div class="flex-1">
@@ -34,6 +34,13 @@
             <p class="text-gray-600 dark:text-gray-300 mt-0.5">开启后定时自动备份，崩溃也能找回。不想自动备份就别开，手动备份 / 导入 / 导出照常能用。</p>
           </div>
         </div>
+        <div class="flex items-start gap-2">
+          <AlertTriangle :size="16" class="mt-0.5 text-amber-500 shrink-0" />
+          <div class="flex-1">
+            <p class="font-medium text-gray-900 dark:text-gray-100">数据存在本地，注意保留</p>
+            <p class="text-gray-600 dark:text-gray-300 mt-0.5">备份存在本浏览器内，插件被卸载或删除时本地存储会一起清空，备份会丢失。想长期保留请用「导出」存成数据文件保存到电脑，需要时「导入」恢复。</p>
+          </div>
+        </div>
       </div>
       <div class="mt-4 flex justify-end">
         <button
@@ -48,34 +55,56 @@
     </div>
 
     <!-- 4 主按钮（首屏最显眼；不开启自动备份也可用手动/导入/导出） -->
+    <!-- 自动备份区：开关 + 设置按钮（任务3：拆成两个独立控件） -->
     <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex items-center gap-2 flex-wrap">
       <button
         :disabled="isBackingUp"
-        class="inline-flex items-center gap-1.5 min-h-[40px] px-4 py-2 text-xs rounded font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="inline-flex items-center gap-1.5 min-h-[44px] px-4 py-2 text-sm rounded font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
         @click="emit('open-manual-backup')"
       >
-        <Save :size="14" />
+        <Save :size="16" />
         {{ isBackingUp ? '备份中…' : '手动备份' }}
       </button>
+
+      <!-- 自动备份开关 + 设置按钮（同一行） -->
+      <div class="inline-flex items-center gap-2 min-h-[44px] px-3 py-1.5 rounded border border-gray-200 dark:border-gray-600">
+        <span class="text-xs text-gray-600 dark:text-gray-300">自动备份</span>
+        <button
+          :class="[
+            'relative w-11 h-6 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500',
+            enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600',
+          ]"
+          role="switch"
+          :aria-checked="enabled"
+          aria-label="自动备份开关"
+          @click="onToggleAutoBackup"
+        >
+          <span
+            class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
+            :class="enabled ? 'translate-x-5' : ''"
+          ></span>
+        </button>
+        <button
+          class="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 text-sm rounded border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="emit('open-auto-settings')"
+        >
+          <Settings :size="16" />
+          自动备份设置
+        </button>
+      </div>
+
       <button
-        class="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-        @click="emit('open-auto-settings')"
-      >
-        <Settings :size="14" />
-        自动备份
-      </button>
-      <button
-        class="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="inline-flex items-center gap-1.5 min-h-[44px] px-3 py-2 text-sm rounded border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
         @click="emit('open-import')"
       >
-        <Upload :size="14" />
+        <Upload :size="16" />
         导入
       </button>
       <button
-        class="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="inline-flex items-center gap-1.5 min-h-[44px] px-3 py-2 text-sm rounded border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
         @click="emit('open-export')"
       >
-        <Download :size="14" />
+        <Download :size="16" />
         导出
       </button>
     </div>
@@ -84,8 +113,8 @@
     <template v-if="enabled">
       <!-- 状态块：备份概览 -->
       <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-        <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">备份概览</h3>
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs">
+        <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-3">备份概览</h3>
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
           <div class="flex items-center gap-2">
             <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">自动备份状态</dt>
             <dd class="flex items-center gap-1.5 text-gray-800 dark:text-gray-100">
@@ -120,7 +149,7 @@
 
       <!-- §3.3 / §3.2 状态提示条（amber：非阻断，提醒用户） -->
       <div
-        v-if="manualOverLimit || lastAutoTruncated"
+        v-if="manualOverLimit || lastAutoTruncated || state.lastBackupError"
         class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 space-y-1.5"
         role="status"
       >
@@ -131,6 +160,11 @@
         <p v-if="lastAutoTruncated" class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
           <AlertTriangle :size="14" class="mt-0.5 shrink-0" />
           <span>上次自动备份截断：标签数超过上限 {{ LIM.maxTabsPerSnapshot }}，仅备份了 {{ lastAutoTruncated.backed }} / {{ lastAutoTruncated.total }} 个。</span>
+        </p>
+        <!-- lastBackupError：配额满/目录写失败等综合状态（含配额 gate 拦截消息） -->
+        <p v-if="state.lastBackupError" class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+          <AlertTriangle :size="14" class="mt-0.5 shrink-0" />
+          <span>{{ state.lastBackupError }}</span>
         </p>
       </div>
 
@@ -144,7 +178,7 @@
       <AdSlot
         slot-id="backup-overview-main"
         size="728x90"
-        :ad="adData"
+        :ad="getAd('backup-overview')"
         :dismissible="true"
         fallback="placeholder"
       />
@@ -175,11 +209,25 @@ const emit = defineEmits<{
   (e: 'open-import'): void
   (e: 'open-export'): void
   (e: 'ack-first-visit'): void
+  /** 开关 ON：backup.vue 接管开启 + 首次备份 + 跳列表 + 提示框 */
+  (e: 'enable-auto'): void
+  /** 开关 OFF：backup.vue 调 setEnabled(false) + toast */
+  (e: 'disable-auto'): void
 }>()
 
 const svc = useBackupService()
 const { state, snapshots, isBackingUp, enabled, nextBackupAt, firstVisitAcked } = svc
-const { adData } = useBackupPageAd()
+// 广告多槽位：取概览主位广告（backup-overview），adMap 由 backup.vue onMounted 单例 fetchAd 拉取
+const { getAd } = useBackupPageAd()
+
+/** 开关点击：只 emit，由 backup.vue 统一处理开启/关闭逻辑（接管首次备份+跳列表） */
+function onToggleAutoBackup() {
+  if (enabled.value) {
+    emit('disable-auto')
+  } else {
+    emit('enable-auto')
+  }
+}
 
 const nextBackupLabel = computed(() => {
   if (!enabled.value) return '未开启自动备份'

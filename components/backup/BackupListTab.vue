@@ -47,11 +47,13 @@
         </div>
         <!-- 操作按钮 -->
         <button
-          class="px-3 py-1 min-h-[32px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="px-3 py-1 min-h-[32px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+          :disabled="searching"
           @click="onSearch"
-        >查询</button>
+        >{{ searching ? '查询中…' : '查询' }}</button>
         <button
-          class="px-3 py-1 min-h-[32px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="px-3 py-1 min-h-[32px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+          :disabled="searching"
           @click="onReset"
         >重置</button>
       </div>
@@ -70,20 +72,6 @@
           class="border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
-    </div>
-
-    <!-- §3.3 自动保留条数配置入口（只管 auto.* 来源；手动永不删） -->
-    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 flex items-center gap-2 text-xs flex-wrap">
-      <span class="text-gray-600 dark:text-gray-300 shrink-0">自动备份保留</span>
-      <select
-        v-model.number="retainCount"
-        :disabled="retainSaving"
-        class="border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-        @change="onRetainChange(retainCount)"
-      >
-        <option v-for="opt in RETAIN_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-      </select>
-      <span class="text-[11px] text-gray-500 dark:text-gray-400">仅自动备份受此限制，手动备份永不自动删除</span>
     </div>
 
     <!-- 空状态 -->
@@ -107,8 +95,10 @@
             <tr>
               <th class="px-3 py-2 text-left font-medium">备份时间</th>
               <th class="px-3 py-2 text-left font-medium">备份类型</th>
+              <th class="px-3 py-2 text-left font-medium">触发条件</th>
+              <th class="px-3 py-2 text-left font-medium">状态</th>
               <th class="px-3 py-2 text-left font-medium">备注</th>
-              <th class="px-3 py-2 text-right font-medium">标签数</th>
+              <th class="px-3 py-2 text-right font-medium">备份数量</th>
               <th class="px-3 py-2 text-right font-medium">操作</th>
             </tr>
           </thead>
@@ -120,7 +110,7 @@
             >
               <!-- 备份时间 -->
               <td class="px-3 py-2 text-gray-700 dark:text-gray-200 whitespace-nowrap">
-                {{ formatRelative(s.createdAt) }}
+                {{ formatTime(s.createdAt) }}
               </td>
               <!-- 备份类型 -->
               <td class="px-3 py-2">
@@ -131,6 +121,19 @@
                 </span>
                 <span v-if="s.locked" class="ml-1 text-amber-500" title="已锁定">
                   <Lock :size="10" />
+                </span>
+              </td>
+              <!-- 触发条件（细分：手动/定时/标签关闭时/窗口关闭时/空闲时/启动时/导入/还原前）-->
+              <td class="px-3 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                {{ triggerLabel(s) }}
+              </td>
+              <!-- 状态（成功/失败，失败 hover 显原因） -->
+              <td class="px-3 py-2 whitespace-nowrap">
+                <span
+                  :class="['inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium', statusBadgeClass(s.status)]"
+                  :title="s.status === 'failed' ? (s.errorMessage || '备份失败') : undefined"
+                >
+                  {{ s.status === 'failed' ? '失败' : '成功' }}
                 </span>
               </td>
               <!-- 备注（inline 编辑） -->
@@ -179,6 +182,7 @@
                   </button>
                   <MoreMenu
                     :locked="s.locked"
+                    @view-detail="onViewDetail(s.id)"
                     @lock="onToggleLock(s.id, !s.locked)"
                     @edit-label="onStartEditLabel(s)"
                     @delete="onDelete(s)"
@@ -244,11 +248,22 @@
       @cancel="deleteConfirm.open = false"
     />
 
+    <!-- 还原确认弹框（duplicate>0 时让用户选去重 / 全部打开 / 取消） -->
+    <RestoreConfirmDialog
+      :open="restorePreview.open"
+      :total="restorePreview.total"
+      :duplicate="restorePreview.duplicate"
+      :to-open="restorePreview.toOpen"
+      :target="restorePreview.target === 'current' ? 'current' : 'newWindow'"
+      @confirm="onRestoreConfirm"
+      @cancel="restorePreview.open = false"
+    />
+
     <!-- 撤销删除 toast（30s 倒计时按钮） -->
     <Teleport to="body">
       <div
         v-if="undoInfo.show"
-        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs px-3 py-2 rounded shadow-lg flex items-center gap-3 max-w-[90vw]"
+        class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs px-3 py-2 rounded shadow-lg flex items-center gap-3 max-w-[90vw]"
       >
         <span>已删除备份</span>
         <button
@@ -257,6 +272,17 @@
         >撤销（{{ undoInfo.remainSec }}s）</button>
       </div>
     </Teleport>
+
+    <!-- 底部广告位 728×90（独立 ErrorBoundary 降级，崩不波及其它） -->
+    <ErrorBoundary scope="backup.ad.list">
+      <AdSlot
+        slot-id="backup-list-bottom"
+        size="728x90"
+        :ad="getAd('backup-list')"
+        :dismissible="true"
+        fallback="placeholder"
+      />
+    </ErrorBoundary>
   </div>
 </template>
 
@@ -275,10 +301,14 @@ import { Inbox, Save, Download, Pencil, Lock } from '@lucide/vue'
 import RestoreMenu from './RestoreMenu.vue'
 import MoreMenu from './MoreMenu.vue'
 import ConfirmDialog from '~components/ConfirmDialog.vue'
+import RestoreConfirmDialog from './RestoreConfirmDialog.vue'
+import ErrorBoundary from '~components/ErrorBoundary.vue'
+import AdSlot from './AdSlot.vue'
 import { useBackupService } from '~composables/useBackupService'
+import { useBackupPageAd } from '~composables/useBackupPageAd'
 import { useBackupRestore, type OpenTarget } from '~composables/useBackupRestore'
 import { showToast } from '~composables/useToast'
-import { currentLimits, type SnapshotSource, type SnapshotSummary } from '~types/backup'
+import { type SnapshotSource, type SnapshotSummary } from '~types/backup'
 
 const emit = defineEmits<{
   (e: 'open-manual-backup'): void
@@ -289,17 +319,15 @@ const emit = defineEmits<{
 const svc = useBackupService()
 const restoreSvc = useBackupRestore()
 const { snapshots } = svc
+// 广告多槽位：取列表底位广告（backup-list），adMap 由 backup.vue onMounted 单例 fetchAd 拉取
+const { getAd } = useBackupPageAd()
 
 // ===== 查询条件 =====
-type TimeRange = 'all' | 'today' | 'yesterday' | '7d' | '30d' | 'custom'
-type TypeFilter = 'all' | 'manual' | 'auto' | 'import'
+type TimeRange = 'all' | 'custom'
+type TypeFilter = 'all' | 'manual' | 'auto'
 
 const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: 'all', label: '全部' },
-  { value: 'today', label: '今天' },
-  { value: 'yesterday', label: '昨天' },
-  { value: '7d', label: '近 7 天' },
-  { value: '30d', label: '近 30 天' },
   { value: 'custom', label: '自定义' },
 ]
 
@@ -307,42 +335,9 @@ const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
   { value: 'all', label: '全部' },
   { value: 'manual', label: '手动备份' },
   { value: 'auto', label: '自动备份' },
-  { value: 'import', label: '导入' },
 ]
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const
-
-// §3.3 "保留近 X 条"配置入口（只管 auto.* 保留条数；手动永不删）
-const RETAIN_OPTIONS = [
-  { value: 10, label: '10 条' },
-  { value: 30, label: '30 条（默认）' },
-  { value: 50, label: '50 条' },
-  { value: 100, label: '100 条' },
-] as const
-const LIM = currentLimits()
-const retainCount = ref<number>(svc.settings.value.cacheMaxSnapshots || LIM.autoMaxSnapshots)
-const retainSaving = ref(false)
-
-async function onRetainChange(v: number) {
-  if (retainSaving.value) return
-  retainSaving.value = true
-  try {
-    await svc.updateSettings({ cacheMaxSnapshots: v })
-    showToast(`已设置自动保留近 ${v} 条`)
-  } catch (e) {
-    console.warn('[BackupListTab] 设置保留条数失败', e)
-    showToast('保存失败，请重试')
-    // 回滚
-    retainCount.value = svc.settings.value.cacheMaxSnapshots
-  } finally {
-    retainSaving.value = false
-  }
-}
-
-// 外部（如设置弹框）改了 settings 时同步本地 ref
-watch(() => svc.settings.value.cacheMaxSnapshots, (v) => {
-  if (v !== retainCount.value) retainCount.value = v
-})
 
 const filters = reactive({
   timeRange: 'all' as TimeRange,
@@ -360,42 +355,37 @@ const applied = reactive({
   customEnd: '',
 })
 
-function onSearch() {
-  applied.timeRange = filters.timeRange
-  applied.type = filters.type
-  applied.keyword = filters.keyword.trim()
-  applied.customStart = filters.customStart
-  applied.customEnd = filters.customEnd
-  page.value = 1
+const searching = ref(false)
+
+async function onSearch() {
+  // 底线：每次查询先从 IndexedDB 拉最新快照列表，避免显示进页时的旧内存数据
+  // 否则从别处产生的新备份（sidepanel/SW 事件触发）查不到，必须 F5
+  searching.value = true
+  try {
+    await svc.loadAll()
+    applied.timeRange = filters.timeRange
+    applied.type = filters.type
+    applied.keyword = filters.keyword.trim()
+    applied.customStart = filters.customStart
+    applied.customEnd = filters.customEnd
+    page.value = 1
+  } finally {
+    searching.value = false
+  }
 }
 
-function onReset() {
+async function onReset() {
   filters.timeRange = 'all'
   filters.type = 'all'
   filters.keyword = ''
   filters.customStart = ''
   filters.customEnd = ''
-  onSearch()
+  await onSearch()
 }
 
 // ===== 过滤 + 分页 =====
 function matchTimeRange(ts: number, range: TimeRange): boolean {
   if (range === 'all') return true
-  const now = new Date()
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-  const DAY_MS = 24 * 60 * 60 * 1000
-  if (range === 'today') {
-    return ts >= todayStart && ts < todayStart + DAY_MS
-  }
-  if (range === 'yesterday') {
-    return ts >= todayStart - DAY_MS && ts < todayStart
-  }
-  if (range === '7d') {
-    return ts >= todayStart - 6 * DAY_MS && ts <= Date.now()
-  }
-  if (range === '30d') {
-    return ts >= todayStart - 29 * DAY_MS && ts <= Date.now()
-  }
   if (range === 'custom') {
     const start = applied.customStart ? new Date(applied.customStart + 'T00:00:00').getTime() : -Infinity
     const end = applied.customEnd ? new Date(applied.customEnd + 'T23:59:59.999').getTime() : Infinity
@@ -408,7 +398,6 @@ function matchType(source: SnapshotSource, type: TypeFilter): boolean {
   if (type === 'all') return true
   if (type === 'manual') return source === 'manual'
   if (type === 'auto') return source.startsWith('auto.')
-  if (type === 'import') return source === 'import'
   return false
 }
 
@@ -427,7 +416,7 @@ const filteredSnapshots = computed<SnapshotSummary[]>(() => {
     if (!matchType(s.source, applied.type)) return false
     if (!matchKeyword(s.label, applied.keyword)) return false
     return true
-  })
+  }).sort((a, b) => b.createdAt - a.createdAt)
 })
 
 const pageSize = ref<number>(50)
@@ -453,7 +442,6 @@ function typeLabel(source: SnapshotSource): string {
     case 'auto.event.idle':
     case 'auto.event.startup':
       return '自动备份'
-    case 'import': return '导入'
     case 'preRestore': return '还原前'
     default: return source.startsWith('auto.') ? '自动备份' : source
   }
@@ -461,24 +449,54 @@ function typeLabel(source: SnapshotSource): string {
 
 function typeBadgeClass(source: SnapshotSource): string {
   if (source === 'manual') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-  if (source === 'import') return 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
   if (source === 'preRestore') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
   // auto.*
   return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
 }
 
-// ===== 标签数显示（12/34） =====
+/** 状态色标：成功=绿，失败=红（与 typeBadgeClass 同款样式结构） */
+function statusBadgeClass(status: 'success' | 'failed'): string {
+  if (status === 'failed') return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+  return 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+}
+
+/**
+ * 触发条件细分文案：优先用 snapshot.trigger（BackupTriggerSource 原始字符串），
+ * 缺失则回退 source。区分标签关闭/窗口关闭/空闲/启动，方便用户判断备份来源。
+ */
+function triggerLabel(s: SnapshotSummary): string {
+  const t = s.trigger
+  if (t === 'manual') return '手动备份'
+  if (t === 'auto.timer') return '定时触发'
+  if (t === 'auto.event.tabRemoved') return '标签关闭时'
+  if (t === 'auto.event.windowRemoved') return '窗口关闭时'
+  if (t === 'auto.event.idle') return '空闲时'
+  if (t === 'auto.event.startup') return '启动时'
+  if (t === 'auto.event') return '事件触发'
+  if (t === 'preRestore') return '还原前'
+  if (t === 'import') return '导入'
+  // 回退：按 source 兜底（trigger 缺失时）
+  const src = s.source
+  if (src === 'manual') return '手动备份'
+  if (src === 'auto.timer') return '定时触发'
+  if (src === 'auto.event') return '事件触发'
+  if (src === 'preRestore') return '还原前'
+  if (src === 'import') return '导入'
+  return src
+}
+
+// ===== 标签数显示（口语化文案，只显示实际备份个数，不显示"当时共"）=====
 function tabCountDisplay(s: SnapshotSummary): string {
+  // 失败快照无标签数据，显示 -- （状态列已有「失败」色标）
+  if (s.status === 'failed') return '--'
   const selected = s.stats.selectedTabCount
   const total = s.stats.totalTabCount
   const tabCount = s.stats.tabCount
-  // 手动备份选了部分：显示 selected/total（如 12/34）
-  if (typeof selected === 'number' && typeof total === 'number' && total > 0 && selected !== total) {
-    return `${selected}/${total}`
-  }
-  // 全量：显示 tabCount/tabCount 或 单数字
-  if (typeof total === 'number' && total > 0) return `${tabCount}/${total}`
-  return String(tabCount)
+  // 选了部分备份：显示选中的个数；全量：显示 tabCount
+  const n = (typeof selected === 'number' && typeof total === 'number' && total > 0 && selected !== total)
+    ? selected
+    : tabCount
+  return `备份了 ${n} 个`
 }
 
 // ===== 备注 inline 编辑 =====
@@ -527,6 +545,28 @@ async function onSaveLabel(id: string) {
 // ===== 还原 =====
 const restoringId = ref<string | null>(null)
 
+/** 更多菜单 → 查看详情：进详情弹框勾选/查看 */
+function onViewDetail(snapshotId: string) {
+  emit('open-detail', snapshotId)
+}
+
+// 还原预览弹框（duplicate>0 时让用户选去重 / 全部打开 / 取消）
+const restorePreview = reactive<{
+  open: boolean
+  snapshotId: string | null
+  target: OpenTarget
+  total: number
+  duplicate: number
+  toOpen: number
+}>({
+  open: false,
+  snapshotId: null,
+  target: 'current',
+  total: 0,
+  duplicate: 0,
+  toOpen: 0,
+})
+
 async function onRestore(snapshotId: string, target: OpenTarget) {
   if (target === 'selected') {
     // 进详情弹框勾选
@@ -534,9 +574,30 @@ async function onRestore(snapshotId: string, target: OpenTarget) {
     return
   }
   if (restoringId.value) return
+  // 先预览重复数，不实际打开
+  const p = await restoreSvc.previewRestore(snapshotId, target)
+  if (!p.ok) {
+    showToast(p.error || '还原失败')
+    return
+  }
+  // 有重复 → 弹框让用户选
+  if (p.duplicate > 0) {
+    restorePreview.open = true
+    restorePreview.snapshotId = snapshotId
+    restorePreview.target = target
+    restorePreview.total = p.total
+    restorePreview.duplicate = p.duplicate
+    restorePreview.toOpen = p.toOpen
+    return
+  }
+  // 无重复 → 直接执行
+  await doRestore(snapshotId, target, true)
+}
+
+async function doRestore(snapshotId: string, target: OpenTarget, skipDuplicate: boolean) {
   restoringId.value = snapshotId
   try {
-    const r = await restoreSvc.openSnapshot(snapshotId, target)
+    const r = await restoreSvc.openSnapshot(snapshotId, target, { skipDuplicateUrls: skipDuplicate })
     if (r.ok) {
       const fp = r.metaResult
       let msg = `已打开 ${r.openedCount} 个标签`
@@ -554,6 +615,15 @@ async function onRestore(snapshotId: string, target: OpenTarget) {
   } finally {
     restoringId.value = null
   }
+}
+
+async function onRestoreConfirm(payload: { skipDuplicate: boolean }) {
+  const sid = restorePreview.snapshotId
+  const tgt = restorePreview.target
+  restorePreview.open = false
+  restorePreview.snapshotId = null
+  if (!sid) return
+  await doRestore(sid, tgt, payload.skipDuplicate)
 }
 
 // ===== 锁定/解锁 =====
@@ -642,15 +712,10 @@ function onExport(s: SnapshotSummary) {
   emit('open-export', s.id, s.label)
 }
 
-// ===== 时间格式化 =====
-function formatRelative(ts: number): string {
-  const diff = Date.now() - ts
-  if (diff < 60_000) return '刚刚'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
-  if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)} 天前`
+// ===== 时间格式化（绝对时间 yyyy-MM-dd HH:mm:ss）=====
+function formatTime(ts: number): string {
   const d = new Date(ts)
   const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 </script>

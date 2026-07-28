@@ -252,6 +252,8 @@ export async function buildSnapshot(
     locked: false,
     lockedReason: null,
     label: null,
+    status: 'success',
+    errorMessage: null,
     windows,
     meta: {
       customTags: meta.customTags,

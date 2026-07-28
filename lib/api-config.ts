@@ -37,6 +37,7 @@ export const MENU_SITE_URL =
 // - sendLoginCode: OuuEmailController#approval
 // - loginByEmailCode: OuuLoginController#login
 // - feedbackSuggest: OuuCustomerFeedbackController#suggest
+// - nudgeAuthor: OuuCustomerFeedbackController#nudgeAuthor（云同步催作者，2026-07-28）
 // - adList: OuuAdvertisementController#getAdList
 // - checkVersion: AppVersionController#checkVersion
 export const API_URIS = {
@@ -44,7 +45,12 @@ export const API_URIS = {
   sendLoginCode: "/email/send-login-code",
   loginByEmailCode: "/login/login-by-email-code",
   feedbackSuggest: "/feedback/suggest",
+  // 催作者（云同步开发中页，2026-07-28 立）：POST /feedback/nudge-author { email?, remark? }
+  nudgeAuthor: "/feedback/nudge-author",
   adList: "/ad/list",
+  // 多槽位广告（备份独立页专用，2026-07-28 立）：一次请求取多个 position 的广告
+  // 对应后端 OuuAdvertisementController#listByPositions
+  adListByPositions: "/ad/listbypositions",
   checkVersion: "/version/check-version",
   customerMy: "/customer/my",
   // 更新性别（2026-07-18 性别头像，对应后端 OuuCustomerController#updateSex）

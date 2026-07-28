@@ -67,6 +67,9 @@ export async function gfsCleanupSnapshots(
  * 导入（import）/恢复前（preRestore）同样不参与自动裁剪（与手动同等保护）。
  * cacheMaxSnapshots 仅约束 auto.* 来源。
  *
+ * §2.2 失败快照（status='failed'）不计入保留上限也不参与裁剪——
+ * 失败记录是审计性数据，不挤占成功备份的保留条数，也不被自动删（仅手动可删）。
+ *
  * @param maxSnapshots 自动备份保留条数上限（settings.cacheMaxSnapshots）
  * @returns 被删除的快照 id 列表
  */
@@ -74,9 +77,11 @@ export async function trimToMaxSnapshots(
   maxSnapshots: number
 ): Promise<string[]> {
   const all = await getAllSnapshots()
-  // 仅 auto.* 来源 + 非锁定参与条数裁剪
+  // 仅 auto.* 来源 + 非锁定 + 成功快照参与条数裁剪（失败快照跳过）
   const autoNonLocked = all.filter(
-    (f) => !f.snapshot.locked && f.snapshot.source.startsWith('auto.')
+    (f) => !f.snapshot.locked
+      && f.snapshot.source.startsWith('auto.')
+      && f.snapshot.status !== 'failed'
   )
   if (autoNonLocked.length <= maxSnapshots) return []
   const overflow = autoNonLocked.length - maxSnapshots
@@ -95,6 +100,8 @@ export async function trimToMaxSnapshots(
  * 手动备份超限统计（§3.3 trimManualOverLimit）。
  * 手动备份不自动删——仅返回超限数量给 UI 持续提示用户清理。
  *
+ * §2.2 失败快照（status='failed'）不计入手动上限统计。
+ *
  * @param manualMax 手动备份条数上限（BACKUP_LIMITS.*.manualMaxSnapshots）
  * @returns 超出上限的条数（0 表示未超限）
  */
@@ -102,7 +109,9 @@ export async function getManualOverLimitCount(
   manualMax: number
 ): Promise<number> {
   const all = await getAllSnapshots()
-  const manualCount = all.filter((f) => f.snapshot.source === 'manual').length
+  const manualCount = all.filter(
+    (f) => f.snapshot.source === 'manual' && f.snapshot.status !== 'failed'
+  ).length
   return Math.max(0, manualCount - manualMax)
 }
 

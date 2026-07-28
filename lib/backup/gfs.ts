@@ -46,6 +46,9 @@ function bucketKeepId(items: BackupFile[], start: number, end: number): Bucket {
  * @param items 全部快照
  * @param now 当前时间戳
  * @param retentionDays 保留天数（7/14/30/90）
+ *
+ * §2.2 失败快照（status='failed'）不参与 GFS 保留计算——既不占桶保留位（避免
+ * 失败记录成为桶内最新导致成功备份被淘汰），也不被 GFS 自动删（仅手动可删）。
  */
 export function computeGfsKeepIds(
   items: BackupFile[],
@@ -53,14 +56,16 @@ export function computeGfsKeepIds(
   retentionDays: number
 ): Set<string> {
   const keep = new Set<string>()
+  // 0. 失败快照整体排除（不进 GFS 计算流程）
+  const valid = items.filter((f) => f.snapshot.status !== 'failed')
   // 1. 锁定项永不删
-  for (const f of items) {
+  for (const f of valid) {
     if (f.snapshot.locked) keep.add(f.snapshot.id)
   }
   // 2. 整体保留窗口之外（>retentionDays）的不保留（除非已锁定，上面已加）
   const retentionMs = retentionDays * DAY_MS
   const retentionCut = now - retentionMs
-  const inWindow = items.filter((f) => f.snapshot.createdAt >= retentionCut)
+  const inWindow = valid.filter((f) => f.snapshot.createdAt >= retentionCut)
   // 3. 近 24h：每小时一个桶
   for (let h = 0; h < 24; h++) {
     const start = now - (h + 1) * HOUR_MS
@@ -101,6 +106,8 @@ export function computeGfsKeepIds(
 /**
  * 执行 GFS 清理：返回被删除的快照 id 列表（非锁定 + 不在保留集 + 在保留窗口外或被桶淘汰）。
  * 注意：本函数纯计算，不修改原数组；调用方负责实际删除与持久化。
+ *
+ * §2.2 失败快照（status='failed'）不参与 GFS 清理——仅手动可删。
  */
 export function selectGfsRemovable(
   items: BackupFile[],
@@ -108,5 +115,7 @@ export function selectGfsRemovable(
   retentionDays: number
 ): string[] {
   const keep = computeGfsKeepIds(items, now, retentionDays)
-  return items.filter((f) => !keep.has(f.snapshot.id)).map((f) => f.snapshot.id)
+  return items
+    .filter((f) => !keep.has(f.snapshot.id) && f.snapshot.status !== 'failed')
+    .map((f) => f.snapshot.id)
 }

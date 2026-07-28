@@ -118,5 +118,8 @@ export function toSummary(f: BackupFile): SnapshotSummary {
     locked: s.locked,
     label: s.label,
     stats: s.stats,
+    // 旧快照（无 status 字段）兜底为 'success'；errorMessage 兜底为 null
+    status: s.status === 'failed' ? 'failed' : 'success',
+    errorMessage: typeof s.errorMessage === 'string' ? s.errorMessage : null,
   }
 }

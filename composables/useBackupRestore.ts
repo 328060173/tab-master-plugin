@@ -13,7 +13,7 @@ import { useBackupService } from "./useBackupService"
 import { showToast } from "./useToast"
 import {
   collectCurrentTabs,
-  previewRestore,
+  previewRestore as computeRestorePreview,
   resolveConflicts,
   executeRestore,
   type CurrentTab,
@@ -35,6 +35,8 @@ export interface OpenSnapshotOptions {
   selectedFingerprints?: Set<string>
   /** target='selected' 时：true=新窗口打开选中，false=本窗口打开选中 */
   openInNewWindow?: boolean
+  /** 是否跳过当前已打开的同 URL 标签。默认 true（去重）。false=全部重新打开（含重复） */
+  skipDuplicateUrls?: boolean
 }
 
 // 单例化（修 R-1：backup.vue 与 BackupRestorePanel.vue 各调一次会拿到不同实例，
@@ -69,7 +71,7 @@ function useBackupRestoreImpl() {
         computeFingerprint,
         computeWeakFingerprint
       )
-      const p = previewRestore(file, currentTabs)
+      const p = computeRestorePreview(file, currentTabs)
       preview.value = p
       conflicts.value = p.conflicts.map((c) => ({ ...c }))
       unmatched.value = p.unmatched.map((u) => ({ ...u }))
@@ -226,13 +228,14 @@ function useBackupRestoreImpl() {
         if (t.url) currentUrls.add(t.url)
       }
       const selFps = options.selectedFingerprints
+      const skipDup = options.skipDuplicateUrls !== false
       const filterTab = (tab: TabSnapshot): boolean => {
         if (target === 'selected') {
           return !!selFps && selFps.has(tab.fingerprint)
         }
         return true
       }
-      // 构建要打开的窗口分组（保留快照多窗口结构，跳过已存在同 URL）
+      // 构建要打开的窗口分组（保留快照多窗口结构；skipDup=true 跳过已存在同 URL，false 全开含重复）
       const snapshotWindows: WindowSnapshot[] = file.snapshot.windows.filter((w) => !w.incognito)
       const windowsToOpen: { tabs: TabToOpen[]; focused: boolean }[] = []
       let firstFocused = true
@@ -240,7 +243,7 @@ function useBackupRestoreImpl() {
         const winTabs: TabToOpen[] = []
         for (const t of w.tabs) {
           if (!filterTab(t)) continue
-          if (currentUrls.has(t.url)) continue
+          if (skipDup && currentUrls.has(t.url)) continue
           winTabs.push({ url: t.url, pinned: t.pinned, title: t.title, fingerprint: t.fingerprint })
         }
         if (winTabs.length > 0) {
@@ -266,6 +269,46 @@ function useBackupRestoreImpl() {
     } finally {
       isRestoring.value = false
       await releaseCoord()
+    }
+  }
+
+  /**
+   * 预览还原：返回备份里标签总数 / 当前已打开（重复）数 / 待打开数。不实际打开标签。
+   * target='selected' 时按 selectedFingerprints 过滤；隐身窗口标签不计入（与 openSnapshot 一致）。
+   */
+  async function previewRestore(
+    snapshotId: string,
+    target: OpenTarget,
+    options: OpenSnapshotOptions = {},
+  ): Promise<{ ok: boolean; total: number; duplicate: number; toOpen: number; error?: string }> {
+    try {
+      const file = await svc.getSnapshotFile(snapshotId)
+      if (!file) return { ok: false, total: 0, duplicate: 0, toOpen: 0, error: '快照不存在' }
+      const allTabs = await chrome.tabs.query({})
+      const currentUrls = new Set<string>()
+      for (const t of allTabs) {
+        if (t.url) currentUrls.add(t.url)
+      }
+      const selFps = options.selectedFingerprints
+      const filterTab = (tab: TabSnapshot): boolean => {
+        if (target === 'selected') {
+          return !!selFps && selFps.has(tab.fingerprint)
+        }
+        return true
+      }
+      let total = 0
+      let duplicate = 0
+      for (const w of file.snapshot.windows) {
+        if (w.incognito) continue
+        for (const t of w.tabs) {
+          if (!filterTab(t)) continue
+          total++
+          if (currentUrls.has(t.url)) duplicate++
+        }
+      }
+      return { ok: true, total, duplicate, toOpen: total - duplicate }
+    } catch (e) {
+      return { ok: false, total: 0, duplicate: 0, toOpen: 0, error: e instanceof Error ? e.message : String(e) }
     }
   }
 
@@ -348,5 +391,6 @@ function useBackupRestoreImpl() {
     execute,
     undoRestore,
     openSnapshot,
+    previewRestore,
   }
 }

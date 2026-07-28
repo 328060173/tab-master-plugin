@@ -66,6 +66,13 @@
 
           <!-- 底部：备注 + 计数 + 操作 -->
           <div class="px-5 pt-3 pb-5 border-t border-gray-100 dark:border-gray-700 shrink-0 space-y-3">
+            <!-- §3.3 手动备份上限提示（X/20，达上限变红） -->
+            <p
+              :class="['text-[11px] leading-relaxed', manualOverLimit ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400']"
+            >
+              <template v-if="manualOverLimit">已达上限，请清理旧手动备份（已有 {{ manualCount }}/{{ MANUAL_MAX_SNAPSHOTS }} 条手动备份，手动备份不会被自动删除）</template>
+              <template v-else>已有 {{ manualCount }}/{{ MANUAL_MAX_SNAPSHOTS }} 条手动备份，手动备份不会被自动删除</template>
+            </p>
             <div class="flex items-center gap-2 text-xs">
               <label class="text-gray-600 dark:text-gray-300 shrink-0" for="manual-backup-label">备注（可选，≤20字）</label>
               <input
@@ -120,6 +127,7 @@ import { ref, computed, watch } from "vue"
 import { X } from "@lucide/vue"
 import { currentLimits } from "~types/backup"
 import { computeFingerprint } from "~lib/backup/fingerprint"
+import { useBackupService } from "~composables/useBackupService"
 import TabSelectPanel from "~components/backup/TabSelectPanel.vue"
 
 /** TabSelectPanel 期望的标签项形状（结构兼容，无需导入） */
@@ -148,6 +156,13 @@ const emit = defineEmits<{
   (e: 'confirm', payload: { tabIds: number[]; label: string | null }): void
   (e: 'cancel'): void
 }>()
+
+// §3.3 手动备份上限提示：读 svc.snapshots 统计 source==='manual' 数量
+const svc = useBackupService()
+const { snapshots } = svc
+const MANUAL_MAX_SNAPSHOTS = currentLimits().manualMaxSnapshots
+const manualCount = computed(() => snapshots.value.filter((s) => s.source === 'manual').length)
+const manualOverLimit = computed(() => manualCount.value >= MANUAL_MAX_SNAPSHOTS)
 
 const loading = ref(false)
 const submitting = ref(false)

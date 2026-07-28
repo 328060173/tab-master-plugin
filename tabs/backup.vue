@@ -11,10 +11,18 @@
     P1/P2 留：备份列表表格 / 还原多档 / 导入管理 / 回收站 / 趋势柱状图 / 云同步
   -->
   <div class="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 flex flex-col">
-    <!-- 顶栏 40px -->
-    <header class="h-10 px-4 flex items-center gap-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0">
-      <Shield :size="16" class="text-blue-600 dark:text-blue-400" />
-      <h1 class="text-sm font-semibold">标签备份</h1>
+    <!-- 顶栏 56px（字号放大后调高） -->
+    <header class="h-14 px-4 flex items-center gap-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0">
+      <Shield :size="22" class="text-blue-600 dark:text-blue-400" />
+      <h1 class="font-semibold" style="font-size: xx-large;">标签备份</h1>
+      <button
+        class="inline-flex items-center justify-center w-9 h-9 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+        aria-label="打开备份说明"
+        title="说明"
+        @click="helpOpen = true"
+      >
+        <HelpCircle :size="20" />
+      </button>
       <button
         class="ml-auto inline-flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
         aria-label="关闭页面"
@@ -39,7 +47,7 @@
                 v-for="t in manageTabs"
                 :key="t.key"
                 :class="[
-                  'px-3 py-1.5 text-xs transition-colors border-b-2 -mb-px focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-t',
+                  'px-4 py-2 text-sm transition-colors border-b-2 -mb-px focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-t',
                   manageTab === t.key
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-medium'
                     : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200',
@@ -54,10 +62,12 @@
             <ErrorBoundary v-if="manageTab === 'overview'" scope="backup.overview">
               <BackupOverviewTab
                 @open-manual-backup="manualBackupOpen = true"
-                @open-auto-settings="onRequestEnable"
+                @open-auto-settings="autoSettingsOpen = true"
                 @open-import="importDialogOpen = true"
                 @open-export="onOpenExportOverview"
                 @ack-first-visit="onAckFirstVisit"
+                @enable-auto="onEnableAuto"
+                @disable-auto="onDisableAuto"
               />
             </ErrorBoundary>
 
@@ -71,12 +81,10 @@
             </ErrorBoundary>
           </template>
 
-          <!-- 云同步占位 -->
-          <div v-else-if="activeMenu === 'cloud'" class="bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
-            <Cloud :size="24" class="mx-auto text-gray-300 dark:text-gray-600 mb-2" />
-            <p class="text-xs text-gray-500 dark:text-gray-400">云同步即将上线</p>
-            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">多设备同步 · 端到端加密 · 会员功能（阶段二）</p>
-          </div>
+          <!-- 云同步开发中（催作者） -->
+          <ErrorBoundary v-else-if="activeMenu === 'cloud'" scope="backup.cloud">
+            <CloudSyncComingTab />
+          </ErrorBoundary>
 
           <!-- 导入管理（§8.7：导入区+预览区+导入记录列表） -->
           <ErrorBoundary v-else-if="activeMenu === 'import'" scope="backup.import">
@@ -85,23 +93,10 @@
               @imported="onImported"
             />
           </ErrorBoundary>
-
-          <!-- 回收站占位 -->
-          <div v-else-if="activeMenu === 'trash'" class="bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
-            <Trash2 :size="24" class="mx-auto text-gray-300 dark:text-gray-600 mb-2" />
-            <p class="text-xs text-gray-500 dark:text-gray-400">回收站即将完成</p>
-            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">软删 30s 撤销走备份列表 toast，独立回收站列表后续补</p>
-          </div>
         </div>
       </main>
     </div>
 
-    <!-- 首次开启知悉弹窗（复用现有组件，零回归） -->
-    <BackupNoticeDialog
-      :open="noticeOpen"
-      @confirm="onNoticeConfirm"
-      @cancel="noticeOpen = false"
-    />
 
     <!-- 手动备份弹框 -->
     <ManualBackupDialog
@@ -116,6 +111,19 @@
       :open="autoSettingsOpen"
       @saved="autoSettingsOpen = false"
       @cancel="autoSettingsOpen = false"
+    />
+
+    <!-- 「开启自动备份」确认框（开关 ON → 弹框 → 确认才真开启） -->
+    <AutoBackupConfirmDialog
+      :open="autoConfirmOpen"
+      :timer-minutes="autoConfirmSettings.timerMinutes"
+      :event-on-tab-removed="autoConfirmSettings.eventOnTabRemoved"
+      :event-on-window-removed="autoConfirmSettings.eventOnWindowRemoved"
+      :event-on-idle="autoConfirmSettings.eventOnIdle"
+      :cache-max-snapshots="autoConfirmSettings.cacheMaxSnapshots"
+      :retention-days="autoConfirmSettings.retentionDays"
+      @confirm="onAutoConfirm"
+      @cancel="onAutoCancel"
     />
 
     <!-- 备份详情弹框（P1） -->
@@ -195,11 +203,14 @@
     <Teleport to="body">
       <div
         v-if="toastMsg"
-        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs px-3 py-2 rounded shadow-lg max-w-[90vw]"
+        class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs px-3 py-2 rounded shadow-lg max-w-[90vw]"
       >
         {{ toastMsg }}
       </div>
     </Teleport>
+
+    <!-- 备份说明大弹窗 -->
+    <BackupHelpDialog :open="helpOpen" @cancel="helpOpen = false" />
   </div>
 </template>
 
@@ -216,8 +227,8 @@
  * - pipeline 加 selectedTabIds 子集参数（默认全量，不动现有调用方）
  * P1/P2 留：备份列表表格 / 还原多档 / 导入管理 / 回收站 / 趋势柱状图 / 云同步
  */
-import { ref, computed, onMounted, onUnmounted } from "vue"
-import { Shield, X, Cloud, Trash2 } from "@lucide/vue"
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue"
+import { Shield, X, HelpCircle } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
 import { showToast, useToast } from "~composables/useToast"
@@ -225,12 +236,14 @@ import BackupSidebar, { type BackupMenuKey } from "~components/backup/BackupSide
 import BackupOverviewTab from "~components/backup/BackupOverviewTab.vue"
 import BackupListTab from "~components/backup/BackupListTab.vue"
 import BackupImportTab from "~components/backup/BackupImportTab.vue"
+import CloudSyncComingTab from "~components/backup/CloudSyncComingTab.vue"
 import BackupDetailDialog from "~components/backup/BackupDetailDialog.vue"
 import ExportCurrentDialog from "~components/backup/ExportCurrentDialog.vue"
 import ImportDialog from "~components/backup/ImportDialog.vue"
 import ManualBackupDialog from "~components/backup/ManualBackupDialog.vue"
 import AutoBackupSettingsDialog from "~components/backup/AutoBackupSettingsDialog.vue"
-import BackupNoticeDialog from "~components/BackupNoticeDialog.vue"
+import AutoBackupConfirmDialog from "~components/backup/AutoBackupConfirmDialog.vue"
+import BackupHelpDialog from "~components/backup/BackupHelpDialog.vue"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
 
 const svc = useBackupService()
@@ -249,10 +262,39 @@ const manageTabs: { key: ManageTab; label: string }[] = [
 ]
 const manageTab = ref<ManageTab>('overview')
 
+// ===== URL query 路由持久化（?page=overview|list|import|cloud）=====
+// 当前页路由 key（基于 activeMenu + manageTab 推导）
+type PageRoute = 'overview' | 'list' | 'import' | 'cloud'
+const currentRoute = computed<PageRoute>(() => {
+  if (activeMenu.value === 'import') return 'import'
+  if (activeMenu.value === 'cloud') return 'cloud'
+  // manage 下分 overview / list
+  return manageTab.value === 'list' ? 'list' : 'overview'
+})
+
+// 内部驱动标记：onMounted 解析 ?page= 时设 true，避免 watch 又写回 URL 造成循环
+let routeHydrated = false
+watch(currentRoute, (r) => {
+  if (!routeHydrated) return
+  if (history.replaceState) {
+    history.replaceState(null, '', location.pathname + '?page=' + r)
+  }
+})
+
 // 弹框开关
 const manualBackupOpen = ref(false)
 const autoSettingsOpen = ref(false)
-const noticeOpen = ref(false)
+const helpOpen = ref(false)
+// 任务 3.3：开启自动备份确认框（开关 ON → 弹框 → 确认才真开启 + 首次备份；取消则开关回弹）
+const autoConfirmOpen = ref(false)
+const autoConfirmSettings = reactive({
+  timerMinutes: 10,
+  eventOnTabRemoved: true,
+  eventOnWindowRemoved: true,
+  eventOnIdle: false,
+  cacheMaxSnapshots: 30,
+  retentionDays: 7,
+})
 
 // 详情弹框（P1）
 const detailDialogOpen = ref(false)
@@ -281,36 +323,68 @@ async function onAckFirstVisit() {
   await svc.setFirstVisitAcked(true)
 }
 
-// ===== 开启自动备份（点「自动备份」按钮 → 弹确认 → 开启 + 首次自动备份 + 跳列表）=====
-function onRequestEnable() {
-  // 已确认过（单 bool）→ 直接开；否则弹知悉弹窗
-  if (svc.noticeAcked.value) {
-    void doEnable()
-  } else {
-    noticeOpen.value = true
+// ===== 概览页自动备份开关（任务 3.3：开关 ON → 弹确认框 → 确认才真开启）=====
+// 开关绑的 enabled 来自 svc.enabled（只读 computed 基于 settings.enabled）。
+// onEnableAuto 不调 setEnabled，enabled.value 仍为 false，开关 UI 保持 OFF。
+// 用户点「确认开启」才 setEnabled(true) → enabled 变 true → 开关 ON。
+// 点「取消」开关自动回弹（因 enabled 未改）。
+async function onEnableAuto() {
+  // 填充当前设置到确认框
+  const s = svc.settings.value
+  autoConfirmSettings.timerMinutes = s.timerMinutes
+  autoConfirmSettings.eventOnTabRemoved = s.eventOnTabRemoved
+  autoConfirmSettings.eventOnWindowRemoved = s.eventOnWindowRemoved
+  autoConfirmSettings.eventOnIdle = s.eventOnIdle
+  autoConfirmSettings.cacheMaxSnapshots = s.cacheMaxSnapshots
+  autoConfirmSettings.retentionDays = s.retentionDays
+  autoConfirmOpen.value = true
+  // 不调 doEnableAuto —— 等用户确认
+}
+
+function onAutoConfirm() {
+  autoConfirmOpen.value = false
+  void doEnableAuto()
+}
+
+function onAutoCancel() {
+  autoConfirmOpen.value = false
+  // 开关回弹：enabled 未改（仍 false），开关 UI 自动 OFF
+}
+
+async function doEnableAuto() {
+  try {
+    await svc.setEnabled(true)
+    // 标记已确认
+    await svc.setNoticeAcked(true)
+    // 立即触发第一次自动备份（source=auto.event.startup → 列表显示「自动备份」）
+    // runBackup 内部已刷新 snapshots.value（pipeline.ts），再 loadAll 兜底刷新 state/dirMeta
+    void svc.runBackup('auto.event.startup').then((r) => {
+      if (r.ok && r.snapshot) {
+        const n = r.snapshot.stats.selectedTabCount ?? r.snapshot.stats.tabCount
+        showToast(`已开启自动备份 · 第一次备份 ${n} 标签`)
+        // 跳列表 + 刷新（任务 4：用户能在列表看到新备份）
+        manageTab.value = 'list'
+        void svc.loadAll()
+      } else if (!r.ok) {
+        showToast(r.error || '第一次自动备份失败，请重试')
+      }
+    }).catch(() => showToast('第一次自动备份失败，请重试'))
+    // 兜底 1.5s 后强制刷新（防 then 时序/单例 ref 延迟，列表必出新备份）
+    setTimeout(() => { void svc.loadAll() }, 1500)
+  } catch (e) {
+    console.warn('[backup] 开启自动备份失败', e)
+    showToast('开启自动备份失败，请重试')
   }
 }
 
-async function onNoticeConfirm() {
-  noticeOpen.value = false
-  await svc.setNoticeAcked(true)
-  await doEnable()
-}
-
-async function doEnable() {
-  await svc.setEnabled(true)
-  showToast('已开启自动备份 · 立即进行第一次自动备份')
-  // 首次备份用 auto.event.startup 来源 → 备份列表类型显示「自动备份」（不是手动）
-  void svc.runBackup('auto.event.startup').then((r) => {
-    if (r.ok && r.snapshot) {
-      showToast(`第一次自动备份成功 · 已备份 ${r.snapshot.stats.tabCount} 标签`)
-      // 跳备份列表 + 刷新（让用户立即看到这条自动备份）
-      manageTab.value = 'list'
-      void svc.loadAll()
-    } else if (!r.ok) {
-      showToast(r.error || '第一次自动备份失败，请重试')
-    }
-  }).catch(() => showToast('第一次自动备份失败，请重试'))
+async function onDisableAuto() {
+  try {
+    await svc.setEnabled(false)
+    showToast('已关闭自动备份')
+  } catch (e) {
+    console.warn('[backup] 关闭自动备份失败', e)
+    showToast('关闭自动备份失败，请重试')
+  }
 }
 
 // ===== 手动备份弹框 =====
@@ -330,6 +404,10 @@ async function onManualBackupConfirm(payload: { tabIds: number[]; label: string 
       // 关弹框 + 跳备份列表 Tab（P0 备份列表是占位，跳了先显占位）
       manualBackupOpen.value = false
       manageTab.value = 'list'
+      // 任务 3：强制刷新备份列表（pipeline 内部 snapshots.value 赋值时序不可靠，loadAll 兜底从 IDB 重读）
+      void svc.loadAll()
+      // 1.5s 后再刷一次，防 then 时序/单例 ref 延迟生效
+      setTimeout(() => { void svc.loadAll() }, 1500)
     } else {
       showToast(r.error || '备份失败')
     }
@@ -477,22 +555,35 @@ onMounted(() => {
   // 进入备份页即异步拉广告（不阻塞业务，报错/超时静默显占位）。
   // 刷新页面 = 重新挂载 = 自动触发；切 Tab 不重复请求（共享单例 adData + 并发去重）。
   void backupPageAd.fetchAd()
-  // 解析 URL query：sidepanel 顶部下拉跳转时带 ?action= 直接打开对应弹框/Tab
-  // action: manual=手动备份弹框 / auto=自动备份设置弹框 / import=导入弹框 / export=导出弹框 / manage=备份列表
+  // 解析 URL query：
+  // - ?page=overview|list|import|cloud 定位页面（刷新可恢复当前 Tab）
+  // - ?action=manual|auto|import|export|manage 一次性触发弹框（兼容旧逻辑，解析后清掉 action）
+  // 两者可同时存在：page 定位页面、action 开弹框
   try {
     const params = new URLSearchParams(location.search)
+    const page = params.get('page')
+    if (page === 'list') { activeMenu.value = 'manage'; manageTab.value = 'list' }
+    else if (page === 'import') { activeMenu.value = 'import' }
+    else if (page === 'cloud') { activeMenu.value = 'cloud' }
+    // 'overview' / 无 page → 默认概览（activeMenu='manage' + manageTab='overview' 已是初始值）
+
     const action = params.get('action')
     if (action === 'manual') manualBackupOpen.value = true
     else if (action === 'auto') autoSettingsOpen.value = true
     else if (action === 'import') importDialogOpen.value = true
     else if (action === 'export') void onOpenExportOverview()
-    else if (action === 'manage') { activeMenu.value = 'manage'; manageTab.value = 'list' }
-    // 解析后清掉 URL query，防刷新页面又跳回弹框
-    if (action && history.replaceState) {
-      history.replaceState(null, '', location.pathname)
+    // 2026-07-28：manage 跳概览（与 sidepanel openBackupPage pageMap 对齐）
+    else if (action === 'manage') { activeMenu.value = 'manage'; manageTab.value = 'overview' }
+
+    // 解析后写回 ?page=（清掉 action 一次性参数，保留 page 供刷新恢复）
+    if (history.replaceState) {
+      history.replaceState(null, '', location.pathname + '?page=' + currentRoute.value)
     }
   } catch (e) {
-    console.warn('[backup] 解析 URL action 失败', e)
+    console.warn('[backup] 解析 URL query 失败', e)
+  } finally {
+    // hydration 完成，后续 currentRoute 变化才同步到 URL
+    routeHydrated = true
   }
 })
 onUnmounted(() => {

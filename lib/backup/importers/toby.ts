@@ -118,6 +118,8 @@ export function parseToby(text: string): Promise<ImportResult> {
         locked: false,
         lockedReason: null,
         label: "Toby 导入",
+        status: 'success',
+        errorMessage: null,
         windows: [{
           windowId: -1,
           relativeIndex: 0,

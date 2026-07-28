@@ -114,7 +114,7 @@
             </div>
           </div>
 
-          <!-- 保留策略 -->
+          <!-- 保留策略（普通用户锁定默认值，不可调整；后续版本开放） -->
           <div class="space-y-1.5">
             <p class="text-xs font-medium text-gray-700 dark:text-gray-200">保留策略</p>
             <div class="grid grid-cols-2 gap-2 text-xs">
@@ -122,7 +122,8 @@
                 <label class="text-[11px] text-gray-500 dark:text-gray-400 block mb-1">自动保留</label>
                 <select
                   v-model.number="draft.cacheMaxSnapshots"
-                  class="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled
+                  class="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-gray-100 dark:bg-gray-900/40 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                 >
                   <option v-for="opt in MAX_SNAPSHOTS_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                 </select>
@@ -131,7 +132,8 @@
                 <label class="text-[11px] text-gray-500 dark:text-gray-400 block mb-1">保留天数</label>
                 <select
                   v-model.number="draft.retentionDays"
-                  class="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled
+                  class="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-gray-100 dark:bg-gray-900/40 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                 >
                   <option v-for="opt in RETENTION_DAYS_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                 </select>
@@ -140,7 +142,8 @@
                 <label class="text-[11px] text-gray-500 dark:text-gray-400 block mb-1">缓存上限</label>
                 <select
                   v-model.number="draft.cacheQuotaBytes"
-                  class="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled
+                  class="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-gray-100 dark:bg-gray-900/40 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                 >
                   <option v-for="opt in CACHE_QUOTA_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                 </select>
@@ -150,7 +153,7 @@
             <p class="text-[11px] text-gray-500 dark:text-gray-400">
               自动保留 {{ draft.cacheMaxSnapshots }} 条 · 保留 {{ draft.retentionDays }} 天 · 缓存 {{ Math.round(draft.cacheQuotaBytes / 1024 / 1024) }} MB
             </p>
-            <p class="text-[11px] text-gray-500 dark:text-gray-400">仅自动备份受条数限制；手动备份永不自动删除</p>
+            <p class="text-[11px] text-gray-500 dark:text-gray-400">暂不支持调整，后续版本开放；仅自动备份受条数限制，手动备份永不自动删除</p>
           </div>
         </div>
 
@@ -191,11 +194,9 @@ const emit = defineEmits<{
 
 const svc = useBackupService()
 
-// 备份频次可选项（设计稿 §2.2：5/10/15/30/60 分钟；外加 0=关闭定时与 1/3 兼容旧设置）
-// §3.5 默认 10 分钟（普通档）
+// 备份频次可选项：最小 10 分钟（普通档锁定，避免高频耗资源）；无"关闭定时"
+// （定时是自动备份核心，不想定时请关总开关）。§3.5 默认 10 分钟
 const TIMER_MINUTES_OPTIONS = [
-  { value: 0, label: '关闭定时' },
-  { value: 5, label: '5 分钟' },
   { value: 10, label: '10 分钟（默认）' },
   { value: 15, label: '15 分钟' },
   { value: 30, label: '30 分钟' },
@@ -246,7 +247,9 @@ watch(() => props.open, (v) => {
   if (v) {
     const s = svc.settings.value
     draft.enabled = s.enabled
-    draft.timerMinutes = s.timerMinutes
+    // clamp：旧值 0(关闭定时)/5(分钟) 不在新选项内 → 提到最小 10 分钟
+    // （15/30/60 不变；下次保存会把 clamp 后的值写回 svc，修正旧配置）
+    draft.timerMinutes = s.timerMinutes < 10 ? 10 : s.timerMinutes
     draft.eventOnTabRemoved = s.eventOnTabRemoved
     draft.eventOnWindowRemoved = s.eventOnWindowRemoved
     draft.eventOnIdle = s.eventOnIdle
@@ -288,15 +291,18 @@ async function onSave() {
     emit('saved')
     // §首次反馈：开启自动备份立即触发第一次自动备份（source=auto.event.startup → 类型显示「自动备份」非手动）
     if (justEnabled) {
-      showToast('已开启自动备份 · 立即进行第一次自动备份')
       void svc.runBackup('auto.event.startup').then((r) => {
         if (r.ok && r.snapshot) {
           const n = r.snapshot.stats.selectedTabCount ?? r.snapshot.stats.tabCount
-          showToast(`第一次自动备份成功 · 已备份 ${n} 标签`)
+          // 任务 4：loadAll 兜底刷新（pipeline 已刷 snapshots.value，这里再 load 全量 state/dirMeta）
+          void svc.loadAll()
+          showToast(`已开启 · 第一次自动备份完成，已备份 ${n} 标签，请到备份列表查看`)
         } else if (!r.ok) {
           showToast(r.error || '第一次自动备份失败，请重试')
         }
       }).catch(() => showToast('第一次自动备份失败，请重试'))
+      // 任务 3.3：兜底 1.5s 后强制刷新（防 then 时序/单例 ref 延迟，列表必出新备份）
+      setTimeout(() => { void svc.loadAll() }, 1500)
     }
   } catch (e) {
     console.warn('[AutoBackupSettingsDialog] 保存失败', e)
