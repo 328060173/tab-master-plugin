@@ -63,7 +63,7 @@
               <BackupOverviewTab
                 @open-manual-backup="manualBackupOpen = true"
                 @open-auto-settings="autoSettingsOpen = true"
-                @open-import="importDialogOpen = true"
+                @open-import="onGoToImportPage"
                 @open-export="onOpenExportOverview"
                 @ack-first-visit="onAckFirstVisit"
                 @enable-auto="onEnableAuto"
@@ -86,12 +86,9 @@
             <CloudSyncComingTab />
           </ErrorBoundary>
 
-          <!-- 导入管理（§8.7：导入区+预览区+导入记录列表） -->
+          <!-- 导入管理（§8.7：导入区+预览区） -->
           <ErrorBoundary v-else-if="activeMenu === 'import'" scope="backup.import">
-            <BackupImportTab
-              ref="importTabRef"
-              @imported="onImported"
-            />
+            <BackupImportTab />
           </ErrorBoundary>
         </div>
       </main>
@@ -132,13 +129,6 @@
       :snapshot-id="detailSnapshotId"
       @cancel="detailDialogOpen = false"
       @restored="onDetailRestored"
-    />
-
-    <!-- 导入弹框（概览用，我们自己的 JSON 导入；导入=打开标签，不写备份列表） -->
-    <ImportDialog
-      :open="importDialogOpen"
-      @cancel="importDialogOpen = false"
-      @other-formats="onOtherFormatsFromDialog"
     />
 
     <!-- 导出当前标签弹框（概览「导出」用：抓当前浏览器标签 → 勾选 → JSON 大面板） -->
@@ -239,7 +229,6 @@ import BackupImportTab from "~components/backup/BackupImportTab.vue"
 import CloudSyncComingTab from "~components/backup/CloudSyncComingTab.vue"
 import BackupDetailDialog from "~components/backup/BackupDetailDialog.vue"
 import ExportCurrentDialog from "~components/backup/ExportCurrentDialog.vue"
-import ImportDialog from "~components/backup/ImportDialog.vue"
 import ManualBackupDialog from "~components/backup/ManualBackupDialog.vue"
 import AutoBackupSettingsDialog from "~components/backup/AutoBackupSettingsDialog.vue"
 import AutoBackupConfirmDialog from "~components/backup/AutoBackupConfirmDialog.vue"
@@ -303,8 +292,6 @@ const detailSnapshotId = ref<string | null>(null)
 // 导出当前标签弹框（概览「导出」用：抓当前浏览器标签，不选历史快照）
 const exportCurrentOpen = ref(false)
 
-// 导入弹框（概览用，我们自己的 JSON 导入）
-const importDialogOpen = ref(false)
 
 // JSON 串查看弹框（导出"展示 JSON 串"去向）
 const jsonViewOpen = ref(false)
@@ -314,9 +301,6 @@ const jsonViewTextareaRef = ref<HTMLTextAreaElement | null>(null)
 
 // 手动备份弹框 ref（用于重置 submitting 态）
 const manualBackupDialogRef = ref<InstanceType<typeof ManualBackupDialog> | null>(null)
-
-// 导入管理 Tab ref（用于高亮新导入记录）
-const importTabRef = ref<InstanceType<typeof BackupImportTab> | null>(null)
 
 // ===== 首次引导「知道了」=====
 async function onAckFirstVisit() {
@@ -420,19 +404,12 @@ async function onManualBackupConfirm(payload: { tabIds: number[]; label: string 
   }
 }
 
-// ===== 导入还原（P2：跳导入管理菜单） =====
-function onOtherFormatsFromDialog() {
-  // 概览导入弹框底部「其他格式导入」→ 关弹框，跳导入管理菜单
-  importDialogOpen.value = false
+// ===== 导入：统一跳导入管理页（/backup.html?page=import） =====
+function onGoToImportPage() {
   activeMenu.value = 'import'
-}
-
-// ===== 导入成功回调（导入管理菜单 BackupImportTab 写入 IDB 后跳列表） =====
-function onImported(snapshotId: string) {
-  activeMenu.value = 'manage'
-  manageTab.value = 'list'
-  void svc.loadAll() // 刷新备份列表
-  void snapshotId
+  if (history.replaceState) {
+    history.replaceState(null, '', location.pathname + '?page=import')
+  }
 }
 
 // ===== 备份详情弹框（P1） =====
@@ -570,7 +547,7 @@ onMounted(() => {
     const action = params.get('action')
     if (action === 'manual') manualBackupOpen.value = true
     else if (action === 'auto') autoSettingsOpen.value = true
-    else if (action === 'import') importDialogOpen.value = true
+    else if (action === 'import') { activeMenu.value = 'import'; manageTab.value = 'overview' }
     else if (action === 'export') void onOpenExportOverview()
     // 2026-07-28：manage 跳概览（与 sidepanel openBackupPage pageMap 对齐）
     else if (action === 'manage') { activeMenu.value = 'manage'; manageTab.value = 'overview' }

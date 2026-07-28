@@ -249,8 +249,6 @@ export async function buildSnapshot(
     createdAtISO: new Date(now).toISOString(),
     source,
     trigger: null,
-    locked: false,
-    lockedReason: null,
     label: null,
     status: 'success',
     errorMessage: null,

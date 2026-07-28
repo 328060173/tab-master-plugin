@@ -127,8 +127,6 @@ export function parseVertiTab(text: string): Promise<ImportResult> {
         createdAtISO: new Date(now).toISOString(),
         source: "import",
         trigger: "import",
-        locked: false,
-        lockedReason: null,
         label: "VertiTab 导入",
         status: 'success',
         errorMessage: null,

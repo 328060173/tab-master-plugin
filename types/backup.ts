@@ -123,15 +123,15 @@ export const BACKUP_LIMITS = {
     /** 单次备份标签上限（超此走 §3.2 截断/弹选） */
     maxTabsPerSnapshot: 200,
     /** 自动备份保留条数（cacheMaxSnapshots 默认值；只管 auto.* 来源） */
-    autoMaxSnapshots: 30,
+    autoMaxSnapshots: 100,
     /** 手动备份上限（超此不自动删，仅 UI 持续提示用户清理，§3.3） */
     manualMaxSnapshots: 20,
     /** 默认定时间隔（分钟） */
     defaultTimerMinutes: 10,
-    /** GFS 保留天数窗口 */
+    /** 保留天数窗口（按天数清理的阈值） */
     retentionDays: 7,
     /** IndexedDB 快照总配额字节（§3.4 语义重构：原 storage.local 10MB 约束已废弃） */
-    cacheQuotaBytes: 30 * 1024 * 1024,
+    cacheQuotaBytes: 20 * 1024 * 1024,
   },
   /**
    * 会员档（本期预留，UI 不暴露，文案禁出现「会员/VIP/升级」字样）。
@@ -139,7 +139,7 @@ export const BACKUP_LIMITS = {
    */
   vip: {
     maxTabsPerSnapshot: 500,
-    autoMaxSnapshots: 100,
+    autoMaxSnapshots: 200,
     // 手动上限会员也 20（用户 2026-07-27 决策：只说手动 20）
     manualMaxSnapshots: 20,
     defaultTimerMinutes: 5,
@@ -164,8 +164,6 @@ export interface Snapshot {
   source: SnapshotSource
   /** auto.* 必填；manual 为 null */
   trigger: string | null
-  locked: boolean
-  lockedReason: string | null
   label: string | null
   windows: WindowSnapshot[]
   meta: SnapshotMeta
@@ -207,7 +205,6 @@ export interface SnapshotSummary {
   createdAtISO: string
   source: SnapshotSource
   trigger: string | null
-  locked: boolean
   label: string | null
   stats: SnapshotStats
   /** 备份执行状态（success/failed），列表「状态」列展示 */
@@ -236,12 +233,12 @@ export interface BackupSettings {
   /**
    * IndexedDB 快照总配额字节（§3.4 语义重构）。
    * 原"受 chrome.storage.local 10MB 硬限约束"注释已废弃——快照真值已迁 IndexedDB（db.ts）。
-   * 默认 30MB（普通）/ 80MB（会员预留），达到上限停止自动备份并提示清理手动备份。
+   * 默认 20MB（普通）/ 80MB（会员预留），达到上限停止自动备份并提示清理手动备份。
    */
   cacheQuotaBytes: number
   /**
    * 自动备份保留条数上限（§3.3 仅对 auto.* 来源生效）。
-   * 手动备份永不自动删（与锁定项同等保护）；默认 30。
+   * 手动备份永不自动删；默认 100。
    */
   cacheMaxSnapshots: number
   /** 定时频率（分钟）。0=关闭。默认 10 */
@@ -270,8 +267,9 @@ export const DEFAULT_BACKUP_SETTINGS: BackupSettings = (() => {
     cacheMaxSnapshots: lim.autoMaxSnapshots,
     timerMinutes: lim.defaultTimerMinutes,
     retentionDays: lim.retentionDays,
-    eventOnTabRemoved: true,
-    eventOnWindowRemoved: true,
+    // 2026-07-28：事件触发默认全关（关标签/关窗口会让备份记录疯涨塞满上限）
+    eventOnTabRemoved: false,
+    eventOnWindowRemoved: false,
     eventOnIdle: false,
     restoreMetaOnRestore: true,
   }

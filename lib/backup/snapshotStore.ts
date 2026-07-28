@@ -7,7 +7,7 @@
  * 设计：
  * - 写：withChecksum 算校验和 → putSnapshot → 回读 verifySnapshot（防事务内撕裂）。
  * - GFS：selectGfsRemovable 算保留集 → 逐个 deleteSnapshotFromDb。
- * - 上限：超 cacheMaxSnapshots 时剔除非锁定项（与原 storage.local 逻辑等价）。
+ * - 上限：超 cacheMaxSnapshots 时剔除 auto.* 项（与原 storage.local 逻辑等价）。
  *
  * 守红线：不直写 storage.local（快照真值只在 IndexedDB）；storage 写 reactive 必 toPure（本模块不写 reactive）。
  */
@@ -28,6 +28,9 @@ import type {
   SnapshotSummary,
 } from "~types/backup"
 
+/** 一天的毫秒数（保留窗口计算用，避免散落魔法值） */
+const DAY_MS = 86_400_000
+
 /**
  * 持久化单个快照到 IndexedDB：算 checksum → 写 → 回读校验。
  * 失败（校验不通过）自动删除半成品，返回 ok=false。
@@ -46,7 +49,7 @@ export async function persistSnapshot(
 }
 
 /**
- * GFS 清理：按 retentionDays 算保留集，删除可移除的非锁定项。
+ * GFS 清理：按 retentionDays 算保留集，删除可移除项。
  * @returns 被删除的快照 id 列表
  */
 export async function gfsCleanupSnapshots(
@@ -61,9 +64,42 @@ export async function gfsCleanupSnapshots(
 }
 
 /**
- * 上限裁剪：自动备份（source: auto.*）非锁定项超过 cacheMaxSnapshots 时删最早的。
+ * 按保留天数清理：删除超过 retentionDays 的 auto.* 非失败项。
  *
- * §3.3 用户硬要求：手动备份（source: 'manual'）和锁定项一样永不自动删。
+ * 2026-07-28 重构：废 GFS 分层清理（同小时旧备份被合并导致关标签多次备份只剩 1 条），
+ * 改为纯按条数（trimToMaxSnapshots）+ 按天数（本函数）清理。
+ *
+ * 不删：
+ * - 手动备份（source='manual'）：用户主动备份，永不自动删
+ * - 导入（source='import'）/ 恢复前（source='preRestore'）：与手动同等保护
+ * - 失败快照（status='failed'）：审计性数据，仅手动可删
+ *
+ * @param retentionDays 保留天数（settings.retentionDays）
+ * @returns 被删除的快照 id 列表
+ */
+export async function trimExpiredSnapshots(
+  retentionDays: number
+): Promise<string[]> {
+  const all = await getAllSnapshots()
+  const cut = Date.now() - retentionDays * DAY_MS
+  const toRemove = all
+    .filter(
+      (f) =>
+        f.snapshot.source.startsWith('auto.')
+        && f.snapshot.status !== 'failed'
+        && f.snapshot.createdAt < cut
+    )
+    .map((f) => f.snapshot.id)
+  for (const id of toRemove) {
+    await deleteSnapshotFromDb(id)
+  }
+  return toRemove
+}
+
+/**
+ * 上限裁剪：自动备份（source: auto.*）超过 cacheMaxSnapshots 时删最早的。
+ *
+ * §3.3 用户硬要求：手动备份（source: 'manual'）永不自动删。
  * 导入（import）/恢复前（preRestore）同样不参与自动裁剪（与手动同等保护）。
  * cacheMaxSnapshots 仅约束 auto.* 来源。
  *
@@ -77,15 +113,14 @@ export async function trimToMaxSnapshots(
   maxSnapshots: number
 ): Promise<string[]> {
   const all = await getAllSnapshots()
-  // 仅 auto.* 来源 + 非锁定 + 成功快照参与条数裁剪（失败快照跳过）
-  const autoNonLocked = all.filter(
-    (f) => !f.snapshot.locked
-      && f.snapshot.source.startsWith('auto.')
+  // 仅 auto.* 来源 + 成功快照参与条数裁剪（失败快照跳过）
+  const autoTrimable = all.filter(
+    (f) => f.snapshot.source.startsWith('auto.')
       && f.snapshot.status !== 'failed'
   )
-  if (autoNonLocked.length <= maxSnapshots) return []
-  const overflow = autoNonLocked.length - maxSnapshots
-  const toRemove = autoNonLocked
+  if (autoTrimable.length <= maxSnapshots) return []
+  const overflow = autoTrimable.length - maxSnapshots
+  const toRemove = autoTrimable
     .slice()
     .sort((a, b) => a.snapshot.createdAt - b.snapshot.createdAt)
     .slice(0, overflow)
@@ -138,7 +173,7 @@ export async function deleteSnapshotById(id: string): Promise<boolean> {
 }
 
 /**
- * 修改快照（锁定/标签等）：读出 → mutate → 重算 checksum → 写回。
+ * 修改快照（备注等）：读出 → mutate → 重算 checksum → 写回。
  * mutate 函数原地修改 file。
  */
 export async function mutateSnapshot(
@@ -161,7 +196,7 @@ export async function appendImportedSnapshot(
 ): Promise<{ removedCount: number }> {
   const r = await persistSnapshot(file)
   if (!r.ok) return { removedCount: 0 }
-  await gfsCleanupSnapshots(settings.retentionDays)
+  await trimExpiredSnapshots(settings.retentionDays)
   const removed = await trimToMaxSnapshots(settings.cacheMaxSnapshots)
   return { removedCount: removed.length }
 }

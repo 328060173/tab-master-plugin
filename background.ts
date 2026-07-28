@@ -72,6 +72,35 @@ chrome.tabs.onCreated.addListener(onTabCreated)
 chrome.tabs.onRemoved.addListener(onTabRemoved)
 chrome.tabs.onActivated.addListener(onTabActivated)
 
+// ============ 备份事件触发：SW 唯一注册（防 UI 多页面重复备份，2026-07-28）============
+// 根因：useBackupService 单例在 UI 侧，sidepanel + backup.html 各自独立 JS 上下文，
+//   各注册一份 tabs.onRemoved/windows.onRemoved/idle.onStateChanged → 关一次标签
+//   两个上下文都收到 → 备份两次。
+// 修法：事件监听搬 SW（唯一注册点），SW 收到后 sendMessage 通知 UI；UI 侧用
+//   storage 锁去重（见 useBackupService.tryAcquireEventLock），保证多页面只有一个执行。
+// 注意：chrome.runtime.sendMessage 不会回调给发送方（SW 自身），只广播给扩展页面。
+chrome.tabs.onRemoved.addListener(() => {
+  void chrome.runtime
+    .sendMessage({ type: 'backup:event', source: 'auto.event.tabRemoved' })
+    .catch(() => {})
+})
+chrome.windows.onRemoved.addListener(() => {
+  void chrome.runtime
+    .sendMessage({ type: 'backup:event', source: 'auto.event.windowRemoved' })
+    .catch(() => {})
+})
+// idle 为 optional_permissions，未授权时 chrome.idle 为 undefined（守卫防抛错）
+if (typeof chrome.idle !== 'undefined') {
+  chrome.idle.onStateChanged.addListener((s) => {
+    // 仅 'idle' 态触发备份（'active'/'locked' 不触发）
+    if (s === 'idle') {
+      void chrome.runtime
+        .sendMessage({ type: 'backup:event', source: 'auto.event.idle' })
+        .catch(() => {})
+    }
+  })
+}
+
 // ============ onMessage：手动刷新 + backup: 路由 ============
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // P0-4: backup: 前缀消息走异步响应（return true 保持通道）

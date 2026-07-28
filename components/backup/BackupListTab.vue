@@ -119,9 +119,6 @@
                 >
                   {{ typeLabel(s.source) }}
                 </span>
-                <span v-if="s.locked" class="ml-1 text-amber-500" title="已锁定">
-                  <Lock :size="10" />
-                </span>
               </td>
               <!-- 触发条件（细分：手动/定时/标签关闭时/窗口关闭时/空闲时/启动时/导入/还原前）-->
               <td class="px-3 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">
@@ -181,9 +178,7 @@
                     <span>导出</span>
                   </button>
                   <MoreMenu
-                    :locked="s.locked"
                     @view-detail="onViewDetail(s.id)"
-                    @lock="onToggleLock(s.id, !s.locked)"
                     @edit-label="onStartEditLabel(s)"
                     @delete="onDelete(s)"
                   />
@@ -239,9 +234,8 @@
     <!-- 删除二次确认 -->
     <ConfirmDialog
       :open="deleteConfirm.open"
-      :title="deleteConfirm.locked ? '删除锁定的备份？' : '删除此备份？'"
-      :message="deleteConfirm.locked ? '此备份已锁定，删除后将无法找回（30 秒内可撤销）。' : '删除后 30 秒内可撤销，超时无法恢复。'"
-      :highlight="deleteConfirm.locked ? '锁定备份通常是重要备份，确认要删除？' : undefined"
+      title="删除此备份？"
+      message="删除后 30 秒内可撤销，超时无法恢复。"
       confirm-text="删除"
       danger
       @confirm="onConfirmDelete"
@@ -291,13 +285,13 @@
  * 备份列表 Tab（设计稿 §3.1 / §8.5.1）。
  * - 条件查询：时间范围 + 类型 + 备注关键字（多关键字用 | 分隔）
  * - 表格：备份时间 / 备份类型（色标） / 备注（inline 编辑） / 标签数（12/34） / 操作
- * - 操作：还原▾（RestoreMenu）/ 导出（ExportDialog）/ 更多…（MoreMenu：锁定/改备注/删除）
+ * - 操作：还原▾（RestoreMenu）/ 导出（ExportDialog）/ 更多…（MoreMenu：改备注/删除）
  * - 分页：默认 50/页，可选 20/50/100
  * - 删除：软删 30s 撤销（toast 倒计时）
  * 数据源：svc.snapshots（已在内存）+ svc.getSnapshotFile(id) 取详情（详情弹框用）
  */
 import { ref, reactive, computed, watch, onUnmounted, nextTick } from 'vue'
-import { Inbox, Save, Download, Pencil, Lock } from '@lucide/vue'
+import { Inbox, Save, Download, Pencil } from '@lucide/vue'
 import RestoreMenu from './RestoreMenu.vue'
 import MoreMenu from './MoreMenu.vue'
 import ConfirmDialog from '~components/ConfirmDialog.vue'
@@ -626,22 +620,11 @@ async function onRestoreConfirm(payload: { skipDuplicate: boolean }) {
   await doRestore(sid, tgt, payload.skipDuplicate)
 }
 
-// ===== 锁定/解锁 =====
-async function onToggleLock(id: string, locked: boolean) {
-  const ok = await svc.toggleLock(id, locked, locked ? '用户手动锁定' : undefined)
-  if (ok) {
-    showToast(locked ? '已锁定' : '已解锁')
-  } else {
-    showToast('操作失败')
-  }
-}
-
 // ===== 删除（软删 30s 撤销） =====
 const UNDO_WINDOW_MS = 30_000
-const deleteConfirm = reactive<{ open: boolean; id: string | null; locked: boolean }>({
+const deleteConfirm = reactive<{ open: boolean; id: string | null }>({
   open: false,
   id: null,
-  locked: false,
 })
 
 const undoInfo = reactive<{ show: boolean; remainSec: number; id: string | null }>({
@@ -654,7 +637,6 @@ let undoTimer: ReturnType<typeof setInterval> | null = null
 
 function onDelete(s: SnapshotSummary) {
   deleteConfirm.id = s.id
-  deleteConfirm.locked = !!s.locked
   deleteConfirm.open = true
 }
 

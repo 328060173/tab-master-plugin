@@ -82,8 +82,6 @@ function fillDefaults(raw: Record<string, unknown>, warnings: string[]): BackupF
       createdAtISO: typeof snapRaw.createdAtISO === "string" ? snapRaw.createdAtISO : new Date().toISOString(),
       source: "import",
       trigger: "import",
-      locked: false,
-      lockedReason: null,
       label: typeof snapRaw.label === "string" ? snapRaw.label : null,
       status: 'success',
       errorMessage: null,

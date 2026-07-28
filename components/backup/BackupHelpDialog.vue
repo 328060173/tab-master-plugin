@@ -59,14 +59,14 @@
           <!-- 自动备份 -->
           <section>
             <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">自动备份</h3>
-            <p>开启后插件按设定间隔自动备份，标签关闭、窗口关闭时也会备份，崩溃也能找回。可开关、可设频率、可设保留条数。</p>
+            <p>开启后插件按设定间隔自动备份，崩溃也能找回，不用你手动操作。默认只在定时触发，可在设置里勾选"标签关闭时""窗口关闭时""电脑空闲时"额外备份。</p>
             <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">去哪用：备份管理 → 备份概览 → 自动备份</p>
           </section>
 
           <!-- 导入 -->
           <section>
             <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">导入</h3>
-            <p>从外部文件把标签导入回来。支持本插件导出的数据，也兼容 OneTab、Nice-Tab、Toby、VertiTab。</p>
+            <p>从外部文件把标签导入回来，直接打开这些标签。支持本插件导出的数据，也兼容 OneTab。</p>
             <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">去哪用：备份管理 → 导入管理</p>
           </section>
 
@@ -75,6 +75,12 @@
             <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">导出</h3>
             <p>把当前标签或某次备份导出成数据文件，存到电脑或转移给别的设备。</p>
             <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">去哪用：备份管理 → 备份概览 → 导出</p>
+          </section>
+
+          <!-- 备份和导入导出的区别 -->
+          <section>
+            <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">备份和导入导出的区别</h3>
+            <p>备份（手动/自动）是把<b>当前打开的标签</b>存一份到本插件，不用你手动操作文件，崩溃找回用这个。导入导出是和<b>外部数据文件</b>打交道：导出把标签存成文件放到电脑里，导入把文件里的标签打开回来。想长期保留或换设备转移，用导入导出；想随时找回当前标签，用备份。</p>
           </section>
 
           <!-- 常见问题 -->
@@ -87,19 +93,19 @@
               </div>
               <div>
                 <p class="font-medium text-gray-700 dark:text-gray-200">Q：备份会占很多空间吗？</p>
-                <p class="mt-0.5">A：默认保留近 30 条自动备份、7 天，超出自动清理；手动备份永不自动删除。</p>
+                <p class="mt-0.5">A：默认保留近 100 条自动备份、7 天，超出自动清理；手动备份最多 20 条，永不自动删除。</p>
               </div>
               <div>
                 <p class="font-medium text-gray-700 dark:text-gray-200">Q：手动备份和自动备份的区别？</p>
-                <p class="mt-0.5">A：手动备份是你主动存的，最多 20 条，永不自动删；自动备份是插件按频率自己存的，受保留条数和天数限制。</p>
+                <p class="mt-0.5">A：手动备份是你主动存的，最多 20 条，永不自动删；自动备份是插件按频率自己存的，受保留条数（100 条）和天数（7 天）限制，超出自动清理最早的。</p>
               </div>
               <div>
                 <p class="font-medium text-gray-700 dark:text-gray-200">Q：导入的标签会进入备份列表吗？</p>
-                <p class="mt-0.5">A：从「导入管理」导入的会写入备份列表；从概览「导入」按钮导入的只打开标签不写入列表。</p>
+                <p class="mt-0.5">A：不会。导入只是把文件里的标签打开，不写入备份列表。备份列表只记录手动备份和自动备份。</p>
               </div>
               <div>
-                <p class="font-medium text-gray-700 dark:text-gray-200">Q：备份里"备份 12 个（共 34 个）"是什么意思？</p>
-                <p class="mt-0.5">A：表示这次只备份了 12 个标签，当时浏览器共打开 34 个。</p>
+                <p class="font-medium text-gray-700 dark:text-gray-200">Q：备份里"备份了 X 个"是什么意思？</p>
+                <p class="mt-0.5">A：X 是这次实际备份的标签数量。比如"备份了 12 个"表示这次备份了 12 个标签。</p>
               </div>
               <div>
                 <p class="font-medium text-gray-700 dark:text-gray-200">Q：删除的备份能找回吗？</p>

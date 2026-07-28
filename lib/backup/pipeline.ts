@@ -23,7 +23,7 @@ import {
 } from "~types/backup"
 import {
   persistSnapshot,
-  gfsCleanupSnapshots,
+  trimExpiredSnapshots,
   trimToMaxSnapshots,
   listSnapshotSummaries,
 } from "./snapshotStore"
@@ -114,7 +114,7 @@ async function writeDir(deps: PipelineDeps, file: BackupFile, lastProgress: Ref<
  * - windows=[]（无标签数据）
  * - stats 全 0（无实际标签统计）
  * - status='failed'，errorMessage=失败原因
- * - 不计入保留上限（trimToMaxSnapshots / getManualOverLimitCount / GFS 均跳过 status='failed'）
+ * - 不计入保留上限（trimToMaxSnapshots / trimExpiredSnapshots / getManualOverLimitCount 均跳过 status='failed'）
  */
 async function buildFailedFile(
   deps: PipelineDeps,
@@ -137,8 +137,6 @@ async function buildFailedFile(
       createdAtISO: new Date(now).toISOString(),
       source: snapSource as SnapshotSource,
       trigger: source,
-      locked: false,
-      lockedReason: null,
       label: null,
       status: 'failed',
       errorMessage,
@@ -207,9 +205,12 @@ export async function runBackupPipeline(
     // P0-4: 持久化（IndexedDB + checksum + 回读校验）由外层 coordination 统一负责，
     // pipeline 只负责 build + 目录写 + GFS + state，避免双写（修 D18）
     const dirError = await writeDir(deps, file, lastProgress)
-    // GFS 清理 + 上限裁剪
+    // 保留策略清理（2026-07-28 重构：废 GFS 分层，改纯按条数 + 按天数）
+    // - trimExpiredSnapshots：删超过 retentionDays 的 auto.* 非失败项
+    // - trimToMaxSnapshots：auto.* 项超 cacheMaxSnapshots 时删最早的
+    // 手动/导入/preRestore 永不自动删；失败快照不参与裁剪。
     lastProgress.value = "清理旧快照…"
-    await gfsCleanupSnapshots(deps.settings.value.retentionDays)
+    await trimExpiredSnapshots(deps.settings.value.retentionDays)
     await trimToMaxSnapshots(deps.settings.value.cacheMaxSnapshots)
     // 更新状态 + UI 列表
     const cacheBytes = await deps.getCacheBytesInUse()
@@ -234,7 +235,7 @@ export async function runBackupPipeline(
       const failedFile = await buildFailedFile(deps, source, msg)
       const persist = await persistSnapshot(failedFile)
       if (persist.ok) {
-        // 失败快照不触发 GFS/trim（跳过保留策略裁剪，避免误删成功备份）
+        // 失败快照不触发 trim（跳过保留策略裁剪，避免误删成功备份）
         // 刷新 UI 列表（让用户看到失败记录）
         const summaries = await listSnapshotSummaries()
         snapshots.value = summaries

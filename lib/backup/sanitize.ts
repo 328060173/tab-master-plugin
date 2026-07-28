@@ -115,7 +115,6 @@ export function toSummary(f: BackupFile): SnapshotSummary {
     createdAtISO: s.createdAtISO,
     source: s.source,
     trigger: s.trigger,
-    locked: s.locked,
     label: s.label,
     stats: s.stats,
     // 旧快照（无 status 字段）兜底为 'success'；errorMessage 兜底为 null

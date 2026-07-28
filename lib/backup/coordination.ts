@@ -14,7 +14,7 @@ import { writeWalPending, writeWalCommitted, writeWalAborted, updateWalSnapshotI
 import { auditStarted, auditSuccess, auditFailed, auditConflict } from "./auditLog"
 import {
   persistSnapshot,
-  gfsCleanupSnapshots,
+  trimExpiredSnapshots,
   trimToMaxSnapshots,
 } from "./snapshotStore"
 import { getAllSnapshots } from "./db"
@@ -80,7 +80,7 @@ export interface CoordinationResult {
 
 /**
  * 统一协调入口（SW 队列内调）。
- * settings 用于 GFS 清理 + 上限裁剪（backup 操作后维护保留策略）。
+ * settings 用于保留策略清理（按天数 + 按条数，backup 操作后维护）。
  */
 export async function runBackupWithCoordination(
   op: BackupOp,
@@ -119,9 +119,9 @@ export async function runBackupWithCoordination(
       }
       // 补写 WAL 的 snapshotId（backup 操作时 execute 返回后才知道 id）
       await updateWalSnapshotId(traceId, result.snapshot.snapshot.id)
-      // GFS 清理 + 上限裁剪（仅 backup/import 操作后维护保留策略）
+      // 保留策略清理（2026-07-28：废 GFS，改按天数 + 按条数）
       if (settings && (op === "backup" || op === "import")) {
-        await gfsCleanupSnapshots(settings.retentionDays)
+        await trimExpiredSnapshots(settings.retentionDays)
         await trimToMaxSnapshots(settings.cacheMaxSnapshots)
       }
     }

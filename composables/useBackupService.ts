@@ -26,7 +26,6 @@ import {
 import { loadAll as loadAllFn } from "~lib/backup/loader"
 import {
   deleteSnapshot as deleteSnapshotFn,
-  toggleLock as toggleLockFn,
   setSnapshotLabel as setSnapshotLabelFn,
   getSnapshotFile as getSnapshotFileFn,
   appendImportedSnapshot as appendImportedSnapshotFn,
@@ -69,6 +68,18 @@ import {
 } from "~lib/backup/sanitize"
 const DEBOUNCE_EVENT_MS = 2000
 const DIR_SCAN_CACHE_MS = 60_000
+/**
+ * 事件备份去重锁 TTL（ms）。
+ * SW 广播 backup:event 后，sidepanel + backup.html 几乎同时收到；
+ * 500ms TTL 内只有一个页面能拿到锁 → scheduleEventBackup（内部再 2s 防抖）。
+ */
+const EVENT_LOCK_TTL_MS = 500
+/**
+ * 事件备份去重锁 storage.local key。
+ * 值：{ at: number; nonce: string }。多 UI 上下文竞争时靠 nonce 重读验证赢家。
+ * 独立于 BACKUP_KEYS 注册表（本次修复改动隔离，仅动 background.ts + 本文件）。
+ */
+const BACKUP_EVENT_LOCK_KEY = 'tabMasterBackupEventLock'
 
 let _instance: ReturnType<typeof useBackupServiceImpl> | null = null
 
@@ -119,10 +130,8 @@ function useBackupServiceImpl() {
     if ("timerMinutes" in patch || "enabled" in patch) {
       await applyTimer()
     }
-    // idle 开关变化时重新 bind/unbind 监听器（修 P0-7）
-    if ("eventOnIdle" in patch) {
-      rebindIdleListener()
-    }
+    // idle/事件触发开关搬 SW 监听后，UI 侧无需 rebind；收到 backup:event 时
+    // 按 settings.eventOnXxx 判断是否执行（见 handleBackupEvent）
   }
   /** 标记首次开启知悉已确认（设计稿 §4.2：单 bool，开启过=true 不再弹） */
   async function setNoticeAcked(v: boolean) {
@@ -154,43 +163,56 @@ function useBackupServiceImpl() {
     }, DEBOUNCE_EVENT_MS)
   }
 
-  // idle 监听器命名引用（可 remove + 重新 bind，修 P0-7：开关 idle 后事件不触发）
-  let idleListener: ((state: chrome.idle.IdleState) => void) | null = null
-
-  /** 重新 bind/unbind idle 监听器（开关变化时调） */
-  function rebindIdleListener() {
-    if (typeof chrome.idle === "undefined") return
-    // 先解绑旧的（避免叠加）
-    if (idleListener) {
-      try {
-        chrome.idle.onStateChanged.removeListener(idleListener)
-      } catch {}
-      idleListener = null
-    }
-    // 按当前设置决定是否重新绑定
-    if (settings.value.eventOnIdle) {
-      idleListener = (s) => {
-        if (s === "idle") scheduleEventBackup("auto.event.idle")
+  // ===== 事件备份：SW 广播 → storage 锁去重 → 防抖备份 =====
+  // 事件监听（tabs.onRemoved/windows.onRemoved/idle.onStateChanged）已搬 SW（background.ts），
+  // SW 收到后 sendMessage({type:'backup:event', source}) 广播给所有 UI 页面。
+  // 本侧收到后：① 校验 settings.enabled + 对应事件开关 ② storage 锁去重（多页面只有一个执行）
+  // ③ scheduleEventBackup 内部 2s 防抖（连关多标签只备份一次）
+  /**
+   * 尝试获取事件去重锁（跨 UI 上下文互斥）。
+   * 流程：读旧值→过期/不存在则写 nonce→重读验证 nonce 是否仍为我们写的。
+   * chrome.storage.local 无 CAS，靠 nonce 重读解决竞争（最后写入者赢得锁）。
+   */
+  async function tryAcquireEventLock(): Promise<boolean> {
+    try {
+      const now = Date.now()
+      const nonce = uuidV4()
+      // Step 1：检查是否被其他上下文持有（未过期）
+      const cur = await chrome.storage.local.get(BACKUP_EVENT_LOCK_KEY)
+      const prev = cur[BACKUP_EVENT_LOCK_KEY]
+      if (prev && typeof prev === "object") {
+        const p = prev as { at: number; nonce: string }
+        if (typeof p.at === "number" && now - p.at < EVENT_LOCK_TTL_MS) {
+          return false
+        }
       }
-      try {
-        chrome.idle.onStateChanged.addListener(idleListener)
-      } catch {}
+      // Step 2：写入我们的 nonce（safeSet 兜底 .catch，稳定性红线②）
+      await safeSet({ [BACKUP_EVENT_LOCK_KEY]: { at: now, nonce } }, "backup.eventLock")
+      // Step 3：重读验证——若值仍是我们写的 nonce，说明赢得了竞争
+      const reread = await chrome.storage.local.get(BACKUP_EVENT_LOCK_KEY)
+      const got = reread[BACKUP_EVENT_LOCK_KEY]
+      return !!(got && typeof got === "object" && (got as { nonce: string }).nonce === nonce)
+    } catch (e) {
+      console.warn("[useBackupService] tryAcquireEventLock 失败", e)
+      return false
     }
   }
 
-  function bindEventListeners() {
-    try {
-      chrome.tabs.onRemoved.addListener(() => {
-        if (settings.value.eventOnTabRemoved) scheduleEventBackup("auto.event.tabRemoved")
-      })
-      chrome.windows.onRemoved.addListener(() => {
-        if (settings.value.eventOnWindowRemoved) scheduleEventBackup("auto.event.windowRemoved")
-      })
-      // idle 监听（可选权限，按需启用；开关变化时走 rebindIdleListener 重新 bind）
-      rebindIdleListener()
-    } catch (e) {
-      console.warn("[useBackupService] bindEventListeners 失败", e)
-    }
+  /**
+   * 处理 SW 广播的 backup:event 消息。
+   * 校验开关 → 抢锁去重 → 防抖备份。
+   */
+  async function handleBackupEvent(source: BackupTriggerSource) {
+    // 总开关关 → 跳过
+    if (!settings.value.enabled) return
+    // 对应事件开关关 → 跳过（SW 无条件广播，UI 侧按设置决定是否执行）
+    if (source === "auto.event.tabRemoved" && !settings.value.eventOnTabRemoved) return
+    if (source === "auto.event.windowRemoved" && !settings.value.eventOnWindowRemoved) return
+    if (source === "auto.event.idle" && !settings.value.eventOnIdle) return
+    // storage 锁去重：sidepanel + backup.html 同时收到，只有一个执行
+    const acquired = await tryAcquireEventLock()
+    if (!acquired) return
+    scheduleEventBackup(source)
   }
 
   // ===== 用户目录权限（委托给 lib/backup/dirOps.ts）=====
@@ -332,13 +354,6 @@ function useBackupServiceImpl() {
     }, 30_000)
   }
 
-  async function toggleLock(id: string, locked: boolean, reason?: string): Promise<boolean> {
-    const traceId = uuidV4()
-    if (!(await tryAcquireCoord(traceId))) return false
-    try { return await toggleLockFn(snapshotMgmtDeps(), id, locked, reason) }
-    finally { await releaseCoord() }
-  }
-
   async function setSnapshotLabel(id: string, label: string | null): Promise<boolean> {
     return setSnapshotLabelFn(snapshotMgmtDeps(), id, label)
   }
@@ -441,6 +456,13 @@ function useBackupServiceImpl() {
       void refreshNextBackupTime()
       return
     }
+    if (m.type === "backup:event") {
+      // SW 广播的备份事件（tabs.onRemoved/windows.onRemoved/idle.onStateChanged）
+      // 多 UI 上下文同时收到，handleBackupEvent 内部用 storage 锁去重
+      const source = (msg as { source?: BackupTriggerSource }).source
+      if (source) void handleBackupEvent(source)
+      return
+    }
     if (m.type === "backup:changed") {
       // 从 IndexedDB 重新加载快照摘要（IndexedDB 写后 storage.onChanged 不触发）
       void listSnapshotSummaries().then((list) => {
@@ -456,7 +478,7 @@ function useBackupServiceImpl() {
 
   // ===== 初始化 =====
   loadAll()
-  bindEventListeners()
+  // 事件监听已搬 SW（background.ts），本侧通过 chrome.runtime.onMessage 收 backup:event
 
   return {
     // 状态
@@ -486,7 +508,6 @@ function useBackupServiceImpl() {
     applyTimer,
     // 快照管理
     deleteSnapshot,
-    toggleLock,
     setSnapshotLabel,
     getSnapshotFile,
     appendImportedSnapshot,

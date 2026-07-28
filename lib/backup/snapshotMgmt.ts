@@ -1,5 +1,5 @@
 /**
- * 备份快照管理（增删改查 + 锁定） - 抽离自 useBackupService.ts（红线 .ts ≤ 500）
+ * 备份快照管理（增删改查） - 抽离自 useBackupService.ts（红线 .ts ≤ 500）
  *
  * P0-4：所有读写改为 IndexedDB（经 snapshotStore），不再读写 storage.local cache。
  * 纯函数，不持状态；调用方传入持久化回调（state 仍在 storage.local）。
@@ -34,7 +34,7 @@ async function reloadSummaries(deps: SnapshotMgmtDeps): Promise<void> {
   await deps.saveState()
 }
 
-/** 删除单个快照（locked 项也允许删，由 UI 二次确认把关） */
+/** 删除单个快照（由 UI 二次确认把关） */
 export async function deleteSnapshot(deps: SnapshotMgmtDeps, id: string): Promise<boolean> {
   try {
     const ok = await deleteSnapshotById(id)
@@ -43,27 +43,6 @@ export async function deleteSnapshot(deps: SnapshotMgmtDeps, id: string): Promis
     return true
   } catch (e) {
     console.warn("[snapshotMgmt] 删除失败", e)
-    return false
-  }
-}
-
-/** 切换锁定（locked 项不被 GFS 删） */
-export async function toggleLock(
-  deps: SnapshotMgmtDeps,
-  id: string,
-  locked: boolean,
-  reason?: string
-): Promise<boolean> {
-  try {
-    const ok = await mutateSnapshot(id, (file) => {
-      file.snapshot.locked = locked
-      file.snapshot.lockedReason = locked ? (reason ?? null) : null
-    })
-    if (!ok) return false
-    deps.snapshots.value = await listSnapshotSummaries()
-    return true
-  } catch (e) {
-    console.warn("[snapshotMgmt] 切换锁定失败", e)
     return false
   }
 }

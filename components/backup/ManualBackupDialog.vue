@@ -94,7 +94,7 @@
                   @click="onCancel"
                 >取消</button>
                 <button
-                  :disabled="selectedCount === 0 || submitting"
+                  :disabled="selectedCount === 0 || submitting || manualOverLimit"
                   class="px-3 py-1.5 min-h-[36px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
                   @click="onConfirm"
                 >{{ confirmButtonText }}</button>
@@ -242,6 +242,7 @@ const MAX_TABS_PER_SNAPSHOT = currentLimits().maxTabsPerSnapshot
 const overLimit = computed(() => selectedCount.value > MAX_TABS_PER_SNAPSHOT)
 const confirmButtonText = computed(() => {
   if (submitting.value) return '备份中…'
+  if (manualOverLimit.value) return '已达上限，请清理'
   if (overLimit.value) return `只备份前 ${MAX_TABS_PER_SNAPSHOT} 个`
   return '确认备份'
 })
@@ -259,6 +260,7 @@ function onInvert() {
 function onConfirm() {
   if (submitting.value) return
   if (selectedCount.value === 0) return
+  if (manualOverLimit.value) return
   submitting.value = true
   const fpSet = new Set(selectedFps.value)
   // 按 liveTabs 顺序（chrome.tabs.query 返回顺序，即窗口顺序）保留选中

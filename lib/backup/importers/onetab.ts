@@ -1,7 +1,8 @@
 /**
  * OneTab 兼容格式导入器 - PRD §5.5.3 / §5.5.4
  *
- * OneTab 格式：每行 `标题 | URL` 或 `URL`（标题可省），空行分隔分组。
+ * OneTab 格式：每行 `URL | 标题` 或 `URL`（标题可省），空行分隔分组。
+ * URL 在前、标题在后；标题里可能也含 ` | `（如「命令 | 菜鸟教程」），所以按**第一个** ` | ` 分割，前半为 URL，剩余全为标题。
  * 无元数据（分组名/标记/时间），导入后作为"仅 url+title"的快照。
  *
  * 失败要提示：格式不符 / 无效 URL / 全空 → 返回 error。
@@ -36,18 +37,19 @@ export function parseOneTab(text: string): Promise<ImportResult> {
         }
         continue
       }
-      // 解析 `标题 | URL` 或 `URL` 或 `标题 \t URL`
+      // 解析 `URL | 标题` 或 `URL` 或 `URL \t 标题`
+      // OneTab 实际格式 URL 在前、标题在后；标题里可能也含 ` | `（如「命令 | 菜鸟教程」），按第一个 ` | ` 分割，前半 URL、剩余全标题
       let title = ""
       let url = ""
       const pipeIdx = line.indexOf(" | ")
       if (pipeIdx >= 0) {
-        title = line.slice(0, pipeIdx).trim()
-        url = line.slice(pipeIdx + 3).trim()
+        url = line.slice(0, pipeIdx).trim()
+        title = line.slice(pipeIdx + 3).trim()
       } else {
         const tabIdx = line.indexOf("\t")
         if (tabIdx >= 0) {
-          title = line.slice(0, tabIdx).trim()
-          url = line.slice(tabIdx + 1).trim()
+          url = line.slice(0, tabIdx).trim()
+          title = line.slice(tabIdx + 1).trim()
         } else {
           url = line
         }
@@ -91,7 +93,7 @@ export function parseOneTab(text: string): Promise<ImportResult> {
       })
     }
     if (!windows.length) {
-      return { ok: false, file: null, error: "未解析到任何有效 URL（OneTab 格式应为每行 `标题 | URL`）", warnings, skipped, format: "onetab" }
+      return { ok: false, file: null, error: "未解析到任何有效 URL（OneTab 格式应为每行 `URL | 标题`）", warnings, skipped, format: "onetab" }
     }
     const now = Date.now()
     const file: BackupFile = {
@@ -107,8 +109,6 @@ export function parseOneTab(text: string): Promise<ImportResult> {
         createdAtISO: new Date(now).toISOString(),
         source: "import",
         trigger: "import",
-        locked: false,
-        lockedReason: null,
         label: "OneTab 导入",
         status: 'success',
         errorMessage: null,

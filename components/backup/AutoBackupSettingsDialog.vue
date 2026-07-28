@@ -2,8 +2,8 @@
   <!--
     自动备份设置弹框（设计稿 §2.2）。
     单根：Teleport + 单 div（守多根 fallthrough 红线）。
-    内容：开关 / 频次 / 事件触发 / 保留策略。
-    调 svc.updateSettings + svc.setEnabled 保存。
+    内容：频次 / 事件触发 / 保留策略。
+    调 svc.updateSettings 保存（总开关由概览页独立管理，本弹框不再涉及 enabled）。
   -->
   <Teleport to="body">
     <div
@@ -34,31 +34,6 @@
         </div>
 
         <div class="px-5 pb-5 space-y-4">
-          <!-- 总开关 -->
-          <div class="flex items-center gap-3 py-1">
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-900 dark:text-gray-100">自动备份</p>
-              <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                开启后定时 + 事件触发备份，崩溃可找回标签
-              </p>
-            </div>
-            <button
-              :class="[
-                'relative w-11 h-6 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500',
-                draft.enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600',
-              ]"
-              role="switch"
-              :aria-checked="draft.enabled"
-              aria-label="自动备份总开关"
-              @click="draft.enabled = !draft.enabled"
-            >
-              <span
-                class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
-                :class="draft.enabled ? 'translate-x-5' : ''"
-              ></span>
-            </button>
-          </div>
-
           <!-- 频次 -->
           <div class="space-y-1.5">
             <label class="text-xs font-medium text-gray-700 dark:text-gray-200">备份频次</label>
@@ -83,6 +58,7 @@
                   type="checkbox"
                   v-model="draft.eventOnTabRemoved"
                   class="mt-0.5"
+                  @change="onEventToggle('eventOnTabRemoved', $event)"
                 />
                 <div class="flex-1">
                   <p class="text-gray-800 dark:text-gray-100">标签关闭时备份</p>
@@ -94,6 +70,7 @@
                   type="checkbox"
                   v-model="draft.eventOnWindowRemoved"
                   class="mt-0.5"
+                  @change="onEventToggle('eventOnWindowRemoved', $event)"
                 />
                 <div class="flex-1">
                   <p class="text-gray-800 dark:text-gray-100">窗口关闭时备份</p>
@@ -105,55 +82,28 @@
                   type="checkbox"
                   v-model="draft.eventOnIdle"
                   class="mt-0.5"
+                  @change="onEventToggle('eventOnIdle', $event)"
                 />
                 <div class="flex-1">
-                  <p class="text-gray-800 dark:text-gray-100">空闲时备份</p>
-                  <p class="text-[11px] text-gray-500 dark:text-gray-400">浏览器空闲时备份，省电可选</p>
+                  <p class="text-gray-800 dark:text-gray-100">电脑空闲时备份</p>
+                  <p class="text-[11px] text-gray-500 dark:text-gray-400">电脑一段时间没操作时自动备份一份</p>
                 </div>
               </label>
             </div>
           </div>
 
-          <!-- 保留策略（普通用户锁定默认值，不可调整；后续版本开放） -->
+          <!-- 保留策略（普通用户锁定默认值，不可调整；仅展示摘要文案） -->
           <div class="space-y-1.5">
             <p class="text-xs font-medium text-gray-700 dark:text-gray-200">保留策略</p>
-            <div class="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <label class="text-[11px] text-gray-500 dark:text-gray-400 block mb-1">自动保留</label>
-                <select
-                  v-model.number="draft.cacheMaxSnapshots"
-                  disabled
-                  class="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-gray-100 dark:bg-gray-900/40 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                >
-                  <option v-for="opt in MAX_SNAPSHOTS_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
-              </div>
-              <div>
-                <label class="text-[11px] text-gray-500 dark:text-gray-400 block mb-1">保留天数</label>
-                <select
-                  v-model.number="draft.retentionDays"
-                  disabled
-                  class="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-gray-100 dark:bg-gray-900/40 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                >
-                  <option v-for="opt in RETENTION_DAYS_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
-              </div>
-              <div>
-                <label class="text-[11px] text-gray-500 dark:text-gray-400 block mb-1">缓存上限</label>
-                <select
-                  v-model.number="draft.cacheQuotaBytes"
-                  disabled
-                  class="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-gray-100 dark:bg-gray-900/40 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                >
-                  <option v-for="opt in CACHE_QUOTA_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
-              </div>
-            </div>
-            <!-- §3.5 保留策略摘要行（默认配置一目了然，无技术黑话） -->
-            <p class="text-[11px] text-gray-500 dark:text-gray-400">
-              自动保留 {{ draft.cacheMaxSnapshots }} 条 · 保留 {{ draft.retentionDays }} 天 · 缓存 {{ Math.round(draft.cacheQuotaBytes / 1024 / 1024) }} MB
+            <!-- §3.5 保留策略摘要行（默认配置一目了然，无技术黑话，无数值冲突感） -->
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+              自动保留近 {{ draft.cacheMaxSnapshots }} 条备份，每条最多 {{ MAX_TABS_PER_SNAPSHOT }} 个标签。
+              大约占用 {{ estimateMb }} MB，最高不超过 {{ maxMb }} MB。
             </p>
-            <p class="text-[11px] text-gray-500 dark:text-gray-400">暂不支持调整，后续版本开放；仅自动备份受条数限制，手动备份永不自动删除</p>
+            <p class="text-[11px] text-gray-500 dark:text-gray-400">手动备份最多 {{ MANUAL_MAX_SNAPSHOTS }} 条，永不自动删除。</p>
+            <p class="text-[11px] text-gray-400 dark:text-gray-500 leading-relaxed">
+              超过 {{ draft.cacheMaxSnapshots }} 条时，最早的自动备份会被自动清理给新备份腾位置；手动备份不受影响，不会被删。
+            </p>
           </div>
         </div>
 
@@ -171,20 +121,32 @@
         </div>
       </div>
     </div>
+
+    <!-- 事件触发开启确认弹框（勾选时告知代价，2026-07-28） -->
+    <ConfirmDialog
+      :open="eventConfirmOpen"
+      title="开启事件触发备份？"
+      :message="eventConfirmMessage"
+      confirm-text="确认开启"
+      cancel-text="取消"
+      @confirm="onEventConfirm"
+      @cancel="onEventCancel"
+    />
   </Teleport>
 </template>
 
 <script setup lang="ts">
 /**
  * 自动备份设置弹框（设计稿 §2.2）。
- * 本地 draft 副本 + 保存时调 svc.updateSettings + svc.setEnabled。
- * 开关 idle 时如缺权限，由 svc 内部 rebindIdleListener 处理；本组件不直接申请权限（P0 简版）。
+ * 本地 draft 副本 + 保存时调 svc.updateSettings。
+ * 总开关（enabled）由概览页独立开关 + 确认框管理，本弹框不再涉及；idle 权限由 svc 内部 rebindIdleListener 处理（P0 简版）。
  */
-import { ref, watch, reactive } from "vue"
+import { ref, watch, reactive, computed } from "vue"
 import { X } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { showToast } from "~composables/useToast"
 import { currentLimits, type BackupSettings } from "~types/backup"
+import ConfirmDialog from "~components/ConfirmDialog.vue"
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{
@@ -195,7 +157,7 @@ const emit = defineEmits<{
 const svc = useBackupService()
 
 // 备份频次可选项：最小 10 分钟（普通档锁定，避免高频耗资源）；无"关闭定时"
-// （定时是自动备份核心，不想定时请关总开关）。§3.5 默认 10 分钟
+// （定时是自动备份核心，不想定时请到概览页关闭自动备份总开关）。§3.5 默认 10 分钟
 const TIMER_MINUTES_OPTIONS = [
   { value: 10, label: '10 分钟（默认）' },
   { value: 15, label: '15 分钟' },
@@ -203,50 +165,75 @@ const TIMER_MINUTES_OPTIONS = [
   { value: 60, label: '60 分钟' },
 ] as const
 
-// §3.3 自动保留条数：仅管 auto.* 来源；手动永不删
-const MAX_SNAPSHOTS_OPTIONS = [
-  { value: 10, label: '10 个' },
-  { value: 30, label: '30 个（默认）' },
-  { value: 50, label: '50 个' },
-  { value: 100, label: '100 个' },
-] as const
-
-const RETENTION_DAYS_OPTIONS = [
-  { value: 7, label: '7 天（默认）' },
-  { value: 14, label: '14 天' },
-  { value: 30, label: '30 天' },
-  { value: 90, label: '90 天' },
-] as const
-
-// §3.4 cacheQuotaBytes 语义重构为 IndexedDB 快照总配额；选项以 MB 为粒度
-const MB = 1024 * 1024
-const CACHE_QUOTA_OPTIONS = [
-  { value: 10 * MB, label: '10 MB' },
-  { value: 30 * MB, label: '30 MB（默认）' },
-  { value: 50 * MB, label: '50 MB' },
-  { value: 80 * MB, label: '80 MB' },
-] as const
-
 // 本地草稿（保存时才同步到 svc）——默认值由当前限制档派生（§3.5）
 const LIM = currentLimits()
-const draft = reactive<Pick<BackupSettings, 'enabled' | 'timerMinutes' | 'eventOnTabRemoved' | 'eventOnWindowRemoved' | 'eventOnIdle' | 'cacheMaxSnapshots' | 'retentionDays' | 'cacheQuotaBytes'>>({
-  enabled: false,
+// §3.5 保留策略摘要所需常量（普通档锁定，仅用于文案展示）
+const MAX_TABS_PER_SNAPSHOT = LIM.maxTabsPerSnapshot
+const MANUAL_MAX_SNAPSHOTS = LIM.manualMaxSnapshots
+const draft = reactive<Pick<BackupSettings, 'timerMinutes' | 'eventOnTabRemoved' | 'eventOnWindowRemoved' | 'eventOnIdle' | 'cacheMaxSnapshots' | 'retentionDays' | 'cacheQuotaBytes'>>({
   timerMinutes: LIM.defaultTimerMinutes,
-  eventOnTabRemoved: true,
-  eventOnWindowRemoved: true,
+  // 2026-07-28：事件触发默认全关（与 DEFAULT_BACKUP_SETTINGS 一致）
+  eventOnTabRemoved: false,
+  eventOnWindowRemoved: false,
   eventOnIdle: false,
   cacheMaxSnapshots: LIM.autoMaxSnapshots,
   retentionDays: LIM.retentionDays,
   cacheQuotaBytes: LIM.cacheQuotaBytes,
 })
 
+// §3.5 摘要文案内存估算：
+// 单条备份估算 = 每条最多 maxTabsPerSnapshot 标签 × (url+title+指纹等约 400B) ≈ 80KB
+// 自动保留条数 × 80KB → MB；至少 1MB（100 条 × 200 标签 × 400B ≈ 8MB）
+const estimateMb = computed(() => {
+  const mb = draft.cacheMaxSnapshots * MAX_TABS_PER_SNAPSHOT * 400 / 1024 / 1024
+  return Math.max(1, Math.round(mb * 10) / 10)
+})
+// 最高占用 = cacheQuotaBytes 配额换算 MB
+const maxMb = computed(() => Math.round(draft.cacheQuotaBytes / 1024 / 1024))
+
 const saving = ref(false)
+
+/**
+ * 事件触发开启确认（2026-07-28）。
+ * 勾选任一事件触发（关标签/关窗口/空闲）时弹确认框告知代价：
+ * 备份记录会随开关标签频次快速增加，较早的自动备份会被清理（保留近 cacheMaxSnapshots 条）。
+ * 用户取消则回退勾选；确认则保持。
+ */
+type EventField = 'eventOnTabRemoved' | 'eventOnWindowRemoved' | 'eventOnIdle'
+const eventConfirmOpen = ref(false)
+const pendingEventField = ref<EventField | null>(null)
+const eventConfirmMessage = computed(() => {
+  return `开启后，每次关闭标签/窗口（或电脑空闲）都会自动备份一份。如果一天内开关标签次数多，备份记录会快速增加，较早的自动备份会被自动清理（保留近 ${draft.cacheMaxSnapshots} 条）。`
+})
+
+function onEventToggle(field: EventField, e: Event) {
+  const checked = (e.target as HTMLInputElement).checked
+  // 仅从 false → true 时弹确认；关闭（true → false）直接生效
+  if (checked) {
+    pendingEventField.value = field
+    eventConfirmOpen.value = true
+  }
+}
+
+function onEventConfirm() {
+  // 保持勾选（v-model 已置 true），关闭弹框
+  pendingEventField.value = null
+  eventConfirmOpen.value = false
+}
+
+function onEventCancel() {
+  // 回退勾选
+  if (pendingEventField.value) {
+    draft[pendingEventField.value] = false
+  }
+  pendingEventField.value = null
+  eventConfirmOpen.value = false
+}
 
 // 打开时同步当前 svc 设置到 draft
 watch(() => props.open, (v) => {
   if (v) {
     const s = svc.settings.value
-    draft.enabled = s.enabled
     // clamp：旧值 0(关闭定时)/5(分钟) 不在新选项内 → 提到最小 10 分钟
     // （15/30/60 不变；下次保存会把 clamp 后的值写回 svc，修正旧配置）
     draft.timerMinutes = s.timerMinutes < 10 ? 10 : s.timerMinutes
@@ -265,7 +252,6 @@ async function onSave() {
   try {
     const cur = svc.settings.value
     const patch: Partial<BackupSettings> = {}
-    if (cur.enabled !== draft.enabled) patch.enabled = draft.enabled
     if (cur.timerMinutes !== draft.timerMinutes) patch.timerMinutes = draft.timerMinutes
     if (cur.eventOnTabRemoved !== draft.eventOnTabRemoved) patch.eventOnTabRemoved = draft.eventOnTabRemoved
     if (cur.eventOnWindowRemoved !== draft.eventOnWindowRemoved) patch.eventOnWindowRemoved = draft.eventOnWindowRemoved
@@ -278,32 +264,9 @@ async function onSave() {
       emit('saved')
       return
     }
-    // enabled 单独走（内部会 applyTimer）
-    const justEnabled = patch.enabled === true && !cur.enabled
-    if (patch.enabled !== undefined) {
-      await svc.setEnabled(patch.enabled)
-      delete patch.enabled
-    }
-    if (Object.keys(patch).length > 0) {
-      await svc.updateSettings(patch)
-    }
+    await svc.updateSettings(patch)
     showToast('已保存设置')
     emit('saved')
-    // §首次反馈：开启自动备份立即触发第一次自动备份（source=auto.event.startup → 类型显示「自动备份」非手动）
-    if (justEnabled) {
-      void svc.runBackup('auto.event.startup').then((r) => {
-        if (r.ok && r.snapshot) {
-          const n = r.snapshot.stats.selectedTabCount ?? r.snapshot.stats.tabCount
-          // 任务 4：loadAll 兜底刷新（pipeline 已刷 snapshots.value，这里再 load 全量 state/dirMeta）
-          void svc.loadAll()
-          showToast(`已开启 · 第一次自动备份完成，已备份 ${n} 标签，请到备份列表查看`)
-        } else if (!r.ok) {
-          showToast(r.error || '第一次自动备份失败，请重试')
-        }
-      }).catch(() => showToast('第一次自动备份失败，请重试'))
-      // 任务 3.3：兜底 1.5s 后强制刷新（防 then 时序/单例 ref 延迟，列表必出新备份）
-      setTimeout(() => { void svc.loadAll() }, 1500)
-    }
   } catch (e) {
     console.warn('[AutoBackupSettingsDialog] 保存失败', e)
     showToast('保存失败，请重试')

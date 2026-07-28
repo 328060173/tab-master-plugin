@@ -123,8 +123,6 @@ export function parseNiceTab(text: string): Promise<ImportResult> {
         createdAtISO: new Date(now).toISOString(),
         source: "import",
         trigger: "import",
-        locked: false,
-        lockedReason: null,
         label: "NiceTab 导入",
         status: 'success',
         errorMessage: null,
