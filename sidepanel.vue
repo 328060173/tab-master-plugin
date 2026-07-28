@@ -1482,9 +1482,9 @@ const onToolSelect = (t: 'notes' | 'timestamp') => {
 // tagsSessionNoticeShown 存 storage.local：用户首次绑标记只提示一次，清缓存才重置
 const tagNoticeOpen = ref(false)
 const TAG_NOTICE_TITLE = "标记关联提醒"
-const TAG_NOTICE_MSG = "重启浏览器、或关闭标签后重新打开同一个网页，之前绑的标记会找不到。"
-const TAG_NOTICE_HIGHLIGHT = "由于浏览器 API 规范，同一网址每次打开的标签 ID 都不同，标记无法关联到新标签。"
-const TAG_NOTICE_HINT = "后续会尝试用 URL 优化等方式改善，让标记跟着网址走。"
+const TAG_NOTICE_MSG = "重启浏览器、或关闭标签后重新打开同一个网页，之前绑的标记可能对不上。"
+const TAG_NOTICE_HIGHLIGHT = "标记靠标签 ID 关联，同一网址每次打开 ID 都不同，所以可能对不上。"
+const TAG_NOTICE_HINT = "建议开启自动备份或用导出保存标记。备份/导入能找回标记名并关联到恢复的标签（按网址匹配），标记名已存在则跳过。"
 
 // 设置编号成功后的用法说明弹窗（明确告知 Mac/Windows 怎么按，强制用户确认）
 // 用弹窗而非 toast：toast 一晃而过，用户记不住键位；弹窗需点确认，确保用户看到用法

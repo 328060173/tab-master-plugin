@@ -16,6 +16,7 @@ import {
   normalizeUrl,
   uuidV4,
 } from "~lib/backup/fingerprint"
+import { filterBackupableTabs } from "~lib/backup/urlFilter"
 import type {
   ClosedTabSnapshot,
   LaterTabSnapshot,
@@ -96,14 +97,16 @@ export async function buildSnapshot(
   source: Snapshot["source"],
   options?: BuildSnapshotOptions,
 ): Promise<Snapshot> {
-  // §10.8：手动备份选部分标签 → 过滤 allTabs 只保留选中的（含其窗口结构/标记/稍后）
-  // §3.2：自动备份超 maxTabsPerSnapshot → 截断到前 N 个（按 allTabs 顺序）
+  // 先过滤插件内部页（chrome-extension:// / chrome:// / edge:// / about:），无备份意义
+  const backupableTabs = filterBackupableTabs(allTabs)
+  // §10.8：手动备份选部分标签 → 过滤 backupableTabs 只保留选中的（含其窗口结构/标记/稍后）
+  // §3.2：自动备份超 maxTabsPerSnapshot → 截断到前 N 个（按 backupableTabs 顺序）
   let effectiveTabs: chrome.tabs.Tab[]
   let truncated = false
   if (options?.selectedTabIds && options.selectedTabIds.length > 0) {
-    effectiveTabs = filterTabsByIds(allTabs, options.selectedTabIds)
+    effectiveTabs = filterTabsByIds(backupableTabs, options.selectedTabIds)
   } else {
-    effectiveTabs = allTabs
+    effectiveTabs = backupableTabs
     const cap = options?.truncateAt
     if (typeof cap === 'number' && cap > 0 && effectiveTabs.length > cap) {
       effectiveTabs = effectiveTabs.slice(0, cap)

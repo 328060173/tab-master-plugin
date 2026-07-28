@@ -93,11 +93,11 @@
               </div>
               <div>
                 <p class="font-medium text-gray-700 dark:text-gray-200">Q：备份会占很多空间吗？</p>
-                <p class="mt-0.5">A：默认保留近 100 条自动备份、7 天，超出自动清理；手动备份最多 20 条，永不自动删除。</p>
+                <p class="mt-0.5">A：默认保留近 {{ BACKUP_RULES.maxSnapshots }} 条自动备份、{{ BACKUP_RULES.retentionDays }} 天，超出自动清理；手动备份最多 {{ BACKUP_RULES.manualMaxSnapshots }} 条，永不自动删除。</p>
               </div>
               <div>
                 <p class="font-medium text-gray-700 dark:text-gray-200">Q：手动备份和自动备份的区别？</p>
-                <p class="mt-0.5">A：手动备份是你主动存的，最多 20 条，永不自动删；自动备份是插件按频率自己存的，受保留条数（100 条）和天数（7 天）限制，超出自动清理最早的。</p>
+                <p class="mt-0.5">A：手动备份是你主动存的，最多 {{ BACKUP_RULES.manualMaxSnapshots }} 条，永不自动删；自动备份是插件按频率自己存的，受保留条数（{{ BACKUP_RULES.maxSnapshots }} 条）和天数（{{ BACKUP_RULES.retentionDays }} 天）限制，超出自动清理最早的。</p>
               </div>
               <div>
                 <p class="font-medium text-gray-700 dark:text-gray-200">Q：导入的标签会进入备份列表吗？</p>
@@ -110,6 +110,10 @@
               <div>
                 <p class="font-medium text-gray-700 dark:text-gray-200">Q：删除的备份能找回吗？</p>
                 <p class="mt-0.5">A：删除后 30 秒内可点撤销恢复，超时无法找回。</p>
+              </div>
+              <div>
+                <p class="font-medium text-gray-700 dark:text-gray-200">Q：备份/导入能找回标记吗？</p>
+                <p class="mt-0.5">A：能找回标记名和稍后处理项。标记会关联到你实际恢复的标签（按网址匹配），若标记名已存在则跳过。由于浏览器 API 限制，同一网址每次打开标签 ID 不同，靠网址匹配而非标签 ID。</p>
               </div>
             </div>
           </section>
@@ -136,6 +140,7 @@
  * - 无 fallthrough（emits 声明 cancel）
  */
 import { X, HelpCircle } from '@lucide/vue'
+import { BACKUP_RULES } from '~lib/backup/backupRules'
 
 defineProps<{
   open: boolean

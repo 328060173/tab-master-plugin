@@ -118,6 +118,12 @@
           </span>
           <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ previewSummaryText }}</span>
         </div>
+        <p
+          v-if="showMetaImportHint"
+          class="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded px-2 py-1.5"
+        >
+          ⚠️ 导入后标记名和稍后项会追加回来。标记会关联到你选择打开的标签（按网址匹配），若标记名已存在则跳过。
+        </p>
         <TabSelectPanel
           :windows="previewWindowGroups"
           v-model="selectedFps"
@@ -155,6 +161,17 @@
       </button>
     </div>
 
+    <!-- 重复 URL 确认弹框（与还原共用 RestoreConfirmDialog） -->
+    <RestoreConfirmDialog
+      :open="restorePreview.open"
+      :total="restorePreview.total"
+      :duplicate="restorePreview.duplicate"
+      :to-open="restorePreview.toOpen"
+      :target="restorePreview.target"
+      @confirm="onRestoreConfirm"
+      @cancel="onRestoreCancel"
+    />
+
     <!-- 打开中遮罩（Teleport 收进主根内，不影响单根） -->
     <Teleport to="body">
       <div v-if="opening" class="fixed inset-0 z-[130] bg-black/30 flex items-center justify-center" aria-live="polite">
@@ -176,13 +193,16 @@
  * 内部调 openTabs 打开选中标签，emit('opened', {count, openInNewWindow}) 通知调用方。
  * 规范：禁 v-html / Promise 必 catch / 单一职责。
  */
-import { ref, computed, nextTick, watch } from 'vue';
+import { ref, reactive, computed, nextTick, watch } from 'vue';
 import { FileUp, Clipboard, Search, ExternalLink, SquareArrowOutUpRight } from '@lucide/vue';
 import { showToast } from '~composables/useToast';
 import { parseImport, readFileText } from '~lib/backup/importers';
+import { mergeMeta } from '~lib/backup/metaRestore';
+import { computeDuplicateFromTabs } from '~lib/backup/restore';
 import { openTabs, type OpenWindowGroup } from '~lib/backup/openTabs';
 import TabSelectPanel from '~components/backup/TabSelectPanel.vue';
-import type { BackupFile } from '~types/backup';
+import RestoreConfirmDialog from '~components/backup/RestoreConfirmDialog.vue';
+import type { BackupFile, TabSnapshot } from '~types/backup';
 
 type SourceMode = 'file' | 'paste';
 
@@ -344,6 +364,16 @@ const previewWindowGroups = computed<PreviewWindowGroup[]>(() => {
 
 const selectedCount = computed(() => selectedFps.value.size);
 
+// 仅 ours 格式 + 快照含 customTags/laterTabs 时显示导入提示
+const showMetaImportHint = computed(() => {
+  const f = previewFile.value;
+  if (!f) return false;
+  if (detectedFormat.value === 'ours') return true;
+  const meta = f.snapshot?.meta;
+  if (!meta) return false;
+  return Array.isArray(meta.customTags) || Array.isArray(meta.laterTabs);
+});
+
 const previewSummaryText = computed(() => {
   const f = previewFile.value;
   if (!f) return '';
@@ -355,7 +385,73 @@ const previewSummaryText = computed(() => {
 
 // ===== 打开（内部调 openTabs，emit('opened') 通知调用方） =====
 const opening = ref(false);
+
+// 还原确认弹框状态（与 RestoreConfirmDialog 对齐）
+interface RestorePreviewState {
+  open: boolean;
+  total: number;
+  duplicate: number;
+  toOpen: number;
+  target: 'current' | 'newWindow';
+}
+const restorePreview = reactive<RestorePreviewState>({
+  open: false,
+  total: 0,
+  duplicate: 0,
+  toOpen: 0,
+  target: 'current',
+});
+
+/**
+ * 本地计算选中标签中与当前已打开重复的数量（Task 2：抽 computeDuplicateFromTabs 共用）。
+ * 仅按用户勾选的 fingerprint 过滤；隐身窗口不计。
+ */
+async function computeDuplicate(): Promise<{ total: number; duplicate: number; toOpen: number }> {
+  const f = previewFile.value;
+  if (!f) return { total: 0, duplicate: 0, toOpen: 0 };
+  // 收集非隐身窗口标签，喂给 computeDuplicateFromTabs（按 selectedFps 过滤）
+  const tabs: TabSnapshot[] = [];
+  for (const w of f.snapshot.windows) {
+    if (w.incognito) continue;
+    for (const t of w.tabs) tabs.push(t);
+  }
+  return await computeDuplicateFromTabs(tabs, new Set(selectedFps.value));
+}
+
+/**
+ * 点「本窗口打开」/「新窗口打开」入口：先预览重复，有重复弹框让用户选；
+ * 无重复直接执行（默认去重，因无重复 skipDuplicateUrls 取值不影响结果）。
+ */
 async function onOpen(openInNewWindow: boolean): Promise<void> {
+  const f = previewFile.value;
+  if (!f || selectedCount.value === 0 || opening.value) return;
+  const p = await computeDuplicate();
+  if (p.duplicate > 0) {
+    restorePreview.open = true;
+    restorePreview.target = openInNewWindow ? 'newWindow' : 'current';
+    restorePreview.total = p.total;
+    restorePreview.duplicate = p.duplicate;
+    restorePreview.toOpen = p.toOpen;
+    return;
+  }
+  await doOpen(openInNewWindow, true);
+}
+
+function onRestoreConfirm(payload: { skipDuplicate: boolean }): void {
+  restorePreview.open = false;
+  void doOpen(restorePreview.target === 'newWindow', payload.skipDuplicate);
+}
+
+function onRestoreCancel(): void {
+  restorePreview.open = false;
+}
+
+/**
+ * 实际执行打开（按用户选择决定是否跳过重复 URL）。
+ * skipDuplicate=true：跳过已开同 URL（不新建 tab，不触发 onTabOpened → 不打标记）
+ * skipDuplicate=false：重复也新建 tab（全部触发 onTabOpened → 都打标记）
+ */
+async function doOpen(openInNewWindow: boolean, skipDuplicate: boolean): Promise<void> {
   const f = previewFile.value;
   if (!f || selectedCount.value === 0 || opening.value) return;
   opening.value = true;
@@ -373,13 +469,43 @@ async function onOpen(openInNewWindow: boolean): Promise<void> {
         firstFocused = false;
       }
     }
+    // 用 onTabOpened 收集 fingerprint → 新 tabId 映射（导入元数据时按 tabId key 写 tabTagsMap）
+    const fpToTabId = new Map<string, number>()
     const count = await openTabs({
       windows,
       openInNewWindow,
-      skipDuplicateUrls: true,
-    });
+      skipDuplicateUrls: skipDuplicate,
+      onTabOpened: (item, tabId) => {
+        if (typeof item.fingerprint === 'string' && item.fingerprint && typeof tabId === 'number') {
+          fpToTabId.set(item.fingerprint, tabId)
+        }
+      },
+    })
     if (count > 0) showToast(`已打开 ${count} 个标签`);
     else showToast('选中的标签都已打开，无需重复打开');
+    // 仅 ours 格式：导入后追加 customTags + tabTagsMap + laterTabs
+    const meta = f?.snapshot?.meta;
+    const hasMeta =
+      (Array.isArray(meta?.customTags) && (meta!.customTags.length > 0)) ||
+      (Array.isArray(meta?.laterTabs) && (meta!.laterTabs.length > 0)) ||
+      (meta?.tabTagsMap && typeof meta.tabTagsMap === 'object' && Object.keys(meta.tabTagsMap).length > 0);
+    if (hasMeta && f) {
+      try {
+        const r = await mergeMeta(f, fpToTabId);
+        // 拼接提示：仅展示非 0 项；全为 0 时单独提示
+        const parts: string[] = [];
+        if (r.tagsAdded > 0) parts.push(`已追加 ${r.tagsAdded} 个标记`);
+        if (r.laterAdded > 0) parts.push(`${r.laterAdded} 个稍后项`);
+        if (r.tagsApplied > 0) parts.push(`${r.tagsApplied} 个标记已关联到恢复的标签`);
+        if (parts.length > 0) {
+          showToast(parts.join('、'));
+        } else {
+          showToast('标记和稍后项已存在，无需追加');
+        }
+      } catch (err) {
+        console.warn('[ImportPanel] 追加标记/稍后项失败', err);
+      }
+    }
     emit('opened', { count, openInNewWindow });
   } catch (err) {
     console.warn('[ImportPanel] 打开失败', err);

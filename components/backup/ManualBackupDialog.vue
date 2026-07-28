@@ -127,6 +127,7 @@ import { ref, computed, watch } from "vue"
 import { X } from "@lucide/vue"
 import { currentLimits } from "~types/backup"
 import { computeFingerprint } from "~lib/backup/fingerprint"
+import { isBackupableUrl } from "~lib/backup/urlFilter"
 import { useBackupService } from "~composables/useBackupService"
 import TabSelectPanel from "~components/backup/TabSelectPanel.vue"
 
@@ -185,9 +186,9 @@ async function loadTabs() {
     const items: LiveTabEntry[] = []
     for (const t of all) {
       if (typeof t.id !== 'number') continue
-      // 过滤 about: / chrome:// 等内部页（无意义备份；保留 file:// 与正常 http(s))
+      // 过滤插件内部页（chrome-extension:// / chrome:// / edge:// / about:），无备份意义
+      if (!isBackupableUrl(t.url)) continue
       const url = t.url || ''
-      if (url.startsWith('chrome://') || url.startsWith('chrome-extension://') || url.startsWith('edge://') || url.startsWith('about:')) continue
       const title = t.title || ''
       items.push({
         tab: t,

@@ -51,6 +51,9 @@
         <!-- 步骤 2：数据大面板（高度自适应内容，超过 70vh 才固定+滚动） -->
         <div v-else class="px-5 pb-5 flex-1 overflow-y-auto">
           <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">已选 {{ selectedCount }} 个标签的数据，可复制或下载到文件夹：</p>
+          <p class="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded px-2 py-1.5 mb-2">
+            ⚠️ 导出含标记名和稍后项，重新导入后标记名会追加回来，但不自动关联标签（浏览器 API 限制，同一网址每次打开标签 ID 不同）。
+          </p>
           <textarea
             class="w-full border border-gray-200 dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-900/40 text-xs font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             :style="{ height: textareaHeight }"
@@ -102,6 +105,7 @@ import { showToast } from '~composables/useToast'
 import { buildBackupFileFromTabs, serializeBackupJson, downloadExportWithPicker } from '~lib/backup/exporters'
 import { getDeviceId } from '~lib/backup/timer'
 import { computeFingerprint } from '~lib/backup/fingerprint'
+import { isBackupableUrl } from '~lib/backup/urlFilter'
 import TabSelectPanel from '~components/backup/TabSelectPanel.vue'
 
 /** TabSelectPanel 期望的窗口分组形状（结构兼容，无需导入） */
@@ -153,6 +157,8 @@ async function loadTabs() {
     for (const t of allTabs) {
       if (typeof t.id !== 'number') continue
       if (t.incognito) continue // 跳过隐身
+      // 过滤插件内部页（chrome-extension:// / chrome:// / edge:// / about:），无备份意义
+      if (!isBackupableUrl(t.url)) continue
       const url = t.url || ''
       const title = t.title || ''
       items.push({

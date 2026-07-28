@@ -45,6 +45,16 @@ function sanitizeTabTagsMap(raw: unknown): Record<string, string[]> {
   }
   return out
 }
+// 清洗 customTags：只接受非空字符串数组（与 loadLater 初始化逻辑一致，复用避免漂移）
+// 外部写入（导入 mergeImportedMeta / 还原 metaRestore / 跨窗口 sidepanel 写入）后，storage.onChanged
+// 触发重读走此函数，保证 sidepanel 标记列表自动刷新，无需手动刷新页面
+function cleanCustomTags(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((t): t is string => typeof t === "string" && t.length > 0) : []
+}
+// 清洗 laterTabs：只接受数组（与 loadLater 一致）
+function cleanLaterTabs(raw: unknown): LaterItem[] {
+  return Array.isArray(raw) ? raw as LaterItem[] : []
+}
 function chromeTabToItem(t: chrome.tabs.Tab, savedTags: Record<string, string[]>, savedNumbers: Record<string, number>, savedOpenedAt: Record<string, string>): TabItem {
   const url = t.url || ""
   const sid = String(t.id!)
@@ -209,11 +219,11 @@ function useTabManagerImpl() {
       }
 
 
-      laterTabs.value = Array.isArray(data.laterTabs) ? data.laterTabs : []
+      laterTabs.value = cleanLaterTabs(data.laterTabs)
       // customTags 防御性校验：旧版本数据 / 调试时人为塞过对象都会导致 prop 类型错（Vue 报 "Expected Array, got Object"）
       // 这里强制只接受数组里的字符串，其他一律丢弃；并自动写回 storage 治愈污染（不影响主流程）
       const rawTags = data.customTags
-      const cleanTags = Array.isArray(rawTags) ? rawTags.filter((t): t is string => typeof t === "string" && t.length > 0) : []
+      const cleanTags = cleanCustomTags(rawTags)
       customTags.value = cleanTags
       if (rawTags !== undefined && !Array.isArray(rawTags)) {
         console.warn("[tab-master] customTags 在 storage 中被存成了非数组，已自动重置", rawTags)
@@ -714,9 +724,34 @@ function useTabManagerImpl() {
   }
 
   // SW 写入 tabLastAccessedMap 后，跨页同步到本 sidepanel 实例（保证多窗口/popup 之间数据一致）
+  // 同时监听 customTags / tabTagsMap / laterTabs：外部写入（导入 mergeImportedMeta / 还原 metaRestore /
+  // 跨窗口 sidepanel 改标记）后，sidepanel 显示自动刷新，无需手动刷新页面。
+  // 单例 composable 红线 [[singleton-composable-listener-lifecycle]]：监听器在实例创建时注册（不在
+  // onMounted/onUnmounted），实例只创建一次不会重复叠加。重读只读不写 storage，避免循环。
   const onStorageChanged = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
-    if (area !== "local" || !changes.tabLastAccessedMap) return
-    tabLastAccessedMap.value = changes.tabLastAccessedMap.newValue || {}
+    if (area !== "local") return
+    if (changes.tabLastAccessedMap) {
+      tabLastAccessedMap.value = changes.tabLastAccessedMap.newValue || {}
+    }
+    if (changes.customTags) {
+      // 重读走和初始化一致的清洗逻辑；不写 storage（避免循环：用户改标记→写 storage→onChanged→重读→同值→不再写）
+      customTags.value = cleanCustomTags(changes.customTags.newValue)
+    }
+    if (changes.tabTagsMap) {
+      tabTagsMap.value = sanitizeTabTagsMap(changes.tabTagsMap.newValue)
+      // tabTagsMap 变化后，让 tabs 列表项的 tags 字段同步刷新（tabs 是 chrome.tabs 实时查的，
+      // tags 来自 tabTagsMap，需要重新映射避免显示旧标记）
+      tabs.value = tabs.value.map(t => {
+        const sid = String(t.id)
+        const newTags = tabTagsMap.value[sid]
+        return newTags && Array.isArray(newTags) && newTags.length
+          ? { ...t, tags: newTags.filter((x): x is string => typeof x === "string") }
+          : (t.tags.length ? { ...t, tags: [] } : t)
+      })
+    }
+    if (changes.laterTabs) {
+      laterTabs.value = cleanLaterTabs(changes.laterTabs.newValue)
+    }
   }
 
   // 跨窗口标签移动事件监听：触发重载保证一致性

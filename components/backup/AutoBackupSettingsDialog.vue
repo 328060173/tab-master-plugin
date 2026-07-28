@@ -95,14 +95,14 @@
           <!-- 保留策略（普通用户锁定默认值，不可调整；仅展示摘要文案） -->
           <div class="space-y-1.5">
             <p class="text-xs font-medium text-gray-700 dark:text-gray-200">保留策略</p>
-            <!-- §3.5 保留策略摘要行（默认配置一目了然，无技术黑话，无数值冲突感） -->
+            <!-- §3.5 保留策略摘要行（默认配置一目了然，无技术黑话，无数值冲突感）。
+                 文案数值统一走 backupRules（Task 3：禁散落魔法值），改规则改一处 -->
             <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
-              自动保留近 {{ draft.cacheMaxSnapshots }} 条备份，每条最多 {{ MAX_TABS_PER_SNAPSHOT }} 个标签。
-              大约占用 {{ estimateMb }} MB，最高不超过 {{ maxMb }} MB。
+              {{ retentionPolicyText }}
             </p>
-            <p class="text-[11px] text-gray-500 dark:text-gray-400">手动备份最多 {{ MANUAL_MAX_SNAPSHOTS }} 条，永不自动删除。</p>
+            <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ manualPolicyText }}</p>
             <p class="text-[11px] text-gray-400 dark:text-gray-500 leading-relaxed">
-              超过 {{ draft.cacheMaxSnapshots }} 条时，最早的自动备份会被自动清理给新备份腾位置；手动备份不受影响，不会被删。
+              {{ overflowText }}
             </p>
           </div>
         </div>
@@ -146,6 +146,11 @@ import { X } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { showToast } from "~composables/useToast"
 import { currentLimits, type BackupSettings } from "~types/backup"
+import {
+  getRetentionPolicyText,
+  getManualPolicyText,
+  getOverflowText,
+} from "~lib/backup/backupRules"
 import ConfirmDialog from "~components/ConfirmDialog.vue"
 
 const props = defineProps<{ open: boolean }>()
@@ -167,9 +172,10 @@ const TIMER_MINUTES_OPTIONS = [
 
 // 本地草稿（保存时才同步到 svc）——默认值由当前限制档派生（§3.5）
 const LIM = currentLimits()
-// §3.5 保留策略摘要所需常量（普通档锁定，仅用于文案展示）
-const MAX_TABS_PER_SNAPSHOT = LIM.maxTabsPerSnapshot
-const MANUAL_MAX_SNAPSHOTS = LIM.manualMaxSnapshots
+// §3.5 保留策略摘要文案统一走 backupRules（Task 3：禁散落魔法值，改规则改一处）
+const retentionPolicyText = computed(() => getRetentionPolicyText())
+const manualPolicyText = computed(() => getManualPolicyText())
+const overflowText = computed(() => getOverflowText())
 const draft = reactive<Pick<BackupSettings, 'timerMinutes' | 'eventOnTabRemoved' | 'eventOnWindowRemoved' | 'eventOnIdle' | 'cacheMaxSnapshots' | 'retentionDays' | 'cacheQuotaBytes'>>({
   timerMinutes: LIM.defaultTimerMinutes,
   // 2026-07-28：事件触发默认全关（与 DEFAULT_BACKUP_SETTINGS 一致）
@@ -180,16 +186,6 @@ const draft = reactive<Pick<BackupSettings, 'timerMinutes' | 'eventOnTabRemoved'
   retentionDays: LIM.retentionDays,
   cacheQuotaBytes: LIM.cacheQuotaBytes,
 })
-
-// §3.5 摘要文案内存估算：
-// 单条备份估算 = 每条最多 maxTabsPerSnapshot 标签 × (url+title+指纹等约 400B) ≈ 80KB
-// 自动保留条数 × 80KB → MB；至少 1MB（100 条 × 200 标签 × 400B ≈ 8MB）
-const estimateMb = computed(() => {
-  const mb = draft.cacheMaxSnapshots * MAX_TABS_PER_SNAPSHOT * 400 / 1024 / 1024
-  return Math.max(1, Math.round(mb * 10) / 10)
-})
-// 最高占用 = cacheQuotaBytes 配额换算 MB
-const maxMb = computed(() => Math.round(draft.cacheQuotaBytes / 1024 / 1024))
 
 const saving = ref(false)
 

@@ -597,8 +597,8 @@ async function doRestore(snapshotId: string, target: OpenTarget, skipDuplicate: 
       let msg = `已打开 ${r.openedCount} 个标签`
       if (fp) {
         const metaBits: string[] = []
-        if (fp.tabTagsRestored > 0) metaBits.push(`标记 ${fp.tabTagsRestored}`)
-        if (fp.laterTabsMerged > 0) metaBits.push(`稍后 ${fp.laterTabsMerged}`)
+        if (fp.tagsApplied > 0) metaBits.push(`标记 ${fp.tagsApplied}`)
+        if (fp.laterAdded > 0) metaBits.push(`稍后 ${fp.laterAdded}`)
         if (fp.groupsRestored > 0) metaBits.push(`分组 ${fp.groupsRestored}`)
         if (metaBits.length > 0) msg += `（已恢复 ${metaBits.join(' / ')}）`
       }

@@ -16,12 +16,14 @@ import {
   previewRestore as computeRestorePreview,
   resolveConflicts,
   executeRestore,
+  computeDuplicateFromTabs,
+  writeBackMetaCombined,
   type CurrentTab,
   type TabToOpen,
+  type MetaRestoreResult,
 } from "~lib/backup/restore"
 import { computeFingerprint, computeWeakFingerprint, uuidV4 } from "~lib/backup/fingerprint"
 import { tryAcquireCoord, releaseCoord } from "~lib/backup/coordination"
-import { restoreMeta, type MetaRestoreOptions, type MetaRestoreResult } from "~lib/backup/metaRestore"
 import { openTabs } from "~lib/backup/openTabs"
 import { APP_VERSION_CODE, APP_VERSION_NAME } from "~lib/api-config"
 import { buildSnapshot, collectMeta } from "~lib/backup/snapshotBuilder"
@@ -166,9 +168,9 @@ function useBackupRestoreImpl() {
       const r = await executeRestore(tabsToOpen, closeCurrentTabIds, {
         restoreMeta: restoreMetaOn,
         snapshot: file,
-        // 元数据按 mode 分发（设计稿 §4.3：replace=覆盖 / append=只加 / mergeAuto·selected=并集）
-        metaOptions: { mode },
-        // 手动指派结果写回（P0-3）：用户在未匹配界面指派的 fingerprint→tabId
+        // 手动指派结果写回（P0-3）：用户在未匹配界面指派的 fingerprint→tabId。
+        // 元数据合并语义统一走 mergeMeta（2026-07-28 重构，删 mode 分支）；
+        // mode 仅用于 resolveConflicts 的 tab 层面冲突解决（不影响元数据合并）
         manualAssignments: buildManualAssignments(unmatched.value),
       }, windows)
       return { ...r, ok: !r.error, canUndo }
@@ -207,7 +209,7 @@ function useBackupRestoreImpl() {
    * - target='current'：把该备份标签补开到当前窗口（同 URL 已存在不重开），不关任何当前 tab
    * - target='newWindow'：按备份 windows[] 结构新建窗口还原（每个非隐身窗口一个新窗口），不关任何当前 tab
    * - target='selected'：仅打开用户勾选的标签（selectedFingerprints），openInNewWindow 决定本窗口/新窗口
-   * 元数据方案 A：还原后自动写回标记/稍后/分组（走 restoreMeta 合并语义），用户无感
+   * 元数据方案 A：还原后自动写回标记/稍后/分组（走 mergeMeta + restoreTabGroups 合并语义），用户无感
    */
   async function openSnapshot(
     snapshotId: string,
@@ -284,29 +286,19 @@ function useBackupRestoreImpl() {
     try {
       const file = await svc.getSnapshotFile(snapshotId)
       if (!file) return { ok: false, total: 0, duplicate: 0, toOpen: 0, error: '快照不存在' }
-      const allTabs = await chrome.tabs.query({})
-      const currentUrls = new Set<string>()
-      for (const t of allTabs) {
-        if (t.url) currentUrls.add(t.url)
-      }
-      const selFps = options.selectedFingerprints
-      const filterTab = (tab: TabSnapshot): boolean => {
-        if (target === 'selected') {
-          return !!selFps && selFps.has(tab.fingerprint)
-        }
-        return true
-      }
-      let total = 0
-      let duplicate = 0
+      // 收集非隐身窗口标签（与 openSnapshot 一致）
+      const tabs: TabSnapshot[] = []
       for (const w of file.snapshot.windows) {
         if (w.incognito) continue
-        for (const t of w.tabs) {
-          if (!filterTab(t)) continue
-          total++
-          if (currentUrls.has(t.url)) duplicate++
-        }
+        for (const t of w.tabs) tabs.push(t)
       }
-      return { ok: true, total, duplicate, toOpen: total - duplicate }
+      const selFps =
+        target === 'selected'
+          ? (options.selectedFingerprints ?? new Set<string>())
+          : new Set<string>()
+      // 空集表示全选（computeDuplicateFromTabs 约定）
+      const { total, duplicate, toOpen } = await computeDuplicateFromTabs(tabs, selFps)
+      return { ok: true, total, duplicate, toOpen }
     } catch (e) {
       return { ok: false, total: 0, duplicate: 0, toOpen: 0, error: e instanceof Error ? e.message : String(e) }
     }
@@ -364,7 +356,7 @@ function useBackupRestoreImpl() {
     }
   }
 
-  /** 元数据方案 A：写回标记/稍后/分组（走 restoreMeta 合并语义，用户无感） */
+  /** 元数据方案 A：写回标记/稍后/分组（走 mergeMeta + restoreTabGroups 合并语义，用户无感） */
   async function writeBackMeta(file: BackupFile, fpToTabId: Map<string, number>): Promise<MetaRestoreResult | undefined> {
     const restoreMetaOn = svc.settings.value.restoreMetaOnRestore !== false
     if (!restoreMetaOn) return undefined
@@ -374,8 +366,9 @@ function useBackupRestoreImpl() {
     if (tagCount || laterCount || groupCount) {
       showToast(`正在恢复 ${tagCount} 个标记 / ${laterCount} 个稍后处理 / ${groupCount} 个分组…`)
     }
-    const opts: MetaRestoreOptions = { mode: 'mergeAuto' }
-    return await restoreMeta(file, fpToTabId, opts)
+    // 2026-07-28 重构：导入/还原统一走 mergeMeta（删 mode 分支），
+    // 分组重建由 restoreTabGroups 独立完成（chrome.* 调用与 storage 合并分离）
+    return await writeBackMetaCombined(file, fpToTabId)
   }
 
   return {

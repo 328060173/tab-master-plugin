@@ -20,8 +20,14 @@ import type {
   RestoreMode,
   RestorePreview,
   SnapshotMeta,
+  TabSnapshot,
 } from "~types/backup"
-import { restoreMeta, type MetaRestoreOptions, type MetaRestoreResult } from "./metaRestore"
+import {
+  mergeMeta,
+  restoreTabGroups,
+  type MetaMergeResult,
+  type GroupRestoreResult,
+} from "./metaRestore"
 import { openTabs, type OpenWindowGroup } from "./openTabs"
 
 /** 当前浏览器标签（用于冲突检测/匹配） */
@@ -336,13 +342,11 @@ export function resolveConflicts(
 export interface ExecuteRestoreOptions {
   /** 要恢复的快照（用于元数据写回）。提供且 restoreMeta=true 时才写回元数据 */
   snapshot?: BackupFile
-  /** 是否写回元数据（标记/稍后处理/分组/设置）。默认 false */
+  /** 是否写回元数据（标记/稍后处理/分组）。默认 false */
   restoreMeta?: boolean
-  /** 元数据写回选项 */
-  metaOptions?: MetaRestoreOptions
   /**
    * 用户在冲突界面手动指派的 fingerprint → tabId 映射（P0-3：手动指派结果写回）。
-   * 传给 restoreMeta，让未匹配的标记也写回到用户指派的 tabId。
+   * 调用方在调 mergeMeta 前合并进 fpToTabId（保持 mergeMeta 纯函数）。
    */
   manualAssignments?: Map<string, number>
 }
@@ -355,6 +359,9 @@ export interface ExecuteRestoreResult {
   metaResult?: MetaRestoreResult
 }
 
+/** 元数据写回组合结果（mergeMeta + restoreTabGroups 合并） */
+export interface MetaRestoreResult extends MetaMergeResult, GroupRestoreResult {}
+
 /**
  * 执行恢复：按窗口结构重建多窗口 + 关闭旧 tab；可选写回元数据。
  * 不直接处理 preRestoreSnapshot（调用方负责保存恢复前快照）。
@@ -363,10 +370,14 @@ export interface ExecuteRestoreResult {
  * - 若提供 windows（按快照窗口分组）：第一个窗口复用当前窗口（在其开 tab），后续窗口用 chrome.windows.create 新建
  * - 若未提供 windows（向后兼容 selected/undo）：全部在当前窗口逐个开
  *
- * 元数据写回流程：
+ * 元数据写回流程（2026-07-28 重构：mergeMeta + restoreTabGroups 分离）：
  * 1. 开新 tab（按窗口分组），记录 fingerprint → 新 tabId 映射
  * 2. chrome.tabs.remove 关旧 tab
- * 3. 若 restoreMeta=true 且 snapshot 提供，调 restoreMeta 写回标记/稍后处理/分组等
+ * 3. 若 restoreMeta=true 且 snapshot 提供：
+ *    a. 把 manualAssignments 合并进 fpToTabId（保持 mergeMeta 纯函数）
+ *    b. 调 mergeMeta 写回 customTags + tabTagsMap + laterTabs
+ *    c. 调 restoreTabGroups 重建原生分组（chrome.tabs.group + chrome.tabGroups.update）
+ *    d. 合并两组结果返回
  */
 export async function executeRestore(
   tabsToOpen: TabToOpen[],
@@ -431,16 +442,75 @@ export async function executeRestore(
     }
     // 元数据写回（开/关 tab 完成后）
     if (options.restoreMeta && options.snapshot) {
-      const metaOpts = {
-        ...options.metaOptions,
-        // 合并用户手动指派（P0-3）：让未匹配的标记也写回到用户指派的 tabId
-        manualAssignments: options.manualAssignments,
+      // 合并用户手动指派（P0-3）：让未匹配的标记也写回到用户指派的 tabId。
+      // 在调 mergeMeta 前合并进 fpToTabId（保持 mergeMeta 纯函数，无 opts 参数）
+      if (options.manualAssignments) {
+        for (const [fp, tabId] of options.manualAssignments) {
+          if (typeof tabId === "number") fpToTabId.set(fp, tabId)
+        }
       }
-      const metaResult = await restoreMeta(options.snapshot, fpToTabId, metaOpts)
+      const metaResult = await writeBackMetaCombined(options.snapshot, fpToTabId)
       return { openedCount, closedCount, metaResult }
     }
     return { openedCount, closedCount }
   } catch (e) {
     return { openedCount, closedCount, error: e instanceof Error ? e.message : String(e) }
   }
+}
+
+/**
+ * 元数据写回组合（mergeMeta + restoreTabGroups）。
+ * 导入/还原共用：mergeMeta 写 customTags/tabTagsMap/laterTabs，restoreTabGroups 重建原生分组。
+ */
+export async function writeBackMetaCombined(
+  file: BackupFile,
+  fpToTabId: Map<string, number>
+): Promise<MetaRestoreResult> {
+  const meta = mergeMeta(file, fpToTabId)
+  const groups = restoreTabGroups(file.snapshot.meta.tabGroups, fpToTabId)
+  const [m, g] = await Promise.all([meta, groups])
+  return {
+    tagsAdded: m.tagsAdded,
+    tagsApplied: m.tagsApplied,
+    laterAdded: m.laterAdded,
+    error: m.error || g.error,
+    groupsRestored: g.groupsRestored,
+    groupsSkipped: g.groupsSkipped,
+  }
+}
+
+/**
+ * 计算选中标签里与当前已打开重复的数量（导入预览 / 还原预览共用）。
+ *
+ * @param tabs 候选标签集合（已按 selectedFps 过滤由调用方做或在此做均可——
+ *   本函数按 selectedFps 过滤；隐身窗口由调用方剔除，本函数不再判断）
+ * @param selectedFps 用户勾选的 fingerprint 集合；空集表示全选
+ * @returns { total, duplicate, toOpen }
+ *
+ * 守红线：chrome.tabs.query 失败时返回全 0（不抛）；纯计算不改浏览器状态。
+ */
+export async function computeDuplicateFromTabs(
+  tabs: TabSnapshot[],
+  selectedFps: Set<string>
+): Promise<{ total: number; duplicate: number; toOpen: number }> {
+  let allTabs: chrome.tabs.Tab[] = []
+  try {
+    allTabs = await chrome.tabs.query({})
+  } catch {
+    return { total: 0, duplicate: 0, toOpen: 0 }
+  }
+  const currentUrls = new Set<string>()
+  for (const t of allTabs) {
+    if (t.url) currentUrls.add(t.url)
+  }
+  const fpsEmpty = selectedFps.size === 0
+  let total = 0
+  let duplicate = 0
+  for (const t of tabs) {
+    if (!t || typeof t.url !== "string" || !t.url) continue
+    if (!fpsEmpty && !selectedFps.has(t.fingerprint)) continue
+    total++
+    if (currentUrls.has(t.url)) duplicate++
+  }
+  return { total, duplicate, toOpen: Math.max(0, total - duplicate) }
 }

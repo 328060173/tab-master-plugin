@@ -453,7 +453,7 @@ async function doOpenSelected(openInNewWindow: boolean, skipDuplicate: boolean) 
       skipDuplicateUrls: skipDuplicate,
     })
     if (r.ok) {
-      showToast(`已打开 ${r.openedCount} 个标签` + (r.metaResult ? `（标记 ${r.metaResult.tabTagsRestored} / 稍后 ${r.metaResult.laterTabsMerged} / 分组 ${r.metaResult.groupsRestored}）` : ''))
+      showToast(`已打开 ${r.openedCount} 个标签` + (r.metaResult ? `（标记 ${r.metaResult.tagsApplied} / 稍后 ${r.metaResult.laterAdded} / 分组 ${r.metaResult.groupsRestored}）` : ''))
       emit('restored')
     } else {
       showToast(r.error || '打开失败')

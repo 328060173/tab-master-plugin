@@ -38,7 +38,7 @@
         </div>
 
         <!-- 正文 -->
-        <div class="px-5 pb-3 shrink-0">
+        <div class="px-5 pb-3 shrink-0 space-y-2">
           <p v-if="duplicate > 0" class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed">
             这次备份共 <span class="font-semibold">{{ total }}</span> 个标签，其中
             <span class="font-semibold text-amber-600 dark:text-amber-400">{{ duplicate }}</span> 个
@@ -46,6 +46,9 @@
           </p>
           <p v-else class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed">
             这次备份共 <span class="font-semibold">{{ total }}</span> 个标签，均未打开。点击下方按钮开始打开。
+          </p>
+          <p class="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded px-2 py-1.5">
+            ⚠️ 还原后标记名和稍后项会追加回来。标记会关联到你选择恢复的标签（按网址匹配），若标记名已存在则跳过。
           </p>
         </div>
 
