@@ -268,6 +268,9 @@ watch(currentRoute, (r) => {
   if (history.replaceState) {
     history.replaceState(null, '', location.pathname + '?page=' + r)
   }
+  // 切 tab 重新拉广告（异步不阻塞业务，报错/超时静默显占位）。
+  // 首次挂载由 onMounted 调一次；此后每次切 overview/list/import/cloud 都刷新。
+  void backupPageAd.fetchAd()
 })
 
 // 弹框开关
@@ -530,7 +533,7 @@ const onBackupChanged = (msg: unknown) => {
 onMounted(() => {
   chrome.runtime.onMessage.addListener(onBackupChanged)
   // 进入备份页即异步拉广告（不阻塞业务，报错/超时静默显占位）。
-  // 刷新页面 = 重新挂载 = 自动触发；切 Tab 不重复请求（共享单例 adData + 并发去重）。
+  // 此处负责首次挂载拉取；此后切 Tab（overview/list/import/cloud）由 watch(currentRoute) 触发刷新。
   void backupPageAd.fetchAd()
   // 解析 URL query：
   // - ?page=overview|list|import|cloud 定位页面（刷新可恢复当前 Tab）
