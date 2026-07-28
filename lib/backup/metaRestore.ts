@@ -129,7 +129,7 @@ export async function mergeMeta(
       "laterTabs",
     ])
 
-    // 1. customTags 追加去重；newTagSet 记录本次新增的标记名（用于 tabTagsMap 关联判断）
+    // 1. customTags 追加去重；newTagSet 记录本次新增的标记名（仅用于 tagsAdded 计数）
     const existingTags: string[] = Array.isArray(data.customTags)
       ? data.customTags.filter(
           (x): x is string => typeof x === "string" && x.length > 0
@@ -152,7 +152,7 @@ export async function mergeMeta(
     const newTags = Array.from(tagSet)
 
     // 2. tabTagsMap 追加：遍历导入的（key=fingerprint）→ 转 tabId key 写回
-    //    仅对 fpToTabId 里实际恢复的 fingerprint 才处理；仅新增标记名才关联到该 tabId。
+    //    仅对 fpToTabId 里实际恢复的 fingerprint 才处理；标记名关联到实际恢复的 tabId（按 tab 去重，不依赖标记名是否预存）。
     const importedTabTagsMap =
       meta.tabTagsMap &&
       typeof meta.tabTagsMap === "object" &&
@@ -188,8 +188,7 @@ export async function mergeMeta(
       const currentArr = mergedTabTagsMap[tabIdKey] ?? []
       const currentSet = new Set(currentArr)
       for (const tagName of importedTagNames) {
-        // 仅新增的标记名才关联到该 tabId；已存在的标记名跳过（不动已有关联）
-        if (!newTagSet.has(tagName)) continue
+        // 该 tabId 已有该标记则跳过（per-tab 去重）；不因标记名已预存而跳过关联。
         if (currentSet.has(tagName)) continue
         currentSet.add(tagName)
         result.tagsApplied++
