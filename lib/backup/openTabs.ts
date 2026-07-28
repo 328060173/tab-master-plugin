@@ -13,6 +13,8 @@
  * 错误处理：单个 tab / 单个窗口失败用 console.warn 不抛，不阻断后续。
  */
 
+import { isDev } from "~lib/env"
+
 /** 要打开的单个 tab 描述 */
 export interface OpenTabItem {
   url: string
@@ -145,6 +147,11 @@ export async function openTabs(opts: OpenTabsOptions): Promise<number> {
       const firstTab = win.tabs[0]
       let targetWindowId: number | undefined
       let firstOpened = false
+      // windowCreatedOk 区分两种情况：
+      //   true  = windows.create 成功（浏览器已把 firstTab.url 作为新窗口首个 tab 打开），
+      //           此时即使 tabId 取不到也不能再 openOneTab（会重复开 tab），仅跳过标记关联。
+      //   false = windows.create 整体失败（窗口没建成），需 openOneTab 真正首开首个 tab。
+      let windowCreatedOk = false
       try {
         const newWin = await chrome.windows.create({
           url: firstTab.url,
@@ -153,21 +160,39 @@ export async function openTabs(opts: OpenTabsOptions): Promise<number> {
         })
         if (typeof newWin.id === "number") {
           targetWindowId = newWin.id
-          const firstTabId = newWin.tabs?.[0]?.id
+          windowCreatedOk = true
+          // windows.create 传了 url → 浏览器已开首个 tab；取真实 tabId
+          // （Edge 某些版本/时机下 newWin.tabs 为空或 tab.id 未填充，用 query 兜底）
+          let firstTabId = newWin.tabs?.[0]?.id
+          if (typeof firstTabId !== "number") {
+            const tabsInWin = await chrome.tabs.query({ windowId: newWin.id })
+            firstTabId = tabsInWin[0]?.id
+          }
           if (typeof firstTabId === "number") {
             if (firstTab.pinned) {
               await chrome.tabs.update(firstTabId, { pinned: true }).catch(() => {})
             }
             reportOpened(firstTab, firstTabId)
             firstOpened = true
+          } else {
+            // query 也拿不到（极端）：窗口已开首个 tab 但 id 取不到，
+            // 跳过该 tab 的标记关联，不重复开 tab
+            if (isDev) {
+              console.warn(
+                "[openTabs] 新窗口首个 tab id 取不到，跳过该 tab 的标记关联（不重复开 tab）",
+                firstTab.url
+              )
+            }
           }
         }
       } catch (e) {
-        console.warn("[openTabs] 新建窗口失败，退化为当前窗口", e)
+        // windows.create 整体失败：窗口没建成，落到当前窗口开首个 tab
+        // （这才是真正的首次开 tab，不重复）
+        if (isDev) console.warn("[openTabs] 新窗口创建失败，改用当前窗口", e)
         targetWindowId = currentWindowId
       }
-      // 首项未开（窗口创建失败或未返回 tabId）时补开
-      if (!firstOpened) {
+      // 只有窗口没建成时才 openOneTab 首开；窗口已建成时首个 tab 已在窗口里，不重复开
+      if (!windowCreatedOk && !firstOpened) {
         await openOneTab(firstTab, targetWindowId)
       }
       // 其余 tab 补到该窗口

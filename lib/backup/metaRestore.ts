@@ -267,15 +267,57 @@ export async function restoreTabGroups(
       continue
     }
     try {
-      // chrome.tabs.group: tabs 必须同窗口（恢复时所有新 tab 都在当前窗口，OK）
-      const groupId = await chrome.tabs.group({ tabIds })
-      // chrome.tabGroups.update: title/color/collapsed 可选；undefined 表示不改
-      await chrome.tabGroups.update(groupId, {
-        title: g.title || undefined,
-        color: (g.color as chrome.tabGroups.Color | undefined) || undefined,
-        collapsed: !!g.collapsed,
-      })
-      result.groupsRestored++
+      // chrome.tabs.group 要求所有 tabIds 同窗口，否则抛 "Tabs from different windows"。
+      // 新窗口还原 / replace 多窗口场景下同一分组的 tab 可能散落在不同窗口 →
+      // 按 windowId 分桶，每个窗口内的 tabIds 单独 group，跨窗口分别建同名同色分组，不丢失。
+      const tabInfos = await Promise.all(
+        tabIds.map((id) => chrome.tabs.get(id))
+      )
+      const windowBuckets = new Map<number, number[]>()
+      for (const t of tabInfos) {
+        const wid = t.windowId
+        const tid = t.id
+        if (typeof wid === "number" && typeof tid === "number") {
+          const bucket = windowBuckets.get(wid)
+          if (bucket) bucket.push(tid)
+          else windowBuckets.set(wid, [tid])
+        }
+      }
+      if (windowBuckets.size === 0) {
+        result.groupsSkipped++
+        continue
+      }
+      // 每个窗口桶单独 group + update（同 title/color/collapsed）；
+      // 单桶失败不连累其它桶，整个分组所有桶都失败才计 groupsSkipped。
+      let bucketRestoredCount = 0
+      for (const bucketTabIds of windowBuckets.values()) {
+        if (!bucketTabIds.length) continue
+        try {
+          const groupId = await chrome.tabs.group({ tabIds: bucketTabIds })
+          // chrome.tabGroups.update: title/color/collapsed 可选；undefined 表示不改
+          await chrome.tabGroups.update(groupId, {
+            title: g.title || undefined,
+            color: (g.color as chrome.tabGroups.Color | undefined) || undefined,
+            collapsed: !!g.collapsed,
+          })
+          bucketRestoredCount++
+        } catch (e) {
+          console.warn(
+            "[restoreTabGroups] 重建分桶失败",
+            g.title,
+            `windowId 桶 tab 数=${bucketTabIds.length}`,
+            e
+          )
+        }
+      }
+      // 计数语义：按实际成功 group 的桶数累加。
+      // 一个分组跨 2 窗口 = +2（恢复了 2 个分组实例，符合实际可见分组数）。
+      // 单窗口场景桶=1，行为与原实现一致（+1）。
+      if (bucketRestoredCount > 0) {
+        result.groupsRestored += bucketRestoredCount
+      } else {
+        result.groupsSkipped++
+      }
     } catch (e) {
       console.warn("[restoreTabGroups] 重建分组失败", g.title, e)
       result.groupsSkipped++
