@@ -19,7 +19,6 @@ import {
   handleBackupMessage,
   initBackupRecovery,
   triggerTimerBackup,
-  triggerStartupBackup,
   ensureBackupAlarm,
 } from '~lib/backup/swDispatch'
 import type { BackupMessage, BackupResponse } from '~lib/backup/types'
@@ -63,8 +62,9 @@ chrome.runtime.onStartup.addListener(async () => {
   void initBackupRecovery()
   // 浏览器重启：立即拉取广告/版本/通知/设置菜单（fire-and-forget）
   syncAll('init')
-  // 备份：onStartup 时触发一次启动备份（PRD §B），走 SW 串行队列
-  void triggerStartupBackup()
+  // 不在 onStartup 触发启动备份（2026-07-28 用户决定）：每次开关浏览器都备份一次无意义，
+  // 定时备份由 chrome.alarms 按用户设置间隔（timerMinutes）正常触发，启动后等间隔到点再备。
+  // "开启自动备份时的第一次备份"走 UI 路径 svc.runBackup('auto.event.startup')，与此无关。
 })
 
 // ============ tabs 事件：持续维护父子关系 + lastAccessed ============

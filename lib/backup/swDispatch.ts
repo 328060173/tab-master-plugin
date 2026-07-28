@@ -2,7 +2,7 @@
  * 备份 SW 调度层 - 抽离自 background.ts（红线 .ts ≤ 500）
  *
  * 职责：收口 Service Worker 上下文里所有备份相关调度逻辑，供 background.ts 调用：
- * 1. triggerTimerBackup / triggerStartupBackup —— 定时/启动触发入口
+ * 1. triggerTimerBackup —— 定时触发入口（onStartup 不再触发备份，2026-07-28 用户决定）
  * 2. enqueueBackupOperation + executeBackupOp —— SW 串行写入队列 + 协调入口（P0-4 调研方案1）
  * 3. handleBackupMessage —— UI → SW 消息路由
  * 4. initBackupRecovery —— SW 启动崩溃恢复（WAL 回滚 + 审计清理 + 旧缓存迁移）
@@ -33,23 +33,21 @@ interface QueueResult {
   conflict?: boolean
 }
 
-// ============ 备份定时/启动触发（PRD §B）============
-// 设计：定时备份 + onStartup 备份由 SW 直接执行（runSwBareBackup），不依赖 UI 是否打开。
-// 修复前：SW 只广播 backup:trigger 给 UI，UI 未挂载时定时/启动备份丢失。
+// ============ 备份定时触发（PRD §B）============
+// 设计：定时备份由 SW 直接执行（runSwBareBackup），不依赖 UI 是否打开。
+// 修复前：SW 只广播 backup:trigger 给 UI，UI 未挂载时定时备份丢失。
 // 修复后：SW 在 service worker 上下文里读设置 → chrome.tabs.query → collectMeta →
 //   buildSnapshot → 写 storage.local 缓存 → GFS 清理 → 更新 state；目录写降级跳过
 //   （SW 无 window，File System Access API 不可用，记 lastBackupError="目录备份待UI侧补"，
 //   下次 UI 打开走 runManualBackup 时会补写目录）。完成后广播 backup:done 给 UI 刷新状态。
 // 锁协调：acquireBackupLock 防 SW 与 UI 同时备份（5min TTL 防死锁）。
+// 2026-07-28：onStartup 不再触发启动备份（每次开关浏览器都备份无意义）；
+//   定时备份由 chrome.alarms 按用户设置间隔正常触发。"开启自动备份时的第一次备份"
+//   走 UI 路径 svc.runBackup('auto.event.startup')，与此处无关。
 
 /** 定时备份入口（alarm 触发） */
 export async function triggerTimerBackup(): Promise<void> {
   await enqueueBackupOperation('backup', { kind: 'auto-backup', source: 'auto.timer' })
-}
-
-/** 启动备份入口（onStartup 触发） */
-export async function triggerStartupBackup(): Promise<void> {
-  await enqueueBackupOperation('backup', { kind: 'auto-backup', source: 'auto.event.startup' })
 }
 
 // ============ P0-4 SW 串行写入队列 + 协调入口 ============
