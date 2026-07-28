@@ -215,12 +215,12 @@
     </ErrorBoundary>
 
     <!-- Nav Tabs（仅普通态显示） -->
-    <div v-if="focusMode === 'normal'" class="flex items-center border-b border-gray-100 px-2 shrink-0">
+    <div v-if="focusMode === 'normal'" class="flex items-center border-b border-gray-100 px-1.5 shrink-0">
       <template v-for="nav in navItems" :key="nav.key">
         <!-- 首页：文字 + 竖三点收进同一容器，让三点明确归属首页且紧贴文字 -->
         <div v-if="nav.key === 'home'" class="flex items-center -mb-px flex-1 justify-center">
           <button
-            :class="['px-2 py-1.5 text-sm text-center transition-colors border-b-2', activeNav === 'home' ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
+            :class="['px-1.5 py-1.5 text-xs text-center whitespace-nowrap transition-colors border-b-2', activeNav === 'home' ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
             @click="activeNav = 'home'">
             {{ nav.label }}
           </button>
@@ -228,7 +228,7 @@
           <button
             v-if="activeNav === 'home'"
             ref="homeOptionsTriggerRef"
-            class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600"
+            class="p-1 rounded shrink-0 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600"
             title="显示选项"
             @click.stop="popover.toggle('home-toolbar-options', homeOptionsTriggerRef)">
             <MoreVertical :size="14" />
@@ -236,10 +236,10 @@
         </div>
         <button
           v-else
-          :class="['px-2 py-1.5 text-sm text-center flex-1 transition-colors border-b-2 -mb-px', activeNav === nav.key ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
+          :class="['px-1.5 py-1.5 text-xs text-center whitespace-nowrap flex-1 transition-colors border-b-2 -mb-px', activeNav === nav.key ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800']"
           @click="activeNav = nav.key">
           {{ nav.label }}
-          <span v-if="nav.key === 'later' && laterTabs.length" class="ml-1 text-[10px] bg-amber-100 text-amber-700 px-1.5 rounded-full">{{ laterTabs.length }}</span>
+          <span v-if="nav.key === 'later' && laterTabs.length" class="ml-1 shrink-0 whitespace-nowrap text-[10px] bg-amber-100 text-amber-700 px-1.5 rounded-full">{{ laterTabs.length }}</span>
         </button>
       </template>
     </div>
