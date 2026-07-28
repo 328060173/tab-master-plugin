@@ -127,7 +127,8 @@ import { ref, computed, watch } from "vue"
 import { X } from "@lucide/vue"
 import { currentLimits } from "~types/backup"
 import { computeFingerprint } from "~lib/backup/fingerprint"
-import { isBackupableUrl } from "~lib/backup/urlFilter"
+import { isBackupableUrl, NO_TABS_HINT } from "~lib/backup/urlFilter"
+import { showToast } from "~composables/useToast"
 import { useBackupService } from "~composables/useBackupService"
 import TabSelectPanel from "~components/backup/TabSelectPanel.vue"
 
@@ -260,7 +261,11 @@ function onInvert() {
 
 function onConfirm() {
   if (submitting.value) return
-  if (selectedCount.value === 0) return
+  // 0 标签阻断（2026-07-28 立）：toast 提示而非静默 return
+  if (selectedCount.value === 0) {
+    showToast(NO_TABS_HINT)
+    return
+  }
   if (manualOverLimit.value) return
   submitting.value = true
   const fpSet = new Set(selectedFps.value)

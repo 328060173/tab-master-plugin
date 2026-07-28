@@ -24,3 +24,11 @@ export function isBackupableUrl(url: string | undefined): boolean {
 export function filterBackupableTabs(tabs: chrome.tabs.Tab[]): chrome.tabs.Tab[] {
   return tabs.filter((t) => isBackupableUrl(t.url))
 }
+
+/**
+ * 0 标签统一提示文案（2026-07-28 立）。
+ * 用户主动路径（手动备份 / 自动备份首次 / 导出当前 / 列表导出空快照 / 详情下载复制空快照）
+ * 检测到 0 个可处理标签时 toast 阻断，复用此常量避免魔法值。
+ * 后台路径（定时/启动/事件/preRestore）不 toast，静默跳过（见 swBackup.ts / pipeline.ts）。
+ */
+export const NO_TABS_HINT = '备份/导出:当前没有标签,无数据可处理'

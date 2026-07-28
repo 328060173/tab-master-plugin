@@ -29,6 +29,7 @@ import {
 } from "./snapshotStore"
 import { toSummary } from "./sanitize"
 import { uuidV4 } from "./fingerprint"
+import { filterBackupableTabs } from "./urlFilter"
 
 export interface PipelineDeps {
   settings: Ref<BackupSettings>
@@ -197,6 +198,16 @@ export async function runBackupPipeline(
       state.value.lastBackupError = `缓存已满（${usedMB}MB ≥ ${quotaMB}MB），请清理手动备份后继续`
       await deps.saveState()
       return { ok: false, error: '缓存已满，请清理手动备份' }
+    }
+  }
+  // 0 标签 gate（2026-07-28 立）：自动/事件/preRestore 后台备份，无标签不落空快照。
+  // - 只对非 manual 生效（manual 走 UI 层 toast 阻断，让用户主动路径有明确提示）。
+  // - 失败不落库（这是数据空拦截，不是备份失败，不该进失败列表）。
+  // - buildBackupFile 内部也 query，这里多查一次（UI 上下文，轻），可接受。
+  if (source !== 'manual') {
+    const allTabs = await chrome.tabs.query({})
+    if (filterBackupableTabs(allTabs).length === 0) {
+      return { ok: false, error: '无标签，跳过' }
     }
   }
   isBackingUp.value = true

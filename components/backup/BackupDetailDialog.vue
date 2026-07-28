@@ -193,6 +193,7 @@ import { useBackupService } from '~composables/useBackupService'
 import { useBackupRestore, type OpenTarget } from '~composables/useBackupRestore'
 import { showToast } from '~composables/useToast'
 import { exportByFormat, downloadExportWithPicker } from '~lib/backup/exporters'
+import { NO_TABS_HINT } from '~lib/backup/urlFilter'
 import TabSelectPanel from '~components/backup/TabSelectPanel.vue'
 import RestoreConfirmDialog from '~components/backup/RestoreConfirmDialog.vue'
 import type { BackupFile } from '~types/backup'
@@ -343,6 +344,12 @@ const jsonContent = computed(() => {
 })
 
 function onCopyJson() {
+  // 0 标签阻断（2026-07-28 立）：空快照不复制空串
+  const tabCount = file.value?.snapshot.stats?.tabCount ?? 0
+  if (tabCount === 0) {
+    showToast(NO_TABS_HINT)
+    return
+  }
   const ta = jsonTextareaRef.value
   if (!ta) return
   ta.select()
@@ -369,6 +376,12 @@ function onCopyJson() {
 function onDownloadJson() {
   const f = file.value
   if (!f) return
+  // 0 标签阻断（2026-07-28 立）：空快照不下载空文件
+  const tabCount = f.snapshot.stats?.tabCount ?? 0
+  if (tabCount === 0) {
+    showToast(NO_TABS_HINT)
+    return
+  }
   const out = exportByFormat(f, 'json')
   void downloadExportWithPicker(out).then((r) => {
     if (r.ok) {

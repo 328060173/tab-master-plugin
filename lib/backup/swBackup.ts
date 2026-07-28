@@ -39,6 +39,7 @@ import {
   sanitizeState,
 } from "./sanitize"
 import { cleanupExpiredBackupLock } from "./lock"
+import { filterBackupableTabs } from "./urlFilter"
 
 /** 读备份设置（防御性，防脏数据） */
 async function readSettings(): Promise<BackupSettings> {
@@ -77,8 +78,10 @@ function mapSource(source: BackupTriggerSource): SnapshotSource {
 }
 
 /** SW 侧构建快照文件（复用 buildBackupFileFromTabs，统一 BackupFile 外层包装） */
-async function buildSwSnapshotFile(source: BackupTriggerSource): Promise<BackupFile> {
-  const allTabs = await chrome.tabs.query({})
+async function buildSwSnapshotFile(
+  source: BackupTriggerSource,
+  allTabs: chrome.tabs.Tab[],
+): Promise<BackupFile> {
   const snapSource = mapSource(source)
   // §3.2：SW 裸备份只跑 auto.* / startup 路径，超 maxTabsPerSnapshot 自动截断
   const isManual = source === 'manual'
@@ -139,10 +142,21 @@ export async function runSwBareBackup(
     return { ok: false, error: "备份未开启" }
   }
 
+  // 0 标签短路（2026-07-28 立）：定时/启动/事件后台备份，无标签不落空快照。
+  // - 后台路径静默跳过（UI 可能没开，不 toast）。
+  // - 返回 {ok:false} 后外层 runBackupWithCoordination 走 if(!result.ok) 分支 →
+  //   writeWalAborted + auditFailed → 不 persistSnapshot、不广播 backup:changed。
+  // - auditFailed 会记一条审计失败记录（无标签跳过属失败，可接受记审计）。
+  // - manual 路径不进本函数（走 UI 层 toast 阻断，见 ManualBackupDialog/ExportCurrentDialog）。
+  const allTabs = await chrome.tabs.query({})
+  if (filterBackupableTabs(allTabs).length === 0) {
+    return { ok: false, error: "无标签，跳过" }
+  }
+
   // P0-4: 锁由外层 runBackupWithCoordination（tryAcquireCoord）统一管理，此处不再单独加锁
   // 调用链：triggerTimer/Startup → enqueueBackupOperation → runBackupWithCoordination(tryAcquireCoord) → executeBackupOp → 本函数
   try {
-    const file = await buildSwSnapshotFile(source)
+    const file = await buildSwSnapshotFile(source, allTabs)
     const dirError = settings.dirEnabled ? "目录备份待UI侧补" : null
     await updateSwState(file.snapshot, file.snapshot.source, dirError, source)
     return { ok: true, file }

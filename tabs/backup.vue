@@ -222,6 +222,7 @@ import { Shield, X, HelpCircle } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
 import { showToast, useToast } from "~composables/useToast"
+import { filterBackupableTabs, NO_TABS_HINT } from "~lib/backup/urlFilter"
 import BackupSidebar, { type BackupMenuKey } from "~components/backup/BackupSidebar.vue"
 import BackupOverviewTab from "~components/backup/BackupOverviewTab.vue"
 import BackupListTab from "~components/backup/BackupListTab.vue"
@@ -343,6 +344,13 @@ async function doEnableAuto() {
     await svc.setEnabled(true)
     // 标记已确认
     await svc.setNoticeAcked(true)
+    // 0 标签阻断（2026-07-28 立）：开启自动备份时若无可备份标签，
+    // 仍保留 enabled=true 设置（尊重用户意图），但不执行第一次备份，toast 提示。
+    const allTabs = await chrome.tabs.query({})
+    if (filterBackupableTabs(allTabs).length === 0) {
+      showToast(NO_TABS_HINT)
+      return
+    }
     // 立即触发第一次自动备份（source=auto.event.startup → 列表显示「自动备份」）
     // runBackup 内部已刷新 snapshots.value（pipeline.ts），再 loadAll 兜底刷新 state/dirMeta
     void svc.runBackup('auto.event.startup').then((r) => {
@@ -434,6 +442,12 @@ async function onOpenExport(snapshotId: string, label: string | null) {
     const file = await svc.getSnapshotFile(snapshotId)
     if (!file) {
       showToast('备份不存在')
+      return
+    }
+    // 0 标签阻断（2026-07-28 立）：历史空快照（0 标签）导出也 toast 阻断，不写空文件。
+    const tabCount = file.snapshot.stats?.tabCount ?? 0
+    if (tabCount === 0) {
+      showToast(NO_TABS_HINT)
       return
     }
     const { serializeBackupJson } = await import('~lib/backup/exporters')

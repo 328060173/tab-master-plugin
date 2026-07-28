@@ -105,7 +105,7 @@ import { showToast } from '~composables/useToast'
 import { buildBackupFileFromTabs, serializeBackupJson, downloadExportWithPicker } from '~lib/backup/exporters'
 import { getDeviceId } from '~lib/backup/timer'
 import { computeFingerprint } from '~lib/backup/fingerprint'
-import { isBackupableUrl } from '~lib/backup/urlFilter'
+import { isBackupableUrl, NO_TABS_HINT } from '~lib/backup/urlFilter'
 import TabSelectPanel from '~components/backup/TabSelectPanel.vue'
 
 /** TabSelectPanel 期望的窗口分组形状（结构兼容，无需导入） */
@@ -211,7 +211,12 @@ const textareaHeight = computed(() => {
 
 /** 生成数据：按 selectedFps 反查 LiveTabEntry → 取原始 chrome.tabs.Tab 喂 buildBackupFileFromTabs */
 async function onGenerate() {
-  if (selectedCount.value === 0 || generating.value) return
+  // 0 标签阻断（2026-07-28 立）：toast 提示而非静默 return
+  if (selectedCount.value === 0) {
+    showToast(NO_TABS_HINT)
+    return
+  }
+  if (generating.value) return
   generating.value = true
   try {
     const fpSet = new Set(selectedFps.value)
