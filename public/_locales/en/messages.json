@@ -4,7 +4,7 @@
     "description": "Extension name"
   },
   "extensionDescription": {
-    "message": "Find any tab in 3 seconds. Sidebar tab manager: multi-view, domain sort, tags, focus, batch, backup & import/export. Never lose tabs to crashes; restore across Chrome/Edge.",
+    "message": "Find any tab in 3 seconds. Backup & import/export your tabs—never lose them to browser crashes, and restore across Chrome/Edge. Sidebar manager: multi-view, domain sort, tags, focus, later, status. Chrome/Edge.",
     "description": "Extension description"
   }
 }
