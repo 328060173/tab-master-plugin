@@ -4,7 +4,7 @@
 >
 > 维护原则：文案按「真实功能 + 用户痛点 + 搜索命中」方向写，不编造未上线功能（见末尾红线清单）。
 >
-> 最后核对：2026-07-19
+> 最后核对：2026-07-29
 
 ---
 
@@ -41,7 +41,7 @@
 ## 2. Short Description（≤132 字符，扩展管理页 `chrome://extensions` 里扩展名下方那行小字）
 
 ```
-3秒找到任何标签，标签再多也不乱。侧边栏标签管理：四视图、域名归并与最近访问优先排序、标记分类、聚焦模式、稍后处理、状态感知。Chrome/Edge。
+3秒找到任何标签，标签再多也不乱。侧边栏标签管理：四视图、域名归并与排序、标记分类、聚焦模式、稍后处理、状态感知、备份与导入导出。浏览器崩溃标签不丢，跨浏览器随时恢复。Chrome/Edge。
 ```
 
 > 同步写入 `package.json` 的 `description` 字段（单一来源，改这里再同步过去）。
@@ -80,6 +80,9 @@
 
 ■ 域名归并，同站聚一起
 按注册域名归并排序，github.com、console.github.com、buy.github.com 自动聚到一起，50 个同站标签不再散落各处。还把常见站点显示成中文名（如把云厂商控制台显示成品牌名），更易认。
+
+■ 备份与导入导出，崩溃也不怕
+一键把所有标签、标记、分组、稍后处理列表备份成文件，浏览器崩溃、误关、重装系统都不怕丢。支持导出标准 JSON（可完整恢复）、Markdown（人类可读）、OneTab 兼容格式。换浏览器、换电脑？导入备份文件即可还原全部标签与分类，跨 Chrome/Edge 随时恢复，标签再也不会凭空消失。
 
 ■ 装扮你的侧边栏
 登录后可用积分兑换头像框、主题背景图、纯色背景，给侧边栏换个心情。未购买可试穿 30 秒预览效果。
@@ -217,7 +220,7 @@ Windows / macOS × Chrome / Edge 四端通用。
 
 - [ ] host_permissions 仅 `api.ouu365.com` + `www.ouu365.com`，无 localhost、无 `*://*/*`
 - [ ] `pnpm build` 产物 manifest：name 无 `DEV |` 前缀、CSP 无 `http://localhost`、web_accessible_resources 无 `__plasmo_hmr_proxy__`
-- [ ] `package.json.version` 与 `lib/api-config.ts APP_VERSION_CODE` 同步递增（当前 1.0.0 / 1）
+- [ ] `package.json.version` 与 `lib/api-config.ts APP_VERSION_CODE` 同步递增（当前 1.2.0 / 12）
 - [ ] 隐私政策页面上线（`www.ouu365.com/contents/privacy`）
 - [ ] 截图 5 张 + Small Promo + 图标准备就绪
 - [ ] 上架主体（个人 / 遨游365）确定
@@ -231,9 +234,7 @@ Windows / macOS × Chrome / Edge 四端通用。
 
 - ❌ 云同步 / 跨设备同步标签（HeaderMenu 已注释 TODO，未实现）
 - ❌ AI 智能分组建议（feature-tiers F203，未实现）
-- ❌ 标签快照 / 恢复历史快照（F201，未实现）
 - ❌ 多窗口管理 / 跨窗口切换（F205，仅声明无 UI）
-- ❌ 数据导出（F206，未实现）
 - ❌ "AI 学习用户习惯 / 个性化推荐"（无此逻辑，"更懂你"类表述需改为"更懂浏览器重度用户"）
 
 ---
