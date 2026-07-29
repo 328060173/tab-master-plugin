@@ -807,7 +807,7 @@ watch(isLoggedIn, (logged) => {
 // LoginDialog 内部已调 login + fetchUser 完成登录态建立；此处仅关弹框 + toast
 function onLoginSuccess(email: string) {
   loginDialogOpen.value = false
-  showToast(`已登录：${email}`)
+  showToast("已登录")
 }
 
 // 性别选择（2026-07-18 性别头像）：0=男 1=女 2=保密
