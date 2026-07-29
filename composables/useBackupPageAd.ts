@@ -94,7 +94,9 @@ function useBackupPageAdImpl() {
       try {
         // customerType 走 body（与 SW fetchAdCache 一致，后端按此做登录态灰度/统计）
         // header 里的 customerType 由 lib/api.ts buildHeaders 自动注入，无需手动加
-        const { isLoggedIn } = useAuth();
+        // ⚠️ 必须等 useAuth 的 loadAuth 完成（authReady），否则首屏 fetchAd 时 isLoggedIn 还是初始 false → customerType 误传 0
+        const { isLoggedIn, authReady } = useAuth();
+        await authReady;
         const customerType = isLoggedIn.value
           ? BUSINESS_CONFIG.customerTypeLoggedIn
           : BUSINESS_CONFIG.customerTypeAnonymous;

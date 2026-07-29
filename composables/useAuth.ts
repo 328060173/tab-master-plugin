@@ -234,13 +234,15 @@ function useAuthImpl() {
     }
   })
 
-  // 立即加载
-  loadAuth()
+  // 立即加载。把 Promise 存起来供 authReady 暴露：调用方（如 backup 页 fetchAd）
+  // 在读 isLoggedIn 前可 await authReady，确保登录态已从 storage 加载完，避免首屏读到 false。
+  const authReady = loadAuth()
 
   return {
     isLoggedIn,
     user,
     sessionExpired,
+    authReady,
     login,
     logout,
     getToken,
