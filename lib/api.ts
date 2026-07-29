@@ -136,8 +136,19 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 })
 
-// 模块加载时立即异步读缓存（不阻塞，首屏请求可能赶上也可能赶不上，见时序说明）
-initAuthCache()
+// 模块加载时立即异步读缓存。把 Promise 存起来，request 函数发请求前 await 它：
+// 保证首屏请求（如 backup 页 onMounted 立即发的 fetchAd）发出时缓存已就绪，token 能注入 Authorization。
+// Promise 只 pending 一次（storage.get 很快，几 ms），resolved 后所有后续 await 立即返回，无性能损耗。
+const authCacheReady: Promise<void> = initAuthCache()
+
+/**
+ * 确保登录态缓存已加载完成（request 函数发请求前调）。
+ * - 首次：等 initAuthCache 读完 storage（几 ms），让首屏请求带上 token
+ * - 后续：authCacheReady 已 resolved，await 立即返回，零开销
+ */
+function ensureAuthCacheReady(): Promise<void> {
+  return authCacheReady
+}
 
 /**
  * 注册 token 获取器（useAuth 初始化时调用）
@@ -165,10 +176,18 @@ export function setAuthExpiredHandler(fn: () => void) {
 }
 
 /**
- * 统一构建请求头（后续新增公共头都在这里加）
- * 优先级：默认头 < APP_HEADERS < Authorization(登录态) + customerType < extraHeaders(调用方覆盖)
+ * 请求拦截器：所有请求发出前统一过这里（axios 拦截器模式）。
+ *
+ * 职责：从 chrome.storage.local 同步读登录态，注入 Authorization + customerType。
+ * - 不依赖每个页面调 useAuth() 注册 getter（旧方案缺陷：页面忘了调就裸奔不带 token）
+ * - api.ts 自管缓存：模块加载读一次 + storage.onChanged 同步，所有页面共享
+ * - buildHeaders 改 async：发请求前 await 缓存就绪，保证首屏请求也能带上 token
+ *
+ * token 来源优先级：getter（useAuth 注册，实时，兼容旧机制）> api.ts 缓存（storage 读，兜底）
  */
-function buildHeaders(extra?: Record<string, string>): Record<string, string> {
+async function buildHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
+  // 确保缓存已加载（首屏请求等几 ms 读 storage，后续 await 立即返回零开销）
+  await ensureAuthCacheReady()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json'
   }
@@ -229,7 +248,7 @@ async function request<T extends BaseResponse = BaseResponse>({
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeout)
     try {
-      const headers = buildHeaders(extraHeaders)
+      const headers = await buildHeaders(extraHeaders)
       const response = await fetch(url, {
         method,
         headers,
