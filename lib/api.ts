@@ -16,7 +16,7 @@
  * 本层返回完整响应体（不自动取 .data），调用方按接口实际结构取字段
  */
 
-import { API_BASE_URL, APP_HEADERS } from './api-config'
+import { API_BASE_URL, APP_HEADERS, AUTH_STORAGE_KEY } from './api-config'
 import { isDev } from './env'
 
 // ============ 错误类型（L1 归一，导出供 L3 useLogger instanceof 判别）============
@@ -90,6 +90,55 @@ let loggedInGetter: (() => boolean) | null = null
 // 401 处理回调：token 过期/缺失时清登录态
 let authExpiredHandler: (() => void) | null = null
 
+// ============ api.ts 自带登录态缓存层（2026-07-29 立）============
+// 背景：Plasmo 每个页面是独立 JS bundle，各自加载一份 lib/api.ts，模块级 tokenGetter 初始 null。
+// 只有页面调 useAuth() 才注册 getter。未调 useAuth 的页面（如 tabs/logs.vue / popup.vue）
+// 请求会裸奔（Authorization=无 customerType=0）。
+// 根治：api.ts 自己读 chrome.storage.local 缓存 token，buildHeaders 优先用 getter（useAuth 注册的，
+// 实时），getter 未注册时回退缓存。storage.onChanged 监听让多页面（options 登录→sidepanel）自动同步。
+// 注意：不 import useAuth（会循环依赖），只读 storage。
+let cachedToken: string | null = null
+let cachedLoggedIn: boolean = false
+
+/**
+ * 从 chrome.storage.local 读取 tabMasterAuth 并刷新 api.ts 缓存
+ * - token 是 string 非空且 user 非空 = 登录态
+ * - 只读不写 storage，无需 toPure
+ * - 幂等：onChanged 触发时读到相同值不会产生副作用
+ */
+async function initAuthCache(): Promise<void> {
+  try {
+    const data = await chrome.storage.local.get(AUTH_STORAGE_KEY)
+    const raw = data[AUTH_STORAGE_KEY]
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      cachedToken = null
+      cachedLoggedIn = false
+      return
+    }
+    const obj = raw as Record<string, unknown>
+    const token = typeof obj.token === 'string' ? obj.token : null
+    const user = obj.user
+    const hasUser = !!user && typeof user === 'object' && !Array.isArray(user)
+    cachedToken = token
+    cachedLoggedIn = !!token && hasUser
+  } catch (e) {
+    // 读 storage 失败不阻塞请求，缓存保持默认（null/false），后续请求无 token（与改动前等价）
+    console.warn('[api] initAuthCache 读取 storage 失败', e)
+  }
+}
+
+// 监听 storage 变化：useAuth 在任意页面 login/logout/fetchUser 写 storage 后，
+// 所有页面（含未调 useAuth 的）的 api.ts 缓存自动同步。chrome.storage.onChanged 在页面 context 可用。
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return
+  if (changes[AUTH_STORAGE_KEY]) {
+    initAuthCache()
+  }
+})
+
+// 模块加载时立即异步读缓存（不阻塞，首屏请求可能赶上也可能赶不上，见时序说明）
+initAuthCache()
+
 /**
  * 注册 token 获取器（useAuth 初始化时调用）
  * 本层每次请求会调它拿 token，非空则注入 Authorization: Bearer <token>
@@ -129,8 +178,9 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
   })
   // 登录态：有 token 就带 Authorization + customerType
   // customerType: 1=已登录, 0=未登录（后端 AccessCustomerTypeEnum，免登录接口靠此区分登录态）
-  const token = tokenGetter?.()
-  const isLoggedIn = loggedInGetter?.() ?? false
+  // 优先级：getter（useAuth 注册，实时）> api.ts 缓存（从 storage 读，给未调 useAuth 的页面兜底）
+  const token = tokenGetter?.() ?? cachedToken
+  const isLoggedIn = loggedInGetter?.() ?? cachedLoggedIn
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }

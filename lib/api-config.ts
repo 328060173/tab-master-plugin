@@ -94,6 +94,10 @@ export const APP_VERSION_CODE = 12
 // 备份快照元数据 appVersionName、manifest、下载页等统一引用此处。
 export const APP_VERSION_NAME = "1.2.0"
 
+// 登录态 storage key（chrome.storage.local 中的字段名）
+// 单一来源红线：api.ts（缓存层读 storage）与 useAuth.ts（读写 storage）共用以避免散落硬编码
+export const AUTH_STORAGE_KEY = "tabMasterAuth"
+
 // 默认请求头（对应后端 Constants.HEAD_APP_*）
 // platform: 1=Web浏览器插件 2=iOS 3=Android 4=微信小程序
 // 这些是所有请求都带的公共头；登录后还会自动追加 Authorization + customerType（在 lib/api.ts 的 buildHeaders 统一处理）

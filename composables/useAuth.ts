@@ -15,10 +15,10 @@ import { toPure } from "~lib/toPure"
 import { isDev } from "~lib/env"
 import { ref, computed } from 'vue'
 import { setTokenGetter, setLoggedInGetter, setAuthExpiredHandler, post, get } from '~lib/api'
-import { API_URIS } from '~lib/api-config'
+import { API_URIS, AUTH_STORAGE_KEY } from '~lib/api-config'
 
-// storage key
-const AUTH_KEY = 'tabMasterAuth'
+// storage key（单一来源：api-config.ts 的 AUTH_STORAGE_KEY，api.ts 缓存层与本文件共用）
+const AUTH_KEY = AUTH_STORAGE_KEY
 
 // auth 数据类型
 interface User {
