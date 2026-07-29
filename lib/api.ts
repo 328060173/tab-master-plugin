@@ -189,10 +189,17 @@ async function request<T extends BaseResponse = BaseResponse>({
 
       // 401 未授权：token 过期或调需登录接口但未登录
       // 后端若依 SecurityConfig 对未登录访问受保护接口返回 401
+      // silent 保护（2026-07-29 立）：免登录接口（广告/版本/通知/验证码等，silent=true）
+      // 返 401 通常是接口不存在/网关问题/临时故障，并非用户登录态过期，不清登录态防误踢。
+      // 仅登录态接口（silent=false，如 /customer/my）401 才清登录态（token 真过期）。
       if (response.status === 401) {
         const elapsed = Date.now() - startedAt
-        console.warn(`[api] ← ${method} ${uri} 401 (${elapsed}ms) 登录过期`)
-        authExpiredHandler?.()
+        if (silent) {
+          console.warn(`[api] ← ${method} ${uri} HTTP 401 (${elapsed}ms, 静默) silent 401 不清登录态`)
+        } else {
+          console.warn(`[api] ← ${method} ${uri} HTTP 401 (${elapsed}ms) 登录过期`)
+          authExpiredHandler?.()
+        }
         throw new ApiError('登录已过期，请重新登录', {
           code: 401,
           httpStatus: 401,
@@ -203,10 +210,15 @@ async function request<T extends BaseResponse = BaseResponse>({
       const result: T = await response.json()
 
       // 业务层 401（部分接口可能用 code=401 而非 HTTP 401）
+      // 同 HTTP 401 分支：silent 免登录接口不清登录态（防误踢），仅登录态接口清
       if (result.code === 401) {
         const elapsed = Date.now() - startedAt
-        console.warn(`[api] ← ${method} ${uri} code=401 (${elapsed}ms) 登录过期`)
-        authExpiredHandler?.()
+        if (silent) {
+          console.warn(`[api] ← ${method} ${uri} code=401 (${elapsed}ms, 静默) silent 401 不清登录态`)
+        } else {
+          console.warn(`[api] ← ${method} ${uri} code=401 (${elapsed}ms) 触发登出`)
+          authExpiredHandler?.()
+        }
         throw new ApiError('登录已过期，请重新登录', {
           code: 401,
           httpStatus: response.status,

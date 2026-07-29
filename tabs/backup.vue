@@ -221,6 +221,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue"
 import { Shield, X, HelpCircle } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
+import { useAuth } from "~composables/useAuth"
 import { showToast, useToast } from "~composables/useToast"
 import { filterBackupableTabs, NO_TABS_HINT } from "~lib/backup/urlFilter"
 import BackupSidebar, { type BackupMenuKey } from "~components/backup/BackupSidebar.vue"
@@ -238,6 +239,10 @@ import ErrorBoundary from "~components/ErrorBoundary.vue"
 
 const svc = useBackupService()
 const { toastMsg } = useToast()
+// 显式初始化 useAuth 单例（注册 tokenGetter/loggedInGetter + loadAuth），
+// 确保 onMounted 调 fetchAd 前请求头能注入 Authorization（防 backup 页广告裸奔 401 误踢登录态）。
+// 与 sidepanel/options 一致：页面 setup 顶部显式引一次，不靠 useBackupPageAd 间接惰性初始化。
+useAuth()
 // 独立页广告：单例，左菜单辅位 + 概览主位共享同一次请求
 const backupPageAd = useBackupPageAd()
 
