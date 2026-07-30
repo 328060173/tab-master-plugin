@@ -35,6 +35,23 @@
  *   - recovery alarm name 用 LIVE_RECOVERY_ALARM_NAME（≠ BACKUP_ALARM_NAME 定时备份闹钟）
  */
 
+import { safeSet, safeRemove } from "~lib/safeStorage"
+import { toPure } from "~lib/toPure"
+import {
+  BACKUP_KEYS,
+  LIVE_SNAPSHOT_ID,
+  currentLimits,
+  type BackupFile,
+  type LiveBlob,
+  type SnapshotSource,
+} from "~types/backup"
+import { buildBackupFileFromTabs } from "./exporters"
+import { uuidV4 } from "./fingerprint"
+import { filterBackupableTabs } from "./urlFilter"
+import { sanitizeState, sanitizeSettings, sanitizeLiveBlob } from "./sanitize"
+import { readBackupSettings, readOrCreateDeviceId } from "./settingsAccess"
+import { enqueueBackupOperation } from "./swDispatch"
+
 /** 活档防抖间隔（D2=500ms，需求文档 §9 决策） */
 const LIVE_DEBOUNCE_MS = 500
 /**
