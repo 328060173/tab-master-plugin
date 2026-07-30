@@ -8,16 +8,14 @@
     <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png" />
     <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png" />
     <style>
-      /* ===== 首屏 Loading（MV3 sidepanel 白屏治理，2026-07-30）=====
-       * 问题：Chrome sidepanel 容器首次激活 → HTML 解析 → JS bundle → Vue mount，
-       *   HTML 解析前是 Chrome 自身白屏（#app-loading div 还没渲染）。二次打开 JS 缓存快但仍有一瞬白。
-       * 解法（大模型方案 C）：
-       *   1. html/body 直接设背景色——消除纯白，至少品牌底色（CSS 在 head，HTML 一解析 body 就上色）
-       *   2. body::before 伪元素 spinner——CSS 一解析就显示，不依赖 body 内 div 渲染
-       *   3. body.app-ready 时隐藏 loading（Vue mount 后加 class，不删 DOM，出错仍可见）
-       *   4. 超时兜底：JS 5s 没加 app-ready，显示「加载超时，点击刷新」
-       * 注意：Chrome 容器激活到 HTML 解析之间的白屏无法用 CSS 消除（CSS 也在 HTML 里），
-       *   本方案只覆盖 HTML 解析后到 Vue mount 前的阶段。
+      /* ===== 首屏 Loading（纯 HTML+CSS，无 inline script，守 MV3 CSP）=====
+       * HTML 解析后即显示 spinner + 品牌底色，消除纯白屏；Vue mount 后 sidepanel.vue
+       * onMounted 加 body.app-ready class，CSS display:none 隐藏 loading（不删 DOM，出错仍可见）。
+       * 注意：
+       *   - 不能用 body::before 做 spinner（skin-overlay.css 已用 body::before 显示主题背景图，会冲突）
+       *   - 不能用 inline <script>（MV3 CSP 禁止 inline script）——超时兜底不在此做
+       *   - Chrome sidepanel 容器激活到 HTML 解析之间的白屏 CSS 无法消除（CSS 也在 HTML 里）
+       *   - app-ready 后 body 透明，让 sidepanel.vue 的 body 背景 + skin-overlay 主题背景图透出
        */
       html, body {
         margin: 0;
@@ -25,10 +23,7 @@
         height: 100%;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
       }
-      /* loading 阶段（未 app-ready）给白底，消除纯白屏；app-ready 后透明让 sidepanel.vue
-         的 body 背景色 + skin-overlay.css 的 body::before 主题背景图透出。
-         注意：不能用 body::before 做 loading spinner——skin-overlay.css 已用 body::before
-         显示主题背景图，会冲突覆盖。loading spinner 放 #app-loading div 内。 */
+      /* loading 阶段（未 app-ready）品牌底色；app-ready 后透明让主题背景图透出 */
       body:not(.app-ready) {
         background-color: #f8fafc;
       }
@@ -72,16 +67,9 @@
         font-size: 12px;
         color: #9ca3af;
       }
-      /* Vue mount 后加 app-ready class，隐藏 loading（不删 DOM，出错仍可见） */
+      /* Vue mount 后加 app-ready class 隐藏 loading（不删 DOM，Vue 出错 loading 仍可见） */
       body.app-ready #app-loading {
         display: none;
-      }
-      /* 超时兜底：5s 没加 app-ready，显示刷新提示（JS 挂了也能看到） */
-      body.timeout #app-loading .sp-sub::after {
-        content: "（加载超时，点击刷新页面）";
-        display: block;
-        margin-top: 8px;
-        color: #ef4444;
       }
       @keyframes sp-spin {
         to { transform: rotate(360deg); }
@@ -98,13 +86,5 @@
       <div class="sp-title">浏览器标签大师</div>
       <div class="sp-sub">正在加载…</div>
     </div>
-    <!-- 超时兜底：5s 后 JS 没加 app-ready 则显示刷新提示（纯 HTML+JS 内联，不依赖 Vue） -->
-    <script>
-      setTimeout(function () {
-        if (!document.body.classList.contains('app-ready')) {
-          document.body.classList.add('timeout');
-        }
-      }, 5000);
-    </script>
   </body>
 </html>

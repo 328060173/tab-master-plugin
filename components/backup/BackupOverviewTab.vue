@@ -272,9 +272,7 @@ const listenConfirmMessage =
 function onToggleListenBackup() {
   if (listenBackupEnabled.value) {
     // ON → OFF：直接关闭，无需确认
-    console.info('[backup] 开关：自动监听备份 OFF（写入 settings.listenBackupEnabled=false）')
     void svc.updateSettings({ listenBackupEnabled: false }).then(() => {
-      console.info('[backup] 开关：已关闭，settings.listenBackupEnabled=', settings.value.listenBackupEnabled)
     }).catch((e) => {
       console.warn('[BackupOverview] 自动监听备份关闭失败', e)
     })
@@ -286,9 +284,7 @@ function onToggleListenBackup() {
 
 function onListenConfirm() {
   listenConfirmOpen.value = false
-  console.info('[backup] 开关：自动监听备份 确认开启（写入 settings.listenBackupEnabled=true）')
   void svc.updateSettings({ listenBackupEnabled: true }).then(() => {
-    console.info('[backup] 开关：已开启，settings.listenBackupEnabled=', settings.value.listenBackupEnabled)
   }).catch((e) => {
     console.warn('[BackupOverview] 自动监听备份开启失败', e)
   })

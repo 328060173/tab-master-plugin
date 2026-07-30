@@ -201,7 +201,6 @@ async function writeLiveSnapshot(): Promise<void> {
   const allTabs = await collectTabs()
   const backupable = filterBackupableTabs(allTabs)
   if (backupable.length === 0) {
-    console.info(`[backup] 活档写入跳过：无标签（query ${allTabs.length} 个，可备份 0 个）`)
     clearDirty()
     return
   }
@@ -229,7 +228,6 @@ async function writeLiveSnapshot(): Promise<void> {
     }
     await safeSet({ [BACKUP_KEYS.live]: toPure(blob) }, "backup.live")
     clearDirty()
-    console.info(`[backup] 活档写入 source=live tabsCount=${allTabs.length}`)
     chrome.runtime.sendMessage({ type: "backup:changed", op: "live", traceId: "live" }).catch(() => {})
   } catch (e) {
     // 不静默吞（虚假功能零容忍）。配额超限时停监听 + 提示用户，避免反复失败。
@@ -298,11 +296,9 @@ export function handleLiveBackupAlarm(alarm: chrome.alarms.Alarm): boolean {
 export async function startLiveBackup(): Promise<void> {
   const settings = await readBackupSettings()
   if (!settings.listenBackupEnabled) {
-    console.info('[backup] 开关：startLiveBackup 跳过（listenBackupEnabled=false）')
     return
   }
   cachedEnabled = true
-  console.info('[backup] 开关：自动监听备份 ON（listenBackupEnabled=true）')
   // 立即写一份（不等首次事件），捕获当前已开标签。走 enqueueWrite 串行。
   void enqueueWrite(() => writeLiveSnapshot()).catch((e) =>
     console.warn('[backup] 活档首次写入异常', e)
@@ -331,7 +327,6 @@ export async function stopLiveBackup(): Promise<void> {
   } catch (e) {
     console.warn('[backup] 清活档失败', e)
   }
-  console.info('[backup] 开关：自动监听备份 OFF（listenBackupEnabled=false，已清活档+闹钟+dirty）')
 }
 
 /**
@@ -363,7 +358,6 @@ export async function archiveLiveOnStartup(): Promise<void> {
     const data = await chrome.storage.local.get(BACKUP_KEYS.live)
     const blob = sanitizeLiveBlob(data[BACKUP_KEYS.live])
     if (!blob) {
-      console.info('[backup] onStartup 封存：无活档，跳过')
       return
     }
     const file = blob.snapshot
@@ -387,7 +381,6 @@ export async function archiveLiveOnStartup(): Promise<void> {
     }
     // 清活档（旧数据已封存）
     await safeRemove(BACKUP_KEYS.live, "backup.live")
-    console.info(`[backup] onStartup 封存：已封存 ${archived.snapshot.stats.tabCount} 个标签的历史档`)
   } catch (e) {
     // P0-2：封存异常 → 同样移活档到 pending，避免 finally 覆盖昨晚活档
     console.warn('[backup] onStartup 封存异常，移活档到 livePendingArchive', e)
@@ -437,7 +430,6 @@ async function archivePendingIfNeeded(): Promise<void> {
     const r = await enqueueBackupOperation('backup', { kind: 'archive', file: archived })
     if (r.ok) {
       await safeRemove(BACKUP_KEYS.livePendingArchive, "backup.livePendingArchive")
-      console.info('[backup] pending archive 已封存（上次启动遗留）')
     } else {
       // 仍失败，保留 pending 待下次启动重试（不阻塞当前 live 封存）
       console.warn('[backup] pending archive 仍失败，保留待下次启动重试', r.error)
