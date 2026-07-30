@@ -1625,8 +1625,12 @@ onErrorCaptured((err, _instance, info) => {
 })
 
 onMounted(async () => {
-  // 移除 sidepanel.html 内的首屏 loading 骨架（Vue 已挂载，防残留）
-  document.getElementById('app-loading')?.remove()
+  // 隐藏首屏 loading：加 app-ready class（CSS display:none 隐藏，不删 DOM）。
+  // 用 requestAnimationFrame 等首帧渲染后再隐藏，避免 Vue 内容还没画出来就暴露白底。
+  // 不用 remove()——Vue mount 失败时 loading 仍可见（超时兜底提示刷新）。
+  requestAnimationFrame(() => {
+    document.body.classList.add('app-ready')
+  })
   // 初始化聚焦模式
   if (SUPPORTS_FOCUS_MODE) {
     const result = await restoreFocusState()

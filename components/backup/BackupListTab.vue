@@ -430,7 +430,8 @@ function matchKeyword(label: string | null, keyword: string): boolean {
 }
 
 const filteredSnapshots = computed<SnapshotSummary[]>(() => {
-  // 活档永远置顶，不参与筛选/排序（自动监听-实时，永远 1 条）
+  // 活档（自动监听-实时）参与筛选：选「手动/定时」时不显示活档，选「全部/自动监听」时置顶显示。
+  // matchType 对活档 source=auto.listen：命中 all/listen，不命中 manual/timer。
   const all = displaySnapshots.value
   const live = all.find(isLive) || null
   const rest = all.filter((s) => !isLive(s))
@@ -440,7 +441,12 @@ const filteredSnapshots = computed<SnapshotSummary[]>(() => {
     if (!matchKeyword(s.label, applied.keyword)) return false
     return true
   }).sort((a, b) => b.createdAt - a.createdAt)
-  return live ? [live, ...filtered] : filtered
+  // 活档若通过筛选则置顶，否则不显示
+  const liveVisible =
+    live && matchType(live.source, applied.type)
+      && matchTimeRange(live.createdAt, applied.timeRange)
+      && matchKeyword(live.label, applied.keyword)
+  return liveVisible ? [live, ...filtered] : filtered
 })
 
 const pageSize = ref<number>(50)
