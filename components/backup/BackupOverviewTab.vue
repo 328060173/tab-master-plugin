@@ -35,6 +35,13 @@
           </div>
         </div>
         <div class="flex items-start gap-2">
+          <Radio :size="16" class="mt-0.5 text-emerald-500 shrink-0" />
+          <div class="flex-1">
+            <p class="font-medium text-gray-900 dark:text-gray-100">自动监听备份（可选）</p>
+            <p class="text-gray-600 dark:text-gray-300 mt-0.5">开着就持续保存最新标签，关机、崩溃后下次打开能恢复。下班关电脑、第二天一键恢复整套标签，非 100% 保证。</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-2">
           <AlertTriangle :size="16" class="mt-0.5 text-amber-500 shrink-0" />
           <div class="flex-1">
             <p class="font-medium text-gray-900 dark:text-gray-100">数据存在本地，注意保留</p>
@@ -231,7 +238,7 @@
  * 广告数据来自 useBackupPageAd 单例（与左菜单辅位共享同一次请求）。
  */
 import { computed, ref } from "vue"
-import { Shield, Save, Settings, Download, Upload, ArrowLeftRight, AlertTriangle } from "@lucide/vue"
+import { Shield, Save, Settings, Download, Upload, ArrowLeftRight, AlertTriangle, Radio } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
 import { currentLimits } from "~types/backup"

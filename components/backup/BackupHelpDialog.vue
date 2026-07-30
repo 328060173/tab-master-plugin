@@ -59,8 +59,16 @@
           <!-- 自动备份 -->
           <section>
             <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">自动备份</h3>
-            <p>开启后插件按设定间隔自动备份，崩溃也能找回，不用你手动操作。默认只在定时触发，可在设置里勾选"标签关闭时""窗口关闭时""电脑空闲时"额外备份。</p>
+            <p>开启后插件按设定间隔（如每 10 分钟）自动备份一次，崩溃也能找回，不用你手动操作。适合平时挂着不用管，定期留底。</p>
             <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">去哪用：备份管理 → 备份概览 → 自动备份</p>
+          </section>
+
+          <!-- 自动监听备份 -->
+          <section>
+            <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">自动监听备份</h3>
+            <p>开启后，插件会持续监听你的标签变化并自动保存最新状态。关机、关浏览器、甚至崩溃断电后，下次打开浏览器都能恢复到最近一次保存的标签。适合下班直接关电脑、第二天开机一键恢复整套标签。</p>
+            <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">受浏览器机制限制，崩溃或断电可能丢失最近极短时间内的变更，非 100% 保证。建议同时开启「自动备份」双保险。</p>
+            <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">去哪用：备份管理 → 备份概览 → 自动监听备份</p>
           </section>
 
           <!-- 导入 -->
@@ -97,7 +105,7 @@
               </div>
               <div>
                 <p class="font-medium text-gray-700 dark:text-gray-200">Q：手动备份和自动备份的区别？</p>
-                <p class="mt-0.5">A：手动备份是你主动存的，最多 {{ BACKUP_RULES.manualMaxSnapshots }} 条，永不自动删；自动备份是插件按频率自己存的，受保留条数（{{ BACKUP_RULES.maxSnapshots }} 条）和天数（{{ BACKUP_RULES.retentionDays }} 天）限制，超出自动清理最早的。</p>
+                <p class="mt-0.5">A：手动备份是你主动存的，最多 {{ BACKUP_RULES.manualMaxSnapshots }} 条，永不自动删；自动备份是插件按频率自己存的，受保留条数（{{ BACKUP_RULES.maxSnapshots }} 条）和天数（{{ BACKUP_RULES.retentionDays }} 天）限制，超出自动清理最早的。另还有「自动监听备份」，持续保存最新状态，关机崩溃后可恢复，与定时备份不冲突可同时开。</p>
               </div>
               <div>
                 <p class="font-medium text-gray-700 dark:text-gray-200">Q：导入的标签会进入备份列表吗？</p>
