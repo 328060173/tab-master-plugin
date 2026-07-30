@@ -67,7 +67,7 @@
           <section>
             <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">自动监听备份</h3>
             <p>开启后，插件会持续监听你的标签变化并自动保存最新状态。关机、关浏览器、甚至崩溃断电后，下次打开浏览器都能恢复到最近一次保存的标签。适合下班直接关电脑、第二天开机一键恢复整套标签。</p>
-            <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">受浏览器机制限制，崩溃或断电可能丢失最近极短时间内的变更，非 100% 保证。建议同时开启「自动备份」双保险。</p>
+            <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">正常关机、关浏览器都能恢复；崩溃或断电也能恢复到最近一次保存。建议同时开启「自动备份」，双开最大化保证标签不丢失。</p>
             <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">去哪用：备份管理 → 备份概览 → 自动监听备份</p>
           </section>
 

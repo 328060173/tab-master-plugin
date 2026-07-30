@@ -38,7 +38,7 @@
           <Radio :size="16" class="mt-0.5 text-emerald-500 shrink-0" />
           <div class="flex-1">
             <p class="font-medium text-gray-900 dark:text-gray-100">自动监听备份（可选）</p>
-            <p class="text-gray-600 dark:text-gray-300 mt-0.5">开着就持续保存最新标签，关机、崩溃后下次打开能恢复。下班关电脑、第二天一键恢复整套标签，非 100% 保证。</p>
+            <p class="text-gray-600 dark:text-gray-300 mt-0.5">开着就持续保存最新标签，关机、崩溃后下次打开能恢复。下班关电脑、第二天一键恢复整套标签，正常情况不会丢失。</p>
           </div>
         </div>
         <div class="flex items-start gap-2">
@@ -120,7 +120,7 @@
           ></span>
         </button>
         <span class="text-[11px] text-gray-500 dark:text-gray-400 max-w-[260px] leading-tight">
-          持续监听标签变化自动备份。浏览器启动时封存上一会话为历史备份；关机、崩溃、断电后，下次启动可恢复到最近一次自动保存的状态。非 100% 保证。
+          持续监听标签变化自动备份。浏览器启动时封存上一会话为历史备份；关机、崩溃、断电后，下次启动可恢复到最近一次自动保存的状态。建议与「自动备份」同时开启，最大化保证标签不丢失。
         </span>
       </div>
 
@@ -274,7 +274,7 @@ const listenBackupEnabled = computed(() => settings.value.listenBackupEnabled)
  */
 const listenConfirmOpen = ref(false)
 const listenConfirmMessage =
-  '开启后，后台持续监听标签变化并自动备份（约 500ms 防抖聚合写入）。\n\n浏览器启动时，会自动把上一会话的标签保存为一份历史备份。\n\n能恢复到最近一次自动保存的状态：\n• 正常关机 / 关浏览器：可恢复\n• 浏览器崩溃、强制结束进程、电脑断电：大概率可恢复到最近一次落盘（最多丢最近极短时间内的变更）\n\n受浏览器机制限制（后台服务会休眠），非 100% 保证。建议同时开启「自动备份」（定时备份）双保险，或用手动备份兜底。'
+  '开启后，后台持续监听标签变化并自动保存最新标签。\n\n浏览器启动时，会自动把上一会话的标签保存为一份历史备份。\n\n正常情况标签不会丢失：\n• 正常关机 / 关浏览器：下次打开可恢复\n• 浏览器崩溃、强制结束进程、电脑断电：可恢复到最近一次保存的状态\n\n由于浏览器和各版本差异，建议同时开启「自动备份」（定时备份），双开最大化保证标签不丢失。'
 
 function onToggleListenBackup() {
   if (listenBackupEnabled.value) {
