@@ -4,6 +4,11 @@
  * 这些类型只在 lib/backup/ 内部流转，不暴露给 UI 层，所以放模块内不放全局 types/。
  */
 
+import type { BackupFile } from "~types/backup"
+
+/** M3：archive 透传的已构建快照文件（与 BackupFile 同构，独立命名避免循环依赖） */
+export type BackupFileLike = BackupFile
+
 /** 备份操作类型 */
 export type BackupOp = "backup" | "restore" | "delete" | "import" | "clear" | "lock"
 
@@ -96,6 +101,9 @@ export type BackupOpPayload =
   | { kind: "import"; file: unknown; format: string }
   | { kind: "clear" }
   | { kind: "lock"; snapshotId: string; locked: boolean; reason?: string }
+  // M3：自动监听备份活档封存——file 已由 archiveLiveOnStartup 构建好（克隆+新 uuid），
+  //   透传给 coordination 直接 persistSnapshot，不重新采集（区别于 backup kind 调 runSwBareBackup）
+  | { kind: "archive"; file: BackupFileLike }
 
 export interface BackupResponse {
   ok: boolean

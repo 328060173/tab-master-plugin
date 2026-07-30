@@ -5,7 +5,7 @@
  * 原先 SW 只广播 backup:trigger 给 UI，UI 收不到消息 → 定时/启动备份丢失。
  * 本模块让 SW 直接在 service worker 上下文里执行备份：
  * 读设置 → chrome.tabs.query 全量 → collectMeta → buildSnapshot → 返回 file
- * → 由外层 runBackupWithCoordination 统一写 IndexedDB + GFS + state。
+ * → 由外层 runBackupWithCoordination 统一写 IndexedDB + 保留策略清理 + state。
  *
  * P0-4：本模块只负责"构建快照文件 + 更新 state 元信息"，不再写 storage.local cache。
  * 快照真值落 IndexedDB 由 coordination 层（persistSnapshot）统一处理，避免双写漂移。
@@ -33,28 +33,21 @@ import {
 } from "~types/backup"
 import { type BuildSnapshotOptions } from "./snapshotBuilder"
 import { buildBackupFileFromTabs } from "./exporters"
-import { uuidV4 } from "./fingerprint"
 import {
-  sanitizeSettings,
   sanitizeState,
 } from "./sanitize"
 import { cleanupExpiredBackupLock } from "./lock"
 import { filterBackupableTabs } from "./urlFilter"
+import { readBackupSettings, readOrCreateDeviceId } from "./settingsAccess"
 
-/** 读备份设置（防御性，防脏数据） */
+/** 读备份设置（M4：统一走 settingsAccess.readBackupSettings，口径与 liveSnapshot/swDispatch 一致） */
 async function readSettings(): Promise<BackupSettings> {
-  const data = await chrome.storage.local.get(BACKUP_KEYS.settings)
-  return sanitizeSettings(data[BACKUP_KEYS.settings])
+  return readBackupSettings()
 }
 
-/** 读/生成 deviceId */
+/** 读/生成 deviceId（M4：统一走 settingsAccess.readOrCreateDeviceId） */
 async function getDeviceId(): Promise<string> {
-  const data = await chrome.storage.local.get(BACKUP_KEYS.deviceId)
-  const existing = data[BACKUP_KEYS.deviceId]
-  if (typeof existing === "string" && existing) return existing
-  const id = uuidV4()
-  await safeSet({ [BACKUP_KEYS.deviceId]: id }, "backup")
-  return id
+  return readOrCreateDeviceId()
 }
 
 /** 缓存大小（getBytesInUse Chrome 136+，降级估算） */
@@ -71,10 +64,12 @@ async function getCacheBytesInUse(): Promise<number> {
 
 function mapSource(source: BackupTriggerSource): SnapshotSource {
   if (source === "auto.timer") return "auto.timer"
-  if (source.startsWith("auto.event")) return "auto.event"
+  if (source === "auto.event.startup") return "auto.event"
   if (source === "manual") return "manual"
-  if (source === "preRestore") return "preRestore"
-  return "import"
+  // m1：auto.listen 不经 runSwBareBackup（活档写入走 liveSnapshot.ts 独立路径，封存走
+  //   coordination 透传 file）。此处为类型完备性兜底——运行时不应到达，返回 auto.listen
+  //   以防误调用时 source 被错标为 import。
+  return "auto.listen"
 }
 
 /** SW 侧构建快照文件（复用 buildBackupFileFromTabs，统一 BackupFile 外层包装） */
@@ -94,7 +89,7 @@ async function buildSwSnapshotFile(
 
 /**
  * SW 侧更新 state 元信息（lastBackupAt/source/error）。
- * snapshotCount/cacheBytes 由 coordination 层在 persistSnapshot + GFS 后刷新。
+ * snapshotCount/cacheBytes 由 coordination 层在 persistSnapshot + 保留策略清理后刷新。
  * 这里先写 lastBackupAt/source/dirError，让 UI 下次打开能看到上次备份时间。
  */
 async function updateSwState(
@@ -131,39 +126,44 @@ async function persistSwError(msg: string): Promise<void> {
 
 /**
  * SW 裸备份主入口。
- * @param source 触发源（auto.timer / auto.event.startup / ...）
+ * @param source 触发源（auto.timer / auto.event.startup / manual）。
+ *   注：「自动监听备份」活档写入不走本函数（活档是 storage.local 覆盖写，见 liveSnapshot.ts）；
+ *   活档封存为历史档走 persistSnapshot（IndexedDB），也不经本函数。
  * @returns file 构建出的快照文件（供 coordination 写 IndexedDB）
  */
 export async function runSwBareBackup(
   source: BackupTriggerSource
 ): Promise<{ ok: boolean; error?: string; file?: BackupFile }> {
   const settings = await readSettings()
+  console.warn(`[backup] runSwBareBackup 入口 source=${source} enabled=${settings.enabled}`)
+  // 开关校验：本函数只服务定时/启动/手动路径，均校验自动备份总开关 enabled。
+  // 「自动监听备份」(listenBackupEnabled) 独立于本路径，在 liveSnapshot.ts 自行校验。
   if (!settings.enabled) {
-    return { ok: false, error: "备份未开启" }
+    console.warn('[backup] 跳过：自动备份未开启（settings.enabled=false）')
+    return { ok: false, error: '备份未开启' }
   }
 
-  // 0 标签短路（2026-07-28 立）：定时/启动/事件后台备份，无标签不落空快照。
-  // - 后台路径静默跳过（UI 可能没开，不 toast）。
-  // - 返回 {ok:false} 后外层 runBackupWithCoordination 走 if(!result.ok) 分支 →
-  //   writeWalAborted + auditFailed → 不 persistSnapshot、不广播 backup:changed。
-  // - auditFailed 会记一条审计失败记录（无标签跳过属失败，可接受记审计）。
-  // - manual 路径不进本函数（走 UI 层 toast 阻断，见 ManualBackupDialog/ExportCurrentDialog）。
+  // 标签采集：定时/启动/手动路径走 chrome.tabs.query（实时全量，无需镜像）。
   const allTabs = await chrome.tabs.query({})
+  // 0 标签短路（2026-07-28 立）：定时/启动后台备份，无标签不落空快照。
   if (filterBackupableTabs(allTabs).length === 0) {
-    return { ok: false, error: "无标签，跳过" }
+    console.warn('[backup] 跳过：无标签')
+    return { ok: false, error: '无标签，跳过' }
   }
 
   // P0-4: 锁由外层 runBackupWithCoordination（tryAcquireCoord）统一管理，此处不再单独加锁
-  // 调用链：triggerTimer/Startup → enqueueBackupOperation → runBackupWithCoordination(tryAcquireCoord) → executeBackupOp → 本函数
   try {
     const file = await buildSwSnapshotFile(source, allTabs)
     const dirError = settings.dirEnabled ? "目录备份待UI侧补" : null
     await updateSwState(file.snapshot, file.snapshot.source, dirError, source)
+    console.warn(
+      `[backup] 备份结果 ok=true source=${source} tabsCount=${allTabs.length}`
+    )
     return { ok: true, file }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     await persistSwError(msg)
-    console.warn("[swBackup] 失败", e)
+    console.warn(`[backup] 备份结果 ok=false source=${source} error=${msg}`, e)
     return { ok: false, error: msg }
   }
 }

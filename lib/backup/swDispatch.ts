@@ -17,12 +17,13 @@
  * 兼容：Chrome 88+ / Edge 88+（参见 [[constraint-target-platforms]]）
  */
 
-import { BACKUP_KEYS, BACKUP_ALARM_NAME, DEFAULT_BACKUP_SETTINGS, type BackupSettings } from '~types/backup'
+import { BACKUP_ALARM_NAME, type BackupSettings } from '~types/backup'
 import { runSwBareBackup } from '~lib/backup/swBackup'
 import { runBackupWithCoordination, listSnapshots } from '~lib/backup/coordination'
 import { recoverFromWal, purgeOldWal } from '~lib/backup/wal'
 import { purgeExpiredAudit, getRecentAuditLogs } from '~lib/backup/auditLog'
 import { migrateStorageLocalToIndexedDb } from '~lib/backup/migration'
+import { readBackupSettings } from '~lib/backup/settingsAccess'
 import type { BackupMessage, BackupResponse, BackupOp, BackupOpPayload } from '~lib/backup/types'
 import type { CoordinationResult } from '~lib/backup/coordination'
 
@@ -68,10 +69,14 @@ async function executeBackupOp(
 ): Promise<CoordinationResult> {
   // backup 操作：调 runSwBareBackup（构建 file + 更新 state），返回 file 供 coordination 写 IndexedDB
   if (op === 'backup') {
+    // M3：archive 透传已构建好的 file（活档封存），不重新采集，直接交 coordination 持久化
+    if (payload.kind === 'archive') {
+      return { ok: true, snapshot: payload.file }
+    }
     const source = payload.kind === 'auto-backup' ? payload.source : 'manual'
     const r = await runSwBareBackup(source as Parameters<typeof runSwBareBackup>[0])
     if (!r.ok) return { ok: false, error: r.error || '备份失败' }
-    // 把 file 透传给 coordination，由其 persistSnapshot + 校验 + GFS + 广播
+    // 把 file 透传给 coordination，由其 persistSnapshot + 校验 + 保留策略清理 + 广播
     return { ok: true, snapshot: r.file }
   }
   // restore/delete/import/clear/lock：这些目前由 UI 侧 useBackupService 直接处理（走消息后改造）
@@ -79,17 +84,12 @@ async function executeBackupOp(
   return { ok: false, error: `操作 ${op} 暂未收口到 SW 队列（P0-4-7+改造中）` }
 }
 
-/** 从 storage.local 读取备份设置（失败兜底默认值） */
+/**
+ * 从 storage.local 读取备份设置（M4：统一走 readBackupSettings + sanitizeSettings 校验，
+ * 不再用浅合并，口径与 liveSnapshot/swBackup 一致）。
+ */
 async function loadBackupSettings(): Promise<BackupSettings> {
-  try {
-    const data = await chrome.storage.local.get(BACKUP_KEYS.settings)
-    const raw = data[BACKUP_KEYS.settings]
-    return (raw && typeof raw === 'object'
-      ? { ...DEFAULT_BACKUP_SETTINGS, ...(raw as Partial<BackupSettings>) }
-      : { ...DEFAULT_BACKUP_SETTINGS }) as BackupSettings
-  } catch {
-    return { ...DEFAULT_BACKUP_SETTINGS }
-  }
+  return readBackupSettings()
 }
 
 /**
@@ -102,7 +102,7 @@ export async function enqueueBackupOperation(
 ): Promise<QueueResult> {
   // 串行：下一个操作等当前完成。catch 吞错防队列中断。
   const result = (backupWriteQueue = backupWriteQueue.then(async () => {
-    // 读设置供 coordination 做 GFS + 上限裁剪
+    // 读设置供 coordination 做保留策略清理 + 上限裁剪
     const settings = await loadBackupSettings()
     return runBackupWithCoordination(op, payload, executeBackupOp, settings)
   }).catch((e) => ({ ok: false, error: e instanceof Error ? e.message : String(e) })))

@@ -6,7 +6,10 @@
       @click="onMaskClick"
     >
       <div
-        class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-[360px] p-5"
+        :class="[
+          'bg-white dark:bg-gray-800 rounded-xl shadow-xl',
+          size === 'lg' ? 'w-[520px] p-6' : 'w-[360px] p-5',
+        ]"
         role="dialog"
         :aria-label="title"
       >
@@ -18,7 +21,10 @@
         <!-- 正文（主体说明） -->
         <div
           v-if="message"
-          class="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed mb-2 whitespace-pre-line"
+          :class="[
+            'text-[13px] text-gray-700 dark:text-gray-300 mb-2 whitespace-pre-line',
+            size === 'lg' ? 'leading-7' : 'leading-relaxed',
+          ]"
         >{{ message }}</div>
 
         <!-- 重点提示（强调原因等关键信息，amber 警示框，比 hint 蓝框更醒目） -->
@@ -83,6 +89,8 @@ const props = defineProps<{
   cancelText?: string
   danger?: boolean
   centerTitle?: boolean
+  /** 弹框尺寸：sm=默认（360px，老调用方零改动）；lg=520px 加大 padding 与行高，用于长文案告知 */
+  size?: 'sm' | 'lg'
 }>()
 const emit = defineEmits<{ confirm: []; cancel: [] }>()
 

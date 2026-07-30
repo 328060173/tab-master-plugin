@@ -1,5 +1,5 @@
 <template>
-  <div ref="containerRef" class="flex items-center px-3 py-1.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-xs shrink-0">
+  <div ref="containerRef" data-onboarding-target="footer" class="flex items-center px-3 py-1.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-xs shrink-0">
     <!-- 状态按钮区，overflow-hidden 防止撑出 -->
     <div class="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
       <button

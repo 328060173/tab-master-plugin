@@ -254,10 +254,7 @@ const sourceLabel = computed(() => {
   switch (s) {
     case 'manual': return '手动备份'
     case 'auto.timer': return '自动备份（定时）'
-    case 'auto.event.tabRemoved':
-    case 'auto.event.windowRemoved':
-    case 'auto.event.idle':
-    case 'auto.event.startup':
+    case 'auto.event':
       return '自动备份（事件）'
     case 'import': return '导入'
     case 'preRestore': return '还原前快照'

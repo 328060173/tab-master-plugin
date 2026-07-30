@@ -55,6 +55,7 @@
         <div class="relative shrink-0">
           <button
             ref="backupMenuBtnRef"
+            data-onboarding-target="backup"
             class="relative inline-flex items-center gap-1 min-h-[32px] px-2 py-1.5 text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             :aria-expanded="popover.isOpen('backup-menu')"
             aria-haspopup="menu"
@@ -94,6 +95,9 @@
             <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
             <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuManual">
               <Save :size="12" />手动备份
+            </button>
+            <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuRestore">
+              <RotateCcw :size="12" />恢复标签
             </button>
             <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
             <!-- 打开管理页：未阅引导时带小红点（进页点「知道了」后消除） -->
@@ -151,6 +155,7 @@
           <AvatarWithFrame :email="userEmail" :size="32" />
         </button>
         <HeaderMenu
+          data-onboarding-target="settings"
           @open-storage="showStorage = true"
           @reload="reloadPanel"
           @show-toast="showToast"
@@ -228,6 +233,7 @@
           <button
             v-if="activeNav === 'home'"
             ref="homeOptionsTriggerRef"
+            data-onboarding-target="tags-toggle"
             class="p-1 rounded shrink-0 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600"
             title="显示选项"
             @click.stop="popover.toggle('home-toolbar-options', homeOptionsTriggerRef)">
@@ -285,6 +291,7 @@
     <!-- Tag Bar（仅普通态显示） -->
     <TagBar
       v-if="activeNav === 'home' && focusMode === 'normal' && settings.homeTagBarVisible"
+      data-onboarding-target="tags"
       :tags="customTags"
       :active-tags="activeTagFilters"
       :tab-count-by-tag="tabCountByTag"
@@ -299,6 +306,7 @@
     <!-- Toolbar（普通/选择态显示）。批量按钮只看 isBatchMode 本身，不被聚焦选择态污染 -->
     <AppToolbar
       v-if="(activeNav === 'home' && focusMode === 'normal') || focusMode === 'selecting'"
+      data-onboarding-target="view"
       :is-later-page="false"
       :view-mode="viewMode" :sort-mode="sortMode" :can-go-back="canGoBack" :can-go-forward="canGoForward"
       @view-change="setViewMode" @sort-change="setSortMode"
@@ -743,6 +751,15 @@
       />
     </ErrorBoundary>
 
+    <!-- 新手引导：首次打开 sidepanel 显示一次，完成/跳过写 chrome.storage.local 标志 -->
+    <ErrorBoundary scope="onboarding">
+      <OnboardingGuide
+        v-if="showOnboarding"
+        @done="onOnboardingDone"
+        @skip="onOnboardingSkip"
+      />
+    </ErrorBoundary>
+
   </div>
 </template>
 
@@ -752,7 +769,7 @@ import { useToast } from "~composables/useToast"
 import { safeSet } from "~lib/safeStorage"
 import { installGlobalCapture, logError } from "~composables/useLogger"
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, provide, onErrorCaptured } from "vue"
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, FolderOpen, Plus, Clock, Tag, XCircle, LogIn, MoreHorizontal, MoreVertical, Shield, AlertTriangle, Save, Settings, Upload, Download } from "@lucide/vue"
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Zap, CheckSquare, XSquare, X, RefreshCw, Folder, FolderOpen, Plus, Clock, Tag, XCircle, LogIn, MoreHorizontal, MoreVertical, Shield, AlertTriangle, Save, Settings, Upload, Download, RotateCcw } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import UpdateBanner from "~components/UpdateBanner.vue"
 import AdBanner from "~components/AdBanner.vue"
@@ -797,6 +814,7 @@ import ConfirmDialog from "~components/ConfirmDialog.vue"
 import DetectReviewDialog from "~components/DetectReviewDialog.vue"
 import { detectDuplicates as detectDuplicatesFn, detectUnused as detectUnusedFn, UNUSED_THRESHOLDS, type DuplicateGroup } from "~composables/useCleanup"
 import FocusHelpBubble from "~components/FocusHelpBubble.vue"
+import OnboardingGuide from "~components/OnboardingGuide.vue"
 import FocusSelectBar from "~components/FocusSelectBar.vue"
 import FocusBanner from "~components/FocusBanner.vue"
 import GroupListPage from "~components/GroupListPage.vue"
@@ -888,14 +906,15 @@ function toggleBackupMenu(e: MouseEvent) {
 }
 function closeBackupMenu() { popover.close("backup-menu") }
 /** 跳独立页并带 action + page query：action 开弹框（一次性），page 定位页面（刷新可恢复） */
-function openBackupPage(action: "manual" | "import" | "export" | "manage") {
-  // action → page 映射：manual/export/manage 在概览页、import 跳导入管理
+function openBackupPage(action: "manual" | "import" | "export" | "manage" | "restore") {
+  // action → page 映射：manual/export/manage 在概览页、import 跳导入管理、restore 跳列表
   // 2026-07-28：manage 改跳概览（用户从侧栏「打开管理页」默认看概览，非列表）
-  const pageMap: Record<"manual" | "import" | "export" | "manage", "overview" | "list" | "import"> = {
+  const pageMap: Record<"manual" | "import" | "export" | "manage" | "restore", "overview" | "list" | "import"> = {
     manual: "overview",
     import: "import",
     export: "overview",
     manage: "overview",
+    restore: "list",
   }
   const page = pageMap[action]
   try {
@@ -909,6 +928,8 @@ function onBackupMenuManual() { closeBackupMenu(); openBackupPage("manual") }
 function onBackupMenuImport() { closeBackupMenu(); openBackupPage("import") }
 function onBackupMenuExport() { closeBackupMenu(); openBackupPage("export") }
 function onBackupMenuManage() { closeBackupMenu(); openBackupPage("manage") }
+/** 恢复标签：跳备份列表页（不直接执行恢复，由用户在列表选档恢复） */
+function onBackupMenuRestore() { closeBackupMenu(); openBackupPage("restore") }
 
 // ========== 顶部「聚焦」下拉菜单 ==========
 const focusMenuBtnRef = ref<HTMLElement | null>(null)
@@ -1249,6 +1270,15 @@ const selectAllCheckboxRef = ref<HTMLInputElement | null>(null)
 const batchActiveSubmenu = ref<"group" | "tag" | null>(null)
 const batchSubmenuAnchorRect = ref<DOMRect | null>(null)
 const showStorage = ref(false)
+/** 新手引导是否显示（首次打开且未完成时为 true，完成/跳过后写 storage 标志） */
+const showOnboarding = ref(false)
+const onOnboardingDone = () => {
+  showOnboarding.value = false
+  showToast('开始使用浏览器标签大师，标签再多也井井有条。')
+}
+const onOnboardingSkip = () => {
+  showOnboarding.value = false
+}
 const contentRef = ref<HTMLElement | null>(null)
 const { toastMsg, showToast } = useToast()
 const ctxMenu = ref<{ tab: TabItem; x: number; y: number } | null>(null)
@@ -1595,6 +1625,8 @@ onErrorCaptured((err, _instance, info) => {
 })
 
 onMounted(async () => {
+  // 移除 sidepanel.html 内的首屏 loading 骨架（Vue 已挂载，防残留）
+  document.getElementById('app-loading')?.remove()
   // 初始化聚焦模式
   if (SUPPORTS_FOCUS_MODE) {
     const result = await restoreFocusState()
@@ -1624,6 +1656,22 @@ onMounted(async () => {
     }
   } catch (e) {
     console.warn('[sidepanel] 读取登录态失败', e)
+  }
+
+  // 新手引导：读 chrome.storage.local 标志，未完成且处于首页普通态时延迟 300ms 显示
+  // （延迟 300ms 等主界面渲染完，避免与首屏渲染抢资源导致白屏；引导本体由 OnboardingGuide 自管）
+  try {
+    const ob = await chrome.storage.local.get('tabMasterOnboardingDone')
+    if (!ob?.tabMasterOnboardingDone && focusMode.value === 'normal' && activeNav.value === 'home') {
+      setTimeout(() => {
+        // 再次校验状态（300ms 内用户可能切了页/进了聚焦）
+        if (!showOnboarding.value && focusMode.value === 'normal' && activeNav.value === 'home') {
+          showOnboarding.value = true
+        }
+      }, 300)
+    }
+  } catch (e) {
+    console.warn('[sidepanel] 读取新手引导标志失败', e)
   }
 })
 

@@ -71,7 +71,7 @@ export async function getSnapshotFile(id: string): Promise<BackupFile | null> {
   return getSnapshotFileFromStore(id)
 }
 
-/** 写入外部导入的快照（IndexedDB + checksum + GFS + 上限裁剪） */
+/** 写入外部导入的快照（IndexedDB + checksum + 上限裁剪 FIFO） */
 export async function appendImportedSnapshot(
   deps: SnapshotMgmtDeps,
   file: BackupFile

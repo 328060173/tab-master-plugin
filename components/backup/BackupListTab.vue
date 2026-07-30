@@ -104,23 +104,23 @@
           </thead>
           <tbody class="divide-y divide-gray-100 dark:divide-gray-700/50">
             <tr
-              v-for="s in pagedSnapshots"
+              v-for="(s, idx) in pagedSnapshots"
               :key="s.id"
-              class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+              :class="['transition-colors', isLatestRow(idx) ? 'bg-blue-50/60 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30']"
             >
-              <!-- 备份时间 -->
+              <!-- 备份时间（活档/最新一行通过行背景高亮引导，不再加「最近」徽章——活档已标「自动监听-实时」） -->
               <td class="px-3 py-2 text-gray-700 dark:text-gray-200 whitespace-nowrap">
                 {{ formatTime(s.createdAt) }}
               </td>
               <!-- 备份类型 -->
               <td class="px-3 py-2">
                 <span
-                  :class="['inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium', typeBadgeClass(s.source)]"
+                  :class="['inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium', typeBadgeClass(s)]"
                 >
-                  {{ typeLabel(s.source) }}
+                  {{ typeLabel(s) }}
                 </span>
               </td>
-              <!-- 触发条件（细分：手动/定时/标签关闭时/窗口关闭时/空闲时/启动时/导入/还原前）-->
+              <!-- 触发条件（与 typeLabel 同口径：当前会话/上次会话封存/更早会话封存/手动/定时/启动）-->
               <td class="px-3 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">
                 {{ triggerLabel(s) }}
               </td>
@@ -133,7 +133,7 @@
                   {{ s.status === 'failed' ? '失败' : '成功' }}
                 </span>
               </td>
-              <!-- 备注（inline 编辑） -->
+              <!-- 备注（inline 编辑；活档条目不可编辑——活档随时被覆盖，备注无意义） -->
               <td class="px-3 py-2 text-gray-700 dark:text-gray-200">
                 <template v-if="editingId === s.id">
                   <input
@@ -146,6 +146,9 @@
                     @keydown.esc="editingId = null"
                     @blur="onSaveLabel(s.id)"
                   />
+                </template>
+                <template v-else-if="isLive(s)">
+                  <span class="text-gray-400 dark:text-gray-500">--</span>
                 </template>
                 <template v-else>
                   <button
@@ -166,6 +169,7 @@
               <!-- 操作 -->
               <td class="px-3 py-2 text-right whitespace-nowrap">
                 <div class="inline-flex items-center gap-1">
+                  <!-- 所有行统一 RestoreMenu「还原 ▾」下拉；最新行引导通过行背景高亮体现（同一操作不双标） -->
                   <RestoreMenu
                     :disabled="restoringId === s.id"
                     @select="(target) => onRestore(s.id, target)"
@@ -178,6 +182,7 @@
                     <span>导出</span>
                   </button>
                   <MoreMenu
+                    v-if="!isLive(s)"
                     @view-detail="onViewDetail(s.id)"
                     @edit-label="onStartEditLabel(s)"
                     @delete="onDelete(s)"
@@ -302,7 +307,7 @@ import { useBackupService } from '~composables/useBackupService'
 import { useBackupPageAd } from '~composables/useBackupPageAd'
 import { useBackupRestore, type OpenTarget } from '~composables/useBackupRestore'
 import { showToast } from '~composables/useToast'
-import { type SnapshotSource, type SnapshotSummary } from '~types/backup'
+import { type SnapshotSource, type SnapshotSummary, LIVE_SNAPSHOT_ID } from '~types/backup'
 
 const emit = defineEmits<{
   (e: 'open-manual-backup'): void
@@ -312,13 +317,21 @@ const emit = defineEmits<{
 
 const svc = useBackupService()
 const restoreSvc = useBackupRestore()
-const { snapshots } = svc
+const { snapshots, liveSnapshot } = svc
 // 广告多槽位：取列表底位广告（backup-list），adMap 由 backup.vue onMounted 单例 fetchAd 拉取
 const { getAd } = useBackupPageAd()
 
 // ===== 查询条件 =====
 type TimeRange = 'all' | 'custom'
-type TypeFilter = 'all' | 'manual' | 'auto'
+/**
+ * 备份类型筛选（2026-07-30 重构，对齐 5 类分类口径）。
+ * - all：全部
+ * - manual：手动备份（source='manual'）
+ * - timer：定时备份（source='auto.timer' || 'auto.event'，闹钟+启动合并）
+ * - listen：自动监听（source='auto.listen'，含「上一个」+「已过期」）
+ * 活档（自动监听-实时，id=LIVE_SNAPSHOT_ID）永远置顶，不参与筛选。
+ */
+type TypeFilter = 'all' | 'manual' | 'timer' | 'listen'
 
 const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: 'all', label: '全部' },
@@ -328,7 +341,8 @@ const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
 const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
   { value: 'all', label: '全部' },
   { value: 'manual', label: '手动备份' },
-  { value: 'auto', label: '自动备份' },
+  { value: 'timer', label: '定时备份' },
+  { value: 'listen', label: '自动监听' },
 ]
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const
@@ -391,9 +405,20 @@ function matchTimeRange(ts: number, range: TimeRange): boolean {
 function matchType(source: SnapshotSource, type: TypeFilter): boolean {
   if (type === 'all') return true
   if (type === 'manual') return source === 'manual'
-  if (type === 'auto') return source.startsWith('auto.')
+  if (type === 'timer') return source === 'auto.timer' || source === 'auto.event'
+  if (type === 'listen') return source === 'auto.listen'
   return false
 }
+
+/** 活档条目（id=LIVE_SNAPSHOT_ID）置顶：合并活档 + IndexedDB 快照，活档始终排第一 */
+const displaySnapshots = computed<SnapshotSummary[]>(() => {
+  const live = liveSnapshot.value
+  const list = snapshots.value
+  if (!live) return list
+  // 活档可能在 IndexedDB 也有同 id（封存前不会），去重保险
+  if (list.some((s) => s.id === live.id)) return list
+  return [live, ...list]
+})
 
 function matchKeyword(label: string | null, keyword: string): boolean {
   if (!keyword) return true
@@ -405,12 +430,17 @@ function matchKeyword(label: string | null, keyword: string): boolean {
 }
 
 const filteredSnapshots = computed<SnapshotSummary[]>(() => {
-  return snapshots.value.filter((s) => {
+  // 活档永远置顶，不参与筛选/排序（自动监听-实时，永远 1 条）
+  const all = displaySnapshots.value
+  const live = all.find(isLive) || null
+  const rest = all.filter((s) => !isLive(s))
+  const filtered = rest.filter((s) => {
     if (!matchTimeRange(s.createdAt, applied.timeRange)) return false
     if (!matchType(s.source, applied.type)) return false
     if (!matchKeyword(s.label, applied.keyword)) return false
     return true
   }).sort((a, b) => b.createdAt - a.createdAt)
+  return live ? [live, ...filtered] : filtered
 })
 
 const pageSize = ref<number>(50)
@@ -425,26 +455,74 @@ const pagedSnapshots = computed<SnapshotSummary[]>(() => {
   return filteredSnapshots.value.slice(start, start + pageSize.value)
 })
 
-// ===== 类型色标 =====
-function typeLabel(source: SnapshotSource): string {
-  switch (source) {
-    case 'manual': return '手动备份'
-    case 'auto.timer': return '定时备份'
-    case 'auto.event':
-    case 'auto.event.tabRemoved':
-    case 'auto.event.windowRemoved':
-    case 'auto.event.idle':
-    case 'auto.event.startup':
-      return '自动备份'
-    case 'preRestore': return '还原前'
-    default: return source.startsWith('auto.') ? '自动备份' : source
-  }
+/** 活档条目判定（id 固定哨兵 LIVE_SNAPSHOT_ID，source='auto.listen'） */
+function isLive(s: SnapshotSummary): boolean {
+  return s.id === LIVE_SNAPSHOT_ID
 }
 
-function typeBadgeClass(source: SnapshotSource): string {
-  if (source === 'manual') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-  if (source === 'preRestore') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-  // auto.*
+/**
+ * 是否为列表最新一行（filteredSnapshots 已按 createdAt 倒序，第一行=最新）。
+ * 最新一行（活档或最近封存档）置顶 + 「最近」徽章 + 主色恢复按钮引导恢复。
+ * 仅在当前页第一行且为第 1 页时算最新（翻页后不误导）。
+ */
+function isLatestRow(idx: number): boolean {
+  return page.value === 1 && idx === 0
+}
+
+// ===== 类型色标（5 类分类口径，2026-07-30 重构）=====
+/**
+ * source → 列表「备份类型」label 映射表（开闭原则：未来加新 source 只改此表）。
+ * auto.listen 不在此表（由 isLive/isLatestListenArchive 分流为「实时/上一个/已过期」）。
+ * preRestore/import 不进列表（无产生点），不在表中 → 走 default 兜底「未知」。
+ */
+const TYPE_LABEL_MAP: Partial<Record<SnapshotSource, string>> = {
+  manual: '手动备份',
+  'auto.timer': '定时备份',
+  'auto.event': '定时备份',
+}
+
+/**
+ * 列表里最新的 auto.listen 历史档 id（活档除外）。
+ * computed 缓存，typeLabel 查 ref 而非每次重算（O(1)）。
+ * 用于把 auto.listen 拆为「自动监听-上一个」（最新一条）与「自动监听-已过期」（更早）。
+ */
+const latestListenArchiveId = computed<string | null>(() => {
+  const archives = displaySnapshots.value.filter(
+    (s) => !isLive(s) && s.source === 'auto.listen',
+  )
+  if (archives.length === 0) return null
+  let max = archives[0]
+  for (const s of archives) {
+    if (s.createdAt > max.createdAt) max = s
+  }
+  return max.id
+})
+
+/** 是否为最新的 auto.listen 历史档（「自动监听-上一个」） */
+function isLatestListenArchive(s: SnapshotSummary): boolean {
+  const id = latestListenArchiveId.value
+  return id !== null && s.id === id
+}
+
+/** 备份类型列 label（5 类：实时/上一个/已过期/手动备份/定时备份） */
+function typeLabel(s: SnapshotSummary): string {
+  if (isLive(s)) return '自动监听-实时'
+  if (s.source === 'auto.listen') {
+    return isLatestListenArchive(s) ? '自动监听-上一个' : '自动监听-已过期'
+  }
+  return TYPE_LABEL_MAP[s.source] ?? '未知'
+}
+
+/** 类型色标：实时=蓝主色引导还原 / 上一个=emerald / 已过期=emerald 淡色 / 手动=blue-100 / 定时=gray-100 */
+function typeBadgeClass(s: SnapshotSummary): string {
+  if (isLive(s)) return 'bg-blue-600 text-white dark:bg-blue-500'
+  if (s.source === 'auto.listen') {
+    return isLatestListenArchive(s)
+      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+      : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+  }
+  if (s.source === 'manual') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+  // auto.timer / auto.event 合并「定时备份」
   return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
 }
 
@@ -455,28 +533,19 @@ function statusBadgeClass(status: 'success' | 'failed'): string {
 }
 
 /**
- * 触发条件细分文案：优先用 snapshot.trigger（BackupTriggerSource 原始字符串），
- * 缺失则回退 source。区分标签关闭/窗口关闭/空闲/启动，方便用户判断备份来源。
+ * 触发条件列文案（与 typeLabel 同口径）。
+ * 2026-07-30 重构：旧「关闭浏览器」(auto.event.windowRemoved) 虚假已废弃；
+ * preRestore/import 不进列表，删 case 走 default 兜底（反正不产生）。
  */
 function triggerLabel(s: SnapshotSummary): string {
-  const t = s.trigger
-  if (t === 'manual') return '手动备份'
-  if (t === 'auto.timer') return '定时触发'
-  if (t === 'auto.event.tabRemoved') return '标签关闭时'
-  if (t === 'auto.event.windowRemoved') return '窗口关闭时'
-  if (t === 'auto.event.idle') return '空闲时'
-  if (t === 'auto.event.startup') return '启动时'
-  if (t === 'auto.event') return '事件触发'
-  if (t === 'preRestore') return '还原前'
-  if (t === 'import') return '导入'
-  // 回退：按 source 兜底（trigger 缺失时）
-  const src = s.source
-  if (src === 'manual') return '手动备份'
-  if (src === 'auto.timer') return '定时触发'
-  if (src === 'auto.event') return '事件触发'
-  if (src === 'preRestore') return '还原前'
-  if (src === 'import') return '导入'
-  return src
+  if (isLive(s)) return '当前会话'
+  if (s.source === 'auto.listen') {
+    return isLatestListenArchive(s) ? '上次会话封存' : '更早会话封存'
+  }
+  if (s.source === 'manual') return '手动'
+  if (s.source === 'auto.timer' || s.source === 'auto.event') return '定时/启动'
+  // default 兜底（preRestore/import 等不进列表的 source，理论不命中）
+  return s.trigger || s.source
 }
 
 // ===== 标签数显示（口语化文案，只显示实际备份个数，不显示"当时共"）=====

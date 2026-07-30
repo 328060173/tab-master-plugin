@@ -114,9 +114,6 @@
     <AutoBackupConfirmDialog
       :open="autoConfirmOpen"
       :timer-minutes="autoConfirmSettings.timerMinutes"
-      :event-on-tab-removed="autoConfirmSettings.eventOnTabRemoved"
-      :event-on-window-removed="autoConfirmSettings.eventOnWindowRemoved"
-      :event-on-idle="autoConfirmSettings.eventOnIdle"
       :cache-max-snapshots="autoConfirmSettings.cacheMaxSnapshots"
       :retention-days="autoConfirmSettings.retentionDays"
       @confirm="onAutoConfirm"
@@ -287,9 +284,6 @@ const helpOpen = ref(false)
 const autoConfirmOpen = ref(false)
 const autoConfirmSettings = reactive({
   timerMinutes: 10,
-  eventOnTabRemoved: true,
-  eventOnWindowRemoved: true,
-  eventOnIdle: false,
   cacheMaxSnapshots: 30,
   retentionDays: 7,
 })
@@ -325,9 +319,6 @@ async function onEnableAuto() {
   // 填充当前设置到确认框
   const s = svc.settings.value
   autoConfirmSettings.timerMinutes = s.timerMinutes
-  autoConfirmSettings.eventOnTabRemoved = s.eventOnTabRemoved
-  autoConfirmSettings.eventOnWindowRemoved = s.eventOnWindowRemoved
-  autoConfirmSettings.eventOnIdle = s.eventOnIdle
   autoConfirmSettings.cacheMaxSnapshots = s.cacheMaxSnapshots
   autoConfirmSettings.retentionDays = s.retentionDays
   autoConfirmOpen.value = true
@@ -573,6 +564,8 @@ onMounted(() => {
     else if (action === 'export') void onOpenExportOverview()
     // 2026-07-28：manage 跳概览（与 sidepanel openBackupPage pageMap 对齐）
     else if (action === 'manage') { activeMenu.value = 'manage'; manageTab.value = 'overview' }
+    // 2026-07-30：restore 跳列表页（sidepanel「恢复标签」入口，不直接执行恢复）
+    else if (action === 'restore') { activeMenu.value = 'manage'; manageTab.value = 'list' }
 
     // 解析后写回 ?page=（清掉 action 一次性参数，保留 page 供刷新恢复）
     if (history.replaceState) {

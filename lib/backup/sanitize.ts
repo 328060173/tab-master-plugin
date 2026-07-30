@@ -15,6 +15,7 @@ import {
   type BackupFile,
   type BackupSettings,
   type BackupState,
+  type LiveBlob,
   type SnapshotSummary,
 } from "~types/backup"
 import { isFsAccessSupported } from "./fsAccess"
@@ -34,9 +35,9 @@ export function sanitizeSettings(raw: unknown): BackupSettings {
     cacheMaxSnapshots: num(o.cacheMaxSnapshots, DEFAULT_BACKUP_SETTINGS.cacheMaxSnapshots),
     timerMinutes: num(o.timerMinutes, DEFAULT_BACKUP_SETTINGS.timerMinutes),
     retentionDays: num(o.retentionDays, DEFAULT_BACKUP_SETTINGS.retentionDays),
-    eventOnTabRemoved: o.eventOnTabRemoved !== false,
-    eventOnWindowRemoved: o.eventOnWindowRemoved !== false,
-    eventOnIdle: o.eventOnIdle === true,
+    // 2026-07-30 重构：旧 eventOnWindowRemoved 方案虚假已废弃，改为 listenBackupEnabled。
+    // 默认关（与 DEFAULT_BACKUP_SETTINGS 对齐，用户拍板默认关，知情后主动开）。
+    listenBackupEnabled: o.listenBackupEnabled === true,
     restoreMetaOnRestore: o.restoreMetaOnRestore !== false,
   }
 }
@@ -120,5 +121,38 @@ export function toSummary(f: BackupFile): SnapshotSummary {
     // 旧快照（无 status 字段）兜底为 'success'；errorMessage 兜底为 null
     status: s.status === 'failed' ? 'failed' : 'success',
     errorMessage: typeof s.errorMessage === 'string' ? s.errorMessage : null,
+  }
+}
+
+/**
+ * 活档 LiveBlob 防御性读取（2026-07-30 重构 v3）。
+ *
+ * 兼容两种历史形态（迁移期）：
+ *   - 新形态：{ snapshot: BackupFile, dirty: boolean, updatedAt: number }
+ *   - 旧形态：直接是 BackupFile（v2 及之前，无 dirty/updatedAt 包裹）→ 包装为 LiveBlob{dirty:false}
+ *
+ * 损坏（非对象 / snapshot 缺失 / snapshot 不符 BackupFile 骨架）返回 null，调用方按"无活档"处理。
+ * 不在此处校验 snapshot.windows 数组（由调用方按场景决定是否要求 windows，如 archive 要求、recovery 不要求）。
+ */
+export function sanitizeLiveBlob(raw: unknown): LiveBlob | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const o = raw as Record<string, unknown>
+  // 旧形态：直接是 BackupFile（有 schemaVersion/kind/snapshot 顶层字段）
+  if (o.schemaVersion === BACKUP_SCHEMA_VERSION && o.kind === BACKUP_KIND && o.snapshot && typeof o.snapshot === 'object') {
+    return {
+      snapshot: o as unknown as BackupFile,
+      dirty: false,
+      updatedAt: 0,
+    }
+  }
+  // 新形态：{ snapshot, dirty, updatedAt }
+  const snap = o.snapshot
+  if (!snap || typeof snap !== 'object' || Array.isArray(snap)) return null
+  const s = snap as Record<string, unknown>
+  if (s.schemaVersion !== BACKUP_SCHEMA_VERSION || s.kind !== BACKUP_KIND) return null
+  return {
+    snapshot: snap as unknown as BackupFile,
+    dirty: o.dirty === true,
+    updatedAt: typeof o.updatedAt === 'number' && Number.isFinite(o.updatedAt) ? o.updatedAt : 0,
   }
 }

@@ -44,9 +44,6 @@
             <p class="text-xs font-medium text-gray-700 dark:text-gray-200">当前设置：</p>
             <ul class="space-y-0.5 text-[11px] text-gray-600 dark:text-gray-300">
               <li>• 备份频次：每 {{ timerMinutes }} 分钟</li>
-              <li>• 标签关闭时备份：{{ eventOnTabRemoved ? '开' : '关' }}</li>
-              <li>• 窗口关闭时备份：{{ eventOnWindowRemoved ? '开' : '关' }}</li>
-              <li>• 空闲时备份：{{ eventOnIdle ? '开' : '关' }}</li>
               <li>• 自动保留：{{ cacheMaxSnapshots }} 条</li>
               <li>• 保留天数：{{ retentionDays }} 天</li>
             </ul>
@@ -77,18 +74,16 @@
 
 <script setup lang="ts">
 /**
- * 「开启自动备份」确认框。
- * Props: open + 当前设置值（timerMinutes/eventOnTabRemoved/eventOnWindowRemoved/eventOnIdle/cacheMaxSnapshots/retentionDays）
+ * 「开启自动备份」确认框（2026-07-30 重构）。
+ * Props: open + 当前设置值（timerMinutes/cacheMaxSnapshots/retentionDays）
  * Emits: confirm（确认开启）/ cancel（取消/关闭/ESC/遮罩）
+ * 事件触发开关已搬概览页「关闭浏览器备份」独立行，不再此处展示。
  */
 import { X, Settings } from "@lucide/vue"
 
 defineProps<{
   open: boolean
   timerMinutes: number
-  eventOnTabRemoved: boolean
-  eventOnWindowRemoved: boolean
-  eventOnIdle: boolean
   cacheMaxSnapshots: number
   retentionDays: number
 }>()

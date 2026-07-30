@@ -119,7 +119,7 @@ export async function runBackupWithCoordination(
       }
       // 补写 WAL 的 snapshotId（backup 操作时 execute 返回后才知道 id）
       await updateWalSnapshotId(traceId, result.snapshot.snapshot.id)
-      // 保留策略清理（2026-07-28：废 GFS，改按天数 + 按条数）
+      // 保留策略清理（纯条数 FIFO：按天数 + 按条数）
       if (settings && (op === "backup" || op === "import")) {
         await trimExpiredSnapshots(settings.retentionDays)
         await trimToMaxSnapshots(settings.cacheMaxSnapshots)

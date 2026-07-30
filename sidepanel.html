@@ -7,8 +7,67 @@
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png" />
     <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png" />
+    <style>
+      /* ===== 首屏 Loading 骨架（防 sidepanel 异步挂载期间白屏闪现）=====
+       * 纯内联 HTML+CSS，不引外部资源（守资源带宽红线）。
+       * Vue app 挂载点 #__plasmo 渲染内容后，由 sidepanel.vue onMounted 主动移除 #app-loading。
+       * 兜底：若 JS 异常未移除，#__plasmo 内容层（z-index:1）会覆盖在 loading（z-index:0）之上，
+       *      但因 root 透明，仍依赖主动移除——onMounted 第一行移除，确保不残留。
+       * 适配暗色：html.dark 时切深色底 + 浅色字（与 sidepanel.vue 暗色覆盖一致 #1f2937）。
+       */
+      #app-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin: 0;
+        background-color: #ffffff;
+        color: #2563eb;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      }
+      html.dark #app-loading {
+        background-color: #1f2937;
+        color: #93c5fd;
+      }
+      #app-loading .sp-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid currentColor;
+        border-top-color: transparent;
+        border-radius: 50%;
+        opacity: 0.7;
+        animation: sp-spin 0.8s linear infinite;
+      }
+      #app-loading .sp-title {
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+      #app-loading .sp-sub {
+        font-size: 12px;
+        color: #9ca3af;
+      }
+      html.dark #app-loading .sp-sub {
+        color: #9ca3af;
+      }
+      @keyframes sp-spin {
+        to { transform: rotate(360deg); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #app-loading .sp-spinner { animation: none; }
+      }
+    </style>
   </head>
 
   <body>
+    <div id="app-loading" aria-busy="true" aria-live="polite">
+      <div class="sp-spinner" aria-hidden="true"></div>
+      <div class="sp-title">浏览器标签大师</div>
+      <div class="sp-sub">正在加载…</div>
+    </div>
   </body>
 </html>

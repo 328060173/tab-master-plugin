@@ -10,6 +10,7 @@
 export type SnapshotSource =
   | 'auto.timer'
   | 'auto.event'
+  | 'auto.listen'
   | 'manual'
   | 'preRestore'
   | 'import'
@@ -245,9 +246,18 @@ export interface BackupSettings {
   timerMinutes: number
   /** 保留天数。默认 7 */
   retentionDays: number
-  eventOnTabRemoved: boolean
-  eventOnWindowRemoved: boolean
-  eventOnIdle: boolean
+  /**
+   * 自动监听备份开关（2026-07-30 重构，需求文档 docs/req/auto-listen-backup.md）。
+   * 独立于 enabled（自动备份总开关）——用户可只开「自动监听备份」不开自动备份。
+   * 默认 false（用户拍板默认关，知情后主动开）。
+   *
+   * 机制：开关 ON 时持续监听 tabs.onCreated/onUpdated/onRemoved + windows.onCreated/onRemoved，
+   * 防抖 500ms 后从 tabMirror 全量序列化写入活档（storage.local 独立 key，覆盖写）。
+   * 不依赖关浏览器事件（旧「关闭浏览器备份」方案虚假已废弃）——靠平时持续落盘。
+   * 浏览器启动（onStartup）时把活档封存为历史档（source='auto.listen'）入 IndexedDB，
+   * 再清活档开始新会话。崩溃/断电后重启：已落盘活档仍在，onStartup 照样封存。
+   */
+  listenBackupEnabled: boolean
   /**
    * 恢复快照时是否同时恢复标记/稍后处理/设置/分组等元数据。
    * 默认开（用户硬要求第7条：标记/稍后处理等设置也要能存储导入导出 + 预留云同步）。
@@ -267,10 +277,10 @@ export const DEFAULT_BACKUP_SETTINGS: BackupSettings = (() => {
     cacheMaxSnapshots: lim.autoMaxSnapshots,
     timerMinutes: lim.defaultTimerMinutes,
     retentionDays: lim.retentionDays,
-    // 2026-07-28：事件触发默认全关（关标签/关窗口会让备份记录疯涨塞满上限）
-    eventOnTabRemoved: false,
-    eventOnWindowRemoved: false,
-    eventOnIdle: false,
+    // 2026-07-30 重构：旧「关闭浏览器备份」(eventOnWindowRemoved) 方案虚假已废弃，
+    // 改为「自动监听备份」(listenBackupEnabled)——平时事件驱动落盘 + onStartup 封存。
+    // 默认关（用户拍板，知情后主动开）。见 docs/req/auto-listen-backup.md
+    listenBackupEnabled: false,
     restoreMetaOnRestore: true,
   }
 })()
@@ -308,7 +318,43 @@ export const BACKUP_KEYS = {
    * 写入方：SW 裸备份路径 + UI runBackupPipeline；读取方：彼此互斥检查。
    */
   inProgress: 'tabMasterBackupInProgress',
+  /**
+   * 自动监听备份「活档」（2026-07-30 重构 v3，需求文档 docs/req/auto-listen-backup.md）。
+   * 值：LiveBlob（{ snapshot: BackupFile, dirty: boolean, updatedAt: number } 单对象原子覆盖写）。
+   *   - snapshot：活档快照（source='auto.listen'，id 固定为 LIVE_SNAPSHOT_ID 哨兵）
+   *   - dirty：持久化 dirty 标志（合并到对象，替代独立 liveDirty key，避免非原子 lost update）
+   *   - updatedAt：最近一次写入时间戳（诊断用）
+   * 不进 IndexedDB 快照列表；onStartup 时封存为历史档（新 uuid）入 IndexedDB 后清空。
+   * 选 storage.local：活档频繁覆盖写，storage.local 原子快；10MB 单条够用
+   * （标签元信息 JSON 通常远小于 10MB；超限降级见 liveSnapshot.ts）。
+   */
+  live: 'tabMasterBackupLive',
+  /**
+   * 自动监听备份「待封存活档」（2026-07-30 重构 v3，P0-2 丢数据修复）。
+   * 值：LiveBlob。onStartup 封存失败（coordination 异常/失败）时，把当前 live 移到此 key
+   * 保留待下次启动重试，再清 live 放行新会话写——避免 finally 触发的首份写覆盖昨晚活档。
+   * 下次启动 archiveLiveOnStartup 优先封存此 key，再封存当前 live。
+   */
+  livePendingArchive: 'tabMasterBackupLivePendingArchive',
 } as const
+
+/** 活档哨兵 id（列表里活档条目固定用此 id，恢复时 getSnapshotFile 据此读 storage.local） */
+export const LIVE_SNAPSHOT_ID = 'live'
+
+/**
+ * 活档存储结构（2026-07-30 重构 v3，P0-3 原子写修复）。
+ * 把 dirty 合并到 live 对象，替代独立 BACKUP_KEYS.liveDirty key——
+ * 写 live 时 dirty 字段同对象原子覆盖，避免 markDirty 与 writeLiveSnapshot 非原子交叉覆盖 lost update。
+ * markDirty 读改写走 enqueueWrite 串行队列，与 writeLiveSnapshot 互斥。
+ */
+export interface LiveBlob {
+  /** 活档快照（source='auto.listen'，id=LIVE_SNAPSHOT_ID 哨兵） */
+  snapshot: BackupFile
+  /** 持久化 dirty 标志：true=有未落盘变更；writeLiveSnapshot 写成功置 false。SW 休眠丢 timer 时 recovery alarm 读此兜底补写 */
+  dirty: boolean
+  /** 最近一次写入时间戳（诊断用） */
+  updatedAt: number
+}
 
 /** 用户目录元信息（持久化到 storage.local；handle 本身存 IndexedDB） */
 export interface BackupDirMeta {
@@ -433,8 +479,6 @@ export const BACKUP_ALARM_NAME = 'tabMasterBackupTimer'
 /** 备份触发来源（事件备份） */
 export type BackupTriggerSource =
   | 'auto.timer'
-  | 'auto.event.tabRemoved'
-  | 'auto.event.windowRemoved'
-  | 'auto.event.idle'
   | 'auto.event.startup'
+  | 'auto.listen'
   | 'manual'

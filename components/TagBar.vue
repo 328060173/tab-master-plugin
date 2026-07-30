@@ -1,5 +1,5 @@
 <template>
-  <div class="border-b border-gray-100 dark:border-gray-700 px-3 py-2 shrink-0">
+  <div v-bind="$attrs" class="border-b border-gray-100 dark:border-gray-700 px-3 py-2 shrink-0">
     <!-- 空状态引导 -->
     <div
       v-if="tags.length === 0"
@@ -457,6 +457,12 @@
   </div>
 </template>
 
+<script lang="ts">
+// inheritAttrs:false + 根 div v-bind="$attrs"：显式接收 fallthrough 属性
+// （如 sidepanel 传的 data-onboarding-target），避免多根/fragment 场景下
+// Vue 刷 [Vue warn] Extraneous non-props attributes（零容忍红线）
+export default { inheritAttrs: false }
+</script>
 <script setup lang="ts">
 /**
  * 标记栏：筛选 chips（收起态） + 下拉管理 panel（排序/编辑/删除/添加）。

@@ -54,10 +54,10 @@ export const BACKUP_RULES = {
 
 /**
  * 保留策略摘要文案（自动备份设置弹框 / 帮助文档共用）。
- * "自动保留近 X 条备份，每条最多 Y 个标签。大约占用 Z MB，最高不超过 W MB。"
+ * "自动保留近 X 条备份，每条最多 Y 个标签。满 X 条后自动清理最早的，为新的腾出位置。大约占用 Z MB，最高不超过 W MB。"
  */
 export function getRetentionPolicyText(): string {
-  return `自动保留近 ${BACKUP_RULES.maxSnapshots} 条备份，每条最多 ${BACKUP_RULES.maxTabsPerSnapshot} 个标签。大约占用 ${BACKUP_RULES.estimateMb} MB，最高不超过 ${BACKUP_RULES.cacheQuotaMb} MB。`
+  return `自动保留近 ${BACKUP_RULES.maxSnapshots} 条备份，每条最多 ${BACKUP_RULES.maxTabsPerSnapshot} 个标签。满 ${BACKUP_RULES.maxSnapshots} 条后自动清理最早的，为新的腾出位置。大约占用 ${BACKUP_RULES.estimateMb} MB，最高不超过 ${BACKUP_RULES.cacheQuotaMb} MB。`
 }
 
 /** 手动备份策略文案："手动备份最多 N 条，永不自动删除。" */

@@ -1,13 +1,16 @@
 /**
  * 快照存储统一封装 - P0-4 L2
  *
- * 把快照的"写 + 校验 + GFS 清理 + 上限裁剪 + 列表/读取/删除/修改"集中收口到 IndexedDB。
+ * 把快照的"写 + 校验 + 上限裁剪 + 列表/读取/删除/修改"集中收口到 IndexedDB。
  * 替代原先散落在 pipeline/swBackup/snapshotMgmt 的 storage.local cache 读写。
  *
  * 设计：
  * - 写：withChecksum 算校验和 → putSnapshot → 回读 verifySnapshot（防事务内撕裂）。
- * - GFS：selectGfsRemovable 算保留集 → 逐个 deleteSnapshotFromDb。
- * - 上限：超 cacheMaxSnapshots 时剔除 auto.* 项（与原 storage.local 逻辑等价）。
+ * - 清理（纯条数 FIFO）：trimExpiredSnapshots 删超 retentionDays 的 auto.* 项 +
+ *   trimToMaxSnapshots 在 auto.* 超过 maxSnapshots 时删最早的（先进先出）。
+ *
+ * 2026-07-30：废 GFS 分层清理（死代码，无调用方，原 selectGfsRemovable/gfsCleanupSnapshots
+ * 已删除）——实际清理走纯条数 FIFO，与文案"保留近 X 条"一致。
  *
  * 守红线：不直写 storage.local（快照真值只在 IndexedDB）；storage 写 reactive 必 toPure（本模块不写 reactive）。
  */
@@ -20,7 +23,6 @@ import {
   clearSnapshots,
 } from "./db"
 import { withChecksum, verifySnapshot } from "./integrity"
-import { selectGfsRemovable } from "./gfs"
 import { toSummary } from "./sanitize"
 import type {
   BackupFile,
@@ -46,21 +48,6 @@ export async function persistSnapshot(
     return { ok: false, error: "写入后校验失败（快照损坏）" }
   }
   return { ok: true }
-}
-
-/**
- * GFS 清理：按 retentionDays 算保留集，删除可移除项。
- * @returns 被删除的快照 id 列表
- */
-export async function gfsCleanupSnapshots(
-  retentionDays: number
-): Promise<string[]> {
-  const all = await getAllSnapshots()
-  const removable = selectGfsRemovable(all, Date.now(), retentionDays)
-  for (const id of removable) {
-    await deleteSnapshotFromDb(id)
-  }
-  return removable
 }
 
 /**

@@ -93,6 +93,30 @@
         </button>
       </div>
 
+      <!-- 自动监听备份（独立开关，与自动备份并行；2026-07-30 重构，需求文档 docs/req/auto-listen-backup.md） -->
+      <!-- 独立于自动备份总开关：用户可只开此开关不开自动备份；平时事件驱动落盘 + onStartup 封存 -->
+      <div class="inline-flex items-center gap-2 min-h-[44px] px-3 py-1.5 rounded border border-gray-200 dark:border-gray-600">
+        <span class="text-xs text-gray-600 dark:text-gray-300">自动监听备份</span>
+        <button
+          :class="[
+            'relative w-11 h-6 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500',
+            listenBackupEnabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600',
+          ]"
+          role="switch"
+          :aria-checked="listenBackupEnabled"
+          aria-label="自动监听备份开关"
+          @click="onToggleListenBackup"
+        >
+          <span
+            class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
+            :class="listenBackupEnabled ? 'translate-x-5' : ''"
+          ></span>
+        </button>
+        <span class="text-[11px] text-gray-500 dark:text-gray-400 max-w-[260px] leading-tight">
+          持续监听标签变化自动备份。浏览器启动时封存上一会话为历史备份；关机、崩溃、断电后，下次启动可恢复到最近一次自动保存的状态。非 100% 保证。
+        </span>
+      </div>
+
       <button
         class="inline-flex items-center gap-1.5 min-h-[44px] px-3 py-2 text-sm rounded border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
         @click="emit('open-import')"
@@ -183,6 +207,18 @@
         fallback="placeholder"
       />
     </ErrorBoundary>
+
+    <!-- 自动监听备份首次开启告知弹框（诚实口径，需求文档 §2.4 / §7.1） -->
+    <ConfirmDialog
+      :open="listenConfirmOpen"
+      size="lg"
+      title="开启「自动监听备份」？"
+      :message="listenConfirmMessage"
+      confirm-text="确认开启"
+      cancel-text="取消"
+      @confirm="onListenConfirm"
+      @cancel="onListenCancel"
+    />
   </div>
 </template>
 
@@ -194,12 +230,13 @@
  * 文案守 §2 术语（禁黑话）。
  * 广告数据来自 useBackupPageAd 单例（与左菜单辅位共享同一次请求）。
  */
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import { Shield, Save, Settings, Download, Upload, ArrowLeftRight, AlertTriangle } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
 import { currentLimits } from "~types/backup"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
+import ConfirmDialog from "~components/ConfirmDialog.vue"
 import AdSlot from "./AdSlot.vue"
 import BackupTrendChart from "./BackupTrendChart.vue"
 
@@ -216,9 +253,51 @@ const emit = defineEmits<{
 }>()
 
 const svc = useBackupService()
-const { state, snapshots, isBackingUp, enabled, nextBackupAt, firstVisitAcked } = svc
+const { state, snapshots, isBackingUp, enabled, nextBackupAt, firstVisitAcked, settings } = svc
 // 广告多槽位：取概览主位广告（backup-overview），adMap 由 backup.vue onMounted 单例 fetchAd 拉取
 const { getAd } = useBackupPageAd()
+
+/** 自动监听备份开关（独立于自动备份总开关，绑 settings.listenBackupEnabled） */
+const listenBackupEnabled = computed(() => settings.value.listenBackupEnabled)
+
+/**
+ * 自动监听备份首次开启告知弹框（诚实口径，需求文档 §2.4 红线）。
+ * 开关从 OFF → ON 时弹出，告知能力边界 + 机制；取消则回退不开。
+ * 不暗示「关浏览器瞬间备份」（旧方案虚假已废弃）。
+ */
+const listenConfirmOpen = ref(false)
+const listenConfirmMessage =
+  '开启后，后台持续监听标签变化并自动备份（约 500ms 防抖聚合写入）。\n\n浏览器启动时，会自动把上一会话的标签保存为一份历史备份。\n\n能恢复到最近一次自动保存的状态：\n• 正常关机 / 关浏览器：可恢复\n• 浏览器崩溃、强制结束进程、电脑断电：大概率可恢复到最近一次落盘（最多丢最近极短时间内的变更）\n\n受浏览器机制限制（后台服务会休眠），非 100% 保证。建议同时开启「自动备份」（定时备份）双保险，或用手动备份兜底。'
+
+function onToggleListenBackup() {
+  if (listenBackupEnabled.value) {
+    // ON → OFF：直接关闭，无需确认
+    console.info('[backup] 开关：自动监听备份 OFF（写入 settings.listenBackupEnabled=false）')
+    void svc.updateSettings({ listenBackupEnabled: false }).then(() => {
+      console.info('[backup] 开关：已关闭，settings.listenBackupEnabled=', settings.value.listenBackupEnabled)
+    }).catch((e) => {
+      console.warn('[BackupOverview] 自动监听备份关闭失败', e)
+    })
+    return
+  }
+  // OFF → ON：弹告知框，用户确认后才真开启
+  listenConfirmOpen.value = true
+}
+
+function onListenConfirm() {
+  listenConfirmOpen.value = false
+  console.info('[backup] 开关：自动监听备份 确认开启（写入 settings.listenBackupEnabled=true）')
+  void svc.updateSettings({ listenBackupEnabled: true }).then(() => {
+    console.info('[backup] 开关：已开启，settings.listenBackupEnabled=', settings.value.listenBackupEnabled)
+  }).catch((e) => {
+    console.warn('[BackupOverview] 自动监听备份开启失败', e)
+  })
+}
+
+function onListenCancel() {
+  listenConfirmOpen.value = false
+  // 开关回弹：settings.listenBackupEnabled 未改（仍 false），开关 UI 自动 OFF
+}
 
 /** 开关点击：只 emit，由 backup.vue 统一处理开启/关闭逻辑（接管首次备份+跳列表） */
 function onToggleAutoBackup() {

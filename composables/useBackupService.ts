@@ -1,7 +1,7 @@
 /**
  * 标签会话备份服务（单例）- 阶段一完整本地闭环。
  * 范围：设置/状态/缓存持久化 + 手动/定时(alarms)/事件触发备份 + 用户目录(File System Access)+双写降级
- *   + GFS 分层保留 + 首次5条告知 + 本地占用统计。
+ *   + 纯条数 FIFO 保留（trimExpired + trimToMax）+ 首次5条告知 + 本地占用统计。
  * 守红线：独立单例不侵入 useTabManager；只读老 key；写 storage 走 safeSet+toPure；不调 setTabValue；
  *   chrome.tabs.query({}) 全量；定时器用 alarms；监听器初始化注册一次。
  * 恢复/冲突/导入导出 在 useBackupRestore / useBackupIO（基于本单例 cache）。
@@ -51,6 +51,7 @@ import {
   DEFAULT_BACKUP_DIR_META,
   DEFAULT_BACKUP_NOTICE_ACKED,
   DEFAULT_BACKUP_UNDO,
+  LIVE_SNAPSHOT_ID,
   type BackupFile,
   type BackupSettings,
   type BackupState,
@@ -64,22 +65,10 @@ import {
   sanitizeState,
   sanitizeDirMeta,
   sanitizeNoticeAcked,
+  sanitizeLiveBlob,
   toSummary,
 } from "~lib/backup/sanitize"
-const DEBOUNCE_EVENT_MS = 2000
 const DIR_SCAN_CACHE_MS = 60_000
-/**
- * 事件备份去重锁 TTL（ms）。
- * SW 广播 backup:event 后，sidepanel + backup.html 几乎同时收到；
- * 500ms TTL 内只有一个页面能拿到锁 → scheduleEventBackup（内部再 2s 防抖）。
- */
-const EVENT_LOCK_TTL_MS = 500
-/**
- * 事件备份去重锁 storage.local key。
- * 值：{ at: number; nonce: string }。多 UI 上下文竞争时靠 nonce 重读验证赢家。
- * 独立于 BACKUP_KEYS 注册表（本次修复改动隔离，仅动 background.ts + 本文件）。
- */
-const BACKUP_EVENT_LOCK_KEY = 'tabMasterBackupEventLock'
 
 let _instance: ReturnType<typeof useBackupServiceImpl> | null = null
 
@@ -99,6 +88,30 @@ function useBackupServiceImpl() {
 
   const enabled = computed(() => settings.value.enabled)
   const fsSupported = computed(() => isFsAccessSupported())
+  /** 活档摘要（storage.local 独立 key，不进 IndexedDB 列表；UI 列表前置显示「实时」条目） */
+  const liveSnapshot = ref<SnapshotSummary | null>(null)
+
+  /** 读活档并刷新 liveSnapshot ref（活档变更/启动时调）。
+   *  P0-3 v3：活档存 LiveBlob{snapshot, dirty, updatedAt}，从 blob.snapshot 取 BackupFile。
+   *  sanitizeLiveBlob 兼容旧形态（直接 BackupFile 无包裹），迁移期老用户活档也能读。 */
+  async function refreshLiveSnapshot(): Promise<void> {
+    try {
+      const data = await chrome.storage.local.get(BACKUP_KEYS.live)
+      const blob = sanitizeLiveBlob(data[BACKUP_KEYS.live])
+      if (!blob) {
+        liveSnapshot.value = null
+        return
+      }
+      const file = blob.snapshot
+      if (!file.snapshot || !Array.isArray(file.snapshot.windows)) {
+        liveSnapshot.value = null
+        return
+      }
+      liveSnapshot.value = toSummary(file)
+    } catch (e) {
+      console.warn("[useBackupService] 读活档失败", e)
+    }
+  }
 
   // loadAll 委托给 lib/backup/loader.ts（拆文件控行数）
   async function loadAll() {
@@ -106,6 +119,8 @@ function useBackupServiceImpl() {
       settings, state, snapshots, dirMeta, noticeAcked, firstVisitAcked, undo,
       refreshNextBackupTime, checkDirPermission,
     })
+    // 活档与 IndexedDB 快照独立存储，加载时一并刷新
+    await refreshLiveSnapshot()
   }
 
   // saveXxx 委托给 lib/backup/persist.ts（拆文件控行数）
@@ -130,8 +145,9 @@ function useBackupServiceImpl() {
     if ("timerMinutes" in patch || "enabled" in patch) {
       await applyTimer()
     }
-    // idle/事件触发开关搬 SW 监听后，UI 侧无需 rebind；收到 backup:event 时
-    // 按 settings.eventOnXxx 判断是否执行（见 handleBackupEvent）
+    // 2026-07-30 重构：自动监听备份由 SW 端 liveSnapshot.ts 负责——settings 写入
+    //   storage.local 后，SW 的 storage.onChanged 监听（initLiveBackupController）
+    //   自动 start/stop 活档监听，UI 侧无需 rebind。
   }
   /** 标记首次开启知悉已确认（设计稿 §4.2：单 bool，开启过=true 不再弹） */
   async function setNoticeAcked(v: boolean) {
@@ -152,68 +168,10 @@ function useBackupServiceImpl() {
     }
   }
 
-  // ===== 事件备份（防抖 2s）=====
-  let eventBackupTimer: ReturnType<typeof setTimeout> | null = null
-  function scheduleEventBackup(source: BackupTriggerSource) {
-    if (!settings.value.enabled) return
-    if (eventBackupTimer) clearTimeout(eventBackupTimer)
-    eventBackupTimer = setTimeout(() => {
-      eventBackupTimer = null
-      void runBackup(source).catch(() => {})
-    }, DEBOUNCE_EVENT_MS)
-  }
-
-  // ===== 事件备份：SW 广播 → storage 锁去重 → 防抖备份 =====
-  // 事件监听（tabs.onRemoved/windows.onRemoved/idle.onStateChanged）已搬 SW（background.ts），
-  // SW 收到后 sendMessage({type:'backup:event', source}) 广播给所有 UI 页面。
-  // 本侧收到后：① 校验 settings.enabled + 对应事件开关 ② storage 锁去重（多页面只有一个执行）
-  // ③ scheduleEventBackup 内部 2s 防抖（连关多标签只备份一次）
-  /**
-   * 尝试获取事件去重锁（跨 UI 上下文互斥）。
-   * 流程：读旧值→过期/不存在则写 nonce→重读验证 nonce 是否仍为我们写的。
-   * chrome.storage.local 无 CAS，靠 nonce 重读解决竞争（最后写入者赢得锁）。
-   */
-  async function tryAcquireEventLock(): Promise<boolean> {
-    try {
-      const now = Date.now()
-      const nonce = uuidV4()
-      // Step 1：检查是否被其他上下文持有（未过期）
-      const cur = await chrome.storage.local.get(BACKUP_EVENT_LOCK_KEY)
-      const prev = cur[BACKUP_EVENT_LOCK_KEY]
-      if (prev && typeof prev === "object") {
-        const p = prev as { at: number; nonce: string }
-        if (typeof p.at === "number" && now - p.at < EVENT_LOCK_TTL_MS) {
-          return false
-        }
-      }
-      // Step 2：写入我们的 nonce（safeSet 兜底 .catch，稳定性红线②）
-      await safeSet({ [BACKUP_EVENT_LOCK_KEY]: { at: now, nonce } }, "backup.eventLock")
-      // Step 3：重读验证——若值仍是我们写的 nonce，说明赢得了竞争
-      const reread = await chrome.storage.local.get(BACKUP_EVENT_LOCK_KEY)
-      const got = reread[BACKUP_EVENT_LOCK_KEY]
-      return !!(got && typeof got === "object" && (got as { nonce: string }).nonce === nonce)
-    } catch (e) {
-      console.warn("[useBackupService] tryAcquireEventLock 失败", e)
-      return false
-    }
-  }
-
-  /**
-   * 处理 SW 广播的 backup:event 消息。
-   * 校验开关 → 抢锁去重 → 防抖备份。
-   */
-  async function handleBackupEvent(source: BackupTriggerSource) {
-    // 总开关关 → 跳过
-    if (!settings.value.enabled) return
-    // 对应事件开关关 → 跳过（SW 无条件广播，UI 侧按设置决定是否执行）
-    if (source === "auto.event.tabRemoved" && !settings.value.eventOnTabRemoved) return
-    if (source === "auto.event.windowRemoved" && !settings.value.eventOnWindowRemoved) return
-    if (source === "auto.event.idle" && !settings.value.eventOnIdle) return
-    // storage 锁去重：sidepanel + backup.html 同时收到，只有一个执行
-    const acquired = await tryAcquireEventLock()
-    if (!acquired) return
-    scheduleEventBackup(source)
-  }
+  // 2026-07-30 重构：自动监听备份（活档持续落盘 + onStartup 封存）由 SW 端
+  //   liveSnapshot.ts 负责，UI 侧通过 storage.onChanged + backup:changed 消息刷新
+  //   liveSnapshot ref。定时备份仍走 chrome.alarms → background.ts triggerTimerBackup
+  //   → enqueueBackupOperation → runSwBareBackup（IndexedDB 快照）。
 
   // ===== 用户目录权限（委托给 lib/backup/dirOps.ts）=====
   async function checkDirPermission() {
@@ -358,8 +316,26 @@ function useBackupServiceImpl() {
     return setSnapshotLabelFn(snapshotMgmtDeps(), id, label)
   }
 
-  /** 获取完整快照（恢复/导出用） */
+  /**
+   * 获取完整快照（恢复/导出用）。活档（id=LIVE_SNAPSHOT_ID）读 storage.local，其余读 IndexedDB。
+   * M1：活档读取做完整性校验（snapshot + windows 数组），损坏数据返回 null 不进恢复流程炸 UI。
+   *   参照 archiveLiveOnStartup 的校验口径。
+   * P0-3 v3：活档存 LiveBlob{snapshot, dirty, updatedAt}，从 blob.snapshot 取 BackupFile。
+   *   sanitizeLiveBlob 兼容旧形态（直接 BackupFile 无包裹），迁移期老用户活档也能恢复。
+   */
   async function getSnapshotFile(id: string): Promise<BackupFile | null> {
+    if (id === LIVE_SNAPSHOT_ID) {
+      const data = await chrome.storage.local.get(BACKUP_KEYS.live)
+      const blob = sanitizeLiveBlob(data[BACKUP_KEYS.live])
+      if (!blob) return null
+      const file = blob.snapshot
+      // 完整性校验：必须有 snapshot + windows 数组（与 archiveLiveOnStartup 同款口径）
+      if (!file.snapshot || !Array.isArray(file.snapshot.windows)) {
+        console.warn('[backup] 活档损坏（snapshot/windows 缺失），无法恢复', file)
+        return null
+      }
+      return file
+    }
     return getSnapshotFileFn(id)
   }
 
@@ -397,9 +373,11 @@ function useBackupServiceImpl() {
       const { clearAllSnapshots } = await import("~lib/backup/snapshotStore")
       await clearAllSnapshots()
       // 清 storage.local 元信息（state/undo/dirMeta/noticeAcked；cache 已废弃不动）
-      await safeRemove([BACKUP_KEYS.state, BACKUP_KEYS.undo, BACKUP_KEYS.dirMeta, BACKUP_KEYS.noticeAcked, BACKUP_KEYS.noticeAck, BACKUP_KEYS.firstVisitAcked], "backup")
+      // P0-2 v3：一并清活档 + 待封存活档（livePendingArchive）；liveDirty 已废弃（dirty 合并到 LiveBlob）
+      await safeRemove([BACKUP_KEYS.state, BACKUP_KEYS.undo, BACKUP_KEYS.dirMeta, BACKUP_KEYS.noticeAcked, BACKUP_KEYS.noticeAck, BACKUP_KEYS.firstVisitAcked, BACKUP_KEYS.live, BACKUP_KEYS.livePendingArchive], "backup")
       await safeSet({ [BACKUP_KEYS.state]: toPure(DEFAULT_BACKUP_STATE) }, "backup")
       snapshots.value = []
+      liveSnapshot.value = null
       state.value = { ...DEFAULT_BACKUP_STATE }
       undo.value = { ...DEFAULT_BACKUP_UNDO }
       noticeAcked.value = DEFAULT_BACKUP_NOTICE_ACKED
@@ -433,6 +411,10 @@ function useBackupServiceImpl() {
       const v = changes[BACKUP_KEYS.undo].newValue
       undo.value = (v && typeof v === "object" ? v : DEFAULT_BACKUP_UNDO) as BackupUndo
     }
+    // 活档变更（SW 写入/封存清空）→ 刷新 liveSnapshot ref
+    if (changes[BACKUP_KEYS.live]) {
+      void refreshLiveSnapshot()
+    }
   })
 
   // ===== 监听 chrome.alarms.onAlarm（UI 侧兜底；SW 侧 background.ts 也监听）
@@ -456,13 +438,6 @@ function useBackupServiceImpl() {
       void refreshNextBackupTime()
       return
     }
-    if (m.type === "backup:event") {
-      // SW 广播的备份事件（tabs.onRemoved/windows.onRemoved/idle.onStateChanged）
-      // 多 UI 上下文同时收到，handleBackupEvent 内部用 storage 锁去重
-      const source = (msg as { source?: BackupTriggerSource }).source
-      if (source) void handleBackupEvent(source)
-      return
-    }
     if (m.type === "backup:changed") {
       // 从 IndexedDB 重新加载快照摘要（IndexedDB 写后 storage.onChanged 不触发）
       void listSnapshotSummaries().then((list) => {
@@ -472,7 +447,15 @@ function useBackupServiceImpl() {
           state.value.snapshotCount = list.length
         }
       }).catch(() => {})
+      // 活档变更（op=live 写入 / op=archive 封存清空）→ 刷新活档摘要
+      void refreshLiveSnapshot()
       void refreshNextBackupTime()
+      return
+    }
+    // M2：活档写入配额超限等错误（SW 广播）→ state.lastBackupError 已通过 storage.onChanged 同步，
+    //   这里无需额外处理（amber 状态条会显示提示）。保留分支防 fallback warn。
+    if (m.type === "backup:live-error") {
+      return
     }
   })
 
@@ -485,6 +468,7 @@ function useBackupServiceImpl() {
     settings,
     state,
     snapshots,
+    liveSnapshot,
     dirMeta,
     noticeAcked,
     firstVisitAcked,

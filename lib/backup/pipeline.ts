@@ -1,7 +1,7 @@
 /**
  * 备份执行管道 - 抽离自 useBackupService.ts（红线 .ts ≤ 500）
  *
- * 把 runBackup 的核心步骤（采集 + 构建 + 写 IndexedDB + 写目录 + GFS 清理 + 状态更新）
+ * 把 runBackup 的核心步骤（采集 + 构建 + 写 IndexedDB + 写目录 + 保留策略清理 + 状态更新）
  * 抽成纯函数，接收所需依赖（settings/state/snapshots 的 ref + 持久化回调）。
  * 调用方（useBackupService）传入 refs，函数返回最终结果。
  *
@@ -214,7 +214,7 @@ export async function runBackupPipeline(
   try {
     const file = await buildBackupFile(deps, source, lastProgress, options)
     // P0-4: 持久化（IndexedDB + checksum + 回读校验）由外层 coordination 统一负责，
-    // pipeline 只负责 build + 目录写 + GFS + state，避免双写（修 D18）
+    // pipeline 只负责 build + 目录写 + 保留策略清理 + state，避免双写（修 D18）
     const dirError = await writeDir(deps, file, lastProgress)
     // 保留策略清理（2026-07-28 重构：废 GFS 分层，改纯按条数 + 按天数）
     // - trimExpiredSnapshots：删超过 retentionDays 的 auto.* 非失败项
@@ -240,7 +240,7 @@ export async function runBackupPipeline(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     // §2.2 失败也落库：构造 failed 快照写入 IndexedDB，让列表能显示失败记录。
-    // 失败快照不计入保留上限（trimToMaxSnapshots / GFS 均跳过 status='failed'），不挤掉成功备份。
+    // 失败快照不计入保留上限（trimToMaxSnapshots 跳过 status='failed'），不挤掉成功备份。
     // persistSnapshot 失败不影响主流程（已在 catch 中，不再抛）。
     try {
       const failedFile = await buildFailedFile(deps, source, msg)

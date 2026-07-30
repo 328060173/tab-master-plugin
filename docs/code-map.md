@@ -196,6 +196,22 @@ node -e "const fs=require('fs');const sfc=require('./node_modules/.pnpm/@vue+com
 
 ## L. 标签会话备份（阶段一完整本地闭环，2026-07-25）
 
+### 备份类型分类口径（2026-07-30 定稿，列表展示层）
+列表「备份类型」列分 **5 类**（`components/backup/BackupListTab.vue` typeLabel）：
+| 显示名 | 来源 source | 说明 |
+|---|---|---|
+| 自动监听-实时 | 活档（isLive，id=LIVE_SNAPSHOT_ID，source='auto.listen'） | 当前会话实时更新，置顶，永远 1 条，蓝主色高亮引导还原 |
+| 自动监听-上一个 | auto.listen 最新一条历史档 | onStartup 封存的上一会话；emerald 色标；`isLatestListenArchive(s)` 判定 |
+| 自动监听-已过期 | auto.listen 更早的封存档 | emerald 淡色区分新旧 |
+| 手动备份 | manual | 手动按钮产生；blue-100 色标 |
+| 定时备份 | auto.timer + auto.event 合并 | 定时闹钟 + onStartup 备份合并显示；gray-100 色标 |
+
+- `preRestore`（还原前）/ `import`（导入）**不进列表显示**——当前无产生点，typeLabel/triggerLabel 删 case 走 default 兜底（理论不命中）。
+- auto.listen 拆两个 label 靠 `latestListenArchiveId`（computed 缓存：displaySnapshots 中非活档 auto.listen 里 createdAt 最大的 id），O(1) 查 ref。
+- typeLabel 用 `TYPE_LABEL_MAP` 映射表 + isLive/isLatestListenArchive 分流（开闭原则，加新 source 只改表）。
+- 查询条件 TYPE_OPTIONS 4 项：全部 / 手动备份 / 定时备份 / 自动监听；**活档永远置顶不参与筛选**（filteredSnapshots 中 live 绕过 filter，始终前置）。
+- 「最近」徽章已删（活档已标「自动监听-实时」冗余）；最新行主色「恢复」按钮已删，所有行统一 RestoreMenu「还原 ▾」下拉（同一操作不双标，引导靠行背景 bg-blue-50/60）。
+
 ### storage key 全部登记到 `StoragePanel.vue`
 - `tabMasterBackupCache`（USER_DEFS）- 本地缓存快照数组，限长 50，受 5MB 配额约束
 - `tabMasterBackupState`（SYS_DEFS）- 上次备份时间/快照数/缓存大小/失败原因
@@ -209,29 +225,28 @@ node -e "const fs=require('fs');const sfc=require('./node_modules/.pnpm/@vue+com
 - `tabmaster_backup_fs` 库 `handles` store 的 `backup_dir_handle` 键 —— 用户目录 handle；解绑目录时清
 
 ### 改备份相关要联动
-1. `composables/useBackupService.ts`（单例）—— 备份服务核心：采集 + 构建 BackupFile + 写缓存 + 状态/设置持久化 + 定时/事件/目录/GFS/锁定
+1. `composables/useBackupService.ts`（单例）—— 备份服务核心：采集 + 构建 BackupFile + 写缓存 + 状态/设置持久化 + 定时/事件/目录/锁定
 2. `composables/useBackupRestore.ts` —— 恢复流程（预览+冲突解决+执行+撤销）
 3. `composables/useBackupIO.ts` —— 导入导出流程
 4. `types/backup.ts` —— BackupFile / Snapshot / SnapshotSummary / BackupSettings / BackupState / BackupDirMeta / BackupNoticeAck / BackupUndo / RestorePreview / ConflictItem / FpUnmatchedItem / ImportResult / ExportFormat / BACKUP_KEYS / BACKUP_ALARM_NAME
 5. `lib/backup/fingerprint.ts` —— URL 规范化 + sha1 主/弱指纹 + uuidV4
 6. `lib/backup/snapshotBuilder.ts` —— 快照构建（collectMeta + buildSnapshot）
-7. `lib/backup/gfs.ts` —— GFS 分层保留清理
-8. `lib/backup/fsAccess.ts` —— File System Access API 封装 + IndexedDB handle 持久化
-9. `lib/backup/exporters.ts` —— JSON/Markdown/OneTab 导出
-10. `lib/backup/restore.ts` —— 冲突检测 + fingerprint 匹配 + 恢复执行
-11. `lib/backup/importers/{ours,onetab,nicetab,toby,vertitab,index}.ts` —— 五家格式导入解析器 + 嗅探
-12. `components/BackupStatusCard.vue` —— sidepanel 首页底部入口卡片（紧凑态）
-13. `components/BackupNoticeDialog.vue` —— 首次开启 5 条限制告知弹窗
-14. `components/BackupSnapshotList.vue` —— Tab1 快照列表
-15. `components/BackupRestorePanel.vue` —— Tab2 恢复与冲突
-16. `components/BackupConflictDialog.vue` —— 冲突解决 git-merge 风格弹窗
-17. `components/BackupRestoreConfirmDialog.vue` —— 恢复方式三选一弹窗
-18. `components/BackupIOPanel.vue` —— Tab3 导入导出
-19. `components/BackupSettingsPanel.vue` —— Tab4 设置
-20. `tabs/backup.vue` —— 独立管理页（max-w-3xl，仿 logs.vue 范式，组合 4 个 Tab 面板）
-21. `components/StoragePanel.vue` —— 新增 7 个 key 的清理登记
-22. `sidepanel.vue` —— ErrorBoundary scope=backup 包 BackupStatusCard 挂载点
-23. `background.ts` —— BACKUP_ALARM_NAME 闹钟分发 + onStartup 触发 + ensureBackupAlarm
+7. `lib/backup/fsAccess.ts` —— File System Access API 封装 + IndexedDB handle 持久化
+8. `lib/backup/exporters.ts` —— JSON/Markdown/OneTab 导出
+9. `lib/backup/restore.ts` —— 冲突检测 + fingerprint 匹配 + 恢复执行
+10. `lib/backup/importers/{ours,onetab,nicetab,toby,vertitab,index}.ts` —— 五家格式导入解析器 + 嗅探
+11. `components/BackupStatusCard.vue` —— sidepanel 首页底部入口卡片（紧凑态）
+12. `components/BackupNoticeDialog.vue` —— 首次开启 5 条限制告知弹窗
+13. `components/BackupSnapshotList.vue` —— Tab1 快照列表
+14. `components/BackupRestorePanel.vue` —— Tab2 恢复与冲突
+15. `components/BackupConflictDialog.vue` —— 冲突解决 git-merge 风格弹窗
+16. `components/BackupRestoreConfirmDialog.vue` —— 恢复方式三选一弹窗
+17. `components/BackupIOPanel.vue` —— Tab3 导入导出
+18. `components/BackupSettingsPanel.vue` —— Tab4 设置
+19. `tabs/backup.vue` —— 独立管理页（max-w-3xl，仿 logs.vue 范式，组合 4 个 Tab 面板）
+20. `components/StoragePanel.vue` —— 新增 7 个 key 的清理登记
+21. `sidepanel.vue` —— ErrorBoundary scope=backup 包 BackupStatusCard 挂载点
+22. `background.ts` —— BACKUP_ALARM_NAME 闹钟分发 + onStartup 触发 + ensureBackupAlarm
 
 ### 红线
 - 备份服务独立单例，**不侵入 useTabManager**（不改其结构 / 不调其方法）

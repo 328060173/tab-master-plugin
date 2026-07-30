@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center gap-1 px-2 py-1.5 border-b border-gray-100 flex-nowrap">
+  <div v-bind="$attrs" class="flex items-center gap-1 px-2 py-1.5 border-b border-gray-100 flex-nowrap">
     <template v-if="!isLaterPage">
       <button
         class="p-0.5 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900"
@@ -166,6 +166,13 @@
   </Teleport>
 </template>
 
+<script lang="ts">
+// inheritAttrs:false + 根 div v-bind="$attrs"：显式接收 fallthrough 属性
+// （如 sidepanel 传的 data-onboarding-target）。本组件模板为多根
+// （主 div + Teleport 兄弟节点 → fragment），自动继承会失败刷
+// [Vue warn] Extraneous non-props attributes（零容忍红线），故显式绑定根 div
+export default { inheritAttrs: false }
+</script>
 <script setup lang="ts">
 /**
  * 工具栏（视图 / 排序 / 清理 / 批量 / 新建 / 刷新 / 前后导航）。

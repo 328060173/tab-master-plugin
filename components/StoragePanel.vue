@@ -137,6 +137,8 @@ const SYS_DEFS: StorageDef[] = [
   { key: "tabMasterBackupNoticeAcked", label: "备份告知确认", icon: "📌", storage: "local", empty: "boolean", warning: "会清除首次开启备份的知悉确认状态，下次开启时再次弹窗。" },
   { key: "tabMasterBackupDirMeta", label: "备份目录元信息", icon: "📁", storage: "local", empty: "object", warning: "会清除用户目录备份的元信息（目录名/大小缓存/权限状态）。下次打开管理页会重新读取。" },
   { key: "tabMasterBackupUndo", label: "备份撤销窗口", icon: "↩️", storage: "local", empty: "object", warning: "会清除恢复前快照（30s 撤销窗口），无法再撤销上次恢复。" },
+  { key: "tabMasterBackupLive", label: "自动监听活档", icon: "🔴", storage: "local", empty: "object", warning: "会清空当前会话的实时活档（不影响已封存的历史备份）。" },
+  { key: "tabMasterBackupLivePendingArchive", label: "待封存活档", icon: "📦", storage: "local", empty: "object", warning: "会清空上次启动封存失败遗留的待封存活档（昨晚标签数据，清后无法恢复）。仅在封存失败时存在。" },
   // 注：装扮相关动态 key（按账号隔离，不在此静态表展示）：
   //   - `tabMasterSkinActive:{customerId}` 已购道具「使用中」态（头像框 + 背景图/纯色 + bgType）
   //   - `tabMasterSkinOpacity:{customerId}` 背景透明度（用户手动调，按 id 隔离）
