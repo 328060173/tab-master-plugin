@@ -119,9 +119,6 @@
             :class="listenBackupEnabled ? 'translate-x-5' : ''"
           ></span>
         </button>
-        <span class="text-[11px] text-gray-500 dark:text-gray-400 max-w-[260px] leading-tight">
-          持续监听标签变化自动备份。浏览器启动时封存上一会话为历史备份；关机、崩溃、断电后，下次启动可恢复到最近一次自动保存的状态。建议与「自动备份」同时开启，最大化保证标签不丢失。
-        </span>
       </div>
 
       <button
@@ -138,70 +135,96 @@
         <Download :size="16" />
         导出
       </button>
+
+      <!-- 自动监听备份说明文（独占一行，避免与控件同挤导致窄屏错乱） -->
+      <p class="basis-full w-full text-[11px] text-gray-500 dark:text-gray-400 leading-tight -mt-1">
+        自动监听备份：持续监听标签变化自动保存最新标签；浏览器启动时封存上一会话为历史备份。关机、崩溃、断电后下次启动可恢复到最近一次保存的状态。建议与「自动备份」同时开启，最大化保证标签不丢失。
+      </p>
     </div>
 
-    <!-- 已开启：状态块 + 提示条 + 趋势图 -->
-    <template v-if="enabled">
-      <!-- 状态块：备份概览 -->
-      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-        <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-3">备份概览</h3>
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-          <div class="flex items-center gap-2">
-            <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">自动备份状态</dt>
-            <dd class="flex items-center gap-1.5 text-gray-800 dark:text-gray-100">
-              <span
-                :class="['w-1.5 h-1.5 rounded-full', isBackingUp ? 'bg-blue-500 animate-pulse motion-reduce:animate-none' : 'bg-emerald-500']"
-                aria-hidden="true"
-              ></span>
-              {{ isBackingUp ? '备份中' : '已开启' }}
-            </dd>
-          </div>
-          <div class="flex items-center gap-2">
-            <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">下次备份时间</dt>
-            <dd class="text-gray-800 dark:text-gray-100">{{ nextBackupLabel }}</dd>
-          </div>
-          <div class="flex items-center gap-2">
-            <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">备份数量</dt>
-            <dd class="text-gray-800 dark:text-gray-100">{{ snapshots.length }} 个</dd>
-          </div>
-          <div class="flex items-center gap-2">
-            <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">备份占用</dt>
-            <dd class="text-gray-800 dark:text-gray-100">本地 {{ fmtBytes(state.cacheBytes) }}</dd>
-          </div>
-          <div class="flex items-start gap-2 sm:col-span-2">
-            <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0 pt-0.5">备份存储</dt>
-            <dd class="text-gray-800 dark:text-gray-100 flex-1">
-              <p>本地（浏览器内）· 明文存储</p>
-              <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">云同步加密将于后续版本上线</p>
-            </dd>
-          </div>
-        </dl>
-      </div>
+    <!-- 状态块：备份概览（常驻展示，未开启自动备份也显示空态/0） -->
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+      <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-3">备份概览</h3>
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+        <div class="flex items-center gap-2">
+          <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">自动备份状态</dt>
+          <dd class="flex items-center gap-1.5 text-gray-800 dark:text-gray-100">
+            <span
+              :class="['w-1.5 h-1.5 rounded-full', isBackingUp ? 'bg-blue-500 animate-pulse motion-reduce:animate-none' : (enabled ? 'bg-emerald-500' : 'bg-gray-400 dark:bg-gray-500')]"
+              aria-hidden="true"
+            ></span>
+            {{ isBackingUp ? '备份中' : (enabled ? '已开启' : '未开启') }}
+          </dd>
+        </div>
+        <!-- 自动监听备份状态（独立于自动备份总开关；显示实时监听标签数） -->
+        <div class="flex items-center gap-2">
+          <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">自动监听备份</dt>
+          <dd class="flex items-center gap-1.5 text-gray-800 dark:text-gray-100">
+            <span
+              :class="['w-1.5 h-1.5 rounded-full', listenBackupEnabled ? 'bg-emerald-500' : 'bg-gray-400 dark:bg-gray-500']"
+              aria-hidden="true"
+            ></span>
+            <template v-if="!listenBackupEnabled">未开启</template>
+            <template v-else-if="liveSnapshot && liveSnapshot.stats">
+              已开启 · 实时监听 {{ liveSnapshot.stats.tabCount ?? 0 }} 标签
+            </template>
+            <template v-else>已开启 · 同步中…</template>
+          </dd>
+        </div>
+        <div class="flex items-center gap-2">
+          <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">下次备份时间</dt>
+          <dd class="text-gray-800 dark:text-gray-100">{{ nextBackupLabel }}</dd>
+        </div>
+        <div class="flex items-center gap-2">
+          <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">手动备份</dt>
+          <dd class="text-gray-800 dark:text-gray-100">{{ manualCount }} 个</dd>
+        </div>
+        <div class="flex items-center gap-2">
+          <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">自动备份</dt>
+          <dd class="text-gray-800 dark:text-gray-100">{{ autoCount }} 个</dd>
+        </div>
+        <div class="flex items-center gap-2">
+          <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">监听备份</dt>
+          <dd class="text-gray-800 dark:text-gray-100">{{ listenCount }} 个</dd>
+        </div>
+        <div class="flex items-center gap-2">
+          <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">备份数量</dt>
+          <dd class="text-gray-800 dark:text-gray-100">{{ snapshots.length }} 个</dd>
+        </div>
+        <div class="flex items-center gap-2">
+          <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">备份占用</dt>
+          <dd class="text-gray-800 dark:text-gray-100">本地 {{ fmtBytes(state.cacheBytes) }}</dd>
+        </div>
+        <div class="flex items-start gap-2 sm:col-span-2">
+          <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0 pt-0.5">备份存储</dt>
+          <dd class="text-gray-800 dark:text-gray-100 flex-1">
+            <p>本地（浏览器内）· 明文存储</p>
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">云同步加密将于后续版本上线</p>
+          </dd>
+        </div>
+      </dl>
+    </div>
 
-      <!-- §3.3 / §3.2 状态提示条（amber：非阻断，提醒用户） -->
-      <div
-        v-if="manualOverLimit || lastAutoTruncated || state.lastBackupError"
-        class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 space-y-1.5"
-        role="status"
-      >
-        <p v-if="manualOverLimit" class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
-          <AlertTriangle :size="14" class="mt-0.5 shrink-0" />
-          <span>手动备份已达 {{ LIM.manualMaxSnapshots }} 条上限，请清理之前的手动备份后继续。手动备份不会被自动删除。</span>
-        </p>
-        <p v-if="lastAutoTruncated" class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
-          <AlertTriangle :size="14" class="mt-0.5 shrink-0" />
-          <span>上次自动备份截断：标签数超过上限 {{ LIM.maxTabsPerSnapshot }}，仅备份了 {{ lastAutoTruncated.backed }} / {{ lastAutoTruncated.total }} 个。</span>
-        </p>
-        <!-- lastBackupError：配额满/目录写失败等综合状态（含配额 gate 拦截消息） -->
-        <p v-if="state.lastBackupError" class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
-          <AlertTriangle :size="14" class="mt-0.5 shrink-0" />
-          <span>{{ state.lastBackupError }}</span>
-        </p>
-      </div>
-
-      <!-- 近 7 天备份趋势（P1：柱状图） -->
-      <BackupTrendChart />
-    </template>
+    <!-- §3.3 / §3.2 状态提示条（amber：非阻断，提醒用户；异常态才显示，不常驻） -->
+    <div
+      v-if="manualOverLimit || lastAutoTruncated || state.lastBackupError"
+      class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 space-y-1.5"
+      role="status"
+    >
+      <p v-if="manualOverLimit" class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+        <AlertTriangle :size="14" class="mt-0.5 shrink-0" />
+        <span>手动备份已达 {{ LIM.manualMaxSnapshots }} 条上限，请清理之前的手动备份后继续。手动备份不会被自动删除。</span>
+      </p>
+      <p v-if="lastAutoTruncated" class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+        <AlertTriangle :size="14" class="mt-0.5 shrink-0" />
+        <span>上次自动备份截断：标签数超过上限 {{ LIM.maxTabsPerSnapshot }}，仅备份了 {{ lastAutoTruncated.backed }} / {{ lastAutoTruncated.total }} 个。</span>
+      </p>
+      <!-- lastBackupError：配额满/目录写失败等综合状态（含配额 gate 拦截消息） -->
+      <p v-if="state.lastBackupError" class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+        <AlertTriangle :size="14" class="mt-0.5 shrink-0" />
+        <span>{{ state.lastBackupError }}</span>
+      </p>
+    </div>
 
     <!-- 未开启自动备份时的轻提示 -->
     <!-- 广告位主位 728×90 -->
@@ -245,7 +268,6 @@ import { currentLimits } from "~types/backup"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
 import ConfirmDialog from "~components/ConfirmDialog.vue"
 import AdSlot from "./AdSlot.vue"
-import BackupTrendChart from "./BackupTrendChart.vue"
 
 const emit = defineEmits<{
   (e: 'open-manual-backup'): void
@@ -260,7 +282,7 @@ const emit = defineEmits<{
 }>()
 
 const svc = useBackupService()
-const { state, snapshots, isBackingUp, enabled, nextBackupAt, firstVisitAcked, settings } = svc
+const { state, snapshots, isBackingUp, enabled, nextBackupAt, firstVisitAcked, settings, liveSnapshot } = svc
 // 广告多槽位：取概览主位广告（backup-overview），adMap 由 backup.vue onMounted 单例 fetchAd 拉取
 const { getAd } = useBackupPageAd()
 
@@ -312,7 +334,7 @@ function onToggleAutoBackup() {
 }
 
 const nextBackupLabel = computed(() => {
-  if (!enabled.value) return '未开启自动备份'
+  if (!enabled.value) return '未开启'
   const ts = nextBackupAt.value
   if (!ts) return '未设定'
   const diff = ts - Date.now()
@@ -325,6 +347,14 @@ const nextBackupLabel = computed(() => {
 // §3.3 手动备份超 20 条上限提示（不阻断，持续提示让用户清理）
 const LIM = currentLimits()
 const manualCount = computed(() => snapshots.value.filter((s) => s.source === 'manual').length)
+/** 自动备份数量（定时 auto.timer + 事件 auto.event*，不含监听 auto.listen） */
+const autoCount = computed(() =>
+  snapshots.value.filter((s) => s.source.startsWith('auto.') && s.source !== 'auto.listen').length,
+)
+/** 监听备份数量（启动封存档 auto.listen） */
+const listenCount = computed(() =>
+  snapshots.value.filter((s) => s.source === 'auto.listen').length,
+)
 const manualOverLimit = computed(() => manualCount.value > LIM.manualMaxSnapshots)
 
 // §3.2 上次自动备份截断提示：找最新一条 auto.* 快照，看 stats.truncated
