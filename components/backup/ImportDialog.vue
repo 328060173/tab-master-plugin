@@ -23,11 +23,11 @@
         <!-- 标题 -->
         <div class="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
           <h2 id="import-dialog-title" class="text-base font-semibold text-gray-900 dark:text-gray-100">
-            导入数据
+            {{ t('backup.comp.importDialog.title') }}
           </h2>
           <button
             class="inline-flex items-center justify-center w-7 h-7 -mt-1 -mr-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="关闭"
+            :aria-label="t('backup.comp.importDialog.close')"
             @click="onCancel"
           >
             <X :size="16" />
@@ -48,7 +48,7 @@
             type="button"
             class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             @click="onCancel"
-          >取消</button>
+          >{{ t('backup.comp.importDialog.cancel') }}</button>
         </div>
 
         <!-- 底部：其他格式导入入口 -->
@@ -57,7 +57,7 @@
             type="button"
             class="text-[11px] text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
             @click="emit('other-formats')"
-          >OneTab 格式导入 →</button>
+          >{{ t('backup.comp.importDialog.otherFormats') }}</button>
         </div>
       </div>
     </div>
@@ -70,8 +70,10 @@
  * 弹框壳 + ImportPanel（左右布局导入流程，支持本插件数据 + OneTab）。
  * 底部「其他格式导入」emit('other-formats') 由父组件跳导入管理菜单。
  */
+import { computed } from 'vue';
 import { X } from '@lucide/vue';
 import ImportPanel from './ImportPanel.vue';
+import { t } from '~lib/i18n';
 
 defineProps<{ open: boolean }>();
 const emit = defineEmits<{
@@ -79,11 +81,11 @@ const emit = defineEmits<{
   (e: 'other-formats'): void;
 }>();
 
-// 格式选项（常量，禁魔法值）
-const FORMATS: { value: string; label: string }[] = [
-  { value: 'ours', label: '本插件数据' },
-  { value: 'onetab', label: 'OneTab' },
-];
+// 格式选项（computed 守响应式：locale 切换后 label 跟着变）
+const FORMATS = computed<{ value: string; label: string }[]>(() => [
+  { value: 'ours', label: t('backup.comp.import.formatOurs') },
+  { value: 'onetab', label: t('backup.comp.import.formatOnetab') },
+]);
 const DEFAULT_FORMAT = 'ours';
 
 function onCancel(): void {

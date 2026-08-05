@@ -12,6 +12,7 @@
 import { BACKUP_KIND, BACKUP_SCHEMA_VERSION } from "~types/backup"
 import type { BackupFile, ImportResult } from "~types/backup"
 import { normalizeUrl } from "~lib/backup/fingerprint"
+import { t, tWithParams } from "~lib/i18n"
 import { uuidV4 } from "~lib/backup/fingerprint"
 import { verifySnapshot } from "../integrity"
 
@@ -118,14 +119,14 @@ export async function parseOurs(text: string): Promise<ImportResult> {
     return {
       ok: false,
       file: null,
-      error: `JSON 解析失败：${e instanceof Error ? e.message : String(e)}`,
+      error: tWithParams("backup.lib.jsonParseFailed", { error: e instanceof Error ? e.message : String(e) }),
       warnings,
       skipped: 0,
       format: "ours",
     }
   }
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return { ok: false, file: null, error: "JSON 顶层不是对象", warnings, skipped: 0, format: "ours" }
+    return { ok: false, file: null, error: t("backup.lib.jsonNotObject"), warnings, skipped: 0, format: "ours" }
   }
   const migrated = migrate(raw as Record<string, unknown>)
   // P0-4 L3：校验 checksum（防文件损坏/撕裂）
@@ -142,7 +143,7 @@ export async function parseOurs(text: string): Promise<ImportResult> {
       return {
         ok: false,
         file: null,
-        error: "快照文件已损坏（校验和不匹配）",
+        error: t("backup.lib.checksumFailed"),
         warnings,
         skipped: 0,
         format: "ours",

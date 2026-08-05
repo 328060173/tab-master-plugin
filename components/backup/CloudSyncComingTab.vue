@@ -20,10 +20,10 @@
         <Cloud :size="24" class="text-blue-600 dark:text-blue-400" />
       </div>
       <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-        云同步开发中
+        {{ t('backup.comp.cloudSync.title') }}
       </h2>
       <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
-        多设备同步即将到来。点击下方按钮催下作者，加快进度！
+        {{ t('backup.comp.cloudSync.desc') }}
       </p>
     </div>
 
@@ -34,7 +34,7 @@
         <label
           for="nudge-email"
           class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5"
-          >联系邮箱（可选）</label
+          >{{ t('backup.comp.cloudSync.emailLabel') }}</label
         >
         <input
           id="nudge-email"
@@ -43,7 +43,7 @@
           inputmode="email"
           autocomplete="email"
           :disabled="submitting"
-          placeholder="例如 you@example.com"
+          :placeholder="t('backup.comp.cloudSync.emailPlaceholder')"
           class="w-full px-3 py-2 text-sm rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
           maxlength="100" />
       </div>
@@ -53,13 +53,13 @@
         <label
           for="nudge-remark"
           class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5"
-          >备注（可选）</label
+          >{{ t('backup.comp.cloudSync.remarkLabel') }}</label
         >
         <textarea
           id="nudge-remark"
           v-model="remark"
           :disabled="submitting"
-          placeholder="想对作者说的话…"
+          :placeholder="t('backup.comp.cloudSync.remarkPlaceholder')"
           rows="3"
           maxlength="200"
           class="w-full px-3 py-2 text-sm rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900/40 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed resize-none"></textarea>
@@ -74,8 +74,8 @@
         type="submit"
         :disabled="submitting"
         class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed">
-        <span v-if="submitting">催更中…</span>
-        <span v-else>催下作者</span>
+        <span v-if="submitting">{{ t('backup.comp.cloudSync.submitting') }}</span>
+        <span v-else>{{ t('backup.comp.cloudSync.submit') }}</span>
       </button>
     </form>
   </div>
@@ -98,6 +98,7 @@ import { showToast } from "~composables/useToast"
 import { post } from "~lib/api"
 import type { BaseResponse } from "~lib/api"
 import { API_URIS } from "~lib/api-config"
+import { t } from "~lib/i18n"
 
 // 表单字段
 const email = ref("")
@@ -113,7 +114,7 @@ async function onSubmit() {
   // 邮箱校验：填了才校验
   const trimmedEmail = email.value.trim()
   if (trimmedEmail && !EMAIL_RE.test(trimmedEmail)) {
-    showToast("邮箱格式不正确")
+    showToast(t('backup.comp.cloudSync.emailInvalid'))
     return
   }
   submitting.value = true
@@ -127,16 +128,16 @@ async function onSubmit() {
       { timeout: 10000 }
     )
     if (res.code === 200) {
-      showToast("已收到，感谢催更")
+      showToast(t('backup.comp.cloudSync.success'))
       // 清空表单
       email.value = ""
       remark.value = ""
     } else {
-      showToast(res.msg || "提交失败，请稍后再试")
+      showToast(res.msg || t('backup.comp.cloudSync.failed'))
     }
   } catch (e) {
     console.warn("[cloud-sync-coming] 催更提交失败", e)
-    showToast("提交失败，请稍后再试")
+    showToast(t('backup.comp.cloudSync.failed'))
   } finally {
     submitting.value = false
   }

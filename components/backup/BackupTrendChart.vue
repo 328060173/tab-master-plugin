@@ -6,11 +6,11 @@
     数据源：svc.snapshots 按 createdAt 按天聚合，手动/自动分色堆叠。
   -->
   <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-    <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">近 7 天备份趋势</h3>
+    <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">{{ t('backup.comp.trend.title') }}</h3>
 
     <!-- 空状态 -->
     <div v-if="totalWeekCount === 0" class="h-32 flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 border border-dashed border-gray-200 dark:border-gray-700 rounded">
-      暂无备份记录
+      {{ t('backup.comp.trend.empty') }}
     </div>
 
     <!-- 柱状图 SVG -->
@@ -21,7 +21,7 @@
         :height="chartHeight"
         class="block max-w-full h-auto mx-auto"
         role="img"
-        aria-label="近 7 天备份趋势柱状图"
+        :aria-label="t('backup.comp.trend.aria')"
       >
         <!-- Y 轴参考线（max/2） -->
         <line
@@ -46,7 +46,7 @@
             :class="d.auto > 0 ? 'fill-blue-500 dark:fill-blue-400' : 'fill-blue-100 dark:fill-blue-900/30'"
             rx="2"
           >
-            <title>{{ d.label }} · 自动 {{ d.auto }} 次</title>
+            <title>{{ tWithParams('backup.comp.trend.autoTitle', { label: d.label, count: d.auto }) }}</title>
           </rect>
           <!-- 手动备份柱（顶部堆叠，绿色） -->
           <rect
@@ -58,7 +58,7 @@
             class="fill-emerald-500 dark:fill-emerald-400"
             rx="2"
           >
-            <title>{{ d.label }} · 手动 {{ d.manual }} 次</title>
+            <title>{{ tWithParams('backup.comp.trend.manualTitle', { label: d.label, count: d.manual }) }}</title>
           </rect>
           <!-- 日期标签 -->
           <text
@@ -76,14 +76,14 @@
         <div class="flex items-center gap-3">
           <span class="inline-flex items-center gap-1">
             <span class="w-2.5 h-2.5 rounded-sm bg-blue-500 dark:bg-blue-400" aria-hidden="true"></span>
-            自动
+            {{ t('backup.comp.trend.auto') }}
           </span>
           <span class="inline-flex items-center gap-1">
             <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500 dark:bg-emerald-400" aria-hidden="true"></span>
-            手动
+            {{ t('backup.comp.trend.manual') }}
           </span>
         </div>
-        <span>本周共 {{ totalWeekCount }} 次（手动 {{ totalManual }} · 自动 {{ totalAuto }}）</span>
+        <span>{{ tWithParams('backup.comp.trend.weekTotal', { total: totalWeekCount, manual: totalManual, auto: totalAuto }) }}</span>
       </div>
     </div>
   </div>
@@ -99,6 +99,7 @@
  */
 import { computed } from 'vue'
 import { useBackupService } from '~composables/useBackupService'
+import { t, tWithParams } from '~lib/i18n'
 
 const svc = useBackupService()
 const { snapshots } = svc

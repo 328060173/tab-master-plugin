@@ -10,6 +10,7 @@
  */
 
 import type { ImportResult } from "~types/backup"
+import { t, tWithParams } from "~lib/i18n"
 import { parseOurs } from "./ours"
 import { parseOneTab } from "./onetab"
 
@@ -52,7 +53,7 @@ async function parseByFormat(format: JsonFormat, text: string): Promise<ImportRe
   return parser ? parser.parse(text) : {
     ok: false,
     file: null,
-    error: "未识别的格式，支持 OneTab 或本插件数据",
+    error: t("backup.comp.import.parseFailed"),
     warnings: [],
     skipped: 0,
     format: "unknown",
@@ -63,21 +64,21 @@ async function parseByFormat(format: JsonFormat, text: string): Promise<ImportRe
 export async function parseImport(text: string): Promise<ImportResult> {
   const trimmed = (text || "").trim()
   if (!trimmed) {
-    return { ok: false, file: null, error: "内容为空", warnings: [], skipped: 0, format: "unknown" }
+    return { ok: false, file: null, error: t("backup.lib.importEmpty"), warnings: [], skipped: 0, format: "unknown" }
   }
   if (looksLikeJson(trimmed)) {
     let raw: unknown
     try {
       raw = JSON.parse(trimmed)
     } catch (e) {
-      return { ok: false, file: null, error: `JSON 解析失败：${e instanceof Error ? e.message : String(e)}`, warnings: [], skipped: 0, format: "unknown" }
+      return { ok: false, file: null, error: tWithParams("backup.lib.jsonParseFailed", { error: e instanceof Error ? e.message : String(e) }), warnings: [], skipped: 0, format: "unknown" }
     }
     const fmt = sniffJson(raw)
     if (fmt) return parseByFormat(fmt, trimmed)
     return {
       ok: false,
       file: null,
-      error: "未识别的格式，支持 OneTab 或本插件数据",
+      error: t("backup.comp.import.parseFailed"),
       warnings: [],
       skipped: 0,
       format: "unknown",

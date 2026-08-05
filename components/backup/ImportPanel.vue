@@ -10,7 +10,7 @@
   <div class="space-y-3">
     <!-- 来源格式（多选项时显示） -->
     <div v-if="formats.length > 1" class="flex items-center gap-3 flex-wrap text-xs">
-      <span class="text-gray-500 dark:text-gray-400">来源格式</span>
+      <span class="text-gray-500 dark:text-gray-400">{{ t('backup.comp.import.formatLabel') }}</span>
       <label
         v-for="f in formats"
         :key="f.value"
@@ -24,7 +24,7 @@
         />
         <span class="text-gray-700 dark:text-gray-200">{{ f.label }}</span>
       </label>
-      <span class="text-[11px] text-gray-400 dark:text-gray-500">默认按内容自动识别</span>
+      <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ t('backup.comp.import.autoDetect') }}</span>
     </div>
 
     <!-- 来源切换 -->
@@ -35,7 +35,7 @@
         @click="onSwitchSource('file')"
       >
         <FileUp :size="14" />
-        文件导入
+        {{ t('backup.comp.import.fileImport') }}
       </button>
       <button
         type="button"
@@ -43,7 +43,7 @@
         @click="onSwitchSource('paste')"
       >
         <Clipboard :size="12" />
-        粘贴数据
+        {{ t('backup.comp.import.pasteData') }}
       </button>
       <span
         v-if="fileName"
@@ -62,13 +62,13 @@
             type="button"
             class="inline-flex items-center gap-1.5 min-h-[36px] px-4 py-2 text-xs rounded bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             @click="onPickFile"
-          >选择文件…</button>
+          >{{ t('backup.comp.import.pickFile') }}</button>
           <button
             v-if="content || fileName"
             type="button"
             class="inline-flex items-center gap-1 min-h-[32px] px-2 py-1.5 text-[11px] rounded text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             @click="onClear"
-          >清空</button>
+          >{{ t('backup.comp.import.clear') }}</button>
           <input
             ref="fileInputRef"
             type="file"
@@ -82,8 +82,8 @@
         <textarea
           v-model="content"
           class="w-full min-h-[200px] max-h-[360px] border border-gray-200 dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-900/40 text-sm font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-          :placeholder="sourceMode === 'file' ? '点上方「选择文件…」加载文件内容，可编辑后预览…' : '粘贴数据到这里…'"
-          aria-label="导入内容"
+          :placeholder="sourceMode === 'file' ? t('backup.comp.import.filePlaceholder') : t('backup.comp.import.pastePlaceholder')"
+          :aria-label="t('backup.comp.import.contentAria')"
         ></textarea>
 
         <!-- 解析预览 -->
@@ -95,14 +95,14 @@
             @click="onPreview"
           >
             <Search :size="12" />
-            {{ previewLoading ? '解析中…' : '解析预览' }}
+            {{ previewLoading ? t('backup.comp.import.parsing') : t('backup.comp.import.parsePreview') }}
           </button>
           <button
             v-if="previewFile"
             type="button"
             class="inline-flex items-center gap-1 min-h-[32px] px-2 py-1.5 text-[11px] rounded text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             @click="resetPreview"
-          >清除预览</button>
+          >{{ t('backup.comp.import.clearPreview') }}</button>
           <span v-if="previewError" class="text-[11px] text-red-600 dark:text-red-400">{{ previewError }}</span>
         </div>
       </div>
@@ -114,7 +114,7 @@
       >
         <div class="flex items-center justify-between text-xs gap-2 flex-wrap">
           <span class="font-medium text-gray-900 dark:text-gray-100">
-            预览<span v-if="detectedFormatLabel" class="text-[11px] text-gray-500 dark:text-gray-400 font-normal ml-1">· {{ detectedFormatLabel }}</span>
+            {{ t('backup.comp.import.previewTitle') }}<span v-if="detectedFormatLabel" class="text-[11px] text-gray-500 dark:text-gray-400 font-normal ml-1">· {{ detectedFormatLabel }}</span>
           </span>
           <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ previewSummaryText }}</span>
         </div>
@@ -122,12 +122,12 @@
           v-if="showMetaImportHint"
           class="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded px-2 py-1.5"
         >
-          ⚠️ 导入后标记名和稍后项会追加回来。标记会关联到你选择打开的标签（按网址匹配），若标记名已存在则跳过。
+          ⚠️ {{ t('backup.comp.import.metaHint') }}
         </p>
         <TabSelectPanel
           :windows="previewWindowGroups"
           v-model="selectedFps"
-          empty-hint="无可预览的标签（已自动跳过隐身窗口）"
+          :empty-hint="t('backup.comp.import.previewEmpty')"
           max-height="240px"
         />
       </div>
@@ -135,7 +135,7 @@
         v-else
         class="border border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-3 flex items-center justify-center text-[11px] text-gray-400 dark:text-gray-500 min-h-[200px]"
       >
-        解析后预览将显示在这里
+        {{ t('backup.comp.import.previewPlaceholder') }}
       </div>
     </div>
 
@@ -148,7 +148,7 @@
         @click="onOpen(false)"
       >
         <ExternalLink :size="12" />
-        本窗口打开
+        {{ t('backup.comp.import.openCurrent') }}
       </button>
       <button
         type="button"
@@ -157,7 +157,7 @@
         @click="onOpen(true)"
       >
         <SquareArrowOutUpRight :size="12" />
-        {{ opening ? '打开中…' : '新窗口打开' }}
+        {{ opening ? t('backup.comp.import.opening') : t('backup.comp.import.openNew') }}
       </button>
     </div>
 
@@ -179,7 +179,7 @@
           <svg class="animate-spin h-4 w-4 text-blue-600 motion-reduce:animate-none" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
           </svg>
-          <span class="text-gray-700 dark:text-gray-200">正在打开标签…</span>
+          <span class="text-gray-700 dark:text-gray-200">{{ t('backup.comp.import.openingMask') }}</span>
         </div>
       </div>
     </Teleport>
@@ -203,6 +203,7 @@ import { openTabs, type OpenWindowGroup } from '~lib/backup/openTabs';
 import TabSelectPanel from '~components/backup/TabSelectPanel.vue';
 import RestoreConfirmDialog from '~components/backup/RestoreConfirmDialog.vue';
 import type { BackupFile, TabSnapshot } from '~types/backup';
+import { t, tWithParams } from '~lib/i18n';
 
 type SourceMode = 'file' | 'paste';
 
@@ -226,11 +227,11 @@ const emit = defineEmits<{
 }>();
 
 // ===== 格式标签映射（禁魔法值，阿里规范） =====
-const FORMAT_LABEL_MAP: Record<string, string> = {
-  ours: '本插件数据',
-  onetab: 'OneTab',
-  unknown: '未识别',
-};
+const FORMAT_LABEL_MAP = computed<Record<string, string>>(() => ({
+  ours: t('backup.comp.import.formatOurs'),
+  onetab: t('backup.comp.import.formatOnetab'),
+  unknown: t('backup.comp.import.formatUnknown'),
+}));
 
 const format = ref<string>(props.defaultFormat);
 // ===== 来源模式 =====
@@ -281,7 +282,7 @@ async function onFileChange(e: Event): Promise<void> {
     void onPreview();
   } catch (err) {
     console.warn('[ImportPanel] 读取文件失败', err);
-    showToast('读取文件失败');
+    showToast(t('backup.comp.import.readFailed'));
   }
   // 重置 input value 让同一文件可重选
   input.value = '';
@@ -303,7 +304,7 @@ const selectedFps = ref<Set<string>>(new Set());
 async function onPreview(): Promise<void> {
   const text = content.value.trim();
   if (!text) {
-    previewError.value = '请先选择文件或粘贴数据';
+    previewError.value = t('backup.comp.import.emptyContent');
     return;
   }
   previewLoading.value = true;
@@ -311,15 +312,15 @@ async function onPreview(): Promise<void> {
   try {
     const r = await parseImport(text);
     if (!r.ok || !r.file) {
-      previewError.value = r.error || '解析失败，请检查格式';
+      previewError.value = r.error || t('backup.comp.import.parseFailed');
       previewFile.value = null;
       return;
     }
     // 格式不匹配软提示（不阻断，按识别结果预览）
     if (format.value !== r.format && r.format !== 'unknown') {
-      const expected = FORMAT_LABEL_MAP[format.value] || format.value;
-      const actual = FORMAT_LABEL_MAP[r.format] || r.format;
-      showToast(`所选格式为 ${expected}，识别为 ${actual}，按识别结果预览`);
+      const expected = FORMAT_LABEL_MAP.value[format.value] || format.value;
+      const actual = FORMAT_LABEL_MAP.value[r.format] || r.format;
+      showToast(tWithParams('backup.comp.import.formatMismatch', { expected, actual }));
     }
     previewFile.value = r.file;
     detectedFormat.value = r.format;
@@ -332,14 +333,14 @@ async function onPreview(): Promise<void> {
     selectedFps.value = fps;
   } catch (err) {
     console.warn('[ImportPanel] 预览失败', err);
-    previewError.value = err instanceof Error ? err.message : '解析失败';
+    previewError.value = err instanceof Error ? err.message : t('backup.comp.import.parseFailed');
     previewFile.value = null;
   } finally {
     previewLoading.value = false;
   }
 }
 
-const detectedFormatLabel = computed(() => FORMAT_LABEL_MAP[detectedFormat.value] || detectedFormat.value);
+const detectedFormatLabel = computed(() => FORMAT_LABEL_MAP.value[detectedFormat.value] || detectedFormat.value);
 
 // ===== 预览标签视图（按窗口分组，仅非隐身）喂给 TabSelectPanel =====
 interface PreviewTabItem { fingerprint: string; title: string; url: string; domain: string }
@@ -378,8 +379,8 @@ const previewSummaryText = computed(() => {
   const f = previewFile.value;
   if (!f) return '';
   const s = f.snapshot.stats;
-  const parts: string[] = [`${s.tabCount} 标签`];
-  if (s.windowCount > 0) parts.push(`${s.windowCount} 窗口`);
+  const parts: string[] = [tWithParams('backup.comp.import.previewSummary', { tabs: s.tabCount })];
+  if (s.windowCount > 0) parts.push(tWithParams('backup.comp.detail.statWindows', { count: s.windowCount }));
   return parts.join(' · ');
 });
 
@@ -481,8 +482,8 @@ async function doOpen(openInNewWindow: boolean, skipDuplicate: boolean): Promise
         }
       },
     })
-    if (count > 0) showToast(`已打开 ${count} 个标签`);
-    else showToast('选中的标签都已打开，无需重复打开');
+    if (count > 0) showToast(tWithParams('backup.comp.import.openedToast', { count }));
+    else showToast(t('backup.comp.import.allOpenToast'));
     // 仅 ours 格式：导入后追加 customTags + tabTagsMap + laterTabs
     const meta = f?.snapshot?.meta;
     const hasMeta =
@@ -494,13 +495,13 @@ async function doOpen(openInNewWindow: boolean, skipDuplicate: boolean): Promise
         const r = await mergeMeta(f, fpToTabId);
         // 拼接提示：仅展示非 0 项；全为 0 时单独提示
         const parts: string[] = [];
-        if (r.tagsAdded > 0) parts.push(`已追加 ${r.tagsAdded} 个标记`);
-        if (r.laterAdded > 0) parts.push(`${r.laterAdded} 个稍后项`);
-        if (r.tagsApplied > 0) parts.push(`${r.tagsApplied} 个标记已关联到恢复的标签`);
+        if (r.tagsAdded > 0) parts.push(tWithParams('backup.comp.import.metaTagsAdded', { count: r.tagsAdded }));
+        if (r.laterAdded > 0) parts.push(tWithParams('backup.comp.import.metaLaterAdded', { count: r.laterAdded }));
+        if (r.tagsApplied > 0) parts.push(tWithParams('backup.comp.import.metaTagsApplied', { count: r.tagsApplied }));
         if (parts.length > 0) {
           showToast(parts.join('、'));
         } else {
-          showToast('标记和稍后项已存在，无需追加');
+          showToast(t('backup.comp.import.metaAllExist'));
         }
       } catch (err) {
         console.warn('[ImportPanel] 追加标记/稍后项失败', err);
@@ -509,7 +510,7 @@ async function doOpen(openInNewWindow: boolean, skipDuplicate: boolean): Promise
     emit('opened', { count, openInNewWindow });
   } catch (err) {
     console.warn('[ImportPanel] 打开失败', err);
-    showToast('打开失败，请重试');
+    showToast(t('backup.comp.import.openFailed'));
   } finally {
     opening.value = false;
   }

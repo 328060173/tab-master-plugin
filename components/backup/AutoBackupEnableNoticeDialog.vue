@@ -22,11 +22,11 @@
         <div class="flex items-center justify-between px-5 pt-5 pb-2">
           <h2 id="auto-backup-enable-notice-title" class="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <CheckCircle :size="18" class="text-emerald-500 shrink-0" />
-            已开启自动备份
+            {{ t('backup.comp.autoEnable.title') }}
           </h2>
           <button
             class="inline-flex items-center justify-center w-7 h-7 -mt-1 -mr-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="关闭"
+            :aria-label="t('backup.comp.autoEnable.close')"
             @click="onCancel"
           >
             <X :size="16" />
@@ -36,7 +36,7 @@
         <!-- 正文 -->
         <div class="px-5 pb-3">
           <p class="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
-            开启后将立即进行第一次自动备份。备份完成后，数据请到备份列表查看。
+            {{ t('backup.comp.autoEnable.body') }}
           </p>
         </div>
 
@@ -45,7 +45,7 @@
           <button
             class="px-4 py-1.5 min-h-[36px] text-sm rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
             @click="onConfirm"
-          >知道了</button>
+          >{{ t('backup.comp.autoEnable.ack') }}</button>
         </div>
       </div>
     </div>
@@ -59,6 +59,7 @@
  * Emits: confirm（知道了）/ cancel（关闭/ESC/遮罩）
  */
 import { X, CheckCircle } from "@lucide/vue"
+import { t } from "~lib/i18n"
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{

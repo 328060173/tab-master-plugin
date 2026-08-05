@@ -12,6 +12,7 @@
 
 import { computeFingerprint, computeWeakFingerprint, normalizeUrl, uuidV4 } from "~lib/backup/fingerprint"
 import type { BackupFile, ImportResult } from "~types/backup"
+import { t, tWithParams } from "~lib/i18n"
 
 interface NiceTabRaw {
   tagList?: Array<{
@@ -35,13 +36,13 @@ export function parseNiceTab(text: string): Promise<ImportResult> {
     try {
       raw = JSON.parse(text)
     } catch (e) {
-      return { ok: false, file: null, error: `JSON 解析失败：${e instanceof Error ? e.message : String(e)}`, warnings, skipped: 0, format: "nicetab" }
+      return { ok: false, file: null, error: tWithParams("backup.lib.jsonParseFailed", { error: e instanceof Error ? e.message : String(e) }), warnings, skipped: 0, format: "nicetab" }
     }
     // 兼容顶层数组
     const root: NiceTabRaw = Array.isArray(raw) ? { tagList: raw as never } : (raw && typeof raw === "object" ? (raw as NiceTabRaw) : {})
     const tagList = Array.isArray(root.tagList) ? root.tagList : []
     if (!tagList.length) {
-      return { ok: false, file: null, error: "NiceTab 格式错误：未找到 tagList 或为空", warnings, skipped: 0, format: "nicetab" }
+      return { ok: false, file: null, error: t("backup.lib.nicetabNoTagList"), warnings, skipped: 0, format: "nicetab" }
     }
     const customTags: string[] = []
     const tabTagsMap: Record<string, string[]> = {}
@@ -107,7 +108,7 @@ export function parseNiceTab(text: string): Promise<ImportResult> {
       }
     }
     if (!tabs.length) {
-      return { ok: false, file: null, error: "NiceTab 解析后无有效标签", warnings, skipped, format: "nicetab" }
+      return { ok: false, file: null, error: t("backup.lib.nicetabNoTabs"), warnings, skipped, format: "nicetab" }
     }
     const now = Date.now()
     const file: BackupFile = {

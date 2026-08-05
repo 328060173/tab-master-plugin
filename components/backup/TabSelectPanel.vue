@@ -13,14 +13,14 @@
           type="checkbox"
           :checked="allSelected"
           :indeterminate.prop="someSelected && !allSelected"
-          aria-label="全选"
+          :aria-label="t('backup.comp.tabSelect.selectAllAria')"
           class="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
           @change="onToggleAll"
         />
-        <span>全选</span>
+        <span>{{ t('backup.comp.tabSelect.selectAll') }}</span>
       </label>
       <span class="text-[11px] text-gray-500 dark:text-gray-400">
-        已选 {{ selectedCount }} / {{ totalCount }} 个标签
+        {{ tWithParams('backup.comp.tabSelect.selectedCount', { selected: selectedCount, total: totalCount }) }}
       </span>
     </div>
 
@@ -43,11 +43,11 @@
               type="checkbox"
               :checked="isWindowAllSelected(g)"
               :indeterminate.prop="isWindowSomeSelected(g)"
-              :aria-label="`窗口${idx + 1} 全选`"
+              :aria-label="tWithParams('backup.comp.tabSelect.windowLabel', { idx: idx + 1, count: g.tabs.length })"
               class="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
               @change="onToggleWindow(g)"
             />
-            <span>窗口{{ idx + 1 }}（{{ g.tabs.length }} 个标签）</span>
+            <span>{{ tWithParams('backup.comp.tabSelect.windowLabel', { idx: idx + 1, count: g.tabs.length }) }}</span>
           </label>
         </div>
 
@@ -63,13 +63,13 @@
               <input
                 type="checkbox"
                 :checked="modelValue.has(tab.fingerprint)"
-                :aria-label="tab.title || '(无标题)'"
+                :aria-label="tab.title || t('backup.comp.tabSelect.untitled')"
                 class="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
                 @change="onToggleTab(tab.fingerprint)"
               />
               <FavIcon :src="tab.favIconUrl || ''" :domain="tab.domain" size="sm" />
               <span class="flex-1 min-w-0 truncate text-gray-800 dark:text-gray-100">
-                {{ tab.title || '(无标题)' }}
+                {{ tab.title || t('backup.comp.tabSelect.untitled') }}
               </span>
               <span
                 class="text-[10px] text-gray-400 dark:text-gray-500 shrink-0 truncate max-w-[180px]"
@@ -85,7 +85,7 @@
         v-if="windows.length === 0"
         class="py-8 text-center text-xs text-gray-500 dark:text-gray-400"
       >
-        {{ emptyHint }}
+        {{ emptyHintDisplay }}
       </div>
     </div>
   </div>
@@ -100,6 +100,7 @@
  */
 import { computed } from 'vue';
 import FavIcon from '~components/FavIcon.vue';
+import { t, tWithParams } from '~lib/i18n';
 
 /** 单个标签项（调用方算好 fingerprint/domain 传入） */
 interface TabSelectItem {
@@ -129,10 +130,13 @@ const props = withDefaults(
     maxHeight?: string;
   }>(),
   {
-    emptyHint: '无可预览的标签',
+    emptyHint: '',
     maxHeight: '360px',
   },
 );
+
+/** 空状态文案：父组件传了就用父的，否则走 i18n 默认 */
+const emptyHintDisplay = computed(() => props.emptyHint || t('backup.comp.tabSelect.emptyDefault'));
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: Set<string>): void;

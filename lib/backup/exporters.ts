@@ -12,6 +12,7 @@ import type { BackupFile, ExportFormat, SnapshotSource } from "~types/backup"
 import { BACKUP_KIND, BACKUP_SCHEMA_VERSION } from "~types/backup"
 import { APP_VERSION_CODE, APP_VERSION_NAME } from "~lib/api-config"
 import { collectMeta, buildSnapshot, type BuildSnapshotOptions } from "./snapshotBuilder"
+import { t } from "~lib/i18n"
 
 export interface ExportOutput {
   /** 文件名（含扩展名） */
@@ -240,7 +241,7 @@ export async function downloadExportWithPicker(out: ExportOutput): Promise<{ ok:
     } catch (e) {
       // 用户取消（AbortError）→ 静默返回，不算失败也不降级
       if (e instanceof DOMException && e.name === 'AbortError') {
-        return { ok: false, error: '用户取消' }
+        return { ok: false, error: t('backup.lib.userCancelled') }
       }
       console.warn('[exporters] showSaveFilePicker 失败，降级 <a download>', e)
       // 其他错误降级到 <a download>
@@ -248,5 +249,5 @@ export async function downloadExportWithPicker(out: ExportOutput): Promise<{ ok:
   }
   // 降级：<a download> 直接下载到默认下载目录
   const ok = downloadExport(out)
-  return { ok, error: ok ? undefined : '下载失败', fallback: true }
+  return { ok, error: ok ? undefined : t('backup.lib.downloadFailed'), fallback: true }
 }

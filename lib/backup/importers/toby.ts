@@ -10,6 +10,7 @@
 
 import { computeFingerprint, computeWeakFingerprint, normalizeUrl, uuidV4 } from "~lib/backup/fingerprint"
 import type { BackupFile, ImportResult } from "~types/backup"
+import { t, tWithParams } from "~lib/i18n"
 
 interface TobyRaw {
   lists?: Array<{
@@ -31,15 +32,15 @@ export function parseToby(text: string): Promise<ImportResult> {
     try {
       raw = JSON.parse(text)
     } catch (e) {
-      return { ok: false, file: null, error: `JSON 解析失败：${e instanceof Error ? e.message : String(e)}`, warnings, skipped: 0, format: "toby" }
+      return { ok: false, file: null, error: tWithParams("backup.lib.jsonParseFailed", { error: e instanceof Error ? e.message : String(e) }), warnings, skipped: 0, format: "toby" }
     }
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-      return { ok: false, file: null, error: "Toby 格式错误：顶层不是对象", warnings, skipped: 0, format: "toby" }
+      return { ok: false, file: null, error: t("backup.lib.tobyNotObject"), warnings, skipped: 0, format: "toby" }
     }
     const root = raw as TobyRaw
     const lists = Array.isArray(root.lists) ? root.lists : []
     if (!lists.length) {
-      return { ok: false, file: null, error: "Toby 格式错误：未找到 lists 或为空", warnings, skipped: 0, format: "toby" }
+      return { ok: false, file: null, error: t("backup.lib.tobyNoLists"), warnings, skipped: 0, format: "toby" }
     }
     const customTags: string[] = []
     const tabTagsMap: Record<string, string[]> = {}
@@ -99,7 +100,7 @@ export function parseToby(text: string): Promise<ImportResult> {
       }
     }
     if (!tabs.length) {
-      return { ok: false, file: null, error: "Toby 解析后无有效标签", warnings, skipped, format: "toby" }
+      return { ok: false, file: null, error: t("backup.lib.tobyNoTabs"), warnings, skipped, format: "toby" }
     }
     const now = Date.now()
     const file: BackupFile = {

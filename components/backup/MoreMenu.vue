@@ -14,7 +14,7 @@
       @click.stop="toggle"
     >
       <MoreHorizontal :size="12" />
-      <span>更多</span>
+      <span>{{ t('backup.comp.moreMenu.label') }}</span>
     </button>
 
     <Teleport to="body">
@@ -33,7 +33,7 @@
           @click="onViewDetail"
         >
           <Eye :size="12" />
-          <span>查看详情</span>
+          <span>{{ t('backup.comp.moreMenu.viewDetail') }}</span>
         </button>
         <button
           type="button"
@@ -42,7 +42,7 @@
           @click="onEditLabel"
         >
           <Pencil :size="12" />
-          <span>改备注</span>
+          <span>{{ t('backup.comp.moreMenu.editLabel') }}</span>
         </button>
         <button
           type="button"
@@ -51,7 +51,7 @@
           @click="onDelete"
         >
           <Trash2 :size="12" />
-          <span>删除</span>
+          <span>{{ t('backup.comp.moreMenu.delete') }}</span>
         </button>
       </div>
     </Teleport>
@@ -64,6 +64,7 @@
  */
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { MoreHorizontal, Pencil, Trash2, Eye } from '@lucide/vue'
+import { t } from '~lib/i18n'
 
 const emit = defineEmits<{
   (e: 'view-detail'): void

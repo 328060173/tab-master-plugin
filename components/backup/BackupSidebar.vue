@@ -7,7 +7,7 @@
   -->
   <aside class="w-[220px] shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
     <!-- 菜单项 -->
-    <nav class="flex-1 py-2" aria-label="备份页主菜单">
+    <nav class="flex-1 py-2" :aria-label="t('backup.comp.sidebar.aria')">
       <button
         v-for="item in menuItems"
         :key="item.key"
@@ -59,6 +59,7 @@ import { Shield, Cloud, Download } from "@lucide/vue"
 import AdSlot from "./AdSlot.vue"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
+import { t } from "~lib/i18n"
 
 // 广告多槽位：取左菜单辅位广告（backup-sidebar），adMap 由 backup.vue onMounted 单例 fetchAd 拉取
 const { getAd } = useBackupPageAd()
@@ -74,9 +75,9 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { key: 'manage', label: '备份管理', icon: Shield },
-  { key: 'cloud', label: '云同步', icon: Cloud },
-  { key: 'import', label: '导入管理', icon: Download },
+  { key: 'manage', label: t('backup.comp.sidebar.manage'), icon: Shield },
+  { key: 'cloud', label: t('backup.comp.sidebar.cloud'), icon: Cloud },
+  { key: 'import', label: t('backup.comp.sidebar.import'), icon: Download },
 ]
 
 defineProps<{ activeKey: BackupMenuKey }>()

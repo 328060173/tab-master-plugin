@@ -9,6 +9,7 @@
 
 import { computeFingerprint, computeWeakFingerprint, normalizeUrl, uuidV4 } from "~lib/backup/fingerprint"
 import type { BackupFile, ImportResult } from "~types/backup"
+import { t, tWithParams } from "~lib/i18n"
 
 interface VertiTabRaw {
   snapshotId?: string
@@ -40,15 +41,15 @@ export function parseVertiTab(text: string): Promise<ImportResult> {
     try {
       raw = JSON.parse(text)
     } catch (e) {
-      return { ok: false, file: null, error: `JSON 解析失败：${e instanceof Error ? e.message : String(e)}`, warnings, skipped: 0, format: "vertitab" }
+      return { ok: false, file: null, error: tWithParams("backup.lib.jsonParseFailed", { error: e instanceof Error ? e.message : String(e) }), warnings, skipped: 0, format: "vertitab" }
     }
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-      return { ok: false, file: null, error: "VertiTab 格式错误：顶层不是对象", warnings, skipped: 0, format: "vertitab" }
+      return { ok: false, file: null, error: t("backup.lib.vertitabNotObject"), warnings, skipped: 0, format: "vertitab" }
     }
     const root = raw as VertiTabRaw
     const windowsRaw = Array.isArray(root.windows) ? root.windows : []
     if (!windowsRaw.length) {
-      return { ok: false, file: null, error: "VertiTab 格式错误：未找到 windows 或为空", warnings, skipped: 0, format: "vertitab" }
+      return { ok: false, file: null, error: t("backup.lib.vertitabNoWindows"), warnings, skipped: 0, format: "vertitab" }
     }
     const windows: BackupFile["snapshot"]["windows"] = []
     let skipped = 0
@@ -99,7 +100,7 @@ export function parseVertiTab(text: string): Promise<ImportResult> {
     }
     const totalTabs = windows.reduce((n, w) => n + w.tabs.length, 0)
     if (!totalTabs) {
-      return { ok: false, file: null, error: "VertiTab 解析后无有效标签", warnings, skipped, format: "vertitab" }
+      return { ok: false, file: null, error: t("backup.lib.vertitabNoTabs"), warnings, skipped, format: "vertitab" }
     }
     const tabGroups: BackupFile["snapshot"]["meta"]["tabGroups"] = []
     for (const w of windowsRaw) {

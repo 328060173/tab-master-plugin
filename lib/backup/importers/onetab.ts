@@ -10,6 +10,7 @@
 
 import { computeFingerprint, computeWeakFingerprint, normalizeUrl, uuidV4 } from "~lib/backup/fingerprint"
 import type { BackupFile, ImportResult } from "~types/backup"
+import { t, tWithParams } from "~lib/i18n"
 
 export function parseOneTab(text: string): Promise<ImportResult> {
   return (async () => {
@@ -60,7 +61,7 @@ export function parseOneTab(text: string): Promise<ImportResult> {
         new URL(url)
       } catch {
         skipped++
-        warnings.push(`第 ${lineIdx} 行无效 URL 已跳过：${line.slice(0, 60)}`)
+        warnings.push(tWithParams("backup.lib.onetabInvalidLine", { line: lineIdx, content: line.slice(0, 60) }))
         continue
       }
       const fp = await computeFingerprint(url, title)
@@ -93,7 +94,7 @@ export function parseOneTab(text: string): Promise<ImportResult> {
       })
     }
     if (!windows.length) {
-      return { ok: false, file: null, error: "未解析到任何有效 URL（OneTab 格式应为每行 `URL | 标题`）", warnings, skipped, format: "onetab" }
+      return { ok: false, file: null, error: t("backup.lib.onetabNoUrl"), warnings, skipped, format: "onetab" }
     }
     const now = Date.now()
     const file: BackupFile = {
@@ -109,7 +110,7 @@ export function parseOneTab(text: string): Promise<ImportResult> {
         createdAtISO: new Date(now).toISOString(),
         source: "import",
         trigger: "import",
-        label: "OneTab 导入",
+        label: t("backup.lib.onetabLabel"),
         status: 'success',
         errorMessage: null,
         windows,

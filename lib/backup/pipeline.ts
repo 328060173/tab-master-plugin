@@ -10,6 +10,7 @@
 
 import { type Ref } from "vue"
 import { APP_VERSION_CODE, APP_VERSION_NAME } from "~lib/api-config"
+import { t, tWithParams } from "~lib/i18n"
 import { collectMeta, buildSnapshot, type BuildSnapshotOptions } from "./snapshotBuilder"
 import {
   BACKUP_KIND,
@@ -71,11 +72,11 @@ async function buildBackupFile(
   lastProgress: Ref<string>,
   options?: { selectedTabIds?: number[] },
 ): Promise<BackupFile> {
-  lastProgress.value = "采集标签…"
+  lastProgress.value = t("backup.lib.collectTabs")
   const allTabs = await chrome.tabs.query({})
-  lastProgress.value = "读取元数据…"
+  lastProgress.value = t("backup.lib.readMeta")
   const meta = await collectMeta()
-  lastProgress.value = "构建快照…"
+  lastProgress.value = t("backup.lib.buildSnapshot")
   const snapSource = mapSnapSource(source)
   // §10.8：手动备份选部分标签 → 传 selectedTabIds 子集
   // §3.2：非手动路径（auto.*/preRestore/import）超 maxTabsPerSnapshot → 自动截断到前 N 个
@@ -104,9 +105,9 @@ async function buildBackupFile(
 /** 写用户目录（双写降级），返回错误信息（null=成功/未开启） */
 async function writeDir(deps: PipelineDeps, file: BackupFile, lastProgress: Ref<string>): Promise<string | null> {
   if (!deps.settings.value.dirEnabled) return null
-  lastProgress.value = "写入目录…"
+  lastProgress.value = t("backup.lib.writeDir")
   const r = await deps.writeSnapshotToDirSafe(file)
-  return r.ok ? null : (r.error || "目录写入失败")
+  return r.ok ? null : (r.error || t("backup.lib.dirWriteFailed"))
 }
 
 /**
@@ -183,7 +184,7 @@ export async function runBackupPipeline(
   options?: RunPipelineOptions,
 ): Promise<PipelineResult> {
   const { state, snapshots, isBackingUp, lastProgress } = deps
-  if (isBackingUp.value) return { ok: false, error: "正在备份中…" }
+  if (isBackingUp.value) return { ok: false, error: t("backup.lib.backingUp") }
   // 配额 gate（2026-07-28 立）：超 cacheQuotaBytes 则不自动备份，提示用户清理手动备份。
   // - 只对自动备份生效（source !== 'manual'）。手动备份不受限（用户主动操作，让他备）。
   // - 失败不落库（这是配额拦截，不是备份失败，不该进失败列表）。
@@ -195,9 +196,9 @@ export async function runBackupPipeline(
     if (used >= quota) {
       const usedMB = Math.round(used / 1024 / 1024)
       const quotaMB = Math.round(quota / 1024 / 1024)
-      state.value.lastBackupError = `缓存已满（${usedMB}MB ≥ ${quotaMB}MB），请清理手动备份后继续`
+      state.value.lastBackupError = tWithParams("backup.lib.cacheFull", { used: usedMB, quota: quotaMB })
       await deps.saveState()
-      return { ok: false, error: '缓存已满，请清理手动备份' }
+      return { ok: false, error: t("backup.lib.cacheFullShort") }
     }
   }
   // 0 标签 gate（2026-07-28 立）：自动/事件/preRestore 后台备份，无标签不落空快照。
@@ -207,7 +208,7 @@ export async function runBackupPipeline(
   if (source !== 'manual') {
     const allTabs = await chrome.tabs.query({})
     if (filterBackupableTabs(allTabs).length === 0) {
-      return { ok: false, error: '无标签，跳过' }
+      return { ok: false, error: t("backup.lib.noTabs") }
     }
   }
   isBackingUp.value = true
@@ -220,7 +221,7 @@ export async function runBackupPipeline(
     // - trimExpiredSnapshots：删超过 retentionDays 的 auto.* 非失败项
     // - trimToMaxSnapshots：auto.* 项超 cacheMaxSnapshots 时删最早的
     // 手动/导入/preRestore 永不自动删；失败快照不参与裁剪。
-    lastProgress.value = "清理旧快照…"
+    lastProgress.value = t("backup.lib.cleanOldSnapshots")
     await trimExpiredSnapshots(deps.settings.value.retentionDays)
     await trimToMaxSnapshots(deps.settings.value.cacheMaxSnapshots)
     // 更新状态 + UI 列表
@@ -229,7 +230,7 @@ export async function runBackupPipeline(
     state.value = {
       lastBackupAt: file.snapshot.createdAt,
       lastBackupSource: file.snapshot.source as BackupState["lastBackupSource"],
-      lastBackupError: dirError ? `目录：${dirError}（本地缓存已写入）` : null,
+      lastBackupError: dirError ? tWithParams("backup.lib.dirError", { error: dirError }) : null,
       snapshotCount: summaries.length,
       cacheBytes,
     }

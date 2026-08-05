@@ -37,6 +37,7 @@
 
 import { safeSet, safeRemove } from "~lib/safeStorage"
 import { toPure } from "~lib/toPure"
+import { t } from "~lib/i18n"
 import {
   BACKUP_KEYS,
   LIVE_SNAPSHOT_ID,
@@ -235,7 +236,7 @@ async function writeLiveSnapshot(): Promise<void> {
     const isQuota = /quota|exceeded|max/i.test(msg)
     console.warn('[backup] 活档写入失败', e)
     if (isQuota) {
-      const hint = '自动监听活档过大，已暂停。建议清理标签或关闭自动监听备份。'
+      const hint = t('backup.lib.liveQuotaPaused')
       await persistLiveError(hint)
       chrome.runtime.sendMessage({ type: "backup:live-error", error: hint }).catch(() => {})
       stopLiveBackup()

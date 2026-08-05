@@ -24,11 +24,11 @@
         <!-- 标题 -->
         <div class="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
           <h2 id="export-current-title" class="text-base font-semibold text-gray-900 dark:text-gray-100">
-            导出当前标签
+            {{ t('backup.comp.export.title') }}
           </h2>
           <button
             class="inline-flex items-center justify-center w-7 h-7 -mt-1 -mr-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="关闭"
+            :aria-label="t('backup.comp.export.close')"
             @click="onCancel"
           >
             <X :size="16" />
@@ -38,28 +38,28 @@
         <!-- 步骤 1：标签勾选 -->
         <div v-if="step === 'select'" class="px-5 pb-5 flex-1 overflow-y-auto">
           <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-            已自动跳过隐身窗口<span v-if="loading" class="ml-1">加载中…</span>
+            {{ t('backup.comp.export.skipIncognito') }}<span v-if="loading" class="ml-1">{{ t('backup.comp.export.loading') }}</span>
           </p>
           <TabSelectPanel
             :windows="selectWindows"
             v-model="selectedFps"
-            empty-hint="没有可导出的标签"
+            :empty-hint="t('backup.comp.export.emptyTabs')"
             max-height="50vh"
           />
         </div>
 
         <!-- 步骤 2：数据大面板（高度自适应内容，超过 70vh 才固定+滚动） -->
         <div v-else class="px-5 pb-5 flex-1 overflow-y-auto">
-          <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">已选 {{ selectedCount }} 个标签的数据，可复制或下载到文件夹：</p>
+          <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">{{ tWithParams('backup.comp.export.dataHint', { count: selectedCount }) }}</p>
           <p class="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded px-2 py-1.5 mb-2">
-            ⚠️ 导出含标记名和稍后项，重新导入后标记名会追加回来，但不自动关联标签（浏览器 API 限制，同一网址每次打开标签 ID 不同）。
+            {{ t('backup.comp.export.metaWarning') }}
           </p>
           <textarea
             class="w-full border border-gray-200 dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-900/40 text-xs font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             :style="{ height: textareaHeight }"
             readonly
             :value="jsonContent"
-            aria-label="数据串"
+            :aria-label="t('backup.comp.export.dataAria')"
           ></textarea>
         </div>
 
@@ -68,23 +68,23 @@
           <button
             class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             @click="onCancel"
-          >取消</button>
+          >{{ t('backup.comp.export.cancel') }}</button>
           <button
             v-if="step === 'select'"
             :disabled="selectedCount === 0 || generating"
             class="px-3 py-1.5 min-h-[36px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             @click="onGenerate"
-          >{{ generating ? '生成中…' : '生成数据' }}</button>
+          >{{ generating ? t('backup.comp.export.generating') : t('backup.comp.export.generate') }}</button>
           <template v-else>
             <button
               class="px-3 py-1.5 min-h-[36px] text-xs rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               @click="onCopy"
-            >复制</button>
+            >{{ t('backup.comp.export.copy') }}</button>
             <button
               :disabled="downloading"
               class="px-3 py-1.5 min-h-[36px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               @click="onDownload"
-            >{{ downloading ? '下载中…' : '下载到文件夹' }}</button>
+            >{{ downloading ? t('backup.comp.export.downloading') : t('backup.comp.export.download') }}</button>
           </template>
         </div>
       </div>
@@ -107,6 +107,7 @@ import { getDeviceId } from '~lib/backup/timer'
 import { computeFingerprint } from '~lib/backup/fingerprint'
 import { isBackupableUrl, NO_TABS_HINT } from '~lib/backup/urlFilter'
 import TabSelectPanel from '~components/backup/TabSelectPanel.vue'
+import { t, tWithParams } from '~lib/i18n'
 
 /** TabSelectPanel 期望的窗口分组形状（结构兼容，无需导入） */
 interface SelectTabItem {
@@ -175,7 +176,7 @@ async function loadTabs() {
     selectedFps.value = fps
   } catch (e) {
     console.warn('[ExportCurrentDialog] 加载标签失败', e)
-    showToast('加载标签失败')
+    showToast(t('backup.comp.export.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -235,7 +236,7 @@ async function onGenerate() {
     step.value = 'json'
   } catch (e) {
     console.warn('[ExportCurrentDialog] 生成数据失败', e)
-    showToast('生成数据失败')
+    showToast(t('backup.comp.export.generateFailed'))
   } finally {
     generating.value = false
   }
@@ -244,11 +245,11 @@ async function onGenerate() {
 function onCopy() {
   try {
     navigator.clipboard.writeText(jsonContent.value).then(
-      () => showToast('已复制到剪贴板'),
-      () => showToast('复制失败，请手动全选复制'),
+      () => showToast(t('backup.toast.copied')),
+      () => showToast(t('backup.toast.copyFailedManual')),
     )
   } catch {
-    showToast('复制失败，请手动全选复制')
+    showToast(t('backup.toast.copyFailedManual'))
   }
 }
 
@@ -259,9 +260,9 @@ async function onDownload() {
     const out = { fileName: `tabmaster-export-${isoNow()}.json`, mime: 'application/json', content: jsonContent.value }
     const r = await downloadExportWithPicker(out)
     if (r.ok) {
-      showToast(r.fallback ? '已下载到默认目录' : '已导出到所选位置')
-    } else if (r.error && r.error !== '用户取消') {
-      showToast(r.error || '下载失败')
+      showToast(r.fallback ? t('backup.toast.downloadedDefault') : t('backup.toast.exportedToPicked'))
+    } else if (r.error && r.error !== t('backup.lib.userCancelled')) {
+      showToast(r.error || t('backup.toast.downloadFailed'))
     }
   } finally {
     downloading.value = false

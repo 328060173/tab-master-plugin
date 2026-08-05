@@ -20,6 +20,7 @@ import {
 import { getAllSnapshots } from "./db"
 import type { BackupFile, BackupSettings } from "~types/backup"
 import type { BackupOp, SyncState, BackupOpPayload } from "./types"
+import { t } from "~lib/i18n"
 
 const COORD_KEY = "tabMasterBackupCoord"
 
@@ -94,7 +95,7 @@ export async function runBackupWithCoordination(
 
   if (!(await tryAcquireCoord(traceId))) {
     await auditConflict(traceId, op, curCoord.syncState, curCoord.version)
-    return { ok: false, conflict: true, error: "备份进行中，请稍后再试" }
+    return { ok: false, conflict: true, error: t("backup.lib.coordinating") }
   }
 
   try {
@@ -113,9 +114,9 @@ export async function runBackupWithCoordination(
       // 写 IndexedDB + checksum 校验
       const persist = await persistSnapshot(result.snapshot)
       if (!persist.ok) {
-        await writeWalAborted(traceId, persist.error || "快照写入失败")
-        await auditFailed(traceId, op, "syncing", curCoord.version + 1, persist.error || "快照写入失败", Date.now() - startTs)
-        return { ok: false, error: persist.error || "快照写入失败，已自动回滚，请重试" }
+        await writeWalAborted(traceId, persist.error || t("backup.lib.snapshotWriteFailed"))
+        await auditFailed(traceId, op, "syncing", curCoord.version + 1, persist.error || t("backup.lib.snapshotWriteFailed"), Date.now() - startTs)
+        return { ok: false, error: persist.error || t("backup.lib.snapshotWriteFailed") }
       }
       // 补写 WAL 的 snapshotId（backup 操作时 execute 返回后才知道 id）
       await updateWalSnapshotId(traceId, result.snapshot.snapshot.id)

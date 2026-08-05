@@ -16,7 +16,7 @@
       <div class="flex items-center gap-2 flex-wrap text-xs">
         <!-- 备份时间 -->
         <div class="flex items-center gap-1.5">
-          <label class="text-gray-500 dark:text-gray-400 shrink-0">备份时间</label>
+          <label class="text-gray-500 dark:text-gray-400 shrink-0">{{ t('backup.comp.list.timeLabel') }}</label>
           <select
             v-model="filters.timeRange"
             class="border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -26,7 +26,7 @@
         </div>
         <!-- 备份类型 -->
         <div class="flex items-center gap-1.5">
-          <label class="text-gray-500 dark:text-gray-400 shrink-0">备份类型</label>
+          <label class="text-gray-500 dark:text-gray-400 shrink-0">{{ t('backup.comp.list.typeLabel') }}</label>
           <select
             v-model="filters.type"
             class="border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -36,11 +36,11 @@
         </div>
         <!-- 备注 -->
         <div class="flex items-center gap-1.5 flex-1 min-w-[200px]">
-          <label class="text-gray-500 dark:text-gray-400 shrink-0">备注</label>
+          <label class="text-gray-500 dark:text-gray-400 shrink-0">{{ t('backup.comp.list.noteLabel') }}</label>
           <input
             v-model="filters.keyword"
             type="text"
-            placeholder="关键字搜索（多关键字用 | 分隔）"
+            :placeholder="t('backup.comp.list.keywordPlaceholder')"
             class="flex-1 min-w-0 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             @keydown.enter="onSearch"
           />
@@ -50,22 +50,22 @@
           class="px-3 py-1 min-h-[32px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
           :disabled="searching"
           @click="onSearch"
-        >{{ searching ? '查询中…' : '查询' }}</button>
+        >{{ searching ? t('backup.comp.list.searching') : t('backup.comp.list.search') }}</button>
         <button
           class="px-3 py-1 min-h-[32px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
           :disabled="searching"
           @click="onReset"
-        >重置</button>
+        >{{ t('backup.comp.list.reset') }}</button>
       </div>
       <!-- 自定义时间范围 -->
       <div v-if="filters.timeRange === 'custom'" class="flex items-center gap-2 mt-2 text-xs">
-        <label class="text-gray-500 dark:text-gray-400 shrink-0">起</label>
+        <label class="text-gray-500 dark:text-gray-400 shrink-0">{{ t('backup.comp.list.start') }}</label>
         <input
           v-model="filters.customStart"
           type="date"
           class="border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <label class="text-gray-500 dark:text-gray-400 shrink-0">止</label>
+        <label class="text-gray-500 dark:text-gray-400 shrink-0">{{ t('backup.comp.list.end') }}</label>
         <input
           v-model="filters.customEnd"
           type="date"
@@ -77,13 +77,13 @@
     <!-- 空状态 -->
     <div v-if="filteredSnapshots.length === 0" class="bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
       <Inbox :size="32" class="mx-auto text-gray-300 dark:text-gray-600 mb-2" />
-      <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">还没有备份记录</p>
+      <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">{{ t('backup.comp.list.empty') }}</p>
       <button
         class="inline-flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
         @click="emit('open-manual-backup')"
       >
         <Save :size="12" />
-        手动备份
+        {{ t('backup.comp.list.typeManual') }}
       </button>
     </div>
 
@@ -93,13 +93,13 @@
         <table class="w-full text-xs">
           <thead class="bg-gray-50 dark:bg-gray-900/30 text-gray-500 dark:text-gray-400">
             <tr>
-              <th class="px-3 py-2 text-left font-medium">备份时间</th>
-              <th class="px-3 py-2 text-left font-medium">备份类型</th>
-              <th class="px-3 py-2 text-left font-medium">触发条件</th>
-              <th class="px-3 py-2 text-left font-medium">状态</th>
-              <th class="px-3 py-2 text-left font-medium">备注</th>
-              <th class="px-3 py-2 text-right font-medium">备份数量</th>
-              <th class="px-3 py-2 text-right font-medium">操作</th>
+              <th class="px-3 py-2 text-left font-medium">{{ t('backup.comp.list.colTime') }}</th>
+              <th class="px-3 py-2 text-left font-medium">{{ t('backup.comp.list.colType') }}</th>
+              <th class="px-3 py-2 text-left font-medium">{{ t('backup.comp.list.colTrigger') }}</th>
+              <th class="px-3 py-2 text-left font-medium">{{ t('backup.comp.list.colStatus') }}</th>
+              <th class="px-3 py-2 text-left font-medium">{{ t('backup.comp.list.colNote') }}</th>
+              <th class="px-3 py-2 text-right font-medium">{{ t('backup.comp.list.colCount') }}</th>
+              <th class="px-3 py-2 text-right font-medium">{{ t('backup.comp.list.colAction') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -128,9 +128,9 @@
               <td class="px-3 py-2 whitespace-nowrap">
                 <span
                   :class="['inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium', statusBadgeClass(s.status)]"
-                  :title="s.status === 'failed' ? (s.errorMessage || '备份失败') : undefined"
+                  :title="s.status === 'failed' ? (s.errorMessage || t('backup.comp.list.statusFailed')) : undefined"
                 >
-                  {{ s.status === 'failed' ? '失败' : '成功' }}
+                  {{ s.status === 'failed' ? t('backup.comp.list.statusFailed') : t('backup.comp.list.statusSuccess') }}
                 </span>
               </td>
               <!-- 备注（inline 编辑；活档条目不可编辑——活档随时被覆盖，备注无意义） -->
@@ -153,7 +153,7 @@
                 <template v-else>
                   <button
                     class="inline-flex items-center gap-1 text-left hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-0.5 -mx-0.5"
-                    :title="s.label || '点 ✏ 添加备注'"
+                    :title="s.label || t('backup.comp.list.noteHint')"
                     @click="onStartEditLabel(s)"
                   >
                     <span v-if="s.label" class="truncate max-w-[180px]">{{ s.label }}</span>
@@ -179,7 +179,7 @@
                     @click="onExport(s)"
                   >
                     <Download :size="12" />
-                    <span>导出</span>
+                    <span>{{ t('backup.comp.list.export') }}</span>
                   </button>
                   <MoreMenu
                     v-if="!isLive(s)"
@@ -196,26 +196,26 @@
 
       <!-- 分页 -->
       <div class="flex items-center justify-between px-3 py-2 border-t border-gray-100 dark:border-gray-700 text-[11px] text-gray-500 dark:text-gray-400 flex-wrap gap-2">
-        <span>共 {{ filteredSnapshots.length }} 条</span>
+        <span>{{ tWithParams('backup.comp.list.totalCount', { count: filteredSnapshots.length }) }}</span>
         <div class="flex items-center gap-2">
           <select
             v-model.number="pageSize"
             class="border border-gray-200 dark:border-gray-700 rounded px-1.5 py-0.5 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option v-for="opt in PAGE_SIZE_OPTIONS" :key="opt" :value="opt">{{ opt }}/页</option>
+            <option v-for="opt in PAGE_SIZE_OPTIONS" :key="opt" :value="opt">{{ tWithParams('backup.comp.list.perPage', { count: opt }) }}</option>
           </select>
           <div class="flex items-center gap-1">
             <button
               :disabled="page <= 1"
               class="px-2 py-1 rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               @click="page--"
-            >上一页</button>
+            >{{ t('backup.comp.list.prevPage') }}</button>
             <span class="px-1">{{ page }} / {{ totalPages }}</span>
             <button
               :disabled="page >= totalPages"
               class="px-2 py-1 rounded border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               @click="page++"
-            >下一页</button>
+            >{{ t('backup.comp.list.nextPage') }}</button>
           </div>
         </div>
       </div>
@@ -232,16 +232,16 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
         </svg>
-        <span class="text-gray-700 dark:text-gray-200">正在还原…</span>
+        <span class="text-gray-700 dark:text-gray-200">{{ t('backup.comp.list.restoring') }}</span>
       </div>
     </div>
 
     <!-- 删除二次确认 -->
     <ConfirmDialog
       :open="deleteConfirm.open"
-      title="删除此备份？"
-      message="删除后 30 秒内可撤销，超时无法恢复。"
-      confirm-text="删除"
+      :title="t('backup.comp.list.deleteTitle')"
+      :message="t('backup.comp.list.deleteMsg')"
+      :confirm-text="t('backup.comp.list.deleteConfirm')"
       danger
       @confirm="onConfirmDelete"
       @cancel="deleteConfirm.open = false"
@@ -264,11 +264,11 @@
         v-if="undoInfo.show"
         class="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs px-3 py-2 rounded shadow-lg flex items-center gap-3 max-w-[90vw]"
       >
-        <span>已删除备份</span>
+        <span>{{ t('backup.comp.list.deletedToast') }}</span>
         <button
           class="px-2 py-0.5 rounded bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
           @click="onUndoDelete"
-        >撤销（{{ undoInfo.remainSec }}s）</button>
+        >{{ tWithParams('backup.comp.list.undo', { sec: undoInfo.remainSec }) }}</button>
       </div>
     </Teleport>
 
@@ -308,6 +308,7 @@ import { useBackupPageAd } from '~composables/useBackupPageAd'
 import { useBackupRestore, type OpenTarget } from '~composables/useBackupRestore'
 import { showToast } from '~composables/useToast'
 import { type SnapshotSource, type SnapshotSummary, LIVE_SNAPSHOT_ID } from '~types/backup'
+import { t, tWithParams } from '~lib/i18n'
 
 const emit = defineEmits<{
   (e: 'open-manual-backup'): void
@@ -333,17 +334,17 @@ type TimeRange = 'all' | 'custom'
  */
 type TypeFilter = 'all' | 'manual' | 'timer' | 'listen'
 
-const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
-  { value: 'all', label: '全部' },
-  { value: 'custom', label: '自定义' },
-]
+const TIME_RANGE_OPTIONS = computed<{ value: TimeRange; label: string }[]>(() => [
+  { value: 'all', label: t('backup.comp.list.rangeAll') },
+  { value: 'custom', label: t('backup.comp.list.rangeCustom') },
+])
 
-const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
-  { value: 'all', label: '全部' },
-  { value: 'manual', label: '手动备份' },
-  { value: 'timer', label: '定时备份' },
-  { value: 'listen', label: '自动监听' },
-]
+const TYPE_OPTIONS = computed<{ value: TypeFilter; label: string }[]>(() => [
+  { value: 'all', label: t('backup.comp.list.typeAll') },
+  { value: 'manual', label: t('backup.comp.list.typeManual') },
+  { value: 'timer', label: t('backup.comp.list.typeTimer') },
+  { value: 'listen', label: t('backup.comp.list.typeListen') },
+])
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const
 
@@ -481,11 +482,11 @@ function isLatestRow(idx: number): boolean {
  * auto.listen 不在此表（由 isLive/isLatestListenArchive 分流为「实时/上一个/已过期」）。
  * preRestore/import 不进列表（无产生点），不在表中 → 走 default 兜底「未知」。
  */
-const TYPE_LABEL_MAP: Partial<Record<SnapshotSource, string>> = {
-  manual: '手动备份',
-  'auto.timer': '定时备份',
-  'auto.event': '定时备份',
-}
+const TYPE_LABEL_MAP = computed<Partial<Record<SnapshotSource, string>>>(() => ({
+  manual: t('backup.comp.list.typeManual'),
+  'auto.timer': t('backup.comp.list.typeTimer'),
+  'auto.event': t('backup.comp.list.typeTimer'),
+}))
 
 /**
  * 列表里最新的 auto.listen 历史档 id（活档除外）。
@@ -512,11 +513,11 @@ function isLatestListenArchive(s: SnapshotSummary): boolean {
 
 /** 备份类型列 label（5 类：实时/上一个/已过期/手动备份/定时备份） */
 function typeLabel(s: SnapshotSummary): string {
-  if (isLive(s)) return '自动监听-实时'
+  if (isLive(s)) return t('backup.comp.list.typeLive')
   if (s.source === 'auto.listen') {
-    return isLatestListenArchive(s) ? '自动监听-上一个' : '自动监听-已过期'
+    return isLatestListenArchive(s) ? t('backup.comp.list.typeListenPrev') : t('backup.comp.list.typeListenExpired')
   }
-  return TYPE_LABEL_MAP[s.source] ?? '未知'
+  return TYPE_LABEL_MAP.value[s.source] ?? t('backup.comp.list.typeUnknown')
 }
 
 /** 类型色标：实时=蓝主色引导还原 / 上一个=emerald / 已过期=emerald 淡色 / 手动=blue-100 / 定时=gray-100 */
@@ -544,12 +545,12 @@ function statusBadgeClass(status: 'success' | 'failed'): string {
  * preRestore/import 不进列表，删 case 走 default 兜底（反正不产生）。
  */
 function triggerLabel(s: SnapshotSummary): string {
-  if (isLive(s)) return '当前会话'
+  if (isLive(s)) return t('backup.comp.list.triggerCurrent')
   if (s.source === 'auto.listen') {
-    return isLatestListenArchive(s) ? '上次会话封存' : '更早会话封存'
+    return isLatestListenArchive(s) ? t('backup.comp.list.triggerLastSession') : t('backup.comp.list.triggerEarlierSession')
   }
-  if (s.source === 'manual') return '手动'
-  if (s.source === 'auto.timer' || s.source === 'auto.event') return '定时/启动'
+  if (s.source === 'manual') return t('backup.comp.list.triggerManual')
+  if (s.source === 'auto.timer' || s.source === 'auto.event') return t('backup.comp.list.triggerTimer')
   // default 兜底（preRestore/import 等不进列表的 source，理论不命中）
   return s.trigger || s.source
 }
@@ -565,7 +566,7 @@ function tabCountDisplay(s: SnapshotSummary): string {
   const n = (typeof selected === 'number' && typeof total === 'number' && total > 0 && selected !== total)
     ? selected
     : tabCount
-  return `备份了 ${n} 个`
+  return tWithParams('backup.comp.list.tabCountDisplay', { count: n })
 }
 
 // ===== 备注 inline 编辑 =====
@@ -604,9 +605,9 @@ async function onSaveLabel(id: string) {
   }
   const ok = await svc.setSnapshotLabel(id, trimmed || null)
   if (ok) {
-    showToast('已修改备注')
+    showToast(t('backup.comp.list.noteSaved'))
   } else {
-    showToast('修改备注失败')
+    showToast(t('backup.comp.list.noteSaveFailed'))
   }
   editingId.value = null
 }
@@ -646,7 +647,7 @@ async function onRestore(snapshotId: string, target: OpenTarget) {
   // 先预览重复数，不实际打开
   const p = await restoreSvc.previewRestore(snapshotId, target)
   if (!p.ok) {
-    showToast(p.error || '还原失败')
+    showToast(p.error || t('backup.comp.list.restoreFailed'))
     return
   }
   // 有重复 → 弹框让用户选
@@ -669,17 +670,17 @@ async function doRestore(snapshotId: string, target: OpenTarget, skipDuplicate: 
     const r = await restoreSvc.openSnapshot(snapshotId, target, { skipDuplicateUrls: skipDuplicate })
     if (r.ok) {
       const fp = r.metaResult
-      let msg = `已打开 ${r.openedCount} 个标签`
+      let msg = tWithParams('backup.comp.list.openedToast', { count: r.openedCount })
       if (fp) {
         const metaBits: string[] = []
-        if (fp.tagsApplied > 0) metaBits.push(`标记 ${fp.tagsApplied}`)
-        if (fp.laterAdded > 0) metaBits.push(`稍后 ${fp.laterAdded}`)
-        if (fp.groupsRestored > 0) metaBits.push(`分组 ${fp.groupsRestored}`)
-        if (metaBits.length > 0) msg += `（已恢复 ${metaBits.join(' / ')}）`
+        if (fp.tagsApplied > 0) metaBits.push(tWithParams('backup.comp.list.metaTags', { count: fp.tagsApplied }))
+        if (fp.laterAdded > 0) metaBits.push(tWithParams('backup.comp.list.metaLater', { count: fp.laterAdded }))
+        if (fp.groupsRestored > 0) metaBits.push(tWithParams('backup.comp.list.metaGroups', { count: fp.groupsRestored }))
+        if (metaBits.length > 0) msg += tWithParams('backup.comp.list.metaRestored', { parts: metaBits.join(' / ') })
       }
       showToast(msg)
     } else {
-      showToast(r.error || '还原失败')
+      showToast(r.error || t('backup.comp.list.restoreFailed'))
     }
   } finally {
     restoringId.value = null
@@ -722,10 +723,10 @@ async function onConfirmDelete() {
   if (!id) return
   const ok = await svc.deleteSnapshot(id)
   if (!ok) {
-    showToast('删除失败')
+    showToast(t('backup.comp.list.deleteFailed'))
     return
   }
-  showToast('已删除')
+  showToast(t('backup.comp.list.deletedToastShort'))
   // 启动 30s 撤销窗口
   undoInfo.id = id
   undoInfo.remainSec = Math.floor(UNDO_WINDOW_MS / 1000)
@@ -748,9 +749,9 @@ async function onUndoDelete() {
   if (!undoInfo.id) return
   const ok = await svc.undoDelete()
   if (ok) {
-    showToast('已撤销删除')
+    showToast(t('backup.comp.list.undeleted'))
   } else {
-    showToast('撤销失败')
+    showToast(t('backup.comp.list.undoFailed'))
   }
   undoInfo.show = false
   undoInfo.id = null

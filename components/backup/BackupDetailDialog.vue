@@ -25,7 +25,7 @@
         <div class="flex items-center justify-between px-5 pt-5 pb-2 shrink-0 gap-2">
           <div class="flex-1 min-w-0">
             <h2 id="backup-detail-title" class="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
-              备份详情<span v-if="fileLabel"> · {{ fileLabel }}</span>
+              {{ t('backup.comp.detail.title') }}<span v-if="fileLabel">{{ t('backup.comp.detail.titleSep') }}{{ fileLabel }}</span>
             </h2>
             <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
               {{ sourceLabel }} · {{ fileTimeLabel }}
@@ -33,7 +33,7 @@
           </div>
           <button
             class="inline-flex items-center justify-center w-7 h-7 -mt-1 -mr-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
-            aria-label="关闭"
+            :aria-label="t('backup.comp.detail.close')"
             @click="onCancel"
           >
             <X :size="16" />
@@ -46,13 +46,13 @@
             {{ summaryText }}
           </p>
           <div class="flex items-center gap-2 text-xs">
-            <span class="text-gray-500 dark:text-gray-400 shrink-0">备注：</span>
+            <span class="text-gray-500 dark:text-gray-400 shrink-0">{{ t('backup.comp.detail.noteLabel') }}</span>
             <template v-if="!editingLabel">
               <span class="text-gray-800 dark:text-gray-100">{{ fileLabel || '--' }}</span>
               <button
                 class="inline-flex items-center justify-center w-6 h-6 rounded text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="修改备注"
-                title="改备注"
+                :aria-label="t('backup.comp.detail.noteEditAria')"
+                :title="t('backup.comp.detail.noteEditTitle')"
                 @click="onStartEditLabel"
               >
                 <Pencil :size="12" />
@@ -71,11 +71,11 @@
               <button
                 class="px-2 py-1 min-h-[28px] text-[11px] rounded bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 @click="onSaveLabel"
-              >保存</button>
+              >{{ t('backup.comp.detail.save') }}</button>
               <button
                 class="px-2 py-1 min-h-[28px] text-[11px] rounded border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 @click="editingLabel = false"
-              >取消</button>
+              >{{ t('backup.comp.detail.cancel') }}</button>
             </template>
           </div>
         </div>
@@ -101,7 +101,7 @@
         <div class="flex-1 overflow-y-auto px-5 py-3 min-h-[260px]">
           <!-- 加载态 -->
           <div v-if="loading" class="py-12 text-center text-xs text-gray-500 dark:text-gray-400">
-            正在读取备份内容…
+            {{ t('backup.comp.detail.loading') }}
           </div>
 
           <!-- 标签视图 -->
@@ -109,20 +109,20 @@
             <TabSelectPanel
               :windows="selectWindows"
               v-model="selectedFps"
-              empty-hint="此备份无标签数据"
+              :empty-hint="t('backup.comp.detail.emptyTabs')"
               max-height="50vh"
             />
           </template>
 
           <!-- JSON 视图 -->
           <template v-else-if="view === 'json' && file">
-            <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">完整 JSON 串，可全选复制：</p>
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">{{ t('backup.comp.detail.jsonHint') }}</p>
             <textarea
               ref="jsonTextareaRef"
               class="w-full h-[360px] border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-900/40 text-[11px] font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               readonly
               :value="jsonContent"
-              aria-label="完整 JSON 串"
+              :aria-label="t('backup.comp.detail.jsonAria')"
             ></textarea>
           </template>
         </div>
@@ -135,12 +135,12 @@
               :disabled="selectedCount === 0 || restoring"
               class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               @click="onOpenSelected(false)"
-            >本窗口打开选中</button>
+            >{{ t('backup.comp.detail.openCurrent') }}</button>
             <button
               :disabled="selectedCount === 0 || restoring"
               class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               @click="onOpenSelected(true)"
-            >新窗口打开选中</button>
+            >{{ t('backup.comp.detail.openNew') }}</button>
           </template>
 
           <!-- JSON 视图：复制 + 下载 -->
@@ -148,18 +148,18 @@
             <button
               class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               @click="onCopyJson"
-            >全选复制</button>
+            >{{ t('backup.comp.detail.copyAll') }}</button>
             <button
               class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               @click="onDownloadJson"
-            >下载为文件</button>
+            >{{ t('backup.comp.detail.downloadFile') }}</button>
           </template>
 
           <div class="ml-auto flex gap-2">
             <button
               class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               @click="onCancel"
-            >关闭</button>
+            >{{ t('backup.comp.detail.close') }}</button>
           </div>
         </div>
       </div>
@@ -190,6 +190,7 @@
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { X, Pencil } from '@lucide/vue'
 import { useBackupService } from '~composables/useBackupService'
+import { t, tWithParams } from '~lib/i18n'
 import { useBackupRestore, type OpenTarget } from '~composables/useBackupRestore'
 import { showToast } from '~composables/useToast'
 import { exportByFormat, downloadExportWithPicker } from '~lib/backup/exporters'
@@ -205,10 +206,10 @@ const svc = useBackupService()
 const restoreSvc = useBackupRestore()
 
 type ViewTab = 'tabs' | 'json'
-const VIEW_TABS: { key: ViewTab; label: string }[] = [
-  { key: 'tabs', label: '标签视图' },
-  { key: 'json', label: 'JSON 视图' },
-]
+const VIEW_TABS = computed<{ key: ViewTab; label: string }[]>(() => [
+  { key: 'tabs', label: t('backup.comp.detail.viewTabs') },
+  { key: 'json', label: t('backup.comp.detail.viewJson') },
+])
 
 const view = ref<ViewTab>('tabs')
 const loading = ref(false)
@@ -252,12 +253,12 @@ const fileTimeLabel = computed(() => {
 const sourceLabel = computed(() => {
   const s = file.value?.snapshot.source
   switch (s) {
-    case 'manual': return '手动备份'
-    case 'auto.timer': return '自动备份（定时）'
+    case 'manual': return t('backup.comp.detail.sourceManual')
+    case 'auto.timer': return t('backup.comp.detail.sourceTimer')
     case 'auto.event':
-      return '自动备份（事件）'
-    case 'import': return '导入'
-    case 'preRestore': return '还原前快照'
+      return t('backup.comp.detail.sourceEvent')
+    case 'import': return t('backup.comp.detail.sourceImport')
+    case 'preRestore': return t('backup.comp.detail.sourcePreRestore')
     default: return s || ''
   }
 })
@@ -268,24 +269,24 @@ const summaryText = computed(() => {
   const s = f.snapshot.stats
   const meta = f.snapshot.meta
   const parts: string[] = [
-    `${s.tabCount} 标签`,
-    `${s.windowCount} 窗口`,
+    tWithParams('backup.comp.detail.statTabs', { count: s.tabCount }),
+    tWithParams('backup.comp.detail.statWindows', { count: s.windowCount }),
   ]
-  if (s.taggedCount > 0) parts.push(`${s.taggedCount} 标记`)
-  if (s.laterCount > 0) parts.push(`${s.laterCount} 稍后`)
-  if (s.groupCount > 0) parts.push(`${s.groupCount} 分组`)
+  if (s.taggedCount > 0) parts.push(tWithParams('backup.comp.detail.statTags', { count: s.taggedCount }))
+  if (s.laterCount > 0) parts.push(tWithParams('backup.comp.detail.statLater', { count: s.laterCount }))
+  if (s.groupCount > 0) parts.push(tWithParams('backup.comp.detail.statGroups', { count: s.groupCount }))
   // 元数据补充：标记/稍后/分组实际数（stats 可能未填）
   const tagMapCount = Object.keys(meta.tabTagsMap).length
   const laterCount = meta.laterTabs.length
   const groupCount = meta.tabGroups.length
   if (tagMapCount && tagMapCount !== s.taggedCount) {
-    parts.push(`${tagMapCount} 标记`)
+    parts.push(tWithParams('backup.comp.detail.statTags', { count: tagMapCount }))
   }
   if (laterCount && laterCount !== s.laterCount) {
-    parts.push(`${laterCount} 稍后`)
+    parts.push(tWithParams('backup.comp.detail.statLater', { count: laterCount }))
   }
   if (groupCount && groupCount !== s.groupCount) {
-    parts.push(`${groupCount} 分组`)
+    parts.push(tWithParams('backup.comp.detail.statGroups', { count: groupCount }))
   }
   // 去重
   const seen = new Set<string>()
@@ -353,7 +354,7 @@ function onCopyJson() {
   try {
     const ok = document.execCommand('copy')
     if (ok) {
-      showToast('已复制到剪贴板')
+      showToast(t('backup.toast.copied'))
       return
     }
   } catch (e) {
@@ -362,11 +363,11 @@ function onCopyJson() {
   // 降级：navigator.clipboard
   if (navigator.clipboard) {
     navigator.clipboard.writeText(jsonContent.value).then(
-      () => showToast('已复制到剪贴板'),
-      () => showToast('复制失败，请手动全选复制'),
+      () => showToast(t('backup.toast.copied')),
+      () => showToast(t('backup.toast.copyFailedManual')),
     )
   } else {
-    showToast('复制失败，请手动全选复制')
+    showToast(t('backup.toast.copyFailedManual'))
   }
 }
 
@@ -382,9 +383,9 @@ function onDownloadJson() {
   const out = exportByFormat(f, 'json')
   void downloadExportWithPicker(out).then((r) => {
     if (r.ok) {
-      showToast(r.fallback ? '已下载到默认目录' : '已保存到所选位置')
-    } else if (r.error && r.error !== '用户取消') {
-      showToast(r.error || '下载失败')
+      showToast(r.fallback ? t('backup.toast.downloadedDefault') : t('backup.toast.exportedToPicked'))
+    } else if (r.error && r.error !== t('backup.lib.userCancelled')) {
+      showToast(r.error || t('backup.toast.downloadFailed'))
     }
   })
 }
@@ -406,9 +407,9 @@ async function onSaveLabel() {
   if (ok) {
     // 重新加载 file（label 已变）
     file.value = await svc.getSnapshotFile(props.snapshotId)
-    showToast('已修改备注')
+    showToast(t('backup.comp.list.noteSaved'))
   } else {
-    showToast('修改备注失败')
+    showToast(t('backup.comp.list.noteSaveFailed'))
   }
   editingLabel.value = false
 }
@@ -436,7 +437,7 @@ async function onOpenSelected(openInNewWindow: boolean) {
     selectedFingerprints: new Set(selectedFps.value),
   })
   if (!p.ok) {
-    showToast(p.error || '打开失败')
+    showToast(p.error || t('backup.comp.detail.openFailed'))
     return
   }
   // 有重复 → 弹框让用户选
@@ -463,10 +464,12 @@ async function doOpenSelected(openInNewWindow: boolean, skipDuplicate: boolean) 
       skipDuplicateUrls: skipDuplicate,
     })
     if (r.ok) {
-      showToast(`已打开 ${r.openedCount} 个标签` + (r.metaResult ? `（标记 ${r.metaResult.tagsApplied} / 稍后 ${r.metaResult.laterAdded} / 分组 ${r.metaResult.groupsRestored}）` : ''))
+      showToast(r.metaResult
+        ? tWithParams('backup.comp.detail.openedToast', { count: r.openedCount, tags: r.metaResult.tagsApplied, later: r.metaResult.laterAdded, groups: r.metaResult.groupsRestored })
+        : tWithParams('backup.comp.list.openedToast', { count: r.openedCount }))
       emit('restored')
     } else {
-      showToast(r.error || '打开失败')
+      showToast(r.error || t('backup.comp.detail.openFailed'))
     }
   } finally {
     restoring.value = false
@@ -493,10 +496,10 @@ function safeDomain(url: string): string {
 
 function formatRelative(ts: number): string {
   const diff = Date.now() - ts
-  if (diff < 60_000) return '刚刚'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
-  if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)} 天前`
+  if (diff < 60_000) return t('backup.comp.detail.relJustNow')
+  if (diff < 3_600_000) return tWithParams('backup.comp.detail.relMinAgo', { count: Math.floor(diff / 60_000) })
+  if (diff < 86_400_000) return tWithParams('backup.comp.detail.relHourAgo', { count: Math.floor(diff / 3_600_000) })
+  if (diff < 7 * 86_400_000) return tWithParams('backup.comp.detail.relDayAgo', { count: Math.floor(diff / 86_400_000) })
   const d = new Date(ts)
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`

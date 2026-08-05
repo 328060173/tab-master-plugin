@@ -25,12 +25,12 @@
           <div class="flex items-center gap-2 min-w-0">
             <AlertTriangle :size="18" class="text-amber-500 shrink-0" />
             <h2 id="restore-confirm-title" class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-              还原确认
+              {{ t('backup.comp.restoreConfirm.title') }}
             </h2>
           </div>
           <button
             class="inline-flex items-center justify-center w-7 h-7 -mt-1 -mr-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
-            aria-label="关闭"
+            :aria-label="t('backup.comp.restoreConfirm.close')"
             @click="onCancel"
           >
             <X :size="16" />
@@ -40,15 +40,13 @@
         <!-- 正文 -->
         <div class="px-5 pb-3 shrink-0 space-y-2">
           <p v-if="duplicate > 0" class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed">
-            这次备份共 <span class="font-semibold">{{ total }}</span> 个标签，其中
-            <span class="font-semibold text-amber-600 dark:text-amber-400">{{ duplicate }}</span> 个
-            当前已打开（目标：{{ target === 'current' ? '本窗口' : '新窗口' }}）。是否跳过已打开的标签？
+            {{ tWithParams('backup.comp.restoreConfirm.dupMsg', { total, duplicate, target: target === 'current' ? t('backup.comp.restoreConfirm.targetCurrent') : t('backup.comp.restoreConfirm.targetNew') }) }}
           </p>
           <p v-else class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed">
-            这次备份共 <span class="font-semibold">{{ total }}</span> 个标签，均未打开。点击下方按钮开始打开。
+            {{ tWithParams('backup.comp.restoreConfirm.noDupMsg', { total }) }}
           </p>
           <p class="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded px-2 py-1.5">
-            ⚠️ 还原后标记名和稍后项会追加回来。标记会关联到你选择恢复的标签（按网址匹配），若标记名已存在则跳过。
+            {{ t('backup.comp.restoreConfirm.metaHint') }}
           </p>
         </div>
 
@@ -59,7 +57,7 @@
             v-if="duplicate === 0"
             class="px-3 py-1.5 min-h-[36px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             @click="onConfirmDedupe"
-          >打开</button>
+          >{{ t('backup.comp.restoreConfirm.open') }}</button>
 
           <!-- duplicate > 0：全部打开 + 去重打开 -->
           <template v-else>
@@ -67,16 +65,16 @@
               <button
                 class="px-3 py-1.5 min-h-[36px] text-xs rounded border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 @click="onConfirmAll"
-              >全部打开</button>
-              <span class="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">含已打开的，会出现重复标签</span>
+              >{{ t('backup.comp.restoreConfirm.openAll') }}</button>
+              <span class="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{{ t('backup.comp.restoreConfirm.openAllHint') }}</span>
             </div>
 
             <div class="flex flex-col items-end">
               <button
                 class="px-3 py-1.5 min-h-[36px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 @click="onConfirmDedupe"
-              >去重打开</button>
-              <span class="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">跳过已打开的，只补开 {{ toOpen }} 个</span>
+              >{{ t('backup.comp.restoreConfirm.openDedupe') }}</button>
+              <span class="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{{ tWithParams('backup.comp.restoreConfirm.openDedupeHint', { count: toOpen }) }}</span>
             </div>
           </template>
         </div>
@@ -92,6 +90,7 @@
  * 守红线：单根（Teleport + 单 div）；事件全声明在 emits；禁 v-html。
  */
 import { X, AlertTriangle } from '@lucide/vue'
+import { t, tWithParams } from '~lib/i18n'
 
 defineProps<{
   open: boolean

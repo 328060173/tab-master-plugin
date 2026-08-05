@@ -20,7 +20,7 @@
     ]"
     :data-slot-id="slotId"
     role="complementary"
-    :aria-label="`广告位 ${slotId}`"
+    :aria-label="tWithParams('backup.comp.adSlot.aria', { slotId })"
   >
     <!-- 广告图片（可点击跳转） -->
     <a
@@ -29,7 +29,7 @@
       rel="noopener noreferrer"
       class="block w-full flex-1 min-h-0 relative"
       :title="ad.title"
-      :aria-label="ad.title || '推广链接'"
+      :aria-label="ad.title || t('backup.comp.adSlot.linkAria')"
       @click.prevent="onAdClick"
     >
       <img
@@ -44,8 +44,8 @@
     <!-- 右上角 X 关闭按钮（对标 AdBanner） -->
     <button
       class="absolute top-1 right-1 inline-flex items-center justify-center w-6 h-6 p-0 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-      aria-label="关闭广告"
-      title="关闭"
+      :aria-label="t('backup.comp.adSlot.closeAria')"
+      :title="t('backup.comp.adSlot.close')"
       @click.stop="onDismiss"
     >
       <X :size="14" />
@@ -53,7 +53,7 @@
 
     <!-- 广告标题条（对标 AdBanner：推广 label + title） -->
     <div class="px-2 py-1.5 flex items-center gap-1.5 shrink-0">
-      <span class="text-[10px] text-gray-400 uppercase tracking-wide shrink-0">推广</span>
+      <span class="text-[10px] text-gray-400 uppercase tracking-wide shrink-0">{{ t('backup.comp.adSlot.promo') }}</span>
       <span class="text-xs text-gray-700 dark:text-gray-200 truncate flex-1">{{ ad.title }}</span>
     </div>
   </div>
@@ -72,6 +72,7 @@
 import { ref, computed, watch } from "vue";
 import { X } from "@lucide/vue";
 import type { AdItem } from "~types/ad";
+import { t, tWithParams } from "~lib/i18n";
 
 export type AdSlotSize = '728x90' | '300x250' | '160x600' | '160x60' | '320x50';
 

@@ -30,18 +30,20 @@
  * 直接用 ImportPanel（OneTab 格式为主）+ 底部广告位。
  * ImportPanel 内部支持选文件/粘贴切换 + 左右布局预览 + 本窗口/新窗口打开。
  */
+import { computed } from 'vue';
 import ErrorBoundary from '~components/ErrorBoundary.vue';
 import AdSlot from './AdSlot.vue';
 import ImportPanel from './ImportPanel.vue';
 import { useBackupPageAd } from '~composables/useBackupPageAd';
+import { t } from '~lib/i18n';
 
 // 广告多槽位：取导入底位广告，adMap 由 backup.vue onMounted 单例 fetchAd 拉取
 const { getAd } = useBackupPageAd();
 
 // 格式选项：本插件数据 + OneTab（parseImport 按内容自动嗅探）
-const FORMATS: { value: string; label: string }[] = [
-  { value: 'ours', label: '本插件数据' },
-  { value: 'onetab', label: 'OneTab' },
-];
+const FORMATS = computed<{ value: string; label: string }[]>(() => [
+  { value: 'ours', label: t('backup.comp.import.formatOurs') },
+  { value: 'onetab', label: t('backup.comp.import.formatOnetab') },
+]);
 const DEFAULT_FORMAT = 'ours';
 </script>

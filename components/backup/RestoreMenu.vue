@@ -16,7 +16,7 @@
       @click.stop="toggle"
     >
       <RotateCcw :size="12" />
-      <span>还原</span>
+      <span>{{ t('backup.comp.restoreMenu.label') }}</span>
       <ChevronDown :size="10" />
     </button>
 
@@ -34,19 +34,19 @@
           class="w-full text-left px-3 py-1.5 text-[11px] text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
           role="menuitem"
           @click="onSelect('current')"
-        >本窗口打开（全部）</button>
+        >{{ t('backup.comp.restoreMenu.current') }}</button>
         <button
           type="button"
           class="w-full text-left px-3 py-1.5 text-[11px] text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
           role="menuitem"
           @click="onSelect('newWindow')"
-        >新窗口打开（全部）</button>
+        >{{ t('backup.comp.restoreMenu.newWindow') }}</button>
         <button
           type="button"
           class="w-full text-left px-3 py-1.5 text-[11px] text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
           role="menuitem"
           @click="onSelect('selected')"
-        >勾选打开…</button>
+        >{{ t('backup.comp.restoreMenu.selected') }}</button>
       </div>
     </Teleport>
   </div>
@@ -61,6 +61,7 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { RotateCcw, ChevronDown } from '@lucide/vue'
 import type { OpenTarget } from '~composables/useBackupRestore'
+import { t } from '~lib/i18n'
 
 defineProps<{ disabled?: boolean }>()
 const emit = defineEmits<{ (e: 'select', target: OpenTarget): void }>()

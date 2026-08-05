@@ -27,11 +27,11 @@
         <!-- 标题 -->
         <div class="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
           <h2 id="manual-backup-title" class="text-base font-semibold text-gray-900 dark:text-gray-100">
-            手动备份
+            {{ t('backup.comp.manual.title') }}
           </h2>
           <button
             class="inline-flex items-center justify-center w-7 h-7 -mt-1 -mr-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="关闭"
+            :aria-label="t('backup.comp.manual.close')"
             @click="onCancel"
           >
             <X :size="16" />
@@ -40,18 +40,18 @@
 
         <!-- 加载态 -->
         <div v-if="loading" class="px-5 py-12 text-center text-xs text-gray-500 dark:text-gray-400">
-          正在读取标签列表…
+          {{ t('backup.comp.manual.loading') }}
         </div>
 
         <!-- 主体 -->
         <template v-else>
           <div class="px-5 pb-2 text-xs text-gray-600 dark:text-gray-300 shrink-0 flex items-center justify-between gap-2">
-            <span>选择要备份的标签（默认全选，可按窗口选 / 反选 / 单条勾）</span>
+            <span>{{ t('backup.comp.manual.selectHint') }}</span>
             <button
               type="button"
               class="text-blue-600 dark:text-blue-400 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
               @click="onInvert"
-            >反选</button>
+            >{{ t('backup.comp.manual.invert') }}</button>
           </div>
 
           <!-- 标签列表（按窗口分组，TabSelectPanel 内部 max-height 滚动） -->
@@ -59,7 +59,7 @@
             <TabSelectPanel
               :windows="selectWindows"
               v-model="selectedFps"
-              empty-hint="没有可备份的标签"
+              :empty-hint="t('backup.comp.manual.emptyTabs')"
               max-height="50vh"
             />
           </div>
@@ -70,29 +70,29 @@
             <p
               :class="['text-[11px] leading-relaxed', manualOverLimit ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400']"
             >
-              <template v-if="manualOverLimit">已达上限，请清理旧手动备份（已有 {{ manualCount }}/{{ MANUAL_MAX_SNAPSHOTS }} 条手动备份，手动备份不会被自动删除）</template>
-              <template v-else>已有 {{ manualCount }}/{{ MANUAL_MAX_SNAPSHOTS }} 条手动备份，手动备份不会被自动删除</template>
+              <template v-if="manualOverLimit">{{ tWithParams('backup.comp.manual.overLimit', { current: manualCount, max: MANUAL_MAX_SNAPSHOTS }) }}</template>
+              <template v-else>{{ tWithParams('backup.comp.manual.underLimit', { current: manualCount, max: MANUAL_MAX_SNAPSHOTS }) }}</template>
             </p>
             <div class="flex items-center gap-2 text-xs">
-              <label class="text-gray-600 dark:text-gray-300 shrink-0" for="manual-backup-label">备注（可选，≤20字）</label>
+              <label class="text-gray-600 dark:text-gray-300 shrink-0" for="manual-backup-label">{{ t('backup.comp.manual.noteLabel') }}</label>
               <input
                 id="manual-backup-label"
                 v-model="label"
                 type="text"
                 maxlength="20"
-                placeholder="给这次备份起个名，如 工作日午前"
+                :placeholder="t('backup.comp.manual.notePlaceholder')"
                 class="flex-1 min-w-0 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div class="flex items-center justify-between gap-2">
               <span class="text-[11px] text-gray-500 dark:text-gray-400">
-                已选 {{ selectedCount }} 个标签
+                {{ tWithParams('backup.comp.manual.selectedCount', { count: selectedCount }) }}
               </span>
               <div class="flex gap-2">
                 <button
                   class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                   @click="onCancel"
-                >取消</button>
+                >{{ t('backup.comp.manual.cancel') }}</button>
                 <button
                   :disabled="selectedCount === 0 || submitting || manualOverLimit"
                   class="px-3 py-1.5 min-h-[36px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -105,7 +105,7 @@
               v-if="overLimit"
               class="text-[11px] text-amber-600 dark:text-amber-400 leading-relaxed"
             >
-              当前选中 {{ selectedCount }} 个标签，超过单次备份上限 {{ MAX_TABS_PER_SNAPSHOT }} 个。点击「只备份前 {{ MAX_TABS_PER_SNAPSHOT }} 个」将按窗口顺序只备份前 {{ MAX_TABS_PER_SNAPSHOT }} 个。
+              {{ tWithParams('backup.comp.manual.truncateHint', { selected: selectedCount, max: MAX_TABS_PER_SNAPSHOT }) }}
             </p>
           </div>
         </template>
@@ -131,6 +131,7 @@ import { isBackupableUrl, NO_TABS_HINT } from "~lib/backup/urlFilter"
 import { showToast } from "~composables/useToast"
 import { useBackupService } from "~composables/useBackupService"
 import TabSelectPanel from "~components/backup/TabSelectPanel.vue"
+import { t, tWithParams } from "~lib/i18n"
 
 /** TabSelectPanel 期望的标签项形状（结构兼容，无需导入） */
 interface SelectTabItem {
@@ -243,10 +244,10 @@ const selectedCount = computed(() => selectedFps.value.size)
 const MAX_TABS_PER_SNAPSHOT = currentLimits().maxTabsPerSnapshot
 const overLimit = computed(() => selectedCount.value > MAX_TABS_PER_SNAPSHOT)
 const confirmButtonText = computed(() => {
-  if (submitting.value) return '备份中…'
-  if (manualOverLimit.value) return '已达上限，请清理'
-  if (overLimit.value) return `只备份前 ${MAX_TABS_PER_SNAPSHOT} 个`
-  return '确认备份'
+  if (submitting.value) return t('backup.comp.manual.submitting')
+  if (manualOverLimit.value) return t('backup.comp.manual.overLimitBtn')
+  if (overLimit.value) return tWithParams('backup.comp.manual.truncateBtn', { count: MAX_TABS_PER_SNAPSHOT })
+  return t('backup.comp.manual.confirm')
 })
 
 /** 反选：对全部 liveTabs 的 fingerprint 取补集 */

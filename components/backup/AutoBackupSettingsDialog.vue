@@ -24,11 +24,11 @@
         <!-- 标题 -->
         <div class="flex items-center justify-between px-5 pt-5 pb-2">
           <h2 id="auto-backup-settings-title" class="text-base font-semibold text-gray-900 dark:text-gray-100">
-            自动备份设置
+            {{ t('backup.comp.autoSettings.title') }}
           </h2>
           <button
             class="inline-flex items-center justify-center w-7 h-7 -mt-1 -mr-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="关闭"
+            :aria-label="t('backup.comp.autoSettings.close')"
             @click="onCancel"
           >
             <X :size="16" />
@@ -38,27 +38,27 @@
         <div class="px-5 pb-5 space-y-4">
           <!-- 频次（唯一可配置项，2026-07-30 重构） -->
           <div class="space-y-1.5">
-            <label class="text-xs font-medium text-gray-700 dark:text-gray-200">备份频次</label>
+            <label class="text-xs font-medium text-gray-700 dark:text-gray-200">{{ t('backup.comp.autoSettings.frequency') }}</label>
             <div class="flex items-center gap-2 text-xs">
-              <span class="text-gray-500 dark:text-gray-400">每</span>
+              <span class="text-gray-500 dark:text-gray-400">{{ t('backup.comp.autoSettings.every') }}</span>
               <select
                 v-model.number="draft.timerMinutes"
                 class="border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option v-for="opt in TIMER_MINUTES_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
               </select>
-              <span class="text-gray-500 dark:text-gray-400">分钟</span>
+              <span class="text-gray-500 dark:text-gray-400">{{ t('backup.comp.autoSettings.minutes') }}</span>
             </div>
             <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
-              自动备份按此间隔定时执行。崩溃/断电后由最近一次定时备份兜底。
+              {{ t('backup.comp.autoSettings.frequencyHint') }}
             </p>
           </div>
 
           <!-- 关闭浏览器备份入口提示（该开关已搬概览页，与自动备份并行独立） -->
           <div class="space-y-1.5">
-            <p class="text-xs font-medium text-gray-700 dark:text-gray-200">关闭浏览器备份</p>
+            <p class="text-xs font-medium text-gray-700 dark:text-gray-200">{{ t('backup.comp.autoSettings.closeBrowserTitle') }}</p>
             <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
-              此开关在备份概览页顶部，与自动备份并行独立。开启后关浏览器/窗口时立即备份一份（仅正常关闭生效，断电/崩溃可能不生效）。
+              {{ t('backup.comp.autoSettings.closeBrowserHint') }}
             </p>
           </div>
         </div>
@@ -68,12 +68,12 @@
           <button
             class="px-3 py-1.5 min-h-[36px] text-xs border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             @click="onCancel"
-          >取消</button>
+          >{{ t('backup.comp.autoSettings.cancel') }}</button>
           <button
             :disabled="saving"
             class="px-3 py-1.5 min-h-[36px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
             @click="onSave"
-          >{{ saving ? '保存中…' : '保存' }}</button>
+          >{{ saving ? t('backup.comp.autoSettings.saving') : t('backup.comp.autoSettings.save') }}</button>
         </div>
       </div>
     </div>
@@ -87,11 +87,12 @@
  * 总开关（enabled）由概览页独立开关 + 确认框管理，本弹框不涉及。
  * 仅配置备份频次；事件触发（关闭浏览器备份）已搬概览页独立开关。
  */
-import { ref, watch, reactive } from "vue"
+import { ref, watch, reactive, computed } from "vue"
 import { X } from "@lucide/vue"
 import { useBackupService } from "~composables/useBackupService"
 import { showToast } from "~composables/useToast"
 import { currentLimits, type BackupSettings } from "~types/backup"
+import { t } from "~lib/i18n"
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{
@@ -103,12 +104,12 @@ const svc = useBackupService()
 
 // 备份频次可选项：最小 10 分钟（普通档锁定，避免高频耗资源）；无"关闭定时"
 // （定时是自动备份核心，不想定时请到概览页关闭自动备份总开关）。§3.5 默认 10 分钟
-const TIMER_MINUTES_OPTIONS = [
-  { value: 10, label: '10 分钟（默认）' },
-  { value: 15, label: '15 分钟' },
-  { value: 30, label: '30 分钟' },
-  { value: 60, label: '60 分钟' },
-] as const
+const TIMER_MINUTES_OPTIONS = computed(() => [
+  { value: 10, label: t('backup.comp.autoSettings.opt10') },
+  { value: 15, label: t('backup.comp.autoSettings.opt15') },
+  { value: 30, label: t('backup.comp.autoSettings.opt30') },
+  { value: 60, label: t('backup.comp.autoSettings.opt60') },
+])
 
 // 本地草稿（保存时才同步到 svc）——默认值由当前限制档派生（§3.5）
 const LIM = currentLimits()
@@ -141,11 +142,11 @@ async function onSave() {
       return
     }
     await svc.updateSettings(patch)
-    showToast('已保存设置')
+    showToast(t('backup.comp.autoSettings.savedToast'))
     emit('saved')
   } catch (e) {
     console.warn('[AutoBackupSettingsDialog] 保存失败', e)
-    showToast('保存失败，请重试')
+    showToast(t('backup.comp.autoSettings.saveFailed'))
   } finally {
     saving.value = false
   }
