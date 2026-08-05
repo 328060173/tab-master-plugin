@@ -14,19 +14,19 @@
     <!-- 顶栏 56px（字号放大后调高） -->
     <header class="h-14 px-4 flex items-center gap-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0">
       <Shield :size="22" class="text-blue-600 dark:text-blue-400" />
-      <h1 class="font-semibold" style="font-size: xx-large;">标签备份</h1>
+      <h1 class="font-semibold" style="font-size: xx-large;">{{ t('backup.page.title') }}</h1>
       <button
         class="inline-flex items-center justify-center w-9 h-9 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-        aria-label="打开备份说明"
-        title="说明"
+        :aria-label="t('backup.action.help.aria')"
+        :title="t('backup.action.help.title')"
         @click="helpOpen = true"
       >
         <HelpCircle :size="20" />
       </button>
       <button
         class="ml-auto inline-flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-        aria-label="关闭页面"
-        title="关闭"
+        :aria-label="t('backup.action.close.aria')"
+        :title="t('backup.action.close.title')"
         @click="onClose"
       >
         <X :size="16" />
@@ -44,17 +44,17 @@
           <template v-if="activeMenu === 'manage'">
             <div class="flex items-center gap-1 border-b border-gray-200 dark:border-gray-700 mb-4">
               <button
-                v-for="t in manageTabs"
-                :key="t.key"
+                v-for="tab in manageTabs"
+                :key="tab.key"
                 :class="[
                   'px-4 py-2 text-sm transition-colors border-b-2 -mb-px focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-t',
-                  manageTab === t.key
+                  manageTab === tab.key
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-medium'
                     : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200',
                 ]"
-                @click="manageTab = t.key"
+                @click="manageTab = tab.key"
               >
-                {{ t.label }}
+                {{ tab.label }}
               </button>
             </div>
 
@@ -151,20 +151,20 @@
         >
           <div class="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
             <h2 id="json-view-title" class="text-base font-semibold text-gray-900 dark:text-gray-100">
-              数据<span v-if="jsonViewLabel"> · {{ jsonViewLabel }}</span>
+              {{ t('backup.jsonView.title') }}<span v-if="jsonViewLabel"> · {{ jsonViewLabel }}</span>
             </h2>
             <div class="flex items-center gap-2">
               <button
                 class="px-3 py-1.5 min-h-[32px] text-xs rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 @click="onDownloadJsonView"
-              >下载到文件夹</button>
+              >{{ t('backup.jsonView.download') }}</button>
               <button
                 class="px-3 py-1.5 min-h-[32px] text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 @click="onCopyJsonView"
-              >复制全部</button>
+              >{{ t('backup.jsonView.copyAll') }}</button>
               <button
                 class="inline-flex items-center justify-center w-7 h-7 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="关闭"
+                :aria-label="t('backup.action.close.title')"
                 @click="jsonViewOpen = false"
               >
                 <X :size="16" />
@@ -172,14 +172,14 @@
             </div>
           </div>
           <div class="px-5 pb-4 flex-1 overflow-y-auto">
-            <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">完整数据，可复制或点右上「复制全部」：</p>
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-2">{{ t('backup.jsonView.hint') }}</p>
             <textarea
               ref="jsonViewTextareaRef"
               class="w-full border border-gray-200 dark:border-gray-700 rounded p-3 bg-gray-50 dark:bg-gray-900/40 text-xs font-mono text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               :style="{ height: jsonViewTextareaHeight }"
               readonly
               :value="jsonViewContent"
-              aria-label="完整数据串"
+              :aria-label="t('backup.jsonView.textareaLabel')"
             ></textarea>
           </div>
         </div>
@@ -220,6 +220,7 @@ import { useBackupService } from "~composables/useBackupService"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
 import { useAuth } from "~composables/useAuth"
 import { showToast, useToast } from "~composables/useToast"
+import { t, tWithParams, initLocale } from "~lib/i18n"
 import { filterBackupableTabs, NO_TABS_HINT } from "~lib/backup/urlFilter"
 import BackupSidebar, { type BackupMenuKey } from "~components/backup/BackupSidebar.vue"
 import BackupOverviewTab from "~components/backup/BackupOverviewTab.vue"
@@ -246,12 +247,12 @@ const backupPageAd = useBackupPageAd()
 // 左菜单当前选中项（默认备份管理）
 const activeMenu = ref<BackupMenuKey>('manage')
 
-// 备份管理下两个 Tab
+// 备份管理下两个 Tab（label 走 i18n，跟随 locale 切换响应式刷新）
 type ManageTab = 'overview' | 'list'
-const manageTabs: { key: ManageTab; label: string }[] = [
-  { key: 'overview', label: '备份概览' },
-  { key: 'list', label: '备份列表' },
-]
+const manageTabs = computed<{ key: ManageTab; label: string }[]>(() => [
+  { key: 'overview', label: t('backup.tab.overview') },
+  { key: 'list', label: t('backup.tab.list') },
+])
 const manageTab = ref<ManageTab>('overview')
 
 // ===== URL query 路由持久化（?page=overview|list|import|cloud）=====
@@ -352,29 +353,29 @@ async function doEnableAuto() {
     void svc.runBackup('auto.event.startup').then((r) => {
       if (r.ok && r.snapshot) {
         const n = r.snapshot.stats.selectedTabCount ?? r.snapshot.stats.tabCount
-        showToast(`已开启自动备份 · 第一次备份 ${n} 标签`)
+        showToast(tWithParams('backup.toast.autoEnabledFirst', { count: n }))
         // 跳列表 + 刷新（任务 4：用户能在列表看到新备份）
         manageTab.value = 'list'
         void svc.loadAll()
       } else if (!r.ok) {
-        showToast(r.error || '第一次自动备份失败，请重试')
+        showToast(r.error || t('backup.toast.firstAutoFailed'))
       }
-    }).catch(() => showToast('第一次自动备份失败，请重试'))
+    }).catch(() => showToast(t('backup.toast.firstAutoFailed')))
     // 兜底 1.5s 后强制刷新（防 then 时序/单例 ref 延迟，列表必出新备份）
     setTimeout(() => { void svc.loadAll() }, 1500)
   } catch (e) {
     console.warn('[backup] 开启自动备份失败', e)
-    showToast('开启自动备份失败，请重试')
+    showToast(t('backup.toast.enableAutoFailed'))
   }
 }
 
 async function onDisableAuto() {
   try {
     await svc.setEnabled(false)
-    showToast('已关闭自动备份')
+    showToast(t('backup.toast.autoDisabled'))
   } catch (e) {
     console.warn('[backup] 关闭自动备份失败', e)
-    showToast('关闭自动备份失败，请重试')
+    showToast(t('backup.toast.disableAutoFailed'))
   }
 }
 
@@ -391,7 +392,7 @@ async function onManualBackupConfirm(payload: { tabIds: number[]; label: string 
       }
       // 文案：「已备份 N 标签」（N = 选中数；不显示总数避免误导）
       const n = s.selectedTabCount ?? s.tabCount
-      showToast(`已备份 ${n} 标签`)
+      showToast(tWithParams('backup.toast.manualDone', { count: n }))
       // 关弹框 + 跳备份列表 Tab（P0 备份列表是占位，跳了先显占位）
       manualBackupOpen.value = false
       manageTab.value = 'list'
@@ -400,11 +401,11 @@ async function onManualBackupConfirm(payload: { tabIds: number[]; label: string 
       // 1.5s 后再刷一次，防 then 时序/单例 ref 延迟生效
       setTimeout(() => { void svc.loadAll() }, 1500)
     } else {
-      showToast(r.error || '备份失败')
+      showToast(r.error || t('backup.toast.backupFailed'))
     }
   } catch (e) {
     console.warn('[backup] 手动备份失败', e)
-    showToast('备份失败，请重试')
+    showToast(t('backup.toast.backupFailedRetry'))
   } finally {
     // 重置弹框 submitting 态（关闭/失败都要复位）
     manualBackupDialogRef.value?.resetSubmitting()
@@ -437,7 +438,7 @@ async function onOpenExport(snapshotId: string, label: string | null) {
   try {
     const file = await svc.getSnapshotFile(snapshotId)
     if (!file) {
-      showToast('备份不存在')
+      showToast(t('backup.toast.snapshotNotFound'))
       return
     }
     // 0 标签阻断（2026-07-28 立）：历史空快照（0 标签）导出也 toast 阻断，不写空文件。
@@ -452,7 +453,7 @@ async function onOpenExport(snapshotId: string, label: string | null) {
     jsonViewOpen.value = true
   } catch (e) {
     console.warn('[backup] 导出失败', e)
-    showToast('导出失败，请重试')
+    showToast(t('backup.toast.exportFailed'))
   }
 }
 
@@ -487,13 +488,13 @@ async function onDownloadJsonView() {
     }
     const r = await downloadExportWithPicker(out)
     if (r.ok) {
-      showToast(r.fallback ? '已下载到默认目录' : '已导出到所选位置')
+      showToast(r.fallback ? t('backup.toast.downloadedDefault') : t('backup.toast.exportedToPicked'))
     } else if (r.error && r.error !== '用户取消') {
-      showToast(r.error || '下载失败')
+      showToast(r.error || t('backup.toast.downloadFailed'))
     }
   } catch (e) {
     console.warn('[backup] 下载失败', e)
-    showToast('下载失败，请重试')
+    showToast(t('backup.toast.downloadFailedRetry'))
   }
 }
 
@@ -510,7 +511,7 @@ function onCopyJsonView() {
   try {
     const ok = document.execCommand('copy')
     if (ok) {
-      showToast('已复制到剪贴板')
+      showToast(t('backup.toast.copied'))
       return
     }
   } catch (e) {
@@ -518,11 +519,11 @@ function onCopyJsonView() {
   }
   if (navigator.clipboard) {
     navigator.clipboard.writeText(jsonViewContent.value).then(
-      () => showToast('已复制到剪贴板'),
-      () => showToast('复制失败，请手动全选复制'),
+      () => showToast(t('backup.toast.copied')),
+      () => showToast(t('backup.toast.copyFailedManual')),
     )
   } else {
-    showToast('复制失败，请手动全选复制')
+    showToast(t('backup.toast.copyFailedManual'))
   }
 }
 
@@ -542,6 +543,8 @@ const onBackupChanged = (msg: unknown) => {
 
 onMounted(() => {
   chrome.runtime.onMessage.addListener(onBackupChanged)
+  // 初始化 i18n locale（读 storage __locale__ → detectLocale → setLocale；并注册跨页面 onChanged 同步）
+  initLocale().catch((e) => console.warn('[backup] initLocale 失败', e))
   // 进入备份页即异步拉广告（不阻塞业务，报错/超时静默显占位）。
   // 此处负责首次挂载拉取；此后切 Tab（overview/list/import/cloud）由 watch(currentRoute) 触发刷新。
   void backupPageAd.fetchAd()
