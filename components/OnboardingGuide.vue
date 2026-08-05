@@ -20,7 +20,7 @@
       <!-- 步数指示 -->
       <div class="flex items-center justify-between mb-1">
         <span class="text-[10px] text-gray-400 dark:text-gray-500" aria-live="polite">
-          {{ currentStep + 1 }}/{{ steps.value.length }}
+          {{ currentStep + 1 }}/{{ steps.length }}
         </span>
       </div>
 
