@@ -7,7 +7,7 @@
       class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
       <div class="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
         <Sliders :size="18" class="text-blue-600 dark:text-blue-400" />
-        <h1 class="text-base font-semibold">浏览器标签大师 · 设置</h1>
+        <h1 class="text-base font-semibold">{{ t('options.header.title') }}</h1>
         <span class="text-xs text-gray-400 ml-auto">v{{ version }}</span>
       </div>
       <!-- Tab 栏：风格对齐 sidepanel NavTabs（border-b-2 选中态） -->
@@ -38,13 +38,13 @@
           class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 flex flex-col items-center gap-3">
           <LogIn :size="24" class="text-blue-600 dark:text-blue-400" />
           <p class="text-sm text-gray-600 dark:text-gray-400 text-center">
-            登录账号以同步个人设置与积分
+            {{ t('options.account.loginPrompt') }}
           </p>
           <button
             type="button"
             class="px-4 py-2 text-xs rounded tm-skin-primary-bg text-white font-medium transition-colors"
             @click="loginDialogOpen = true">
-            登录账号
+            {{ t('options.account.loginButton') }}
           </button>
         </div>
 
@@ -68,14 +68,14 @@
                     : 'border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 disabled:opacity-60'
                 "
                 @click="onUpdateSex(opt.value)">
-                {{ updatingSex === opt.value ? "提交中…" : opt.label }}
+                {{ updatingSex === opt.value ? t('options.account.sex.submitting') : opt.label }}
               </button>
             </div>
           </div>
 
           <!-- 邮箱 -->
           <div class="px-5 py-4 flex items-center justify-between gap-4">
-            <span class="text-xs text-gray-500 dark:text-gray-400">邮箱</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('options.account.email') }}</span>
             <span class="text-sm font-medium truncate max-w-[60%]">{{
               user?.email
             }}</span>
@@ -83,7 +83,7 @@
 
           <!-- 积分 -->
           <div class="px-5 py-4 flex items-center justify-between gap-4">
-            <span class="text-xs text-gray-500 dark:text-gray-400">积分</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('options.account.points') }}</span>
             <span
               class="text-sm font-medium text-blue-600 dark:text-blue-400"
               >{{ user?.points ?? 0 }}</span
@@ -93,7 +93,7 @@
           <!-- 签到 -->
           <div class="px-5 py-4 flex items-center justify-between gap-4">
             <div class="min-w-0">
-              <p class="text-xs text-gray-500 dark:text-gray-400">签到</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('options.account.checkin') }}</p>
               <p
                 class="text-xs mt-0.5"
                 :class="
@@ -101,12 +101,12 @@
                     ? 'text-green-600 dark:text-green-400'
                     : 'text-gray-400'
                 ">
-                {{ user?.todayCheckedIn ? "今日已签到" : "今日未签到" }}
+                {{ user?.todayCheckedIn ? t('options.account.checkin.done') : t('options.account.checkin.undone') }}
               </p>
               <p
                 v-if="user && !user.todayCheckedIn"
                 class="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
-                签到可以获得{{ user.checkinAwardPoints }}积分哦
+                {{ tWithParams('options.account.checkin.awardTip', { points: user.checkinAwardPoints }) }}
               </p>
             </div>
             <button
@@ -121,10 +121,10 @@
               @click="onCheckin">
               {{
                 user?.todayCheckedIn
-                  ? "已签到"
+                  ? t('options.account.checkin.checked')
                   : checking
-                    ? "签到中…"
-                    : "立即签到"
+                    ? t('options.account.checkin.checking')
+                    : t('options.account.checkin.now')
               }}
             </button>
           </div>
@@ -135,14 +135,14 @@
               type="button"
               class="px-3 py-1.5 text-xs rounded border border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/30 transition-colors"
               @click="onOpenMyPage">
-              更多
+              {{ t('options.account.more') }}
             </button>
             <button
               type="button"
               :disabled="loggingOut"
               class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-60"
               @click="onLogout">
-              {{ loggingOut ? "退出中…" : "退出登录" }}
+              {{ loggingOut ? t('options.account.logout.submitting') : t('options.account.logout') }}
             </button>
           </div>
         </div>
@@ -157,7 +157,7 @@
           class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mb-3">
           <Coins :size="14" class="text-amber-500" />
           <span
-            >我的积分：<span
+            >{{ t('options.prop.myPoints') }}<span
               class="font-medium text-blue-600 dark:text-blue-400"
               >{{ isLoggedIn ? user?.points ?? 0 : "—" }}</span
             ></span
@@ -171,21 +171,21 @@
             :disabled="!purchasedFrame"
             class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             @click="onResetFrame">
-            头像框恢复默认
+            {{ t('options.prop.resetFrame') }}
           </button>
           <button
             type="button"
             :disabled="!purchasedBg"
             class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             @click="onResetBg">
-            主题背景恢复默认
+            {{ t('options.prop.resetBg') }}
           </button>
           <button
             type="button"
             :disabled="!purchasedFrame && !purchasedBg"
             class="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             @click="onResetActive">
-            全部恢复默认
+            {{ t('options.prop.resetAll') }}
           </button>
         </div>
 
@@ -196,7 +196,7 @@
           v-if="activePropTab === 2 || activePropTab === 3"
           class="flex items-center gap-3 mb-3">
           <span class="text-xs text-gray-500 dark:text-gray-400 shrink-0"
-            >透明度调整</span
+            >{{ t('options.prop.opacity') }}</span
           >
           <input
             type="range"
@@ -235,7 +235,7 @@
           <div
             v-if="loadingProps"
             class="text-center py-8 text-xs text-gray-400">
-            加载中…
+            {{ t('options.prop.loading') }}
           </div>
           <!-- 加载失败 -->
           <div v-else-if="loadPropsError" class="text-center py-8">
@@ -244,14 +244,14 @@
               type="button"
               class="px-3 py-1.5 text-xs rounded border border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/30"
               @click="loadProps">
-              重试
+              {{ t('options.prop.retry') }}
             </button>
           </div>
           <!-- 空列表 -->
           <div
             v-else-if="propList.length === 0"
             class="text-center py-8 text-xs text-gray-400">
-            暂无可兑换的道具
+            {{ t('options.prop.empty') }}
           </div>
           <template v-else>
             <!-- 试穿中提示条（PRD docs/coordination/2026-07-17-prop-shop.md §3 试穿功能） -->
@@ -262,13 +262,13 @@
                 :size="14"
                 class="shrink-0 text-amber-600 dark:text-amber-400" />
               <span class="text-amber-800 dark:text-amber-300 truncate">
-                试穿中：{{ tryonPropName }} · 剩余 {{ tryonRemaining }}s
+                {{ tWithParams('options.prop.tryonBar', { name: tryonPropName, seconds: tryonRemaining }) }}
               </span>
               <button
                 type="button"
                 class="shrink-0 ml-auto px-2 py-0.5 rounded border border-amber-400 text-amber-700 dark:border-amber-500 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
                 @click="stopTryon">
-                结束试穿
+                {{ t('options.prop.stopTryon') }}
               </button>
             </div>
 
@@ -298,7 +298,7 @@
                         : 'w-full h-full object-cover'
                     "
                     loading="lazy" />
-                  <span v-else class="text-[11px] text-gray-400">无图</span>
+                  <span v-else class="text-[11px] text-gray-400">{{ t('options.prop.noImage') }}</span>
                 </div>
                 <!-- 信息 + 操作 -->
                 <div class="p-2 flex flex-col gap-1 flex-1">
@@ -314,8 +314,8 @@
                     {{ p.propTip }}
                   </p>
                   <p class="text-[11px] text-amber-600 dark:text-amber-400">
-                    <template v-if="p.freeFlag === 1">免费</template>
-                    <template v-else>{{ p.points }} 积分</template>
+                    <template v-if="p.freeFlag === 1">{{ t('options.prop.free') }}</template>
+                    <template v-else>{{ tWithParams('options.prop.pointsCost', { points: p.points }) }}</template>
                   </p>
                   <!-- 操作按钮区 -->
                   <div class="flex flex-wrap gap-1 mt-auto">
@@ -326,7 +326,7 @@
                         type="button"
                         disabled
                         class="flex-1 min-w-[55px] px-2 py-1 text-[11px] rounded bg-blue-500 text-white cursor-default">
-                        使用中
+                        {{ t('options.prop.inUse') }}
                       </button>
                       <button
                         v-else
@@ -334,7 +334,7 @@
                         class="flex-1 min-w-[55px] px-2 py-1 text-[11px] rounded border border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/30 disabled:opacity-60"
                         :disabled="usingId === p.id"
                         @click="onUse(p)">
-                        {{ usingId === p.id ? "应用中…" : "使用" }}
+                        {{ usingId === p.id ? t('options.prop.applying') : t('options.prop.use') }}
                       </button>
                     </template>
                     <!-- 未购：显示「预览」+「试穿」+「兑换」 -->
@@ -346,7 +346,7 @@
                           previewLoadingId === p.id || tryonLoadingId === p.id
                         "
                         @click="onPreview(p)">
-                        {{ previewLoadingId === p.id ? "…" : "预览" }}
+                        {{ previewLoadingId === p.id ? "…" : t('options.prop.preview') }}
                       </button>
                       <button
                         type="button"
@@ -362,10 +362,10 @@
                         @click="onTryOn(p)">
                         {{
                           isTryingOn(p.id)
-                            ? "试穿中…"
+                            ? t('options.prop.tryonOn')
                             : tryonLoadingId === p.id
                               ? "…"
-                              : "试穿"
+                              : t('options.prop.tryon')
                         }}
                       </button>
                       <button
@@ -375,7 +375,7 @@
                           exchangingId === p.id || tryonLoadingId === p.id
                         "
                         @click="onExchange(p)">
-                        {{ exchangingId === p.id ? "兑换中…" : "兑换" }}
+                        {{ exchangingId === p.id ? t('options.prop.exchanging') : t('options.prop.exchange') }}
                       </button>
                     </template>
                   </div>
@@ -391,23 +391,22 @@
                 :disabled="propPageNum <= 1"
                 class="px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 @click="onPropPageChange(propPageNum - 1)">
-                上一页
+                {{ t('options.prop.prevPage') }}
               </button>
               <span class="tabular-nums"
-                >第 {{ propPageNum }} / {{ propTotalPages }} 页</span
+                >{{ tWithParams('options.prop.pageIndicator', { current: propPageNum, total: propTotalPages }) }}</span
               >
               <button
                 type="button"
                 :disabled="propPageNum >= propTotalPages"
                 class="px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 @click="onPropPageChange(propPageNum + 1)">
-                下一页
+                {{ t('options.prop.nextPage') }}
               </button>
             </div>
 
             <p class="text-[11px] text-gray-400 leading-relaxed">
-              道具按类型各保留一个使用中（头像框 +
-              主题背景可共存）。「使用中」状态仅保存在本地，卸载插件或清缓存后会恢复默认，届时重新点击「使用」即可恢复，不影响已购买的道具。
+              {{ t('options.prop.disclaimer') }}
             </p>
           </template>
         </div>
@@ -444,19 +443,19 @@
             <div class="flex items-start gap-1.5">
               <div>
                 <p class="text-sm font-medium flex items-center gap-1.5">
-                  自动数据校正
+                  {{ t('options.setting.autoReconcile.label') }}
                   <button
                     type="button"
                     class="help-trigger"
                     @click="showReconcileHelp = !showReconcileHelp"
-                    aria-label="了解自动数据校正">
+                    :aria-label="t('options.setting.autoReconcile.ariaLabel')">
                     <HelpCircle
                       :size="14"
                       class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                   </button>
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  定期同步标签列表与浏览器实际状态
+                  {{ t('options.setting.autoReconcile.desc') }}
                 </p>
               </div>
             </div>
@@ -475,14 +474,14 @@
           <div class="px-5 py-4 flex items-center justify-between gap-4">
             <div class="flex items-start gap-2">
               <div>
-                <p class="text-sm font-medium">刷新菜单内容</p>
+                <p class="text-sm font-medium">{{ t('options.setting.refreshContent.label') }}</p>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  手动同步菜单、通知等最新内容
+                  {{ t('options.setting.refreshContent.desc') }}
                 </p>
                 <p
                   v-if="refreshHint"
                   class="text-xs text-green-600 dark:text-green-400 mt-1">
-                  已触发同步，侧边栏内容将自动更新
+                  {{ t('options.setting.refreshContent.hint') }}
                 </p>
               </div>
             </div>
@@ -496,7 +495,7 @@
                   ? 'border-gray-200 text-gray-400 dark:border-gray-600'
                   : 'border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/30'
               ">
-              {{ refreshing ? "同步中…" : "立即同步" }}
+              {{ refreshing ? t('options.setting.refreshContent.button.syncing') : t('options.setting.refreshContent.button.now') }}
             </button>
           </div>
         </div>
@@ -506,15 +505,15 @@
           v-if="showReconcileHelp"
           class="mt-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
           <p class="font-medium text-blue-700 dark:text-blue-300 mb-2">
-            自动数据校正
+            {{ t('options.setting.autoReconcile.helpTitle') }}
           </p>
           <p class="mb-2">
-            由于网络环境、计算机运行不稳定或浏览器自身机制，标签列表可能偶尔与实际状态不一致。
+            {{ t('options.setting.autoReconcile.helpP1') }}
           </p>
           <p class="mb-2">
-            开启后，每 60 秒自动校正一次，保证列表始终准确反映浏览器真实标签。
+            {{ t('options.setting.autoReconcile.helpP2') }}
           </p>
-          <p>校正仅读取本地数据，不联网、不消耗流量，推荐保持开启。</p>
+          <p>{{ t('options.setting.autoReconcile.helpP3') }}</p>
         </div>
 
         <!-- 更多功能：后端 /setting/menu-list (settingType=2) 下发的动态菜单（options 直接请求，不走 SW） -->
@@ -532,9 +531,9 @@
     <!-- 退出登录确认弹框（复用 ConfirmDialog） -->
     <ConfirmDialog
       :open="logoutConfirmOpen"
-      title="退出登录"
-      message="确定要退出登录吗？退出后将无法同步个人设置与积分。"
-      confirm-text="确认退出"
+      :title="t('options.logoutConfirm.title')"
+      :message="t('options.logoutConfirm.message')"
+      :confirm-text="t('options.logoutConfirm.confirm')"
       danger
       @cancel="logoutConfirmOpen = false"
       @confirm="confirmLogout" />
@@ -594,7 +593,7 @@
             <div
               v-else
               class="w-full h-full flex items-center justify-center text-xs text-gray-400">
-              无原图
+              {{ t('options.preview.noOriginalImage') }}
             </div>
           </div>
           <!-- 头像框预览：底部「试穿 30 秒」次按钮（复用 startTryon，关弹层 + toast） -->
@@ -605,7 +604,7 @@
               type="button"
               class="px-4 py-1.5 text-xs rounded border border-amber-400 text-amber-600 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-300 dark:hover:bg-amber-900/30 transition-colors"
               @click="onPreviewTryOn">
-              试穿 30 秒
+              {{ t('options.preview.tryon30s') }}
             </button>
           </div>
         </div>
@@ -647,7 +646,7 @@ import { useSkin } from "~composables/useSkin"
 import { useToast } from "~composables/useToast"
 import { get, post } from "~lib/api"
 import { API_URIS, buildOfficialUrl, propDetailUri } from "~lib/api-config"
-import { t, getUserLocalePref, setUserLocale, initLocale, type LocalePref } from "~lib/i18n"
+import { t, tWithParams, getUserLocalePref, setUserLocale, initLocale, type LocalePref } from "~lib/i18n"
 import type {
   ExchangeResultVO,
   PropDetailVO,
@@ -688,10 +687,10 @@ const showReconcileHelp = ref(false)
 // localStorage 持久化上次 tab（key tabMasterOptionsTab），刷新保持。
 // options 页是普通 DOM 页面，window.localStorage 可用（非 SW / 非 SSR）。
 type OptionsTab = "account" | "settings"
-const optionTabs: { key: OptionsTab; label: string }[] = [
-  { key: "account", label: "账号" },
-  { key: "settings", label: "设置" }
-]
+const optionTabs = computed<{ key: OptionsTab; label: string }[]>(() => [
+  { key: "account", label: t('options.tab.account') },
+  { key: "settings", label: t('options.tab.settings') }
+])
 const TAB_STORAGE_KEY = "tabMasterOptionsTab"
 function loadStoredTab(): OptionsTab {
   try {
@@ -830,16 +829,17 @@ watch(isLoggedIn, (logged) => {
 // LoginDialog 内部已调 login + fetchUser 完成登录态建立；此处仅关弹框 + toast
 function onLoginSuccess(email: string) {
   loginDialogOpen.value = false
-  showToast("已登录")
+  showToast(t('options.toast.loggedIn'))
 }
 
 // 性别选择（2026-07-18 性别头像）：0=男 1=女 2=保密
 // 与后端 OuuCustomer.sex 对齐；UI 文案「保密」对应后端「未知(2)」
-const SEX_OPTIONS = [
-  { label: "男", value: 0 },
-  { label: "女", value: 1 },
-  { label: "保密", value: 2 }
-] as const
+// 用 computed 让 label 随 locale 切换响应式重渲染
+const SEX_OPTIONS = computed<{ label: string; value: 0 | 1 | 2 }[]>(() => [
+  { label: t('options.account.sex.male'), value: 0 },
+  { label: t('options.account.sex.female'), value: 1 },
+  { label: t('options.account.sex.secret'), value: 2 }
+])
 
 // 更新性别：调 /customer/update-sex，成功后 fetchUser 刷新 user.sex（storage.onChanged 自动同步 sidepanel）
 // updatingSex 同时存「正在提交的值」，按钮文案变「提交中…」；与当前 sex 相同则不触发
@@ -853,10 +853,10 @@ async function onUpdateSex(sex: 0 | 1 | 2) {
       sex
     })
     await fetchUser()
-    showToast("已更新")
+    showToast(t('options.toast.sexUpdated'))
   } catch (e) {
     // ApiError.message 已是后端 msg；NetworkError.message 是网络提示
-    const msg = e instanceof Error ? e.message : "更新失败"
+    const msg = e instanceof Error ? e.message : t('options.toast.sexUpdateFailed')
     showToast(msg)
   } finally {
     updatingSex.value = null
@@ -876,11 +876,11 @@ async function onCheckin() {
       data: { awardPoints: number; continuousDays: number; afterPoints: number }
     }>(API_URIS.checkin, {})
     const d = res.data
-    showToast(`签到成功 +${d.awardPoints} 积分，连续 ${d.continuousDays} 天`)
+    showToast(tWithParams('options.toast.checkinSuccess', { points: d.awardPoints, days: d.continuousDays }))
     await fetchUser()
   } catch (e) {
     // ApiError.message 已是后端 msg（如「今日已签到」）；NetworkError.message 是网络提示
-    const msg = e instanceof Error ? e.message : "签到失败"
+    const msg = e instanceof Error ? e.message : t('options.toast.checkinFailed')
     showToast(msg)
     // 业务错误（如已签到）也刷新一次状态，保证 UI 与后端一致
     await fetchUser()
@@ -903,10 +903,10 @@ async function confirmLogout() {
   loggingOut.value = true
   try {
     await logout()
-    showToast("已退出登录")
+    showToast(t('options.toast.loggedOut'))
   } catch (e) {
     console.warn("[options] 退出登录失败", e)
-    showToast("退出失败，请重试")
+    showToast(t('options.toast.logoutFailed'))
   } finally {
     loggingOut.value = false
   }
@@ -939,11 +939,11 @@ const loadPropsError = ref("")
 
 // 二级 tab（propType）：1=头像框 2=主题背景(webp) 3=主题纯色背景(CSS 值)，localStorage 持久化上次选择（key tabMasterPropTab，默认 1）
 type PropTab = 1 | 2 | 3
-const propSubTabs: { value: PropTab; label: string }[] = [
-  { value: 1, label: "头像框" },
-  { value: 2, label: "主题背景" },
-  { value: 3, label: "主题纯色背景" }
-]
+const propSubTabs = computed<{ value: PropTab; label: string }[]>(() => [
+  { value: 1, label: t('options.prop.subtab.frame') },
+  { value: 2, label: t('options.prop.subtab.bg') },
+  { value: 3, label: t('options.prop.subtab.solid') }
+])
 const PROP_TAB_STORAGE_KEY = "tabMasterPropTab"
 function loadPropTab(): PropTab {
   try {
@@ -1016,7 +1016,7 @@ async function loadProps() {
     propList.value = arr
     propTotal.value = typeof res.total === "number" ? res.total : arr.length
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "加载道具失败"
+    const msg = e instanceof Error ? e.message : t('options.toast.propLoadFailed')
     loadPropsError.value = msg
   } finally {
     loadingProps.value = false
@@ -1041,7 +1041,7 @@ async function onPreview(p: PropListVO) {
     )
     if (res.data) previewProp.value = res.data
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "加载详情失败"
+    const msg = e instanceof Error ? e.message : t('options.toast.detailLoadFailed')
     showToast(msg)
   } finally {
     previewLoadingId.value = null
@@ -1062,12 +1062,12 @@ function onPreviewTryOn() {
   if (!p) return
   const url = p.propResourceUrl
   if (!url) {
-    showToast("道具资源缺失，无法试穿")
+    showToast(t('options.toast.tryonResourceMissing'))
     return
   }
   startTryon(p.id, p.propType, url, isCssBg(url) ? "solid" : "image")
   closePreview()
-  showToast(`试穿中：${p.propName}（30 秒后自动恢复）`)
+  showToast(tWithParams('options.toast.tryonStarted', { name: p.propName }))
 }
 
 // 兑换：未登录→弹登录框；已登录→POST /prop/exchange，积分不足透传后端 msg
@@ -1084,12 +1084,12 @@ async function onExchange(p: PropListVO) {
       msg: string
       data: ExchangeResultVO
     }>(API_URIS.propExchange, { propId: p.id })
-    showToast(`兑换成功，剩余 ${res.data.afterPoints} 积分`)
+    showToast(tWithParams('options.toast.exchangeSuccess', { points: res.data.afterPoints }))
     // 刷新列表（该道具变已购）+ 刷新积分
     await Promise.all([loadProps(), fetchUser()])
   } catch (e) {
     // ApiError.message 已是后端 msg（积分不足提示语在后端常量）；NetworkError.message 是网络提示
-    const msg = e instanceof Error ? e.message : "兑换失败"
+    const msg = e instanceof Error ? e.message : t('options.toast.exchangeFailed')
     showToast(msg)
   } finally {
     exchangingId.value = null
@@ -1111,7 +1111,7 @@ async function onUse(p: PropListVO) {
     )
     const url = res.data?.propResourceUrl
     if (!url) {
-      showToast("道具资源缺失，无法使用")
+      showToast(t('options.toast.useResourceMissing'))
       return
     }
     if (p.propType === 1) {
@@ -1120,9 +1120,9 @@ async function onUse(p: PropListVO) {
       // 背景道具（webp=propType=2 / 纯色=propType=3）：按 url 是否 CSS 值决定 bgType
       applyPurchasedBg(p.id, url, isCssBg(url) ? "solid" : "image")
     }
-    showToast(`已使用：${p.propName}`)
+    showToast(tWithParams('options.toast.useApplied', { name: p.propName }))
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "使用失败"
+    const msg = e instanceof Error ? e.message : t('options.toast.useFailed')
     showToast(msg)
   } finally {
     usingId.value = null
@@ -1132,17 +1132,17 @@ async function onUse(p: PropListVO) {
 // 恢复默认：清除全部「使用中」已购道具态（头像框+背景图回默认，清本地缓存；不清已购记录）
 function onResetActive() {
   clearAllActive()
-  showToast("已恢复默认装扮")
+  showToast(t('options.toast.resetAll'))
 }
 // 仅清头像框使用中态（恢复默认头像框，不动背景图）
 function onResetFrame() {
   clearPurchased("frame")
-  showToast("已恢复默认头像框")
+  showToast(t('options.toast.resetFrame'))
 }
 // 仅清背景图使用中态（恢复默认主题背景，不动头像框）
 function onResetBg() {
   clearPurchased("bg")
-  showToast("已恢复默认主题背景")
+  showToast(t('options.toast.resetBg'))
 }
 
 // ========== 试穿（PRD docs/coordination/2026-07-17-prop-shop.md §3） ==========
@@ -1152,9 +1152,9 @@ const tryonLoadingId = ref<number | null>(null)
 
 // 试穿中道具名（提示条显示）
 const tryonPropName = computed(() => {
-  const t = tryonProp.value
-  if (!t) return ""
-  return propList.value.find((p) => p.id === t.propId)?.propName ?? "道具"
+  const tp = tryonProp.value
+  if (!tp) return ""
+  return propList.value.find((p) => p.id === tp.propId)?.propName ?? t('options.prop.fallbackName')
 })
 
 // 某道具是否处于试穿中
@@ -1175,13 +1175,13 @@ async function onTryOn(p: PropListVO) {
     )
     const url = res.data?.propResourceUrl
     if (!url) {
-      showToast("道具资源缺失，无法试穿")
+      showToast(t('options.toast.tryonResourceMissing'))
       return
     }
     startTryon(p.id, p.propType, url, isCssBg(url) ? "solid" : "image")
-    showToast(`试穿中：${p.propName}（30 秒后自动恢复）`)
+    showToast(tWithParams('options.toast.tryonStarted', { name: p.propName }))
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "试穿失败"
+    const msg = e instanceof Error ? e.message : t('options.toast.tryonFailed')
     showToast(msg)
   } finally {
     tryonLoadingId.value = null
