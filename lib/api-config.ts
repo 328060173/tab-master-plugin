@@ -87,12 +87,13 @@ export const APP_CODES = {
 export const APP_CODE_QUERY_KEY = "app-code"
 
 // 当前插件版本码（int）。发生产前与后端 ouu_apps_version 表 version_code 对齐；
-// 每次发生产版本必须 +1（用户硬规矩）。当前已发生产，versionName=1.3.1 / versionCode=14（2026-08-05 品牌名回正为「浏览器标签大师」（简称标签大师））。
+// 每次发生产版本必须 +1（用户硬规矩）。versionCode=14 未真实发版（1.3.1 仅 test 分支迭代），下次发生产保持 14。
 export const APP_VERSION_CODE = 14
 
 // 版本名（string，用户可见）。单一来源红线：全项目取此变量，禁止多处写死。
 // 备份快照元数据 appVersionName、manifest、下载页等统一引用此处。
-export const APP_VERSION_NAME = "1.3.1"
+// 2026-08-05：1.3.1→1.3.2（i18n 英文支持全量落地 + 痛点词 AEO/SEO 优化 + 红线补齐）。
+export const APP_VERSION_NAME = "1.3.2"
 
 // 登录态 storage key（chrome.storage.local 中的字段名）
 // 单一来源红线：api.ts（缓存层读 storage）与 useAuth.ts（读写 storage）共用以避免散落硬编码
