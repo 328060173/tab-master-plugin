@@ -14,7 +14,7 @@
 |---|---|
 | 主品牌（全名） | 浏览器标签大师 |
 | 短名（short_name） | 标签大师 |
-| 商店名（含 ASO 关键词） | 浏览器标签大师 - 标签管理、备份与恢复（zh）/ Tab Master - Tab Manager & Session Backup（en） |
+| 商店名（含 ASO 关键词） | 浏览器标签大师 - 标签管理与备份恢复（zh）/ Tab Master - Tab Manager & Backup（en） |
 | Slogan（核心差异，商店描述开头 / 官网 hero 统一用） | **不怕浏览器崩溃丢失标签** |
 
 > 品牌名定为「浏览器标签大师」（简称「标签大师」），英文 Tab Master。2026-08-05 定稿。
@@ -28,7 +28,7 @@
 
 | 字段 | 内容 |
 |---|---|
-| Name（扩展名，含 ASO 关键词） | 浏览器标签大师 - 标签管理、备份与恢复（zh）/ Tab Master - Tab Manager & Session Backup（en） |
+| Name（扩展名，含 ASO 关键词） | 浏览器标签大师 - 标签管理与备份恢复（zh）/ Tab Master - Tab Manager & Backup（en） |
 | Short name（工具栏缩略名，≤12 字符） | 标签大师（zh）/ Tab Master（en） |
 | Category（分类） | 生产力 / Productivity |
 | 主品牌 | 浏览器标签大师 |
@@ -45,8 +45,8 @@
 ## 2. Short Description（≤132 字符，扩展管理页 `chrome://extensions` 里扩展名下方那行小字）
 
 ```
-zh: 不怕浏览器崩溃丢失标签。纯本地标签管理工具，支持自动备份、一键恢复、导入导出、跨浏览器迁移、多视图管理、智能搜索、标记分类与聚焦整理。
-en: Never lose tabs. Privacy-first tab manager: auto session backup, restore, import/export, cross-browser migration, search, tags.
+zh: 标签管理工具，支持标签保存、备份恢复、搜索、分类和多视图整理，轻松管理大量浏览器标签。
+en: Tab manager to save, backup and restore tabs. Organize sessions with search, tags, and multiple views.
 ```
 
 > 同步写入 `package.json` 的 `description` 字段 + `public/_locales/*/messages.json` 的 `extensionDescription`（单一来源，改这里再同步过去）。

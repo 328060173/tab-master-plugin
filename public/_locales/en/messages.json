@@ -1,11 +1,11 @@
 {
   "extensionName": {
-    "message": "Tab Master - Tab Manager & Session Backup",
-    "description": "Extension name (store name + ASO keywords: Tab Manager / Session Backup)"
+    "message": "Tab Master - Tab Manager & Backup",
+    "description": "Extension name (store name + ASO keywords: Tab Manager / Backup)"
   },
   "extensionDescription": {
-    "message": "Never lose tabs. Privacy-first tab manager: auto session backup, restore, import/export, cross-browser migration, search, tags.",
-    "description": "Extension description (store search weight, covers tab manager/session backup/restore/migration, ≤132 chars)"
+    "message": "Tab manager to save, backup and restore tabs. Organize sessions with search, tags, and multiple views.",
+    "description": "Extension description (store search weight, covers tab manager/save/backup/restore/session/search/tags)"
   },
   "shortName": {
     "message": "Tab Master",
