@@ -60,6 +60,14 @@ export default {
   'nav.later': 'Later',
   'nav.groups': 'Groups',
   'nav.history': 'History',
+  'nav.tools': 'Tools',
+
+  // 通用补充
+  'common.gotIt': 'Got it',
+  'common.invert': 'Invert',
+  'common.batch': 'Batch',
+  'common.selectAll': 'Select all',
+  'common.cancelBatch': 'Cancel batch',
 
   // 设置弹窗
   'settings.title': 'Settings',
@@ -237,4 +245,203 @@ export default {
   'sidepanel.cancelSelect': 'Cancel',
   'sidepanel.storageCleared': 'Cleared',
   'sidepanel.personalCenter': 'Account center',
+
+  // sidepanel task 2 — remaining hardcoded strings (grouped)
+  // Focus mode
+  'sidepanel.focus.menu.enter': 'Enter Focus Mode',
+  'sidepanel.focus.menu.help': 'Focus Help',
+  'sidepanel.focus.tooltip.unsupported': 'Focus mode requires Chrome 102+ or Edge 102+',
+  'sidepanel.focus.tooltip.supported': 'Focus mode: only selected tabs are shown, others hidden',
+  'sidepanel.focus.selectHint': 'Select tabs to focus · {count} selected',
+  'sidepanel.focus.selectHintTip': '💡 Use search/sort to find tabs, then check and click the bottom button',
+  'sidepanel.focus.protectedExcluded': 'Auto-excluded {count} system pages',
+  'sidepanel.focus.exitButton': 'Exit Focus',
+  'sidepanel.focus.exitTooltip': 'Exit focus mode',
+  'sidepanel.focus.toast.groupRecollapsed': 'Groups recollapsed in focus mode',
+  'sidepanel.focus.toast.tabAdded': 'Added to focus: {title}',
+  'sidepanel.focus.toast.allClosed': 'All focused tabs closed, exited focus mode',
+  'sidepanel.focus.toast.entered': 'Entered focus mode, {count} tabs',
+  'sidepanel.focus.toast.exited': 'Exited focus mode',
+  'sidepanel.focus.toast.switched': 'Switched to focused tab: {title}',
+  'sidepanel.focus.toast.allPinned': 'Pinned tabs are never collapsed; no tabs were actually collapsed',
+  'sidepanel.focus.toast.suggestRange': 'Suggested: focus 4-7 tabs for best results',
+  'sidepanel.focus.toast.reset': 'Focus state reset (browser restarted)',
+
+  // Home toolbar / options
+  'sidepanel.home.optionsTitle': 'Display options',
+  'sidepanel.home.showSearch': 'Show search',
+  'sidepanel.home.showTags': 'Show tags',
+  'sidepanel.home.searching': 'Searching: {query}',
+  'sidepanel.home.batchSelected': '{count} selected',
+  'sidepanel.home.scrollTopTooltip': 'Scroll to top',
+  'sidepanel.home.numberPickerTitle': 'Shortcut number',
+  'sidepanel.home.clearNumber': 'Clear number',
+
+  // Batch menu
+  'sidepanel.batch.sectionSelect': 'Select',
+  'sidepanel.batch.sectionAction': 'Action',
+  'sidepanel.batch.closeCount': 'Close {count}',
+  'sidepanel.batch.addToLater': 'Add to Later',
+  'sidepanel.batch.addToGroup': 'Add to group',
+  'sidepanel.batch.addTag': 'Add tag',
+  'sidepanel.batch.newGroup': 'New group...',
+  'sidepanel.batch.toast.selected': 'Selected {count} tabs',
+  'sidepanel.batch.defaultGroupName': 'Group {index}',
+  'sidepanel.batch.newGroupSingle': 'New group',
+
+  // Groups
+  'sidepanel.group.untitled': 'Untitled group',
+  'sidepanel.group.toast.created': 'Created group "{name}" ({tabCount} tabs)',
+  'sidepanel.group.toast.createFailed': 'Failed to create group; see logs',
+  'sidepanel.group.toast.added': 'Added {tabCount} tabs to group',
+
+  // Tags
+  'sidepanel.tag.notice.title': 'Tag association notice',
+  'sidepanel.tag.notice.msg': 'After restarting the browser or reopening a page, previously bound tags may not match.',
+  'sidepanel.tag.notice.highlight': 'Tags are linked by tab ID; the same URL gets a different ID each time, so they may not match.',
+  'sidepanel.tag.notice.hint': 'Enable auto-backup or export to save tags. Backup/import can recover tag names and re-link them to restored tabs (by URL match); existing tag names are skipped.',
+  'sidepanel.tag.toast.added': 'Added tag "{tag}"',
+  'sidepanel.tag.toast.removed': 'Removed tag "{tag}"',
+  'sidepanel.tag.toast.renamed': 'Renamed "{oldTag}" to "{newTag}"',
+  'sidepanel.tag.toast.limit': 'Reached limit of 15 tags',
+  'sidepanel.tag.toast.exists': 'Tag already exists',
+  'sidepanel.tag.toast.batchApplied': 'Added tag "{tag}" to {count} tabs',
+  'sidepanel.tag.toast.batchRemoved': 'Removed tag "{tag}" from {count} tabs',
+  'sidepanel.tag.toast.batchMerged': 'Added {tagCount} tags to {tabCount} tabs',
+
+  // Number shortcut
+  'sidepanel.number.notice.title': 'Shortcut number {n} set',
+  'sidepanel.number.notice.message': 'Number {n} set for this tab.\n\n{howTo} to quickly switch to this tab.\n\nHold all three keys together; works on any browser page. Numbers 1-4 only.',
+  'sidepanel.number.notice.howToMac': 'Mac: hold Option ⌥ and Shift ⇧, then press {n}',
+  'sidepanel.number.notice.howToWin': 'Windows: hold Alt and Shift, then press {n}',
+
+  // Backup status text
+  'sidepanel.backup.status.backingUp': 'Backing up...',
+  'sidepanel.backup.status.off': 'Backup off · tabs will be lost on crash',
+  'sidepanel.backup.status.dirLost': 'Backup folder needs re-authorization',
+  'sidepanel.backup.status.failed': 'Last backup failed · retry in manager',
+  'sidepanel.backup.status.lastAt': 'Last: {time}',
+  'sidepanel.backup.status.never': 'Never backed up',
+  'sidepanel.backup.status.snapshotCount': '{count} snapshots',
+  'sidepanel.backup.relative.justNow': 'just now',
+  'sidepanel.backup.relative.minutesAgo': '{count} min ago',
+  'sidepanel.backup.relative.hoursAgo': '{count} h ago',
+  'sidepanel.backup.relative.daysAgo': '{count} d ago',
+  'sidepanel.backup.toast.openManageFailed': 'Failed to open backup manager',
+  'sidepanel.backup.toast.openPageFailed': 'Failed to open backup page',
+
+  // Restore / onboarding
+  'sidepanel.restore.toast.restored': 'Tab restored',
+  'sidepanel.onboarding.done': 'Welcome to Tab Master — keep tabs organized, no matter how many.',
+
+  // Cleanup confirm dialog messages (title/hint/button already in cleanup.confirm.*)
+  'cleanup.confirm.unpinnedMessage': 'Will close {count} unpinned tabs',
+  'cleanup.confirm.unpinnedRetain': ', keep {count} pinned tabs',
+  'cleanup.confirm.othersMessage': 'Will close {count} tabs, keep the active page',
+  'cleanup.confirm.othersPinnedNote': ' (note: pinned tabs will also be closed)',
+  'cleanup.confirm.frozenMessage': 'Will close {count} frozen/discarded tabs. They don\'t use memory but still take list space',
+
+  // options.vue 完整 i18n (task 3)
+  // Header + Tab bar
+  'options.header.title': 'Tab Master · Settings',
+  'options.tab.account': 'Account',
+  'options.tab.settings': 'Settings',
+
+  // Account tab
+  'options.account.loginPrompt': 'Sign in to sync personal settings and points',
+  'options.account.loginButton': 'Sign In',
+  'options.account.sex.male': 'Male',
+  'options.account.sex.female': 'Female',
+  'options.account.sex.secret': 'Prefer not to say',
+  'options.account.sex.submitting': 'Submitting...',
+  'options.account.email': 'Email',
+  'options.account.points': 'Points',
+  'options.account.checkin': 'Check-in',
+  'options.account.checkin.done': 'Checked in today',
+  'options.account.checkin.undone': 'Not checked in today',
+  'options.account.checkin.awardTip': 'Check in to earn {points} points',
+  'options.account.checkin.checked': 'Done',
+  'options.account.checkin.checking': 'Checking in...',
+  'options.account.checkin.now': 'Check in',
+  'options.account.more': 'More',
+  'options.account.logout': 'Log Out',
+  'options.account.logout.submitting': 'Logging out...',
+
+  // Prop shop
+  'options.prop.myPoints': 'My points: ',
+  'options.prop.resetFrame': 'Reset avatar frame',
+  'options.prop.resetBg': 'Reset theme background',
+  'options.prop.resetAll': 'Reset all',
+  'options.prop.opacity': 'Opacity',
+  'options.prop.loading': 'Loading...',
+  'options.prop.retry': 'Retry',
+  'options.prop.empty': 'No items available',
+  'options.prop.tryonBar': 'Trying on: {name} · {seconds}s left',
+  'options.prop.stopTryon': 'Stop',
+  'options.prop.noImage': 'No image',
+  'options.prop.free': 'Free',
+  'options.prop.pointsCost': '{points} points',
+  'options.prop.inUse': 'In Use',
+  'options.prop.applying': 'Applying...',
+  'options.prop.use': 'Use',
+  'options.prop.preview': 'Preview',
+  'options.prop.tryonOn': 'Trying on...',
+  'options.prop.tryon': 'Try',
+  'options.prop.exchanging': 'Exchanging...',
+  'options.prop.exchange': 'Exchange',
+  'options.prop.prevPage': 'Prev',
+  'options.prop.pageIndicator': 'Page {current} / {total}',
+  'options.prop.nextPage': 'Next',
+  'options.prop.disclaimer': 'Each prop type keeps only one active (avatar frame + theme background can coexist). The "In Use" state is stored locally only; uninstalling the extension or clearing cache will reset to defaults—just click "Use" again to restore. Purchased items are not affected.',
+  'options.prop.subtab.frame': 'Avatar Frame',
+  'options.prop.subtab.bg': 'Theme Background',
+  'options.prop.subtab.solid': 'Solid Color Background',
+  'options.prop.fallbackName': 'Item',
+
+  // Settings tab: auto data reconciliation
+  'options.setting.autoReconcile.label': 'Auto data reconciliation',
+  'options.setting.autoReconcile.ariaLabel': 'Learn about auto data reconciliation',
+  'options.setting.autoReconcile.desc': 'Periodically sync tab list with browser state',
+  'options.setting.autoReconcile.helpTitle': 'Auto data reconciliation',
+  'options.setting.autoReconcile.helpP1': 'Due to network conditions, system instability, or browser mechanics, the tab list may occasionally drift from the actual state.',
+  'options.setting.autoReconcile.helpP2': 'When enabled, reconciliation runs every 60 seconds to keep the list accurately reflecting real browser tabs.',
+  'options.setting.autoReconcile.helpP3': 'Reconciliation reads local data only—no network, no traffic. Recommended to keep enabled.',
+
+  // Settings tab: refresh menu content
+  'options.setting.refreshContent.label': 'Refresh menu content',
+  'options.setting.refreshContent.desc': 'Manually sync menu, notifications, and other latest content',
+  'options.setting.refreshContent.hint': 'Sync triggered; sidebar content will update shortly',
+  'options.setting.refreshContent.button.syncing': 'Syncing...',
+  'options.setting.refreshContent.button.now': 'Sync Now',
+
+  // Logout confirmation dialog
+  'options.logoutConfirm.title': 'Log Out',
+  'options.logoutConfirm.message': 'Are you sure you want to log out? You will no longer sync personal settings and points.',
+  'options.logoutConfirm.confirm': 'Confirm Log Out',
+
+  // Preview dialog
+  'options.preview.noOriginalImage': 'No original image',
+  'options.preview.tryon30s': 'Try for 30s',
+
+  // Toast
+  'options.toast.loggedIn': 'Logged in',
+  'options.toast.sexUpdated': 'Updated',
+  'options.toast.sexUpdateFailed': 'Update failed',
+  'options.toast.checkinSuccess': 'Check-in successful +{points} points, {days}-day streak',
+  'options.toast.checkinFailed': 'Check-in failed',
+  'options.toast.loggedOut': 'Logged out',
+  'options.toast.logoutFailed': 'Logout failed, please retry',
+  'options.toast.propLoadFailed': 'Failed to load items',
+  'options.toast.detailLoadFailed': 'Failed to load details',
+  'options.toast.tryonResourceMissing': 'Item resource missing, cannot try on',
+  'options.toast.tryonStarted': 'Trying on: {name} (reverts after 30s)',
+  'options.toast.exchangeSuccess': 'Exchange successful, {points} points left',
+  'options.toast.exchangeFailed': 'Exchange failed',
+  'options.toast.useResourceMissing': 'Item resource missing, cannot use',
+  'options.toast.useApplied': 'Applied: {name}',
+  'options.toast.useFailed': 'Use failed',
+  'options.toast.resetAll': 'Default appearance restored',
+  'options.toast.resetFrame': 'Default avatar frame restored',
+  'options.toast.resetBg': 'Default theme background restored',
+  'options.toast.tryonFailed': 'Try-on failed',
 }

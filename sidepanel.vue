@@ -17,7 +17,7 @@
         <button
           class="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
           @click="exitFocusingWithToast">
-          聚焦模式 关闭
+          {{ t('header.focusMode.off') }}
         </button>
         <button
           :class="['p-1 rounded transition-colors',
@@ -118,7 +118,7 @@
             :class="['inline-flex items-center gap-1 min-h-[32px] px-2 py-1 text-xs rounded border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500',
               !SUPPORTS_FOCUS_MODE ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700']"
             :disabled="!SUPPORTS_FOCUS_MODE"
-            :title="!SUPPORTS_FOCUS_MODE ? '聚焦模式需要 Chrome 102+ 或 Edge 102+' : '聚焦模式：只显示选中的标签，其余隐藏'"
+            :title="!SUPPORTS_FOCUS_MODE ? t('sidepanel.focus.tooltip.unsupported') : t('sidepanel.focus.tooltip.supported')"
             @click.stop="toggleFocusMenu"
           >
             <Zap :size="13" />
@@ -138,10 +138,10 @@
             @click.stop
           >
             <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onFocusMenuEnter">
-              <Zap :size="12" />开启聚焦模式
+              <Zap :size="12" />{{ t('sidepanel.focus.menu.enter') }}
             </button>
             <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onFocusMenuHelp">
-              <HelpCircle :size="12" />聚焦说明
+              <HelpCircle :size="12" />{{ t('sidepanel.focus.menu.help') }}
             </button>
           </div>
         </div>
@@ -168,14 +168,14 @@
       <Zap :size="14" class="text-blue-600" />
       <div class="flex-1">
         <p class="text-xs text-blue-800 font-medium">
-          选择要聚焦的标签 · 已选 {{ focusSelectedIds.length }}
+          {{ tWithParams('sidepanel.focus.selectHint', { count: focusSelectedIds.length }) }}
         </p>
         <p v-if="isFirstFocusTime" class="text-[10px] text-blue-600 mt-0.5">
-          💡 用搜索、排序快速找到要聚焦的标签，勾选后点底部按钮
+          {{ t('sidepanel.focus.selectHintTip') }}
         </p>
       </div>
       <span v-if="protectedTabCount > 0" class="text-[10px] text-blue-500">
-        已自动排除 {{ protectedTabCount }} 个系统页面
+        {{ tWithParams('sidepanel.focus.protectedExcluded', { count: protectedTabCount }) }}
       </span>
     </div>
 
@@ -235,7 +235,7 @@
             ref="homeOptionsTriggerRef"
             data-onboarding-target="tags-toggle"
             class="p-1 rounded shrink-0 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600"
-            title="显示选项"
+            :title="t('sidepanel.home.optionsTitle')"
             @click.stop="popover.toggle('home-toolbar-options', homeOptionsTriggerRef)">
             <MoreVertical :size="14" />
           </button>
@@ -262,13 +262,13 @@
           <span class="w-4 h-4 border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center">
             <CheckSquare v-if="settings.homeSearchVisible" :size="12" class="text-blue-600" />
           </span>
-          <span>显示搜索</span>
+          <span>{{ t('sidepanel.home.showSearch') }}</span>
         </label>
         <label class="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" @click="toggleHomeTagBarVisible">
           <span class="w-4 h-4 border border-gray-300 dark:border-gray-600 rounded flex items-center justify-center">
             <CheckSquare v-if="settings.homeTagBarVisible" :size="12" class="text-blue-600" />
           </span>
-          <span>显示标记</span>
+          <span>{{ t('sidepanel.home.showTags') }}</span>
         </label>
       </div>
     </Teleport>
@@ -276,7 +276,7 @@
     <!-- 搜索提示：搜索框隐藏但有搜索词时显示 -->
     <div v-if="activeNav === 'home' && focusMode === 'normal' && !settings.homeSearchVisible && search.trim()" class="px-3 py-2 border-b border-gray-100 shrink-0">
       <div class="inline-flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs text-blue-700">
-        <span>搜索中：{{ search.trim() }}</span>
+        <span>{{ tWithParams('sidepanel.home.searching', { query: search.trim() }) }}</span>
         <button class="hover:text-blue-900" @click="search = ''">
           <X :size="12" />
         </button>
@@ -395,7 +395,7 @@
         <div v-if="activeNav === 'home' && focusMode === 'normal'" class="flex-1 min-h-0 mt-1 flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
           <!-- 批量按钮组：固定在容器顶部，不随标签滚动 -->
           <div class="shrink-0 flex items-center gap-1 px-2 py-1.5 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
-            <span v-if="isBatchMode" class="text-[11px] text-blue-600 dark:text-blue-400 ml-1">已选 {{ selectedIds.length }}</span>
+            <span v-if="isBatchMode" class="text-[11px] text-blue-600 dark:text-blue-400 ml-1">{{ tWithParams('sidepanel.home.batchSelected', { count: selectedIds.length }) }}</span>
             <div class="flex-1"></div>
             <template v-if="!isBatchMode">
               <button
@@ -403,7 +403,7 @@
                 @click.stop="onBatchButtonClick"
               >
                 <CheckSquare :size="11" />
-                批量
+                {{ t('common.batch') }}
               </button>
             </template>
             <template v-else>
@@ -415,14 +415,14 @@
                   :checked="selectAllState === 'all'"
                   @click.stop="onToggleSelectAll"
                 />
-                全选
+                {{ t('common.selectAll') }}
               </label>
               <button
                 ref="batchMenuTriggerRef"
                 :class="['flex items-center gap-1 px-2 py-0.5 text-xs rounded border transition-colors', popover.isOpen('normal-batch') ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50']"
                 @click.stop="onBatchMenuClick"
               >
-                更多
+                {{ t('common.more') }}
                 <ChevronDown :size="10" class="text-gray-400" />
               </button>
               <button
@@ -430,7 +430,7 @@
                 @click.stop="exitBatch"
               >
                 <XSquare :size="11" />
-                取消批量
+                {{ t('common.cancelBatch') }}
               </button>
             </template>
           </div>
@@ -450,7 +450,7 @@
               />
             </template>
             <template v-else>
-              <div v-if="!normalItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
+              <div v-if="!normalItems.length" class="text-center text-gray-400 text-xs py-12">{{ t('common.noTabs') }}</div>
               <template v-if="sortMode === 'domain' && viewMode !== 'icon'">
                 <div v-for="group in domainGroups" :key="group.domain" class="mb-3">
                   <p class="text-[10px] font-bold text-gray-400 tracking-wide mb-1">{{ group.displayName }}</p>
@@ -500,7 +500,7 @@
             />
           </template>
           <template v-else>
-            <div v-if="!normalItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
+            <div v-if="!normalItems.length" class="text-center text-gray-400 text-xs py-12">{{ t('common.noTabs') }}</div>
             <template v-if="sortMode === 'domain' && viewMode !== 'icon'">
               <div v-for="group in domainGroups" :key="group.domain" class="mb-3">
                 <p class="text-[10px] font-bold text-gray-400 tracking-wide mb-1">{{ group.displayName }}</p>
@@ -538,7 +538,7 @@
     <!-- 聚焦态内容区 - 只显示聚焦标签 -->
     <div v-else ref="contentRef" :class="['flex-1 overflow-y-auto min-h-0 px-3 py-2', scrolled ? 'pb-16' : 'pb-2']" @scroll="onContentScroll">
       <ErrorBoundary scope="focus" @reload="reloadPanel">
-        <div v-if="!focusingNormalItems.length && !focusingPinnedItems.length" class="text-center text-gray-400 text-xs py-12">暂无标签</div>
+        <div v-if="!focusingNormalItems.length && !focusingPinnedItems.length" class="text-center text-gray-400 text-xs py-12">{{ t('common.noTabs') }}</div>
         <!-- 聚焦态只显示平铺列表，简化操作 -->
         <div class="flex flex-col gap-1">
           <TabListItem v-for="item in focusingNormalItems" :key="item.id"
@@ -566,20 +566,20 @@
         @click.stop
         @mouseleave="batchActiveSubmenu = null"
       >
-        <p class="px-3 py-1 text-[10px] text-gray-400 font-medium uppercase tracking-wide">选择</p>
+        <p class="px-3 py-1 text-[10px] text-gray-400 font-medium uppercase tracking-wide">{{ t('sidepanel.batch.sectionSelect') }}</p>
         <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700" @click="invertSelection">
           <RefreshCw :size="12" />
-          反选
+          {{ t('common.invert') }}
         </button>
         <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-        <p class="px-3 py-1 text-[10px] text-gray-400 font-medium uppercase tracking-wide">操作</p>
+        <p class="px-3 py-1 text-[10px] text-gray-400 font-medium uppercase tracking-wide">{{ t('sidepanel.batch.sectionAction') }}</p>
         <button
           :disabled="!selectedIds.length"
           :class="['flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left transition-colors', selectedIds.length ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed']"
           @click="onMenuBatchClose"
         >
           <X :size="12" />
-          <span class="flex-1">关闭 {{ selectedIds.length }} 个</span>
+          <span class="flex-1">{{ tWithParams('sidepanel.batch.closeCount', { count: selectedIds.length }) }}</span>
         </button>
         <button
           :disabled="!selectedIds.length"
@@ -587,14 +587,14 @@
           @click="onMenuBatchLater"
         >
           <Clock :size="12" class="text-amber-500" />
-          <span class="flex-1">加入稍后处理</span>
+          <span class="flex-1">{{ t('sidepanel.batch.addToLater') }}</span>
         </button>
         <button
           :disabled="!selectedIds.length"
           :class="['flex items-center justify-between w-full px-3 py-1.5 text-xs text-left transition-colors', selectedIds.length ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed', batchActiveSubmenu === 'group' && 'bg-gray-50 dark:bg-gray-700']"
           @mouseenter="onEnterGroupSubmenu"
         >
-          <span class="flex items-center gap-2"><Folder :size="12" class="text-blue-500" />加入分组</span>
+          <span class="flex items-center gap-2"><Folder :size="12" class="text-blue-500" />{{ t('sidepanel.batch.addToGroup') }}</span>
           <ChevronLeft :size="11" class="text-gray-400" />
         </button>
         <button
@@ -602,7 +602,7 @@
           :class="['flex items-center justify-between w-full px-3 py-1.5 text-xs text-left transition-colors', selectedIds.length ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed', batchActiveSubmenu === 'tag' && 'bg-gray-50 dark:bg-gray-700']"
           @mouseenter="onEnterTagSubmenu"
         >
-          <span class="flex items-center gap-2"><Tag :size="12" class="text-purple-500" />添加标记</span>
+          <span class="flex items-center gap-2"><Tag :size="12" class="text-purple-500" />{{ t('sidepanel.batch.addTag') }}</span>
           <ChevronLeft :size="11" class="text-gray-400" />
         </button>
       </div>
@@ -617,7 +617,7 @@
         @mouseenter="batchActiveSubmenu = 'group'"
       >
         <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700" @click="onMenuCreateNewGroup">
-          <Plus :size="12" />新建分组...
+          <Plus :size="12" />{{ t('sidepanel.batch.newGroup') }}
         </button>
         <div v-if="groups.length" class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
         <button
@@ -626,7 +626,7 @@
           @click="onMenuPickGroup(g.id)"
         >
           <span class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: groupColorHex(g.color) }"></span>
-          <span class="flex-1 truncate">{{ g.title || '未命名分组' }}</span>
+          <span class="flex-1 truncate">{{ g.title || t('sidepanel.group.untitled') }}</span>
         </button>
       </div>
 
@@ -669,13 +669,13 @@
     <!-- 首次绑标记告知弹窗（替代一晃没的 toast） -->
     <ConfirmDialog
       :open="tagNoticeOpen"
-      :title="TAG_NOTICE_TITLE"
-      :message="TAG_NOTICE_MSG"
-      :highlight="TAG_NOTICE_HIGHLIGHT"
-      :hint="TAG_NOTICE_HINT"
+      :title="tagNoticeTitle"
+      :message="tagNoticeMsg"
+      :highlight="tagNoticeHighlight"
+      :hint="tagNoticeHint"
       center-title
-      confirm-text="知道啦"
-      cancel-text="关闭"
+      :confirm-text="t('common.gotIt')"
+      :cancel-text="t('common.close')"
       @cancel="tagNoticeOpen = false"
       @confirm="tagNoticeOpen = false"
     />
@@ -687,7 +687,7 @@
       :message="numberSetNotice?.message ?? ''"
       :highlight="numberSetNotice?.highlight"
       center-title
-      confirm-text="知道啦"
+      :confirm-text="t('common.gotIt')"
       :cancel-text="undefined"
       @confirm="numberSetNotice = null"
       @cancel="numberSetNotice = null"
@@ -715,7 +715,7 @@
     <!-- 编号选择浮层（右键→设置编号） -->
     <div v-if="popover.isOpen('number-picker') && numberPickerTab" data-popover-content class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl w-[176px] p-2.5"
       :style="numberPickerStyle" @click.stop>
-      <p class="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-2">快捷键编号</p>
+      <p class="text-[11px] font-medium text-gray-600 dark:text-gray-300 mb-2">{{ t('sidepanel.home.numberPickerTitle') }}</p>
       <div class="flex gap-1.5">
         <button v-for="n in 4" :key="n"
           :class="['flex-1 h-7 text-xs rounded border transition-colors',
@@ -724,9 +724,9 @@
               : 'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600']"
           @click="pickNumber(n)">{{ n }}</button>
       </div>
-      <button v-if="numberPickerTab?.number" class="mt-1.5 text-[10px] text-gray-400 hover:text-red-500 w-full text-left" @click="clearNumberFromPicker">清除编号</button>
+      <button v-if="numberPickerTab?.number" class="mt-1.5 text-[10px] text-gray-400 hover:text-red-500 w-full text-left" @click="clearNumberFromPicker">{{ t('sidepanel.home.clearNumber') }}</button>
     </div>
-    <button v-if="scrolled && focusMode !== 'focusing'" class="fixed bottom-10 right-3 z-30 p-1.5 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all" @click="scrollToTop" title="回到顶部">
+    <button v-if="scrolled && focusMode !== 'focusing'" class="fixed bottom-10 right-3 z-30 p-1.5 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all" @click="scrollToTop" :title="t('sidepanel.home.scrollTopTooltip')">
       <ChevronUp :size="14" />
     </button>
 
@@ -735,9 +735,9 @@
       <button
         class="px-8 py-4 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-base font-semibold rounded-lg shadow-2xl flex items-center gap-2 transition-colors"
         @click="exitFocusingWithToast"
-        title="退出聚焦模式">
+        :title="t('sidepanel.focus.exitTooltip')">
         <XCircle :size="20" />
-        关闭聚焦
+        {{ t('sidepanel.focus.exitButton') }}
       </button>
     </div>
 
@@ -862,29 +862,29 @@ const backupBadgeKind = computed<"off" | "error" | "ok">(() => {
 /** 顶部备份状态文案：未开启 / 备份中 / 失败 / 已开启·上次X·N快照 */
 const backupSnapshotCount = computed(() => backupSvc.snapshots.value.length || backupSvc.state.value.snapshotCount || 0)
 const backupStatusText = computed(() => {
-  if (backupSvc.isBackingUp.value) return backupSvc.lastProgress.value || "正在备份…"
-  if (backupBadgeKind.value === "off") return "未开启备份 · 崩溃将丢标签"
+  if (backupSvc.isBackingUp.value) return backupSvc.lastProgress.value || t('sidepanel.backup.status.backingUp')
+  if (backupBadgeKind.value === "off") return t('sidepanel.backup.status.off')
   if (backupBadgeKind.value === "error") {
     const dirLost = backupSvc.dirMeta.value.permission === "prompt" || backupSvc.dirMeta.value.permission === "denied"
-    return dirLost ? "备份文件夹需重新授权" : "上次备份失败 · 点管理重试"
+    return dirLost ? t('sidepanel.backup.status.dirLost') : t('sidepanel.backup.status.failed')
   }
   const last = backupSvc.state.value.lastBackupAt
-  const lastLabel = last ? `上次 ${fmtBackupRelative(last)}` : "尚未备份"
-  return `${lastLabel} · ${backupSnapshotCount.value} 快照`
+  const lastLabel = last ? tWithParams('sidepanel.backup.status.lastAt', { time: fmtBackupRelative(last) }) : t('sidepanel.backup.status.never')
+  return `${lastLabel} · ${tWithParams('sidepanel.backup.status.snapshotCount', { count: backupSnapshotCount.value })}`
 })
 function fmtBackupRelative(ts: number): string {
   const diff = Date.now() - ts
-  if (diff < 60_000) return "刚刚"
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
-  return `${Math.floor(diff / 86_400_000)} 天前`
+  if (diff < 60_000) return t('sidepanel.backup.relative.justNow')
+  if (diff < 3_600_000) return tWithParams('sidepanel.backup.relative.minutesAgo', { count: Math.floor(diff / 60_000) })
+  if (diff < 86_400_000) return tWithParams('sidepanel.backup.relative.hoursAgo', { count: Math.floor(diff / 3_600_000) })
+  return tWithParams('sidepanel.backup.relative.daysAgo', { count: Math.floor(diff / 86_400_000) })
 }
 function openBackupManage() {
   try {
     chrome.tabs.create({ url: chrome.runtime.getURL("tabs/backup.html") })
   } catch (e) {
     console.warn("[sidepanel] 打开备份管理失败", e)
-    showToast("打开备份管理失败")
+    showToast(t('sidepanel.backup.toast.openManageFailed'))
   }
 }
 
@@ -921,7 +921,7 @@ function openBackupPage(action: "manual" | "import" | "export" | "manage" | "res
     chrome.tabs.create({ url: chrome.runtime.getURL(`tabs/backup.html?action=${action}&page=${page}`) })
   } catch (e) {
     console.warn("[sidepanel] 打开备份页失败", e)
-    showToast("打开备份页失败")
+    showToast(t('sidepanel.backup.toast.openPageFailed'))
   }
 }
 function onBackupMenuManual() { closeBackupMenu(); openBackupPage("manual") }
@@ -1095,19 +1095,19 @@ watch(focusToastEvent, (event) => {
   if (!event) return
   switch (event.type) {
     case 'group_recollapsed':
-      showToast('聚焦模式中，分组已重新折叠')
+      showToast(t('sidepanel.focus.toast.groupRecollapsed'))
       break
     case 'tab_added_to_focus':
-      showToast(`已加入聚焦标签：${event.tabTitle.slice(0, 20)}`)
+      showToast(tWithParams('sidepanel.focus.toast.tabAdded', { title: event.tabTitle.slice(0, 20) }))
       break
     case 'all_focus_closed':
-      showToast('所有聚焦标签已关闭，已退出聚焦模式')
+      showToast(t('sidepanel.focus.toast.allClosed'))
       break
     case 'enter_focus':
-      showToast(`进入聚焦模式，${event.count} 个标签`)
+      showToast(tWithParams('sidepanel.focus.toast.entered', { count: event.count }))
       break
     case 'exit_focus':
-      showToast('已退出聚焦模式')
+      showToast(t('sidepanel.focus.toast.exited'))
       break
   }
   // 重置事件
@@ -1124,12 +1124,12 @@ const startFocusingWithToast = async () => {
   const result = await startFocusing()
   if (result.needActivateFirst && result.firstTabId !== undefined) {
     const tab = tabs.value.find(t => t.id === result.firstTabId)
-    showToast(`已切换到聚焦标签：${tab?.title?.slice(0, 20) || ''}`)
+    showToast(tWithParams('sidepanel.focus.toast.switched', { title: tab?.title?.slice(0, 20) || '' }))
   }
   // 检查是否全是固定标签
   const allPinned = focusingTabs.value.every(t => t.pinned)
   if (allPinned) {
-    showToast('固定标签本来就不会被折叠，本次聚焦实际未折叠任何标签')
+    showToast(t('sidepanel.focus.toast.allPinned'))
   }
 }
 
@@ -1143,7 +1143,7 @@ const toggleSelectFocusTab = (id: number) => {
     toggleSelectTab(id)
     // 检查是否超过7个
     if (focusSelectedIds.value.length > 7) {
-      showToast('建议聚焦 4-7 个标签，效果更好')
+      showToast(t('sidepanel.focus.toast.suggestRange'))
     }
   }
 }
@@ -1218,11 +1218,11 @@ const handleAddTag = async (tag: string) => {
     if (!!isDev) {
       console.debug("[tab-master:tags] handleAddTag 成功，准备 showToast")
     }
-    showToast(`已添加标记「${tag}」`)
+    showToast(tWithParams('sidepanel.tag.toast.added', { tag }))
   } else if (customTags.value.length >= 15) {
-    showToast('已达15个标记上限')
+    showToast(t('sidepanel.tag.toast.limit'))
   } else if (customTags.value.includes(tag.trim())) {
-    showToast('该标记已存在')
+    showToast(t('sidepanel.tag.toast.exists'))
   }
 }
 // 处理删除标记
@@ -1230,7 +1230,7 @@ const handleRemoveTag = async (tag: string) => {
   await removeCustomTag(tag)
   // 从 activeTagFilters 中移除
   activeTagFilters.value = activeTagFilters.value.filter(t => t !== tag)
-  showToast(`已删除标记「${tag}」`)
+  showToast(tWithParams('sidepanel.tag.toast.removed', { tag }))
 }
 // 处理重命名标记
 const handleRenameTag = async (oldTag: string, newTag: string) => {
@@ -1240,7 +1240,7 @@ const handleRenameTag = async (oldTag: string, newTag: string) => {
   if (idx !== -1) {
     activeTagFilters.value.splice(idx, 1, newTag)
   }
-  showToast(`已将「${oldTag}」重命名为「${newTag}」`)
+  showToast(tWithParams('sidepanel.tag.toast.renamed', { oldTag, newTag }))
 }
 const laterDialogOpen = ref(false)
 const pendingLaterTabId = ref<number | null>(null)
@@ -1274,7 +1274,7 @@ const showStorage = ref(false)
 const showOnboarding = ref(false)
 const onOnboardingDone = () => {
   showOnboarding.value = false
-  showToast('开始使用浏览器标签大师，标签再多也井井有条。')
+  showToast(t('sidepanel.onboarding.done'))
 }
 const onOnboardingSkip = () => {
   showOnboarding.value = false
@@ -1310,7 +1310,7 @@ const pickNumber = (n: number) => {
 const clearNumberFromPicker = () => {
   if (rightClickTabId.value !== null) {
     updateTabNumber(rightClickTabId.value, 0)
-    showToast('编号已清除')
+    showToast(t('toast.numberCleared'))
   }
   popover.close('number-picker')
   rightClickTabId.value = null
@@ -1344,7 +1344,7 @@ const batchSelectedCommonTags = computed(() => {
 // 批量模式用：应用标记到所有选中标签
 const batchApplyTag = (tag: string) => {
   batchAddTags([tag])
-  showToast(`已为 ${selectedIds.value.length} 个标签添加标记「${tag}」`)
+  showToast(tWithParams('sidepanel.tag.toast.batchApplied', { count: selectedIds.value.length, tag }))
 }
 
 // 批量模式用：从所有选中标签移除标记
@@ -1354,19 +1354,19 @@ const batchRemoveTag = (tag: string) => {
     const cur = tabs.value.find(t => t.id === id)?.tags ?? []
     updateTabTags(id, cur.filter(t => t !== tag))
   }
-  showToast(`已从 ${ids.length} 个标签移除标记「${tag}」`)
+  showToast(tWithParams('sidepanel.tag.toast.batchRemoved', { count: ids.length, tag }))
 }
 
 // 批量模式用：新建标记后自动应用到所有选中标签
 const handleAddTagForBatch = async (tag: string) => {
   const success = await addCustomTag(tag)
   if (success) {
-    showToast(`已添加标记「${tag}」`)
+    showToast(tWithParams('sidepanel.tag.toast.added', { tag }))
     batchApplyTag(tag)
   } else if (customTags.value.length >= 15) {
-    showToast('已达15个标记上限')
+    showToast(t('sidepanel.tag.toast.limit'))
   } else if (customTags.value.includes(tag.trim())) {
-    showToast('该标记已存在')
+    showToast(t('sidepanel.tag.toast.exists'))
   }
 }
 
@@ -1407,40 +1407,40 @@ const detectDialog = ref<DetectDialogState | null>(null)
 // === 直接关闭类入口 ===
 const openCleanupUnpinned = () => {
   const targets = tabs.value.filter(t => !t.pinned)
-  if (!targets.length) { showToast("没有非固定标签可关闭"); return }
+  if (!targets.length) { showToast(t('cleanup.toast.noUnpinned')); return }
   const pinnedCount = tabs.value.length - targets.length
   cleanupConfirm.value = {
     kind: "unpinned",
-    title: "确认关闭非固定标签",
-    message: `将关闭 ${targets.length} 个未固定标签${pinnedCount > 0 ? `，保留 ${pinnedCount} 个固定标签` : ''}`,
-    hint: "关闭的标签可用 Ctrl+Shift+T 逐个恢复",
-    confirmText: `确认关闭 ${targets.length} 个`,
+    title: t('cleanup.confirm.unpinnedTitle'),
+    message: tWithParams('cleanup.confirm.unpinnedMessage', { count: targets.length }) + (pinnedCount > 0 ? tWithParams('cleanup.confirm.unpinnedRetain', { count: pinnedCount }) : ''),
+    hint: t('cleanup.confirm.hint'),
+    confirmText: tWithParams('cleanup.confirm.button', { count: targets.length }),
     count: targets.length,
   }
 }
 const openCleanupOthers = () => {
   // closeOthers 后台用 t.active 判定；这里口径保持一致
   const targets = tabs.value.filter(t => !t.active)
-  if (!targets.length) { showToast("没有其他标签可关闭"); return }
+  if (!targets.length) { showToast(t('cleanup.toast.noOthers')); return }
   const pinnedCount = tabs.value.filter(t => t.pinned && !t.active).length
   cleanupConfirm.value = {
     kind: "others",
-    title: "确认关闭其他标签",
-    message: `将关闭 ${targets.length} 个标签，保留当前激活的页面${pinnedCount > 0 ? `（注：固定标签也会被关）` : ''}`,
-    hint: "关闭的标签可用 Ctrl+Shift+T 逐个恢复",
-    confirmText: `确认关闭 ${targets.length} 个`,
+    title: t('cleanup.confirm.othersTitle'),
+    message: tWithParams('cleanup.confirm.othersMessage', { count: targets.length }) + (pinnedCount > 0 ? t('cleanup.confirm.othersPinnedNote') : ''),
+    hint: t('cleanup.confirm.hint'),
+    confirmText: tWithParams('cleanup.confirm.button', { count: targets.length }),
     count: targets.length,
   }
 }
 const openCleanupFrozenDiscarded = () => {
   const targets = tabs.value.filter(t => t.frozen || t.discarded)
-  if (!targets.length) { showToast("没有已冻结/已舍弃的标签"); return }
+  if (!targets.length) { showToast(t('cleanup.toast.noFrozen')); return }
   cleanupConfirm.value = {
     kind: "frozenDiscarded",
-    title: "确认关闭已冻结/已舍弃标签",
-    message: `将关闭 ${targets.length} 个被浏览器冻结或舍弃的标签。这些标签当前不占内存，但仍占用列表空间`,
-    hint: "关闭的标签可用 Ctrl+Shift+T 逐个恢复",
-    confirmText: `确认关闭 ${targets.length} 个`,
+    title: t('cleanup.confirm.frozenDiscardedTitle'),
+    message: tWithParams('cleanup.confirm.frozenMessage', { count: targets.length }),
+    hint: t('cleanup.confirm.hint'),
+    confirmText: tWithParams('cleanup.confirm.button', { count: targets.length }),
     count: targets.length,
   }
 }
@@ -1452,13 +1452,13 @@ const runCleanupConfirm = async () => {
   if (conf.kind === "unpinned") await closeUnpinned()
   else if (conf.kind === "others") await closeOthers()
   else await closeFrozenDiscarded()
-  showToast(`已关闭 ${conf.count} 个标签 · Ctrl+Shift+T 可恢复`)
+  showToast(tWithParams('cleanup.toast.closed', { count: conf.count }))
 }
 
 // === 检测类入口 ===
 const openDetectDuplicates = () => {
   const groups = detectDuplicatesFn(tabs.value)
-  if (!groups.length) { showToast("未检测到重复标签"); return }
+  if (!groups.length) { showToast(t('cleanup.toast.noDuplicates')); return }
   detectDialog.value = { mode: "duplicates", groups }
 }
 const openDetectUnused = () => {
@@ -1481,19 +1481,19 @@ const runDetectConfirm = async (ids: number[]) => {
     try { await closeTab(id); success++ } catch { failed++ }
   }
   showToast(failed > 0
-    ? `已关闭 ${success} 个，${failed} 个失败 · Ctrl+Shift+T 可恢复`
-    : `已关闭 ${success} 个标签 · Ctrl+Shift+T 可恢复`,
+    ? tWithParams('cleanup.toast.closedPartial', { success, failed })
+    : tWithParams('cleanup.toast.closed', { count: success }),
   )
 }
 
 
-const navItems = [
-  { key: "home", label: "首页" },
-  { key: "later", label: "稍后处理" },
-  { key: "groups", label: "分组" },
-  { key: "history", label: "历史" },
-  { key: "tools", label: "小工具" },
-]
+const navItems = computed(() => [
+  { key: "home", label: t('nav.home') },
+  { key: "later", label: t('nav.later') },
+  { key: "groups", label: t('nav.groups') },
+  { key: "history", label: t('nav.history') },
+  { key: "tools", label: t('nav.tools') },
+])
 
 // 小工具子路由：list 显示工具卡片，notes/timestamp 切到对应工具
 const toolsView = ref<'list' | 'notes' | 'timestamp'>('list')
@@ -1511,10 +1511,10 @@ const onToolSelect = (t: 'notes' | 'timestamp') => {
 // 但都写同一个 storage key，监听 storage 才能全覆盖
 // tagsSessionNoticeShown 存 storage.local：用户首次绑标记只提示一次，清缓存才重置
 const tagNoticeOpen = ref(false)
-const TAG_NOTICE_TITLE = "标记关联提醒"
-const TAG_NOTICE_MSG = "重启浏览器、或关闭标签后重新打开同一个网页，之前绑的标记可能对不上。"
-const TAG_NOTICE_HIGHLIGHT = "标记靠标签 ID 关联，同一网址每次打开 ID 都不同，所以可能对不上。"
-const TAG_NOTICE_HINT = "建议开启自动备份或用导出保存标记。备份/导入能找回标记名并关联到恢复的标签（按网址匹配），标记名已存在则跳过。"
+const tagNoticeTitle = computed(() => t('sidepanel.tag.notice.title'))
+const tagNoticeMsg = computed(() => t('sidepanel.tag.notice.msg'))
+const tagNoticeHighlight = computed(() => t('sidepanel.tag.notice.highlight'))
+const tagNoticeHint = computed(() => t('sidepanel.tag.notice.hint'))
 
 // 设置编号成功后的用法说明弹窗（明确告知 Mac/Windows 怎么按，强制用户确认）
 // 用弹窗而非 toast：toast 一晃而过，用户记不住键位；弹窗需点确认，确保用户看到用法
@@ -1522,14 +1522,14 @@ const numberSetNotice = ref<{ title: string; message: string; highlight?: string
 const onNumberSet = (n: number) => {
   if (n > 0) {
     const howTo = isMac
-      ? `Mac 电脑：同时按住「Option ⌥」键和「Shift ⇧」键不放，再按数字「${n}」`
-      : `Windows 电脑：同时按住「Alt」键和「Shift」键不放，再按数字「${n}」`
+      ? tWithParams('sidepanel.number.notice.howToMac', { n })
+      : tWithParams('sidepanel.number.notice.howToWin', { n })
     numberSetNotice.value = {
-      title: `快捷键编号 ${n} 已设置`,
-      message: `已为该标签设置编号 ${n}。\n\n${howTo}，即可快速切换到该标签。\n\n三个键要一起按住，在浏览器任意页面都能触发。编号仅支持 1-4。`,
+      title: tWithParams('sidepanel.number.notice.title', { n }),
+      message: tWithParams('sidepanel.number.notice.message', { n, howTo }),
     }
   } else {
-    showToast('编号已清除')
+    showToast(t('toast.numberCleared'))
   }
 }
 const onTagsSessionNoticeChanged = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
@@ -1549,16 +1549,16 @@ const {
 // 分组：创建/加入后给 toast 反馈（可感知原则·事后）
 const onGroupCreate = async (tabIds: number[], name: string, color: string) => {
   const id = await createGroup(tabIds, name, color)
-  showToast(id !== null ? `已创建「${name || '未命名分组'}」分组（${tabIds.length} 个标签）` : "创建分组失败，详见运行日志")
+  showToast(id !== null ? tWithParams('sidepanel.group.toast.created', { name: name || t('sidepanel.group.untitled'), tabCount: tabIds.length }) : t('sidepanel.group.toast.createFailed'))
 }
 const onGroupAdd = async (tabIds: number[], groupId: number) => {
   await addToGroup(tabIds, groupId)
-  showToast(`已将 ${tabIds.length} 个标签加入分组`)
+  showToast(tWithParams('sidepanel.group.toast.added', { tabCount: tabIds.length }))
 }
 // 历史页：恢复一条最近关闭的标签
 const onRestoreFromHistory = (url: string) => {
   restoreTab(url)
-  showToast("已恢复标签")
+  showToast(t('sidepanel.restore.toast.restored'))
 }
 const setViewMode = (v: string) => {
   viewMode.value = v
@@ -1638,7 +1638,7 @@ onMounted(async () => {
   if (SUPPORTS_FOCUS_MODE) {
     const result = await restoreFocusState()
     if (result.reset) {
-      showToast('聚焦状态已重置（浏览器重启）')
+      showToast(t('sidepanel.focus.toast.reset'))
     }
   }
   // 监听标签创建事件（用于聚焦模式）
@@ -1841,7 +1841,7 @@ const onMenuBatchLater = async () => {
 }
 const onMenuCreateNewGroup = async () => {
   if (!selectedIds.value.length) return
-  const name = `分组 ${groups.value.length + 1}`
+  const name = tWithParams('sidepanel.batch.defaultGroupName', { index: groups.value.length + 1 })
   await batchNewGroup(selectedIds.value, name, 'blue')
   selectedIds.value = []
   isBatchMode.value = false
@@ -1866,7 +1866,7 @@ const groupColorHex = (color: string | undefined) => color ? (GROUP_COLOR_HEX[co
 const enterBatchWithSelection = (ids: number[]) => {
   selectedIds.value = ids.filter(id => visibleNormalIds.value.includes(id))
   isBatchMode.value = true
-  if (selectedIds.value.length) showToast(`已选中 ${selectedIds.value.length} 个标签`)
+  if (selectedIds.value.length) showToast(tWithParams('sidepanel.batch.toast.selected', { count: selectedIds.value.length }))
 }
 
 // 批量动作：当前可见标签 = sortedNormalItems（已经过搜索/标记/状态过滤 + 排序）
@@ -1911,7 +1911,7 @@ const batchAddTags = async (tags: string[]) => {
     const merged = Array.from(new Set([...cur, ...tags]))
     await updateTabTags(id, merged)
   }
-  showToast(`已为 ${ids.length} 个标签加 ${tags.length} 个标记`)
+  showToast(tWithParams('sidepanel.tag.toast.batchMerged', { tabCount: ids.length, tagCount: tags.length }))
   // 标记保留批量模式（用户可能继续做别的动作）
 }
 
@@ -1942,7 +1942,7 @@ const handleCtxAction = (action: string, data?: any) => {
     pin: () => togglePin(tab.id),
     mute: () => toggleMute(tab.id),
     group: () => groupTab(tab.id),
-    newGroup: () => newGroupSingle(tab.id, '新分组', 'blue'),
+    newGroup: () => newGroupSingle(tab.id, t('sidepanel.batch.newGroupSingle'), 'blue'),
     addToGroup: () => {
       if (typeof data === 'number') {
         addToGroupSingle(tab.id, data);
