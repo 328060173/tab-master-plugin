@@ -5,7 +5,7 @@
     class="fixed inset-0 z-[120] bg-black/55 dark:bg-black/65"
     :class="maskAnimClass"
     role="dialog"
-    aria-label="新手引导"
+    :aria-label="t('onboarding.guide.ariaLabel')"
     aria-modal="true"
     @click="onMaskClick"
   >
@@ -20,7 +20,7 @@
       <!-- 步数指示 -->
       <div class="flex items-center justify-between mb-1">
         <span class="text-[10px] text-gray-400 dark:text-gray-500" aria-live="polite">
-          {{ currentStep + 1 }}/{{ steps.length }}
+          {{ currentStep + 1 }}/{{ steps.value.length }}
         </span>
       </div>
 
@@ -46,22 +46,22 @@
           :disabled="currentStep === 0"
           @click="prev"
         >
-          <ChevronLeft :size="14" />上一步
+          <ChevronLeft :size="14" />{{ t('onboarding.guide.prev') }}
         </button>
 
         <div class="flex items-center gap-2">
           <button
             class="inline-flex items-center min-h-[32px] px-2 text-xs rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="跳过引导"
+            :aria-label="t('onboarding.guide.skipAria')"
             @click="skip"
           >
-            跳过
+            {{ t('onboarding.guide.skip') }}
           </button>
           <button
             class="inline-flex items-center gap-0.5 min-h-[32px] px-3 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
             @click="next"
           >
-            {{ isLast ? '开始使用' : '下一步' }}
+            {{ isLast ? t('onboarding.guide.start') : t('onboarding.guide.next') }}
             <ChevronRight v-if="!isLast" :size="14" />
           </button>
         </div>
@@ -94,6 +94,7 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { ChevronLeft, ChevronRight } from '@lucide/vue';
 import { computePopoverPos } from '~lib/popoverPosition';
 import { safeSet } from '~lib/safeStorage';
+import { t } from '~lib/i18n';
 
 const emit = defineEmits<{ done: []; skip: [] }>();
 
@@ -127,48 +128,51 @@ interface OnboardingStep {
   fbAdvantage?: string;
 }
 
-/** 5 步文案（设计稿 §8 定稿，照搬；第 5 步去掉「再看引导」指向不存在的功能，诚实） */
-const steps: OnboardingStep[] = [
+/** 5 步文案（设计稿 §8 定稿，照搬；第 5 步去掉「再看引导」指向不存在的功能，诚实）
+ *  文案走 i18n（t()），steps 用 computed 派生，locale 切换时自动重渲染。
+ *  target/fallbackTarget/anchor 是非文案配置，固定不变。
+ */
+const steps = computed<OnboardingStep[]>(() => [
   {
     target: 'backup',
     anchor: 'bottom',
-    title: '开启备份，关浏览器也不会丢',
-    desc: '备份、导入、导出、恢复都在这，办公神器，浏览器崩溃也不怕。',
-    advantage: '数据存在你电脑本地，不上传服务器。'
+    title: t('onboarding.guide.step1.title'),
+    desc: t('onboarding.guide.step1.desc'),
+    advantage: t('onboarding.guide.step1.advantage')
   },
   {
     target: 'tags',
     fallbackTarget: 'tags-toggle',
     anchor: 'bottom',
-    title: '重要标签，贴个标记',
-    desc: '给标签贴标记，一键筛选秒定位，不用翻半天。',
-    advantage: '标记自己定，按你的方式分类。',
-    fbTitle: '标记栏可开关。',
-    fbDesc: '点这里勾选「显示标记」，给标签贴标记一键筛选。',
-    fbAdvantage: '标记栏随时开关，按需启用。'
+    title: t('onboarding.guide.step2.title'),
+    desc: t('onboarding.guide.step2.desc'),
+    advantage: t('onboarding.guide.step2.advantage'),
+    fbTitle: t('onboarding.guide.step2.fbTitle'),
+    fbDesc: t('onboarding.guide.step2.fbDesc'),
+    fbAdvantage: t('onboarding.guide.step2.fbAdvantage')
   },
   {
     target: 'view',
     anchor: 'bottom',
-    title: '标签乱成一排？',
-    desc: '平铺、列表、树形四种看法，还能按网站自动归类，同类一眼聚拢。',
-    advantage: '四视图 + 按网站归类，整理不费力。'
+    title: t('onboarding.guide.step3.title'),
+    desc: t('onboarding.guide.step3.desc'),
+    advantage: t('onboarding.guide.step3.advantage')
   },
   {
     target: 'footer',
     anchor: 'top',
-    title: '哪个标签在响？',
-    desc: '底部状态图标一眼看出谁在放声音、录制中，批量关不怕误删。',
-    advantage: '实时识别，避免误关会议和录屏。'
+    title: t('onboarding.guide.step4.title'),
+    desc: t('onboarding.guide.step4.desc'),
+    advantage: t('onboarding.guide.step4.advantage')
   },
   {
     target: 'settings',
     anchor: 'bottom',
-    title: '设置在这里',
-    desc: '点齿轮进设置，主题、字号、运行日志都能调。',
-    advantage: '想调什么都在齿轮里。'
+    title: t('onboarding.guide.step5.title'),
+    desc: t('onboarding.guide.step5.desc'),
+    advantage: t('onboarding.guide.step5.advantage')
   }
-];
+]);
 
 const currentStep = ref(0);
 const bubbleRef = ref<HTMLElement | null>(null);
@@ -181,7 +185,7 @@ const entered = ref(false);
 const closing = ref(false);
 
 /** 当前是否处于最后一步 */
-const isLast = computed(() => currentStep.value === steps.length - 1);
+const isLast = computed(() => currentStep.value === steps.value.length - 1);
 
 /** 尊重 prefers-reduced-motion：开启时所有动画降级为瞬切 */
 const reducedMotion =
@@ -209,7 +213,7 @@ const bubbleAnimClass = computed(() => {
 });
 
 const currentMeta = computed(() => {
-  const s = steps[currentStep.value];
+  const s = steps.value[currentStep.value];
   if (usingFallback.value) {
     return {
       title: s.fbTitle ?? s.title,
@@ -228,7 +232,7 @@ let highlightedEl: HTMLElement | null = null;
 
 /** 查询目标元素，应用/移除高亮 class，并计算气泡位置 */
 const updatePosition = () => {
-  const step = steps[currentStep.value];
+  const step = steps.value[currentStep.value];
   let el: HTMLElement | null = document.querySelector<HTMLElement>(
     `[data-onboarding-target="${step.target}"]`
   );
@@ -272,7 +276,7 @@ const updatePosition = () => {
 
 /** 跳到指定步（越界 → 完成）；每次切步 nextTick 重读目标位置 */
 const goToStep = (index: number) => {
-  if (index >= steps.length) {
+  if (index >= steps.value.length) {
     finish();
     return;
   }
