@@ -646,7 +646,7 @@ import { useSkin } from "~composables/useSkin"
 import { useToast } from "~composables/useToast"
 import { get, post } from "~lib/api"
 import { API_URIS, buildOfficialUrl, propDetailUri } from "~lib/api-config"
-import { t, tWithParams, getUserLocalePref, setUserLocale, initLocale, type LocalePref } from "~lib/i18n"
+import { t, tWithParams, getUserLocalePref, setUserLocale, initLocale, getLocaleRef, type LocalePref } from "~lib/i18n"
 import type {
   ExchangeResultVO,
   PropDetailVO,
@@ -1196,21 +1196,17 @@ const { toastMsg, showToast } = useToast()
 // 初始值从 storage 读（getUserLocalePref），用户切换时 setUserLocale 写 storage + 立即 setLocale
 // 响应式 currentLocale 改动 → 模板里 t() 自动重渲染（无需 reload）
 const languagePref = ref<LocalePref>('auto')
+// 当前生效 locale（响应式 ref），与 HeaderMenu.languageHint 统一实现，避免重复逻辑分歧
+const currentLocaleRef = getLocaleRef()
 const languageHint = computed(() => {
   // 提示语：当前生效 locale + 是否跟随浏览器
-  const cur = getCurrentLocaleLabel()
+  const cur = currentLocaleRef.value === 'zh-CN'
+    ? t('settings.language.zh-CN')
+    : t('settings.language.en-US')
   return languagePref.value === 'auto'
     ? `${t('settings.language.auto')} · ${cur}`
     : cur
 })
-function getCurrentLocaleLabel(): string {
-  // 读 chrome.i18n.getUILanguage 归一化后的实际 locale，给用户看「当前生效」
-  const ui = (() => {
-    try { return chrome.i18n?.getUILanguage?.() ?? '' } catch { return '' }
-  })()
-  const isZh = (ui || '').toLowerCase().startsWith('zh')
-  return isZh ? t('settings.language.zh-CN') : t('settings.language.en-US')
-}
 async function onLanguageChange() {
   const pref = languagePref.value
   await setUserLocale(pref)
