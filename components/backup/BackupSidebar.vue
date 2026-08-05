@@ -56,6 +56,7 @@
  * 广告数据来自 useBackupPageAd 单例（与概览 Tab 主位共享同一次请求）。
  */
 import { Shield, Cloud, Download } from "@lucide/vue"
+import { computed } from "vue"
 import AdSlot from "./AdSlot.vue"
 import ErrorBoundary from "~components/ErrorBoundary.vue"
 import { useBackupPageAd } from "~composables/useBackupPageAd"
@@ -74,11 +75,12 @@ interface MenuItem {
   disabled?: boolean
 }
 
-const menuItems: MenuItem[] = [
+// computed 让 label 响应 locale 切换（const 数组初始化时 t() 一次性求值，切语言不刷新）
+const menuItems = computed<MenuItem[]>(() => [
   { key: 'manage', label: t('backup.comp.sidebar.manage'), icon: Shield },
   { key: 'cloud', label: t('backup.comp.sidebar.cloud'), icon: Cloud },
   { key: 'import', label: t('backup.comp.sidebar.import'), icon: Download },
-]
+])
 
 defineProps<{ activeKey: BackupMenuKey }>()
 const emit = defineEmits<{ (e: 'update:activeKey', key: BackupMenuKey): void }>()

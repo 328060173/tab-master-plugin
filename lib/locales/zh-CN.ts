@@ -263,6 +263,8 @@ export default {
   'sidepanel.focus.protectedExcluded': '已自动排除 {count} 个系统页面',
   'sidepanel.focus.exitButton': '关闭聚焦',
   'sidepanel.focus.exitTooltip': '退出聚焦模式',
+  'sidepanel.focus.start': '开始聚焦',
+  'sidepanel.focus.startWithCount': '开始聚焦 ({count})',
   'sidepanel.focus.toast.groupRecollapsed': '聚焦模式中，分组已重新折叠',
   'sidepanel.focus.toast.tabAdded': '已加入聚焦标签：{title}',
   'sidepanel.focus.toast.allClosed': '所有聚焦标签已关闭，已退出聚焦模式',

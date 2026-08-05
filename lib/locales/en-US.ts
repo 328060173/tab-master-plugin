@@ -259,6 +259,8 @@ export default {
   'sidepanel.focus.protectedExcluded': 'Auto-excluded {count} system pages',
   'sidepanel.focus.exitButton': 'Exit Focus',
   'sidepanel.focus.exitTooltip': 'Exit focus mode',
+  'sidepanel.focus.start': 'Start focus',
+  'sidepanel.focus.startWithCount': 'Start focus ({count})',
   'sidepanel.focus.toast.groupRecollapsed': 'Groups recollapsed in focus mode',
   'sidepanel.focus.toast.tabAdded': 'Added to focus: {title}',
   'sidepanel.focus.toast.allClosed': 'All focused tabs closed, exited focus mode',
