@@ -41,10 +41,10 @@
 ## 2. Short Description（≤132 字符，扩展管理页 `chrome://extensions` 里扩展名下方那行小字）
 
 ```
-高效管理浏览器标签，一键备份防丢失
+标签太多找不到？3 秒搜索找回任何标签。四视图、状态感知、稍后处理、误关拦截，自动定时备份不怕浏览器崩溃丢标签，跨浏览器导入导出迁移。Chrome/Edge 标签管理插件。
 ```
 
-> 同步写入 `package.json` 的 `description` 字段（单一来源，改这里再同步过去）。
+> 同步写入 `package.json` 的 `description` 字段 + `public/_locales/*/messages.json` 的 `extensionDescription`（单一来源，改这里再同步过去）。含痛点词 + 搜索关键词（标签太多/找回标签/浏览器崩溃/标签管理插件），≤132 字符合规。
 
 ---
 
