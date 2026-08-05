@@ -201,7 +201,8 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
   - **console.warn/注释例外**：开发者诊断日志、代码注释保留中文，不算违规
   - **校验**：提交前 grep 确认无新增用户可见中文硬编码：`grep -rnE "title=\"[一-鿿]|placeholder=\"[一-鿿]|showToast\(['\"][一-鿿]" components/ tabs/ sidepanel.vue options.vue composables/`；zh/en key 1:1 对齐：`grep -cE "^\s+'[a-zA-Z]" lib/locales/zh-CN.ts` 和 en-US.ts 数量一致
   - **加新语言扩展口**：加 `lib/locales/<locale>.ts` + `locales` map 一行 + `LocaleKey`/`LocalePref` 类型加成员 + `normalizeBrowserLocale` 加分支，3-4 处改动
-  - 详见 [[rule-i18n-no-hardcoded-chinese]]
+  - **🔴 可扩展/可配置，禁 if-else 堆叠（2026-08-05 立，用户强调）**：功能开发涉及多语言/多类型/多场景时，**走数据驱动 + 策略表，不写 `if (locale/type === 'x') {...} else {...}` 硬编码分支链**。合规模式：①文案走 `t(key)` 字典查表（key 是数据，加语言加字典文件不加代码）②类型配置走数据表 + `labelKey`/`descKey` 字符串 + 消费侧 `t()` 翻译（参照 `lib/statusConfig.ts`/`config/feature-tiers.ts`：定义 `labelKey` 而非 `label`，组件 `{{ t(item.labelKey) }}`）③const 数组里 t() 求值的改 `computed` 响应 locale ④新语言/新类型用「加数据文件 + 注册一行」扩展，不改业务代码分支。反例：`if (locale==='en') return 'Tabs'; else return '标签';` / `if (status==='playing') label='播放中'; else if (...)`——这种每次加语言/类型都要改业务代码，违反开闭原则。正例：`t('status.playing.label')` / `t(item.labelKey)`——加语言只加字典文件，加类型只加数据表行。
+  - 详见 [[rule-i18n-no-hardcoded-chinese]] + [[rule-data-driven-not-if-else]]
 - 所有改动基于 `test` 分支开发/commit/push（2026-07-08 起）。⚠️ 未经用户允许不准 merge test->master，不准直接改/commit/push master 分支
 
 ### 参考原型
