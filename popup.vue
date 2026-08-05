@@ -1,6 +1,6 @@
 <template>
   <div class="text-center p-4 text-gray-400 text-sm">
-    请从侧边栏使用浏览器标签大师
+    {{ t('popup.hint') }}
   </div>
 </template>
 
@@ -13,7 +13,7 @@
  * 让后续若用 t() 时 locale 已就绪。不阻塞渲染，失败静默回退默认 zh-CN。
  */
 import { onMounted } from 'vue'
-import { initLocale } from '~lib/i18n'
+import { initLocale, t } from '~lib/i18n'
 
 onMounted(() => {
   initLocale().catch((e) => console.warn('[popup] initLocale 失败', e))

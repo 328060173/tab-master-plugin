@@ -1,16 +1,34 @@
-export const STATUS_CONFIG = [
-  { key: "all",              label: "全部",      icon: "🗂️",  desc: "显示所有标签页，不做任何筛选" },
-  { key: "active",           label: "当前激活",  icon: "🎯",  desc: "你当前正在查看和操作的标签页" },
-  { key: "playing",          label: "播放中",    icon: "🔊",  desc: "正在播放音频或视频内容" },
-  { key: "muted",            label: "已静音",    icon: "🔕",  desc: "你手动关闭了该标签页的声音" },
-  { key: "pinned",           label: "已固定",    icon: "📌",  desc: "固定在标签栏左侧，防止误关闭" },
-  { key: "frozen",           label: "已冻结",    icon: "🧊",  desc: "后台标签页已暂停任务以节省电量" },
-  { key: "discarded",        label: "已舍弃",    icon: "🗑️",  desc: "内存不足时被卸载，点击重新加载" },
-  { key: "loading",          label: "加载中",    icon: "⌛",  desc: "页面资源正在加载中，请稍候" },
-  { key: "recording",        label: "录制中",    icon: "🔴",  desc: "正在使用摄像头或麦克风" },
-  { key: "sharing",          label: "共享中",    icon: "📡",  desc: "正在共享屏幕或窗口" },
-  { key: "attention",        label: "引起注意",  icon: "🔔",  desc: "页面弹窗或通知需要你处理" },
-  { key: "hasUnsavedForm",   label: "未保存表单",icon: "📝",  desc: "包含未提交的表单数据" },
-  { key: "hasConnectedDevice", label: "连接设备",icon: "🔌",  desc: "正在连接 USB、蓝牙等外部设备" },
-  { key: "isProtected",      label: "受保护",    icon: "🔒",  desc: "浏览器内部页面，无法关闭" },
+/**
+ * 状态筛选配置表（i18n 化，2026-08-05 i18n-en-support §6.1）。
+ *
+ * 改造方式：原 `label`/`desc` 中文硬编码 → 改为 `labelKey`/`descKey` i18n key 字符串，
+ * 在消费侧（useTabStats → FooterStats）通过 t() 翻译为当前 locale 文案。
+ *
+ * 理由：
+ * - 数据表是静态对象数组，模块加载时确定，无法在定义时调用 t()（此时 locale 可能尚未 init）。
+ * - FooterStats 用 `s.label.length` 估算按钮宽度，需要 label 是已翻译的字符串，故翻译延迟到 composable。
+ * - useTabStats 是 computed，依赖 currentLocale.value（t() 内部读取），locale 切换时自动重算重渲染。
+ */
+export interface IStatusConfigEntry {
+  key: string
+  labelKey: string
+  icon: string
+  descKey: string
+}
+
+export const STATUS_CONFIG: IStatusConfigEntry[] = [
+  { key: "all",                labelKey: "status.all.label",                icon: "🗂️", descKey: "status.all.desc" },
+  { key: "active",             labelKey: "status.active.label",             icon: "🎯", descKey: "status.active.desc" },
+  { key: "playing",            labelKey: "status.playing.label",            icon: "🔊", descKey: "status.playing.desc" },
+  { key: "muted",              labelKey: "status.muted.label",              icon: "🔕", descKey: "status.muted.desc" },
+  { key: "pinned",             labelKey: "status.pinned.label",             icon: "📌", descKey: "status.pinned.desc" },
+  { key: "frozen",             labelKey: "status.frozen.label",             icon: "🧊", descKey: "status.frozen.desc" },
+  { key: "discarded",          labelKey: "status.discarded.label",          icon: "🗑️", descKey: "status.discarded.desc" },
+  { key: "loading",            labelKey: "status.loading.label",            icon: "⌛", descKey: "status.loading.desc" },
+  { key: "recording",          labelKey: "status.recording.label",          icon: "🔴", descKey: "status.recording.desc" },
+  { key: "sharing",            labelKey: "status.sharing.label",            icon: "📡", descKey: "status.sharing.desc" },
+  { key: "attention",          labelKey: "status.attention.label",          icon: "🔔", descKey: "status.attention.desc" },
+  { key: "hasUnsavedForm",     labelKey: "status.hasUnsavedForm.label",     icon: "📝", descKey: "status.hasUnsavedForm.desc" },
+  { key: "hasConnectedDevice", labelKey: "status.hasConnectedDevice.label", icon: "🔌", descKey: "status.hasConnectedDevice.desc" },
+  { key: "isProtected",        labelKey: "status.isProtected.label",        icon: "🔒", descKey: "status.isProtected.desc" },
 ]

@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-3 py-1">
-    <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-200 px-1">小工具</h2>
-    <p class="text-[11px] text-gray-400 px-1 -mt-1">本地辅助小工具，数据不离开浏览器。</p>
+    <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-200 px-1">{{ t('tools.list.title') }}</h2>
+    <p class="text-[11px] text-gray-400 px-1 -mt-1">{{ t('tools.list.subtitle') }}</p>
 
     <button
       v-for="tool in tools"
@@ -14,8 +14,8 @@
         <component :is="tool.icon" :size="18" />
       </span>
       <span class="flex-1 min-w-0">
-        <span class="block text-sm font-medium text-gray-800 dark:text-gray-100">{{ tool.title }}</span>
-        <span class="block text-[11px] text-gray-400 truncate">{{ tool.subtitle }}</span>
+        <span class="block text-sm font-medium text-gray-800 dark:text-gray-100">{{ t(tool.titleKey) }}</span>
+        <span class="block text-[11px] text-gray-400 truncate">{{ t(tool.subtitleKey) }}</span>
       </span>
     </button>
   </div>
@@ -25,22 +25,25 @@
 /**
  * 小工具列表 —— sidepanel「小工具」tab 的入口页。
  * 点击工具卡片 emit('select', tool)，由 sidepanel 切换到对应工具子组件。
+ *
+ * i18n 化（2026-08-05 i18n-en-support §6.1）：title/subtitle → titleKey/subtitleKey，模板 t() 翻译。
  */
 import { StickyNote, Clock } from '@lucide/vue'
 import type { Component } from 'vue'
+import { t } from '~lib/i18n'
 
 type ToolId = 'notes' | 'timestamp'
 
 interface IToolCard {
   id: ToolId
-  title: string
-  subtitle: string
+  titleKey: string
+  subtitleKey: string
   icon: Component
 }
 
 const tools: IToolCard[] = [
-  { id: 'notes', title: '小便签', subtitle: '常用信息本地记', icon: StickyNote },
-  { id: 'timestamp', title: '时间戳转换', subtitle: '时间戳与时间互转', icon: Clock },
+  { id: 'notes', titleKey: 'tools.list.notes.title', subtitleKey: 'tools.list.notes.subtitle', icon: StickyNote },
+  { id: 'timestamp', titleKey: 'tools.list.timestamp.title', subtitleKey: 'tools.list.timestamp.subtitle', icon: Clock },
 ]
 
 const emit = defineEmits<{ (e: 'select', tool: ToolId): void }>()

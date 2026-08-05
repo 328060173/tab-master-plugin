@@ -7,26 +7,26 @@
       @click="emit('back')"
     >
       <ArrowLeft :size="14" />
-      返回
+      {{ t('tools.notes.back') }}
     </button>
 
-    <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-200 px-1">小便签</h2>
+    <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-200 px-1">{{ t('tools.notes.title') }}</h2>
 
     <!-- 功能引导提示 -->
     <p class="text-[11px] text-gray-400 px-1 leading-relaxed">
-      保存常用信息（姓名、手机号、地址等），填写网页表单时点「复制」即可粘贴，省去反复输入。
+      {{ t('tools.notes.guide') }}
     </p>
 
     <!-- 不可关闭的本地存储警示横幅 -->
     <div class="flex items-start gap-2 px-3 py-2.5 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200">
       <AlertTriangle :size="14" class="mt-0.5 shrink-0" />
       <p class="text-[11px] leading-relaxed">
-        数据只存储在本地浏览器，不上传服务器。插件被卸载或删除时，本地数据会一起清空，请注意备份。
+        {{ t('tools.notes.warning') }}
       </p>
     </div>
 
     <p class="text-[11px] text-gray-400 px-1">
-      字段名和内容各最多 {{ NOTES_MAX_LEN }} 字符，最多 {{ NOTES_MAX_FIELDS }} 个字段
+      {{ tWithParams('tools.notes.fieldLimit', { max: NOTES_MAX_LEN, maxFields: NOTES_MAX_FIELDS }) }}
     </p>
 
     <!-- 导入 / 导出 -->
@@ -37,7 +37,7 @@
         @click="onExport"
       >
         <Download :size="12" />
-        导出
+        {{ t('tools.notes.exportBtn') }}
       </button>
       <button
         type="button"
@@ -45,7 +45,7 @@
         @click="onPickImport"
       >
         <Upload :size="12" />
-        导入
+        {{ t('tools.notes.importBtn') }}
       </button>
       <input
         ref="fileInputRef"
@@ -67,7 +67,7 @@
           v-model="field.key"
           type="text"
           :maxlength="NOTES_MAX_LEN"
-          placeholder="字段名"
+          :placeholder="t('tools.notes.fieldNamePlaceholder')"
           class="w-24 shrink-0 px-2 py-1.5 text-xs rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400"
           @input="scheduleSave"
           @blur="flushSave"
@@ -76,7 +76,7 @@
           v-model="field.value"
           type="text"
           :maxlength="NOTES_MAX_LEN"
-          placeholder="内容"
+          :placeholder="t('tools.notes.contentPlaceholder')"
           class="flex-1 min-w-0 px-2 py-1.5 text-xs rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400"
           @input="scheduleSave"
           @blur="flushSave"
@@ -84,7 +84,7 @@
         <button
           type="button"
           class="shrink-0 p-1 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-          title="复制内容"
+          :title="t('tools.notes.copyTitle')"
           @click="onCopyValue(field.value)"
         >
           <Copy :size="14" />
@@ -92,7 +92,7 @@
         <button
           type="button"
           class="shrink-0 p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-          title="删除字段"
+          :title="t('tools.notes.deleteTitle')"
           @click="removeField(field.id)"
         >
           <Trash2 :size="14" />
@@ -109,7 +109,7 @@
         @click="addField"
       >
         <Plus :size="12" />
-        添加字段
+        {{ t('tools.notes.addField') }}
       </button>
       <span class="text-[11px] text-gray-400">{{ fields.length }} / {{ NOTES_MAX_FIELDS }}</span>
     </div>
@@ -128,6 +128,7 @@
  */
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ArrowLeft, AlertTriangle, Plus, Trash2, Copy, Download, Upload } from '@lucide/vue'
+import { t, tWithParams } from '~lib/i18n'
 import { safeSet } from '~lib/safeStorage'
 import { toPure } from '~lib/toPure'
 import { uuidV4 } from '~lib/backup/fingerprint'
@@ -153,7 +154,7 @@ const save = () => {
   saveTimer = null
   safeSet({ [TOOLS_NOTES_KEY]: toPure(fields.value) }, 'tools-notes').then(
     () => { /* 静默成功 */ },
-    () => showToast('保存失败'),
+    () => showToast(t('tools.notes.saveFailed')),
   )
 }
 
@@ -186,21 +187,21 @@ const removeField = (id: string) => {
 /** 复制字段 value 到剪贴板 */
 const onCopyValue = async (value: string) => {
   if (!value) {
-    showToast('内容为空')
+    showToast(t('tools.notes.contentEmpty'))
     return
   }
   try {
     await navigator.clipboard.writeText(value)
-    showToast('已复制')
+    showToast(t('tools.notes.copied'))
   } catch {
-    showToast('复制失败')
+    showToast(t('tools.notes.copyFailed'))
   }
 }
 
 /** 导出当前字段为 JSON 文件下载（纯 key/value，不含 id） */
 const onExport = () => {
   if (fields.value.length === 0) {
-    showToast('暂无可导出的字段')
+    showToast(t('tools.notes.noExportable'))
     return
   }
   let url: string | null = null
@@ -213,10 +214,10 @@ const onExport = () => {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    showToast('已导出')
+    showToast(t('tools.notes.exported'))
   } catch (e) {
     console.warn('[notes] export failed', e)
-    showToast('导出失败')
+    showToast(t('tools.notes.exportFailed'))
   } finally {
     if (url) setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
@@ -240,11 +241,11 @@ const onFileChange = async (e: Event) => {
     const text = await file.text()
     entries = parseNotesImport(text)
   } catch {
-    showToast('文件格式错误')
+    showToast(t('tools.notes.fileFormatError'))
     return
   }
   if (entries.length === 0) {
-    showToast('文件中无有效字段')
+    showToast(t('tools.notes.noValidFields'))
     return
   }
 
@@ -252,10 +253,10 @@ const onFileChange = async (e: Event) => {
   const remaining = NOTES_MAX_FIELDS - fields.value.length
   if (incoming.length > remaining) {
     fields.value.push(...incoming.slice(0, Math.max(0, remaining)))
-    showToast(`已达 ${NOTES_MAX_FIELDS} 条上限，超出部分未导入，请自行删除`)
+    showToast(tWithParams('tools.notes.importLimited', { max: NOTES_MAX_FIELDS }))
   } else {
     fields.value.push(...incoming)
-    showToast(`已导入 ${incoming.length} 条`)
+    showToast(tWithParams('tools.notes.imported', { count: incoming.length }))
   }
   scheduleSave()
 }
@@ -279,7 +280,7 @@ onMounted(async () => {
       save()
     }
   } catch {
-    showToast('加载失败')
+    showToast(t('tools.notes.loadFailed'))
   }
 })
 
