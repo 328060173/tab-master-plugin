@@ -1561,4 +1561,22 @@ export default {
   'tabNumber.clickToSet': 'Click to set shortcut number',
   'tabNumber.clickToEdit': 'Click to edit number',
   'tabNumber.shortcutHint': '{hint} to switch, click to edit',
+
+  // ===== Task 12: static-test misses (lib thrown errors + template hardcoded) =====
+  // Generic errors (Error messages thrown by lib, surfaced to UI)
+  'error.jsonNotArray': 'JSON top-level is not an array',
+  'error.transactionAborted': 'Transaction aborted',
+  // ErrorBoundary fallback UI
+  'error.boundary.title': '⚠️ This area has an error',
+  'error.boundary.message': 'Other features are unaffected. You can retry, or click "Reopen" in Settings to recover.',
+  'error.boundary.retry': 'Retry this area',
+  'error.boundary.goSettings': 'Reopen from Settings',
+  // Tree view persistent banner
+  'guide.treeBanner.hint': 'Tree view supports drag to change parent-child relationships, operation not intuitive?',
+  'guide.treeBanner.cta': 'View instructions →',
+  // Search results
+  'search.restore': 'Restore',
+  'search.noMatch': 'No matching tabs found',
+  // Notice detail dialog title
+  'notice.title': 'Notice',
 }

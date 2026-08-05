@@ -1,11 +1,11 @@
 <template>
   <slot v-if="!errored" />
   <div v-else class="m-3 p-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-xs text-amber-800 dark:text-amber-200">
-    <p class="font-medium mb-1">⚠️ 此区域出错了</p>
-    <p class="mb-2 text-amber-700 dark:text-amber-300 leading-relaxed">其它功能不受影响。可以重试，或在「设置」里点「重新打开」尝试恢复。</p>
+    <p class="font-medium mb-1">{{ t('error.boundary.title') }}</p>
+    <p class="mb-2 text-amber-700 dark:text-amber-300 leading-relaxed">{{ t('error.boundary.message') }}</p>
     <div class="flex gap-2">
-      <button class="px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-700 text-white text-[11px]" @click="reset">重试此区域</button>
-      <button class="px-2.5 py-1 rounded border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-200 text-[11px]" @click="handleReload">去设置重新打开</button>
+      <button class="px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-700 text-white text-[11px]" @click="reset">{{ t('error.boundary.retry') }}</button>
+      <button class="px-2.5 py-1 rounded border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-200 text-[11px]" @click="handleReload">{{ t('error.boundary.goSettings') }}</button>
     </div>
   </div>
 </template>
@@ -17,6 +17,7 @@
  * - 只在控制台输出错误，不写入日志页
  */
 import { ref, onErrorCaptured } from "vue"
+import { t } from "~lib/i18n"
 
 const props = defineProps<{ scope?: string }>()
 const emit = defineEmits<{ reload: [] }>()

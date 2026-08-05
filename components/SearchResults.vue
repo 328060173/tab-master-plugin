@@ -42,16 +42,17 @@
           <p class="text-xs font-medium text-gray-600 truncate" v-html="hl(t.title)"></p>
           <p class="text-[10px] text-gray-400 truncate" v-html="hl(t.url)"></p>
         </div>
-        <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0 opacity-0 group-hover:opacity-100">恢复</span>
+        <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0 opacity-0 group-hover:opacity-100">{{ t('search.restore') }}</span>
       </button>
     </template>
 
-    <div v-if="!pinned.length && !open.length && !closed.length" class="text-center text-gray-400 text-xs py-12">未找到匹配的标签</div>
+    <div v-if="!pinned.length && !open.length && !closed.length" class="text-center text-gray-400 text-xs py-12">{{ t('search.noMatch') }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { Pin, Globe, History } from "@lucide/vue"
+import { t } from "~lib/i18n"
 import type { TabItem, ClosedTabItem } from "~types/tab"
 import FavIcon from "./FavIcon.vue"
 import StatusBadge from "./StatusBadge.vue"

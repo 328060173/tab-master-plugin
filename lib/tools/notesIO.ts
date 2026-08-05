@@ -10,6 +10,7 @@
  * - 异常不吞（解析失败抛错，由调用方 toast）
  */
 import type { INoteField } from './notesTypes'
+import { t } from '~lib/i18n'
 
 /** 导出文件名日期段：YYYYMMDD（本地时区） */
 export const notesExportFileName = (): string => {
@@ -38,7 +39,7 @@ export interface INotesImportEntry {
 export const parseNotesImport = (text: string): INotesImportEntry[] => {
   const parsed: unknown = JSON.parse(text)
   if (!Array.isArray(parsed)) {
-    throw new Error('JSON 顶层不是数组')
+    throw new Error(t('error.jsonNotArray'))
   }
   const result: INotesImportEntry[] = []
   for (const item of parsed) {

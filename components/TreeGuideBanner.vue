@@ -5,13 +5,14 @@
     @click="emit('open')"
   >
     <Lightbulb :size="13" class="shrink-0 text-amber-500" :stroke-width="2.25" />
-    <span class="flex-1">树形视图支持拖拽改变父子关系，操作不直观？</span>
-    <span class="text-amber-700 font-medium hover:underline shrink-0">查看操作说明 →</span>
+    <span class="flex-1">{{ t('guide.treeBanner.hint') }}</span>
+    <span class="text-amber-700 font-medium hover:underline shrink-0">{{ t('guide.treeBanner.cta') }}</span>
   </button>
 </template>
 
 <script setup lang="ts">
 import { Lightbulb } from "@lucide/vue"
+import { t } from "~lib/i18n"
 
 const emit = defineEmits<{ open: [] }>()
 </script>

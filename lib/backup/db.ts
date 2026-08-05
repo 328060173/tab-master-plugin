@@ -15,6 +15,7 @@
 
 import type { BackupFile } from "~types/backup"
 import type { WalEntry, AuditLogEntry } from "./types"
+import { t } from "~lib/i18n"
 
 const DB_NAME = "tabmaster_backup"
 const DB_VERSION = 1
@@ -93,7 +94,7 @@ export async function txMulti(
     fn(stores)
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
-    tx.onabort = () => reject(tx.error || new Error("事务中止"))
+    tx.onabort = () => reject(tx.error || new Error(t('error.transactionAborted')))
   })
 }
 

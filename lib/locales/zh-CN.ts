@@ -1565,4 +1565,22 @@ export default {
   'tabNumber.clickToSet': '点击设置快捷键编号',
   'tabNumber.clickToEdit': '点击修改编号',
   'tabNumber.shortcutHint': '{hint} 快速切换，点击修改',
+
+  // ===== 任务12 收尾：静态测试遗漏补齐（lib 抛错 + 模板硬编码）=====
+  // 通用错误（lib 抛给 UI 的 Error 消息）
+  'error.jsonNotArray': 'JSON 顶层不是数组',
+  'error.transactionAborted': '事务中止',
+  // ErrorBoundary 区域降级 UI
+  'error.boundary.title': '⚠️ 此区域出错了',
+  'error.boundary.message': '其它功能不受影响。可以重试，或在「设置」里点「重新打开」尝试恢复。',
+  'error.boundary.retry': '重试此区域',
+  'error.boundary.goSettings': '去设置重新打开',
+  // 树形视图常驻提示条
+  'guide.treeBanner.hint': '树形视图支持拖拽改变父子关系，操作不直观？',
+  'guide.treeBanner.cta': '查看操作说明 →',
+  // 搜索结果
+  'search.restore': '恢复',
+  'search.noMatch': '未找到匹配的标签',
+  // 通知详情弹框标题
+  'notice.title': '通知',
 }

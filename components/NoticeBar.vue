@@ -31,7 +31,7 @@
           <!-- 标题 -->
           <div class="flex items-center gap-2 mb-3">
             <Bell :size="15" class="text-amber-500 shrink-0" />
-            <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">通知</h3>
+            <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ t('notice.title') }}</h3>
           </div>
 
           <!-- 通知全文（不截断，保留换行）-->
