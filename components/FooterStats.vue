@@ -19,7 +19,7 @@
         :class="['font-medium text-[11px] whitespace-nowrap transition-colors',
           popover.isOpen('footer-more') ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200']"
         @click.stop="popover.toggle('footer-more', moreTriggerRef)"
-      >更多</button>
+      >{{ t('common.more') }}</button>
     </div>
   </div>
 
@@ -57,6 +57,7 @@
 import { ref, computed, onMounted, onUnmounted } from "vue"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
+import { t } from "~lib/i18n"
 
 const props = defineProps<{
   stats: Array<{ key: string; label: string; icon: string; desc: string; value: number }>

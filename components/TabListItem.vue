@@ -20,7 +20,7 @@
     @removeTag="emit('removeTag', $event)"
   />
     <!-- 上一个访问标记 -->
-    <span v-if="isPrev" class="absolute -top-1 -left-1 text-[8px] font-semibold text-blue-600 bg-blue-100 border border-blue-200 px-1 py-px rounded leading-none z-10" title="上一个访问的标签">Prev</span>
+    <span v-if="isPrev" class="absolute -top-1 -left-1 text-[8px] font-semibold text-blue-600 bg-blue-100 border border-blue-200 px-1 py-px rounded leading-none z-10" :title="t('tab.prevTab')">Prev</span>
     <!-- 编号标记 -->
     <div v-if="item.number" class="absolute -top-1 -right-1 z-10">
       <TabNumber :num="item.number" :is-active="item.active" @update="emit('updateNumber', $event)" />
@@ -46,12 +46,12 @@
     <StatusBadge :item="item" />
     <!-- 右侧操作按钮：批量态也保留，让用户能临时单条操作 -->
     <div class="flex items-center gap-0.5 shrink-0">
-      <button class="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="复制链接" @click.stop="emit('copy')"><Link :size="13" /></button>
+      <button class="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" :title="t('common.copyLink')" @click.stop="emit('copy')"><Link :size="13" /></button>
       <TagPicker ref="tagPickerRef"
         :tabId="item.id" :currentTags="item.tags" :allTags="customTags"
         @toggleTag="emit('toggleTag', $event)" @addTag="emit('addTag', $event)" />
-      <button :class="['p-1 rounded', popover.isOpen(hoverCardId) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700']" title="更多操作" @click.stop="onMenuClick"><Menu :size="14" :stroke-width="2.25" /></button>
-      <button class="p-1 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" @click.stop="emit('close')" title="关闭"><X :size="13" :stroke-width="2.5" /></button>
+      <button :class="['p-1 rounded', popover.isOpen(hoverCardId) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700']" :title="t('action.moreActions')" @click.stop="onMenuClick"><Menu :size="14" :stroke-width="2.25" /></button>
+      <button class="p-1 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" @click.stop="emit('close')" :title="t('common.close')"><X :size="13" :stroke-width="2.5" /></button>
     </div>
   </div>
 </template>
@@ -78,6 +78,7 @@ import TabNumber from "./TabNumber.vue"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { getHighestPriorityStatus } from "~lib/statusPriority"
 import { GROUP_COLOR_CLASSES, TAB_GROUP_ID_NONE } from "~composables/useTabGroups"
+import { t } from "~lib/i18n"
 
 const props = defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[]; isPrev?: boolean }>()
 const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "toggleTag", "removeTag", "addTag", "updateNumber", "refresh", "pin"])

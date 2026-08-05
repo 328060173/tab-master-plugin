@@ -2,7 +2,7 @@
   <button
     ref="triggerRef"
     :class="['rounded transition-colors', buttonClass]"
-    :title="popover.isOpen(popoverId) ? '收起标记' : '添加标记'"
+    :title="popover.isOpen(popoverId) ? t('tagPicker.collapse') : t('tagPicker.addTag')"
     @click.stop="popover.toggle(popoverId, triggerRef)">
     <Tag :size="iconSize" />
   </button>
@@ -26,6 +26,7 @@ import { usePopoverManager } from "~composables/usePopoverManager"
 import TagSelectPopover from "~components/TagSelectPopover.vue"
 import { validateTag, TAG_INVALID_MSG } from "~lib/tagValidate"
 import { showToast } from "~composables/useToast"
+import { t } from "~lib/i18n"
 
 const props = withDefaults(defineProps<{
   currentTags: string[]

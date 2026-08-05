@@ -1548,4 +1548,17 @@ export default {
   'tools.timestamp.invalidFormat': 'Invalid time format, please re-select',
   'tools.timestamp.copied': 'Copied',
   'tools.timestamp.copyFailed': 'Copy failed',
+
+  // ===== Task 11 cleanup: missed components i18n (TabIconItem/TabTileItem/TabTreeItem/PinnedBar/ActionButtons/SearchBox/TabNumber/FooterStats/TabListItem/TagPicker) =====
+  'action.moreActions': 'More actions',
+  'tab.prevTab': 'Previous tab',
+  'tab.closeGroup': 'Close group',
+  'pinned.label': 'Pinned',
+  'tagPicker.collapse': 'Collapse tags',
+  'tagPicker.addTag': 'Add tag',
+  'search.placeholder': 'Search tabs, URL...',
+  'search.history': 'Recent searches',
+  'tabNumber.clickToSet': 'Click to set shortcut number',
+  'tabNumber.clickToEdit': 'Click to edit number',
+  'tabNumber.shortcutHint': '{hint} to switch, click to edit',
 }

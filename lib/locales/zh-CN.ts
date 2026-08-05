@@ -1552,4 +1552,17 @@ export default {
   'tools.timestamp.invalidFormat': '时间格式不正确，请重新选择',
   'tools.timestamp.copied': '已复制',
   'tools.timestamp.copyFailed': '复制失败',
+
+  // ===== 任务11 收尾：遗漏组件 i18n（TabIconItem/TabTileItem/TabTreeItem/PinnedBar/ActionButtons/SearchBox/TabNumber/FooterStats/TabListItem/TagPicker）=====
+  'action.moreActions': '更多操作',
+  'tab.prevTab': '上一个访问的标签',
+  'tab.closeGroup': '关闭全组',
+  'pinned.label': '已固定',
+  'tagPicker.collapse': '收起标记',
+  'tagPicker.addTag': '添加标记',
+  'search.placeholder': '搜索标签、URL...',
+  'search.history': '搜索历史',
+  'tabNumber.clickToSet': '点击设置快捷键编号',
+  'tabNumber.clickToEdit': '点击修改编号',
+  'tabNumber.shortcutHint': '{hint} 快速切换，点击修改',
 }

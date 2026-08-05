@@ -12,7 +12,7 @@
     <input v-if="isBatch" type="checkbox" :checked="isChecked"
       class="absolute top-1.5 left-1.5 w-4 h-4 cursor-pointer z-10 accent-blue-600"
       @click.stop @change.stop="emit('toggle')" />
-    <span v-if="isPrev" class="absolute top-0.5 left-0.5 text-[8px] font-semibold text-blue-600 bg-blue-100 border border-blue-200 px-1 py-px rounded leading-none z-10" title="上一个访问的标签">Prev</span>
+    <span v-if="isPrev" class="absolute top-0.5 left-0.5 text-[8px] font-semibold text-blue-600 bg-blue-100 border border-blue-200 px-1 py-px rounded leading-none z-10" :title="t('tab.prevTab')">Prev</span>
     <div class="flex items-start justify-between gap-1 mb-1">
       <FavIcon :src="item.favIconUrl" :domain="item.domain" size="md" :badge="statusBadge" class="shrink-0" />
       <div class="flex flex-wrap gap-0.5 justify-end min-w-0 flex-1 pt-0.5">
@@ -34,8 +34,8 @@
           button-class="p-0.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700"
           :icon-size="13"
           @toggleTag="emit('toggleTag', $event)" @addTag="emit('addTag', $event)" />
-        <button :class="['p-0.5 rounded', popover.isOpen(hoverCardId) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700']" @click.stop="onMenuClick" title="更多操作"><Menu :size="13" :stroke-width="2.25" /></button>
-        <button class="p-0.5 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" @click.stop="emit('close')" title="关闭"><X :size="13" :stroke-width="2.5" /></button>
+        <button :class="['p-0.5 rounded', popover.isOpen(hoverCardId) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700']" @click.stop="onMenuClick" :title="t('action.moreActions')"><Menu :size="13" :stroke-width="2.25" /></button>
+        <button class="p-0.5 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" @click.stop="emit('close')" :title="t('common.close')"><X :size="13" :stroke-width="2.5" /></button>
       </div>
     </div>
     <!-- TabHoverCard 是 Teleport(to=body)，放主 div 内不影响布局；
@@ -62,6 +62,7 @@ import TagPicker from "./TagPicker.vue"
 import { getHighestPriorityStatus } from "~lib/statusPriority"
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { GROUP_COLOR_CLASSES, TAB_GROUP_ID_NONE } from "~composables/useTabGroups"
+import { t } from "~lib/i18n"
 
 const props = defineProps<{ item: TabItem; isBatch: boolean; isChecked: boolean; customTags: string[]; isPrev?: boolean }>()
 const emit = defineEmits(["activate", "toggle", "later", "close", "copy", "refresh", "pin", "addTag", "toggleTag", "removeTag", "updateNumber"])

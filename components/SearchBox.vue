@@ -4,7 +4,7 @@
       ref="inputRef"
       :value="modelValue"
       type="text"
-      placeholder="搜索标签、URL..."
+      :placeholder="t('search.placeholder')"
       class="w-full text-xs border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 pr-7 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
       @input="onInput"
       @focus="onFocus"
@@ -23,8 +23,8 @@
         class="fixed z-[60] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl overflow-hidden"
         @click.stop>
         <div class="flex items-center justify-between px-3 py-1.5 border-b border-gray-100 dark:border-gray-700">
-          <span class="text-[11px] text-gray-400 font-medium">搜索历史</span>
-          <button class="text-[11px] text-gray-400 hover:text-red-500" @click="clearAll">清空</button>
+          <span class="text-[11px] text-gray-400 font-medium">{{ t('search.history') }}</span>
+          <button class="text-[11px] text-gray-400 hover:text-red-500" @click="clearAll">{{ t('common.clear') }}</button>
         </div>
         <div class="max-h-48 overflow-y-auto">
           <div v-for="item in history" :key="item" class="flex items-center px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 group">
@@ -54,6 +54,7 @@
 import { ref, computed, onMounted, onUnmounted } from "vue"
 import { X, Clock } from "@lucide/vue"
 import { usePopoverManager } from "~composables/usePopoverManager"
+import { t } from "~lib/i18n"
 
 const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits(["update:modelValue"])

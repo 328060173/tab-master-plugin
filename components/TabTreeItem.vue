@@ -22,9 +22,9 @@
       <p :class="['flex-1 text-xs truncate font-medium', item.active ? 'text-blue-700 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200']">{{ item.title }}</p>
       <span class="text-[10px] text-gray-400 shrink-0">({{ totalCount }})</span>
       <button :class="['p-0.5 rounded shrink-0', popover.isOpen(hoverCardId) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700']"
-        @click.stop="onMenuClick" title="更多操作"><Menu :size="13" :stroke-width="2.25" /></button>
+        @click.stop="onMenuClick" :title="t('action.moreActions')"><Menu :size="13" :stroke-width="2.25" /></button>
       <button class="p-0.5 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded shrink-0"
-        @click.stop="closeAll" title="关闭全组"><X :size="12" :stroke-width="2.5" /></button>
+        @click.stop="closeAll" :title="t('tab.closeGroup')"><X :size="12" :stroke-width="2.5" /></button>
     </div>
 
     <!-- 子节点（带连接线） -->
@@ -59,9 +59,9 @@
       <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" :badge="statusBadge" />
       <p :class="['flex-1 text-xs truncate', item.active ? 'text-blue-900 font-semibold dark:text-blue-400' : 'text-gray-800 dark:text-gray-200']">{{ item.title }}</p>
       <button :class="['p-0.5 rounded shrink-0', popover.isOpen(hoverCardId) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700']"
-        @click.stop="onMenuClick" title="更多操作"><Menu :size="13" :stroke-width="2.25" /></button>
+        @click.stop="onMenuClick" :title="t('action.moreActions')"><Menu :size="13" :stroke-width="2.25" /></button>
       <button class="p-0.5 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded shrink-0"
-        @click.stop="emit('close')" title="关闭"><X :size="12" :stroke-width="2.5" /></button>
+        @click.stop="emit('close')" :title="t('common.close')"><X :size="12" :stroke-width="2.5" /></button>
     </div>
 
     <TabHoverCard
@@ -86,6 +86,7 @@ import FavIcon from "./FavIcon.vue"
 import TabHoverCard from "./TabHoverCard.vue"
 import { getHighestPriorityStatus } from "~lib/statusPriority"
 import { usePopoverManager } from "~composables/usePopoverManager"
+import { t } from "~lib/i18n"
 
 export interface TreeNode { item: TabItem; children: TreeNode[] }
 

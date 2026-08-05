@@ -11,13 +11,13 @@
     <button v-else-if="num"
       :class="['w-6 h-5 text-[10px] font-mono rounded flex items-center justify-center transition-colors',
         isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-500']"
-      :title="hasShortcut ? `${shortcutHint(num)} 快速切换，点击修改` : '点击修改编号'"
+      :title="hasShortcut ? tWithParams('tabNumber.shortcutHint', { hint: shortcutHint(num) }) : t('tabNumber.clickToEdit')"
       @click="startEdit"
     >{{ num }}</button>
     <!-- 无编号：hover 时显示键盘图标 -->
     <button v-else
       class="w-6 h-5 rounded flex items-center justify-center opacity-0 group-hover/num:opacity-100 transition-opacity text-gray-300 hover:text-blue-400"
-      title="点击设置快捷键编号"
+      :title="t('tabNumber.clickToSet')"
       @click="startEdit"
     ><Keyboard :size="10" /></button>
     <!-- tooltip：1-4 有快捷键时显示键位提示 -->
@@ -32,6 +32,7 @@
 import { ref, computed, nextTick } from "vue"
 import { Keyboard } from "@lucide/vue"
 import { shortcutHint } from "~lib/platform"
+import { t, tWithParams } from "~lib/i18n"
 
 const props = defineProps<{ num: number; isActive: boolean }>()
 const emit = defineEmits<{ update: [n: number] }>()

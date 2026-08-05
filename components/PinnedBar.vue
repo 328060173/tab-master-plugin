@@ -1,7 +1,7 @@
 <template>
   <div v-if="items.length" class="shrink-0 border-b border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/60 px-2 pb-1.5">
     <p class="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wide pt-1 pb-1 flex items-center gap-1">
-      <Pin :size="9" />已固定 ({{ items.length }})
+      <Pin :size="9" />{{ t('pinned.label') }} ({{ items.length }})
     </p>
     <div class="flex flex-wrap gap-1">
       <div v-for="item in items" :key="item.id"
@@ -20,8 +20,8 @@
         <GripVertical :size="14" class="text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 cursor-grab active:cursor-grabbing shrink-0" />
         <FavIcon :src="item.favIconUrl" :domain="item.domain" size="sm" :badge="getHighestPriorityStatus(item)?.icon" />
         <span :class="['text-[11px] font-medium truncate flex-1 min-w-0', item.active ? 'text-blue-900 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200']">{{ item.title }}</span>
-        <button class="shrink-0 p-0.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" @click.stop="onMenuClick($event, item)" title="更多操作"><Menu :size="12" :stroke-width="2.25" /></button>
-        <button class="shrink-0 p-0.5 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" @click.stop="emit('close', item.id)" title="关闭"><X :size="12" :stroke-width="2.5" /></button>
+        <button class="shrink-0 p-0.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" @click.stop="onMenuClick($event, item)" :title="t('action.moreActions')"><Menu :size="12" :stroke-width="2.25" /></button>
+        <button class="shrink-0 p-0.5 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded" @click.stop="emit('close', item.id)" :title="t('common.close')"><X :size="12" :stroke-width="2.5" /></button>
       </div>
     </div>
   </div>
@@ -47,6 +47,7 @@ import FavIcon from "./FavIcon.vue"
 import TabHoverCard from "./TabHoverCard.vue"
 import { getHighestPriorityStatus } from "~lib/statusPriority"
 import { usePopoverManager } from "~composables/usePopoverManager"
+import { t } from "~lib/i18n"
 
 defineProps<{ items: TabItem[] }>()
 const emit = defineEmits<{
