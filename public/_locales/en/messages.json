@@ -1,15 +1,15 @@
 {
   "extensionName": {
-    "message": "Browser Tab Master",
-    "description": "Extension name"
+    "message": "Tab Master - Tab Manager & Session Backup",
+    "description": "Extension name (store name + ASO keywords: Tab Manager / Session Backup)"
   },
   "extensionDescription": {
-    "message": "Backup, restore & organize browser tabs. Save sessions, recover closed tabs, protect work from crashes. Chrome/Edge tab manager.",
-    "description": "Extension description (store listing + ASO, covers tab manager/backup/restore/session/closed tabs/crashes, ≤132 chars)"
+    "message": "Never lose tabs. Privacy-first tab manager: auto session backup, restore, import/export, cross-browser migration, search, tags.",
+    "description": "Extension description (store search weight, covers tab manager/session backup/restore/migration, ≤132 chars)"
   },
   "shortName": {
     "message": "Tab Master",
-    "description": "Short extension name (tab bar tooltip / extensions page short name)"
+    "description": "Short extension name (toolbar tooltip / extensions page short name)"
   },
   "cmdSwitchTab1": {
     "message": "Switch to tab 1",

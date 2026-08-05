@@ -1,9 +1,9 @@
 {
   "name": "tab-master-plugin",
-  "displayName": "浏览器标签大师",
+  "displayName": "浏览器标签大师 - 标签管理、备份与恢复",
   "version": "1.4.0",
-  "description": "标签太多找不到？3 秒搜索找回任何标签。备份恢复标签、整理标签、会话管理，浏览器崩溃也不怕丢。四视图、状态感知、稍后处理、误关拦截，跨浏览器导入导出迁移。Chrome/Edge 标签管理插件。",
-  "short_name": "浏览器标签大师",
+  "description": "不怕浏览器崩溃丢失标签。纯本地标签管理工具，支持自动备份、一键恢复、导入导出、跨浏览器迁移、多视图管理、智能搜索、标记分类与聚焦整理。",
+  "short_name": "标签大师",
   "author": "xpd",
   "scripts": {
     "dev": "node scripts/sync-locales.js --watch & plasmo dev",

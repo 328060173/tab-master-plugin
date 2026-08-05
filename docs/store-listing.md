@@ -13,10 +13,14 @@
 | 字段 | 内容 |
 |---|---|
 | 主品牌（全名） | 浏览器标签大师 |
-| 短名（short_name） | 浏览器标签大师 |
-| Slogan（核心爽点，商店描述开头 / 官网 hero / 首装引导统一用） | **3 秒找到任何标签，标签再多也不乱** |
+| 短名（short_name） | 标签大师 |
+| 商店名（含 ASO 关键词） | 浏览器标签大师 - 标签管理、备份与恢复（zh）/ Tab Master - Tab Manager & Session Backup（en） |
+| Slogan（核心差异，商店描述开头 / 官网 hero 统一用） | **不怕浏览器崩溃丢失标签** |
 
-> 品牌名定为「浏览器标签大师」（简称「标签大师」），英文 Browser Tab Master（简称 Tab Master）。2026-08-05 定稿。原商店 listing 名「TM-浏览器标签整理大师」将在商店后台改名对齐为「浏览器标签大师」。文案内首次出现用全名「浏览器标签大师」，之后可用简称「标签大师」。
+> 品牌名定为「浏览器标签大师」（简称「标签大师」），英文 Tab Master。2026-08-05 定稿。
+> **ASO 策略**：商店名含高价值搜索词（标签管理/备份/恢复 + Tab Manager/Session Backup），差异化定位「不怕标签丢失」（备份与恢复浏览器工作状态），非单纯"管理标签"正面对抗 OneTab。
+> **不写"同步 Sync"**：实际是本地备份+迁移（电脑A→备份文件→电脑B导入），非云同步。用 backup/restore/migration 不用 sync。
+> **不写"侧边栏 Sidebar"**：用户不搜此词，低 ASO 价值。
 
 ---
 
@@ -24,8 +28,8 @@
 
 | 字段 | 内容 |
 |---|---|
-| Name（扩展名） | 浏览器标签大师 |
-| Short name（工具栏缩略名，≤12 字符） | 浏览器标签大师 |
+| Name（扩展名，含 ASO 关键词） | 浏览器标签大师 - 标签管理、备份与恢复（zh）/ Tab Master - Tab Manager & Session Backup（en） |
+| Short name（工具栏缩略名，≤12 字符） | 标签大师（zh）/ Tab Master（en） |
 | Category（分类） | 生产力 / Productivity |
 | 主品牌 | 浏览器标签大师 |
 | 公司署名 | 遨游365 |
@@ -41,20 +45,28 @@
 ## 2. Short Description（≤132 字符，扩展管理页 `chrome://extensions` 里扩展名下方那行小字）
 
 ```
-标签太多找不到？3 秒搜索找回任何标签。备份恢复标签、整理标签、会话管理，浏览器崩溃也不怕丢。四视图、状态感知、稍后处理、误关拦截，跨浏览器导入导出迁移。Chrome/Edge 标签管理插件。
+zh: 不怕浏览器崩溃丢失标签。纯本地标签管理工具，支持自动备份、一键恢复、导入导出、跨浏览器迁移、多视图管理、智能搜索、标记分类与聚焦整理。
+en: Never lose tabs. Privacy-first tab manager: auto session backup, restore, import/export, cross-browser migration, search, tags.
 ```
 
 > 同步写入 `package.json` 的 `description` 字段 + `public/_locales/*/messages.json` 的 `extensionDescription`（单一来源，改这里再同步过去）。
-> ASO 策略（2026-08-05）：自然覆盖长尾搜索词，不堆砌。中文覆盖：标签太多/找回标签/备份恢复标签/整理标签/会话管理/浏览器崩溃/导入导出/迁移/标签管理插件。英文覆盖：tab manager/backup/restore/organize/sessions/closed tabs/crashes/Chrome/Edge。≤132 字符合规。
+> ASO 策略（2026-08-05）：
+> - **不堆砌关键词**，自然语句覆盖核心搜索词
+> - **不写"标签太多找不到"**等痛点引导句（占字数、无 ASO 权重），直接写功能与差异
+> - **核心差异**：「不怕浏览器崩溃丢失标签」/「Never lose tabs」——备份与恢复是差异化，非单纯管理
+> - **不写 sync**（实际是 migration），**不写 sidebar**（低 ASO 价值）
+> - 中文覆盖：标签管理/备份/恢复/迁移/导入导出/搜索/标记
+> - 英文覆盖：tab manager/session backup/restore/import/export/cross-browser migration/search/tags/privacy-first
+> - ≤132 字符合规（zh 67 / en 127）
 
 ---
 
 ## 3. Detailed Description（商店详情页，约 1800 字）
 
 ```
-开了几十个标签找不到刚才那个？浏览器崩溃标签全没了？关了又怕找不回？标签栏挤成一排越用越乱？
+浏览器崩溃、误关闭，再也不用担心重要标签丢失。
 
-3 秒找到任何标签，标签再多也不乱——浏览器标签大师是一款专为浏览器重度用户设计的侧边栏标签管理与会话备份插件。它常驻在浏览器侧边，不占用标签栏位置，让你用最顺手的方式管理所有标签页，自动备份你的浏览工作状态，浏览器崩溃、误关、换电脑都能一键恢复，告别标签混乱与丢失。
+浏览器标签大师是一款纯本地的标签管理与会话备份插件。它常驻侧边，自动备份你的浏览工作状态，浏览器崩溃、误关、换电脑都能一键恢复；同时提供多视图管理、智能搜索、标记分类、聚焦整理，让标签再多也不乱。数据只存本机，绝不上传。
 
 【为什么选择浏览器标签大师】
 
