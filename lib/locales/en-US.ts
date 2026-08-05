@@ -777,6 +777,7 @@ export default {
 
   // HeaderMenu (remaining hardcoded)
   'header.menu.title': 'Settings Menu',
+  'header.menu.language': 'Language',
   'header.side.left': 'Left',
   'header.side.right': 'Right',
   'header.skinOptions': 'Appearance Themes…',

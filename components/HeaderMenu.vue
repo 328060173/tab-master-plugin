@@ -76,6 +76,20 @@
           <ChevronLeft :size="11" class="text-gray-400" />
         </button>
 
+        <!-- 语言（hover 展开子菜单，复用 setUserLocale 持久化 + 跨页面同步） -->
+        <button
+          ref="languageRowRef"
+          class="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+          :class="activeSubmenu === 'language' && 'bg-gray-50 dark:bg-gray-700'"
+          @mouseenter="onEnterSubmenuRow('language', languageRowRef)"
+        >
+          <span class="flex items-center gap-2"><Languages :size="13" />{{ t('header.menu.language') }}</span>
+          <span class="flex items-center gap-1">
+            <span class="text-[10px] text-gray-400">{{ languageHint }}</span>
+            <ChevronLeft :size="11" class="text-gray-400" />
+          </span>
+        </button>
+
         <!-- 显示位置：点击弹独立提示框（扩展无法直接设置左右位置，由浏览器控制；不编操作路径） -->
         <button
           class="flex items-center justify-between w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -205,6 +219,25 @@
           <Check v-if="settings.fontSize === opt.value" :size="12" class="text-blue-600 dark:text-blue-400" />
         </button>
       </div>
+
+      <!-- ====== 二级子菜单：语言（复用 options.vue 的 setUserLocale 逻辑） ====== -->
+      <div
+        v-if="popover.isOpen('header-menu') && activeSubmenu === 'language'"
+        :style="languageSubmenuPos"
+        data-popover-content
+        class="fixed z-[60] w-[144px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl py-1"
+        @click.stop
+        @mouseenter="activeSubmenu = 'language'"
+      >
+        <button
+          v-for="opt in languageOptions" :key="opt.value"
+          class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 text-left"
+          @click="onPickLanguage(opt.value)"
+        >
+          <span class="flex-1 text-left">{{ opt.label }}</span>
+          <Check v-if="languagePref === opt.value" :size="12" class="text-blue-600 dark:text-blue-400" />
+        </button>
+      </div>
     </Teleport>
 
     <!-- ====== 显示位置提示框（点击触发，独立于主菜单，不挡主菜单）====== -->
@@ -271,12 +304,12 @@ export default { inheritAttrs: false }
  * - 渲染策略（2026-07-17 调整）：固定项始终在前，后端下发追加其后，不替换、不减少固定项
  * - 云同步/快照菜单项暂时注释（TODO 后续恢复）
  */
-import { ref, computed, watch } from "vue"
+import { ref, computed, watch, onMounted } from "vue"
 import {
   Settings, LogIn, Palette, Type, Layout, HardDrive,
   Sliders, RotateCcw, Sun, Moon, Monitor, Check, ChevronLeft, ScrollText,
   Crown, Link as LinkIcon,
-  BookOpen, HelpCircle, MessageSquare, Mail, Sparkles
+  BookOpen, HelpCircle, MessageSquare, Mail, Sparkles, Languages
 } from "@lucide/vue"
 import type { Component } from "vue"
 
@@ -300,7 +333,8 @@ import { computePopoverPos, computeFlyoutPos } from "~lib/popoverPosition"
 import { useAuth } from "~composables/useAuth"
 import { useSettingMenu } from "~composables/useSettingMenu"
 import AvatarWithFrame from "~components/AvatarWithFrame.vue"
-import { t } from "~lib/i18n"
+import { t, setUserLocale, getUserLocalePref, getLocaleRef } from "~lib/i18n"
+import type { LocalePref } from "~lib/i18n"
 
 const emit = defineEmits<{
   (e: "open-storage"): void
@@ -325,8 +359,9 @@ const onTriggerClick = (e: MouseEvent) => {
 }
 const themeRowRef = ref<HTMLElement | null>(null)
 const fontRowRef = ref<HTMLElement | null>(null)
+const languageRowRef = ref<HTMLElement | null>(null)
 
-const activeSubmenu = ref<"theme" | "font" | null>(null)
+const activeSubmenu = ref<"theme" | "font" | "language" | null>(null)
 const submenuAnchorRect = ref<DOMRect | null>(null)
 
 // 显示位置提示框（点击触发，独立弹窗，不走 hover 子菜单机制）
@@ -361,6 +396,12 @@ const fontSubmenuPos = computed(() => {
   const p = computeFlyoutPos(submenuAnchorRect.value, { width: 128 }, "left")
   return { left: `${p.left}px`, top: `${p.top}px` }
 })
+// 语言子菜单位置（w-36=144px，与主题子菜单同宽）
+const languageSubmenuPos = computed(() => {
+  if (!submenuAnchorRect.value) return { left: "0px", top: "0px" }
+  const p = computeFlyoutPos(submenuAnchorRect.value, { width: 144 }, "left")
+  return { left: `${p.left}px`, top: `${p.top}px` }
+})
 
 // 浏览器类型检测（参考 lib/device-info.ts 的正则）：Edge UA 同时含 Chrome，先判 Edg
 const currentBrowser = computed<'Chrome' | 'Edge' | '其他'>(() => {
@@ -370,7 +411,7 @@ const currentBrowser = computed<'Chrome' | 'Edge' | '其他'>(() => {
   return '其他'
 })
 
-const onEnterSubmenuRow = (type: "theme" | "font", rowEl: HTMLElement | null) => {
+const onEnterSubmenuRow = (type: "theme" | "font" | "language", rowEl: HTMLElement | null) => {
   activeSubmenu.value = type
   submenuAnchorRect.value = rowEl?.getBoundingClientRect() ?? null
 }
@@ -417,6 +458,37 @@ const onPickFontSize = (v: "normal" | "large" | "xlarge") => {
   updateSetting("fontSize", v)
   popover.close("header-menu")
 }
+
+// ========== 语言切换（i18n-en-support §6.1，复用 lib/i18n.ts 的 setUserLocale）==========
+// languagePref：用户偏好（'auto'/'zh-CN'/'en-US'），从 chrome.storage.local 读初始值
+// currentLocaleRef：当前生效 locale（响应式），用于菜单项右侧展示「当前生效」
+// 选中态：用户偏好在哪个选项就打勾；'auto' 模式额外展示当前生效 locale
+const languagePref = ref<LocalePref>('auto')
+const currentLocaleRef = getLocaleRef()
+// 语言子菜单选项（与 options.vue 设置页 select 选项一致，复用同一套 i18n key）
+const languageOptions: { value: LocalePref; label: string }[] = [
+  { value: 'auto', label: t('settings.language.auto') },
+  { value: 'zh-CN', label: t('settings.language.zh-CN') },
+  { value: 'en-US', label: t('settings.language.en-US') },
+]
+// 菜单项右侧小字：展示当前生效 locale，方便用户不展开子菜单也能一眼看到
+const languageHint = computed(() => {
+  return currentLocaleRef.value === 'zh-CN'
+    ? t('settings.language.zh-CN')
+    : t('settings.language.en-US')
+})
+const onPickLanguage = async (pref: LocalePref) => {
+  languagePref.value = pref
+  await setUserLocale(pref)
+  popover.close('header-menu')
+  emit('show-toast', t('toast.languageChanged'))
+}
+onMounted(() => {
+  // 读 storage 恢复选中态（不阻塞首屏；失败静默回退 'auto'）
+  getUserLocalePref().then((pref) => {
+    languagePref.value = pref
+  }).catch((e) => console.warn('[HeaderMenu] getUserLocalePref 失败', e))
+})
 
 // 账号相关
 // 2026-07-17：登录入口迁移至 options 页。点「登录/注册」跳 options 并带 ?from=login，

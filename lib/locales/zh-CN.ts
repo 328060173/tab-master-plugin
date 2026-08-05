@@ -781,6 +781,7 @@ export default {
 
   // HeaderMenu（剩余硬编码）
   'header.menu.title': '设置菜单',
+  'header.menu.language': '语言',
   'header.side.left': '左侧',
   'header.side.right': '右侧',
   'header.skinOptions': '装扮主题…',
