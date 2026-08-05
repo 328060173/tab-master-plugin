@@ -417,6 +417,28 @@
       <section v-show="activeTab === 'settings'">
         <div
           class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-700">
+          <!-- 语言（i18n 切换） -->
+          <div class="px-5 py-4 flex items-center justify-between gap-4">
+            <div class="flex items-start gap-1.5">
+              <div>
+                <p class="text-sm font-medium flex items-center gap-1.5">
+                  {{ t('settings.language.label') }}
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {{ languageHint }}
+                </p>
+              </div>
+            </div>
+            <select
+              v-model="languagePref"
+              class="shrink-0 px-2 py-1.5 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              @change="onLanguageChange">
+              <option value="auto">{{ t('settings.language.auto') }}</option>
+              <option value="zh-CN">{{ t('settings.language.zh-CN') }}</option>
+              <option value="en-US">{{ t('settings.language.en-US') }}</option>
+            </select>
+          </div>
+
           <!-- 自动数据校正 -->
           <div class="px-5 py-4 flex items-center justify-between gap-4">
             <div class="flex items-start gap-1.5">
@@ -625,6 +647,7 @@ import { useSkin } from "~composables/useSkin"
 import { useToast } from "~composables/useToast"
 import { get, post } from "~lib/api"
 import { API_URIS, buildOfficialUrl, propDetailUri } from "~lib/api-config"
+import { t, getUserLocalePref, setUserLocale, initLocale, type LocalePref } from "~lib/i18n"
 import type {
   ExchangeResultVO,
   PropDetailVO,
@@ -1167,6 +1190,39 @@ async function onTryOn(p: PropListVO) {
 
 // ========== toast（useToast 单例，与 sidepanel 共用） ==========
 const { toastMsg, showToast } = useToast()
+
+// ========== 语言切换（i18n-en-support §6.1 D2：独立 key __locale__） ==========
+// languagePref 是 select v-model：'auto' / 'zh-CN' / 'en-US'
+// 初始值从 storage 读（getUserLocalePref），用户切换时 setUserLocale 写 storage + 立即 setLocale
+// 响应式 currentLocale 改动 → 模板里 t() 自动重渲染（无需 reload）
+const languagePref = ref<LocalePref>('auto')
+const languageHint = computed(() => {
+  // 提示语：当前生效 locale + 是否跟随浏览器
+  const cur = getCurrentLocaleLabel()
+  return languagePref.value === 'auto'
+    ? `${t('settings.language.auto')} · ${cur}`
+    : cur
+})
+function getCurrentLocaleLabel(): string {
+  // 读 chrome.i18n.getUILanguage 归一化后的实际 locale，给用户看「当前生效」
+  const ui = (() => {
+    try { return chrome.i18n?.getUILanguage?.() ?? '' } catch { return '' }
+  })()
+  const isZh = (ui || '').toLowerCase().startsWith('zh')
+  return isZh ? t('settings.language.zh-CN') : t('settings.language.en-US')
+}
+async function onLanguageChange() {
+  const pref = languagePref.value
+  await setUserLocale(pref)
+  showToast(t('toast.languageChanged'))
+}
+
+// 初始化 locale + 读 storage 恢复 select 选中态（在 onMounted 内统一触发，与 sidepanel 一致）
+// 不阻塞首屏渲染：storage.get 几 ms，失败静默回退默认 zh-CN
+initLocale().catch((e) => console.warn('[options] initLocale 失败', e))
+getUserLocalePref().then((pref) => {
+  languagePref.value = pref
+}).catch((e) => console.warn('[options] getUserLocalePref 失败', e))
 </script>
 
 <style>

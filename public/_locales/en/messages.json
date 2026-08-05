@@ -6,5 +6,25 @@
   "extensionDescription": {
     "message": "Manage browser tabs efficiently. One-click backup prevents tab loss.",
     "description": "Extension description"
+  },
+  "shortName": {
+    "message": "Tab Master",
+    "description": "Short extension name (tab bar tooltip / extensions page short name)"
+  },
+  "cmdSwitchTab1": {
+    "message": "Switch to tab 1",
+    "description": "Command description for Alt+Shift+1 shortcut"
+  },
+  "cmdSwitchTab2": {
+    "message": "Switch to tab 2",
+    "description": "Command description for Alt+Shift+2 shortcut"
+  },
+  "cmdSwitchTab3": {
+    "message": "Switch to tab 3",
+    "description": "Command description for Alt+Shift+3 shortcut"
+  },
+  "cmdSwitchTab4": {
+    "message": "Switch to tab 4",
+    "description": "Command description for Alt+Shift+4 shortcut"
   }
 }

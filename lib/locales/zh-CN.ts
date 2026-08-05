@@ -84,7 +84,7 @@ export default {
   'settings.feedback': '反馈',
 
   // Toast提示
-  'toast.languageChanged': '语言已切换，重新打开侧边栏生效',
+  'toast.languageChanged': '语言已切换',
   'toast.copied': '已复制URL',
   'toast.numberSet': '编号 {modKey}{number} 已设置，按 {modKey}{number} 可快速跳转',
   'toast.numberCleared': '编号已清除',
@@ -219,4 +219,26 @@ export default {
   'notice.markAllRead': '全部已读',
   'notice.gotIt': '知道了',
   'notice.dontShowAgain': '不再显示',
+
+  // 语言菜单（设置页「语言」下拉项）
+  'settings.language.label': '语言',
+  'settings.language.auto': '跟随浏览器',
+  'settings.language.zh-CN': '简体中文',
+  'settings.language.en-US': 'English',
+
+  // sidepanel 样板改造 key（任务1 验证架构用，不全量替换）
+  'sidepanel.tabCount': '{count} 个标签',
+  'sidepanel.backupMenu': '标签导入导出',
+  'sidepanel.backupMenu.tooltip.off': '标签导入导出 · 崩溃找回 / 多档还原 / 兼容导入（未开启）',
+  'sidepanel.backupMenu.tooltip.error': '标签导入导出 · 上次备份失败，点开重试',
+  'sidepanel.backupMenu.tooltip.on': '标签导入导出 · 崩溃找回 / 多档还原 / 兼容导入',
+  'sidepanel.backup.export': '导出',
+  'sidepanel.backup.import': '导入',
+  'sidepanel.backup.manual': '手动备份',
+  'sidepanel.backup.restore': '恢复标签',
+  'sidepanel.backup.manage': '打开管理页',
+  'sidepanel.focus': '聚焦',
+  'sidepanel.cancelSelect': '取消选择',
+  'sidepanel.storageCleared': '已清理',
+  'sidepanel.personalCenter': '个人中心',
 }

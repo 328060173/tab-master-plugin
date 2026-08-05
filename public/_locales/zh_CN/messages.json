@@ -6,5 +6,25 @@
   "extensionDescription": {
     "message": "高效管理浏览器标签，一键备份防丢失",
     "description": "扩展功能描述"
+  },
+  "shortName": {
+    "message": "浏览器标签大师",
+    "description": "扩展短名称（浏览器标签栏图标 tooltip / 扩展管理页短名）"
+  },
+  "cmdSwitchTab1": {
+    "message": "切换到编号 1 的标签",
+    "description": "快捷键 Alt+Shift+1 的命令说明"
+  },
+  "cmdSwitchTab2": {
+    "message": "切换到编号 2 的标签",
+    "description": "快捷键 Alt+Shift+2 的命令说明"
+  },
+  "cmdSwitchTab3": {
+    "message": "切换到编号 3 的标签",
+    "description": "快捷键 Alt+Shift+3 的命令说明"
+  },
+  "cmdSwitchTab4": {
+    "message": "切换到编号 4 的标签",
+    "description": "快捷键 Alt+Shift+4 的命令说明"
   }
 }

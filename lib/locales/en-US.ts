@@ -84,7 +84,7 @@ export default {
   'settings.feedback': 'Feedback',
 
   // Toast提示
-  'toast.languageChanged': 'Language changed, reload sidebar to take effect',
+  'toast.languageChanged': 'Language changed',
   'toast.copied': 'URL copied',
   'toast.numberSet': 'Number {modKey}{number} set, press {modKey}{number} to jump',
   'toast.numberCleared': 'Number cleared',
@@ -215,4 +215,26 @@ export default {
   'notice.markAllRead': 'Mark all read',
   'notice.gotIt': 'Got it',
   'notice.dontShowAgain': "Don't show again",
+
+  // 语言菜单（设置页「语言」下拉项）
+  'settings.language.label': 'Language',
+  'settings.language.auto': 'Follow browser',
+  'settings.language.zh-CN': '简体中文',
+  'settings.language.en-US': 'English',
+
+  // sidepanel 样板改造 key（任务1 验证架构用，不全量替换）
+  'sidepanel.tabCount': '{count} tabs',
+  'sidepanel.backupMenu': 'Backup & Restore',
+  'sidepanel.backupMenu.tooltip.off': 'Backup & Restore · Crash recovery / Multi-snapshot / Import (disabled)',
+  'sidepanel.backupMenu.tooltip.error': 'Backup & Restore · Last backup failed, click to retry',
+  'sidepanel.backupMenu.tooltip.on': 'Backup & Restore · Crash recovery / Multi-snapshot / Import',
+  'sidepanel.backup.export': 'Export',
+  'sidepanel.backup.import': 'Import',
+  'sidepanel.backup.manual': 'Manual backup',
+  'sidepanel.backup.restore': 'Restore tabs',
+  'sidepanel.backup.manage': 'Open manager',
+  'sidepanel.focus': 'Focus',
+  'sidepanel.cancelSelect': 'Cancel',
+  'sidepanel.storageCleared': 'Cleared',
+  'sidepanel.personalCenter': 'Account center',
 }

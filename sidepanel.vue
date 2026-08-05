@@ -5,13 +5,13 @@
     <div v-if="toastMsg" class="fixed top-3 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 bg-gray-800 text-white text-xs rounded-full shadow-lg pointer-events-none">{{ toastMsg }}</div>
 
     <!-- Storage Panel -->
-    <StoragePanel v-if="showStorage" @close="showStorage = false" @cleared="showToast('已清理')" />
+    <StoragePanel v-if="showStorage" @close="showStorage = false" @cleared="showToast(t('sidepanel.storageCleared'))" />
 
     <!-- Header - 聚焦中 -->
     <div v-if="focusMode === 'focusing'" class="flex items-center justify-between px-3 py-2 border-b border-gray-200 shrink-0">
       <div class="flex items-center gap-1.5">
         <!-- 不重复显示标题（浏览器侧边栏标题栏已显示 manifest name），直接顶左显示标签数 -->
-        <span class="text-xs text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">{{ focusingTabs.length }} 个标签</span>
+        <span class="text-xs text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">{{ tWithParams('sidepanel.tabCount', { count: focusingTabs.length }) }}</span>
       </div>
       <div class="flex items-center gap-1">
         <button
@@ -31,7 +31,7 @@
         <button
           v-if="isLoggedIn"
           class="shrink-0 rounded-full hover:ring-2 hover:ring-blue-200 dark:hover:ring-blue-700 transition-shadow"
-          title="个人中心"
+          :title="t('sidepanel.personalCenter')"
           @click.stop="openOptionsForUser"
         >
           <AvatarWithFrame :email="userEmail" :size="32" />
@@ -48,7 +48,7 @@
     <div v-else class="flex items-center justify-between px-3 py-2 border-b border-gray-200 shrink-0">
       <div class="flex items-center gap-1.5">
         <!-- 不重复显示标题（浏览器侧边栏标题栏已显示 manifest name），直接顶左显示标签数 -->
-        <span class="text-xs text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">{{ tabs.length }} 个标签</span>
+        <span class="text-xs text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">{{ tWithParams('sidepanel.tabCount', { count: tabs.length }) }}</span>
       </div>
       <div class="flex items-center gap-2">
         <!-- 标签导入导出（下拉）：未开启红点/失败⚠；下拉项含手动备份/自动备份/导入/导出/管理 -->
@@ -63,7 +63,7 @@
             @click.stop="toggleBackupMenu"
           >
             <Shield :size="14" :class="backupBadgeKind === 'off' ? 'text-gray-400 dark:text-gray-500' : 'text-blue-600 dark:text-blue-400'" />
-            <span class="whitespace-nowrap">标签导入导出</span>
+            <span class="whitespace-nowrap">{{ t('sidepanel.backupMenu') }}</span>
             <ChevronDown :size="11" class="text-gray-400" />
             <!-- 角标：未阅引导红点（进页点「知道了」消除）；失败⚠异常提醒 -->
             <span
@@ -87,22 +87,22 @@
             @click.stop
           >
             <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuExport">
-              <Download :size="12" />导出
+              <Download :size="12" />{{ t('sidepanel.backup.export') }}
             </button>
             <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuImport">
-              <Upload :size="12" />导入
+              <Upload :size="12" />{{ t('sidepanel.backup.import') }}
             </button>
             <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
             <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuManual">
-              <Save :size="12" />手动备份
+              <Save :size="12" />{{ t('sidepanel.backup.manual') }}
             </button>
             <button class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuRestore">
-              <RotateCcw :size="12" />恢复标签
+              <RotateCcw :size="12" />{{ t('sidepanel.backup.restore') }}
             </button>
             <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
             <!-- 打开管理页：未阅引导时带小红点（进页点「知道了」后消除） -->
             <button class="relative flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" @click="onBackupMenuManage">
-              <FolderOpen :size="12" />打开管理页
+              <FolderOpen :size="12" />{{ t('sidepanel.backup.manage') }}
               <span
                 v-if="!backupSvc.firstVisitAcked.value"
                 class="absolute top-1 right-2 w-2 h-2 rounded-full bg-red-500"
@@ -122,13 +122,13 @@
             @click.stop="toggleFocusMenu"
           >
             <Zap :size="13" />
-            <span>聚焦</span>
+            <span>{{ t('sidepanel.focus') }}</span>
             <ChevronDown :size="11" class="text-gray-400" />
           </button>
           <button v-else-if="focusMode === 'selecting'"
             class="px-2 py-1 text-xs text-blue-600 hover:underline"
             @click="exitFocusSelectMode">
-            取消选择
+            {{ t('sidepanel.cancelSelect') }}
           </button>
           <div
             v-if="focusMode === 'normal' && popover.isOpen('focus-menu')"
@@ -149,7 +149,7 @@
         <button
           v-if="isLoggedIn"
           class="shrink-0 rounded-full hover:ring-2 hover:ring-blue-200 dark:hover:ring-blue-700 transition-shadow"
-          title="个人中心"
+          :title="t('sidepanel.personalCenter')"
           @click.stop="openOptionsForUser"
         >
           <AvatarWithFrame :email="userEmail" :size="32" />
@@ -791,7 +791,7 @@ import { useHistory } from "~composables/useHistory"
 import { usePopoverManager, installGlobalPopoverClose } from "~composables/usePopoverManager"
 import { computePopoverPos, computeFlyoutPos } from "~lib/popoverPosition"
 import { sortTabs, groupByDomain } from "~lib/sortUtils"
-import { t } from "~lib/i18n"
+import { t, tWithParams, initLocale } from "~lib/i18n"
 import HeaderMenu from "~components/HeaderMenu.vue"
 import TabTileItem from "~components/TabTileItem.vue"
 import TabListItem from "~components/TabListItem.vue"
@@ -897,9 +897,9 @@ const backupMenuPos = computed(() => {
 })
 /** 按钮 hover 说明：未开启/失败/已开启 给不同文案，让用户一眼知道是干啥的 */
 const backupMenuTooltip = computed(() => {
-  if (backupBadgeKind.value === "off") return "标签导入导出 · 崩溃找回 / 多档还原 / 兼容导入（未开启）"
-  if (backupBadgeKind.value === "error") return "标签导入导出 · 上次备份失败，点开重试"
-  return "标签导入导出 · 崩溃找回 / 多档还原 / 兼容导入"
+  if (backupBadgeKind.value === "off") return t('sidepanel.backupMenu.tooltip.off')
+  if (backupBadgeKind.value === "error") return t('sidepanel.backupMenu.tooltip.error')
+  return t('sidepanel.backupMenu.tooltip.on')
 })
 function toggleBackupMenu(e: MouseEvent) {
   popover.toggle("backup-menu", e.currentTarget as HTMLElement)
@@ -1625,6 +1625,9 @@ onErrorCaptured((err, _instance, info) => {
 })
 
 onMounted(async () => {
+  // 初始化 i18n locale（读 __locale__ 偏好 + 检测浏览器语言）
+  // 不阻塞首屏渲染：storage.get 几 ms，失败静默回退默认 zh-CN
+  initLocale().catch((e) => console.warn('[sidepanel] initLocale 失败', e))
   // 隐藏首屏 loading：加 app-ready class（CSS display:none 隐藏，不删 DOM）。
   // 用 requestAnimationFrame 等首帧渲染后再隐藏，避免 Vue 内容还没画出来就暴露白底。
   // 不用 remove()——Vue mount 失败时 loading 仍可见（超时兜底提示刷新）。

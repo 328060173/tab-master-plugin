@@ -18,6 +18,7 @@
 
 import { API_BASE_URL, APP_HEADERS, AUTH_STORAGE_KEY } from './api-config'
 import { isDev } from './env'
+import { getLocale } from './i18n'
 
 // ============ 错误类型（L1 归一，导出供 L3 useLogger instanceof 判别）============
 /**
@@ -195,6 +196,12 @@ async function buildHeaders(extra?: Record<string, string>): Promise<Record<stri
   Object.entries(APP_HEADERS).forEach(([key, value]) => {
     headers[key] = String(value)
   })
+  // Accept-Language：按当前 locale 注入，后端后续按需解析（本期后端不实现国际化）
+  // - zh-CN → 'zh-CN,zh;q=0.9'
+  // - en-US → 'en-US,en;q=0.9'
+  // 读 getLocale() 是同步函数（读 Vue ref .value），零开销
+  const locale = getLocale()
+  headers['Accept-Language'] = locale === 'en-US' ? 'en-US,en;q=0.9' : 'zh-CN,zh;q=0.9'
   // 登录态：有 token 就带 Authorization + customerType
   // customerType: 1=已登录, 0=未登录（后端 AccessCustomerTypeEnum，免登录接口靠此区分登录态）
   // 优先级：getter（useAuth 注册，实时）> api.ts 缓存（从 storage 读，给未调 useAuth 的页面兜底）
