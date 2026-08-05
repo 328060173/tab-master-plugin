@@ -3,8 +3,8 @@
     <!-- 引导提示 -->
     <div v-if="!guideShown" class="px-3 py-2 bg-blue-50 border-b border-blue-100">
       <div class="flex items-center justify-between">
-        <p class="text-xs text-blue-800">💡 在这里管理所有标签分组，分组数据与 Chrome 原生同步</p>
-        <button class="text-xs text-blue-600 hover:underline" @click="markGuideShown">知道了</button>
+        <p class="text-xs text-blue-800">{{ t('group.page.guide') }}</p>
+        <button class="text-xs text-blue-600 hover:underline" @click="markGuideShown">{{ t('notice.gotIt') }}</button>
       </div>
     </div>
 
@@ -13,31 +13,31 @@
       <!-- 有选中：选中栏 -->
       <template v-if="hasAnySelected">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-medium text-blue-700">已选 {{ ungroupedSelectedIds.length }} 个</span>
-          <button class="text-xs text-gray-500 hover:text-gray-800" @click="clearSelection">取消</button>
+          <span class="text-xs font-medium text-blue-700">{{ tWithParams('group.page.selected', { count: ungroupedSelectedIds.length }) }}</span>
+          <button class="text-xs text-gray-500 hover:text-gray-800" @click="clearSelection">{{ t('common.cancel') }}</button>
         </div>
         <div class="flex items-center gap-2">
           <button
             class="flex items-center gap-1 px-2.5 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            title="用选中的标签创建一个新分组"
+            :title="t('group.page.newGroupTitle')"
             @click="showCreateDialog = true">
-            <FolderPlus :size="12" />新建分组
+            <FolderPlus :size="12" />{{ t('group.page.newGroup') }}
           </button>
-          <button :class="['p-0.5 rounded transition-colors', showHelp ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600']" title="这是什么？" @click="showHelp = !showHelp"><HelpCircle :size="14" /></button>
+          <button :class="['p-0.5 rounded transition-colors', showHelp ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600']" :title="t('common.whatIsThis')" @click="showHelp = !showHelp"><HelpCircle :size="14" /></button>
         </div>
       </template>
       <!-- 无选中：提示如何开始 -->
       <template v-else>
-        <span class="text-xs text-gray-400">{{ ungroupedTabs.length > 0 ? '勾选下方未分组标签 → 新建分组 / 放入已有分组' : '分组管理' }}</span>
-        <button :class="['p-0.5 rounded transition-colors', showHelp ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600']" title="这是什么？" @click="showHelp = !showHelp"><HelpCircle :size="14" /></button>
+        <span class="text-xs text-gray-400">{{ ungroupedTabs.length > 0 ? t('group.page.hint.select') : t('group.page.hint.empty') }}</span>
+        <button :class="['p-0.5 rounded transition-colors', showHelp ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600']" :title="t('common.whatIsThis')" @click="showHelp = !showHelp"><HelpCircle :size="14" /></button>
       </template>
     </div>
 
     <!-- 功能说明（点问号展开）-->
     <div v-if="showHelp" class="px-3 py-2.5 bg-blue-50 border-b border-blue-100 text-[11px] leading-relaxed text-blue-800">
-      <p class="mb-1">把相关标签<b>归到一组</b>，颜色+名称标识，和 Chrome 原生标签组实时同步（标签栏也能看到）。</p>
-      <p class="mb-1"><b>怎么用：</b>① 在「未分组」里<b>勾选</b>几个标签 → ② 点顶部<b>「新建分组」</b>起名选色，<b>或</b> hover/点已有分组右侧的<b>「← 放入」</b>并进去。</p>
-      <p>每个分组可重命名、改颜色、折叠、解散。🔒 分组关系仅本机/浏览器，不上传。</p>
+      <p class="mb-1" v-html="t('group.page.helpIntro')"></p>
+      <p class="mb-1"><b>{{ t('group.page.howTo') }}</b><span v-html="t('group.page.howToStep1')"></span></p>
+      <p v-html="t('group.page.howToTail')"></p>
     </div>
 
     <!-- 分组列表 -->
@@ -62,7 +62,7 @@
       <div v-if="ungroupedTabs.length > 0" class="mb-2 border border-gray-200 rounded-lg overflow-hidden">
         <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 cursor-pointer" @click="ungroupedCollapsed = !ungroupedCollapsed">
           <span class="w-3 h-3 rounded-full bg-gray-300"></span>
-          <span class="flex-1 text-sm font-medium text-gray-900">未分组</span>
+          <span class="flex-1 text-sm font-medium text-gray-900">{{ t('group.ungrouped') }}</span>
           <span class="text-xs text-gray-500">{{ ungroupedTabs.length }}</span>
           <ChevronDown :size="14" :class="ungroupedCollapsed ? '-rotate-90' : ''" class="transition-transform" />
         </div>
@@ -70,12 +70,12 @@
           <!-- 搜索 + 排序（未分组数量多时方便定位）-->
           <div class="flex items-center gap-1.5 px-2 py-1.5 border-b border-gray-100 sticky top-0 bg-white dark:bg-gray-800 z-[1]">
             <div class="relative flex-1">
-              <input v-model="searchQuery" type="text" placeholder="搜索未分组标签..."
+              <input v-model="searchQuery" type="text" :placeholder="t('group.search.placeholder')"
                 class="w-full text-xs border border-gray-200 dark:border-gray-700 rounded px-2 py-1 pr-5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-400" />
               <button v-if="searchQuery" class="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700" @click="searchQuery = ''"><X :size="11" /></button>
             </div>
-            <button class="flex items-center gap-0.5 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0" :title="sortMode === 'time' ? '按打开时间倒序，点击切到 ID' : '按标签 ID 倒序，点击切到时间'" @click="sortMode = sortMode === 'time' ? 'id' : 'time'">
-              <ArrowUpDown :size="11" />{{ sortMode === 'time' ? '时间' : 'ID' }}
+            <button class="flex items-center gap-0.5 px-1.5 py-1 text-[11px] border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0" :title="sortMode === 'time' ? t('group.sort.timeHint') : t('group.sort.idHint')" @click="sortMode = sortMode === 'time' ? 'id' : 'time'">
+              <ArrowUpDown :size="11" />{{ sortMode === 'time' ? t('group.sort.time') : t('group.sort.id') }}
             </button>
           </div>
           <div v-for="tab in filteredUngrouped" :key="tab.id"
@@ -83,31 +83,31 @@
                :class="ungroupedSelectedIds.includes(tab.id) && 'bg-blue-50'"
                @click="toggleUngroupedSelect(tab.id)"
           >
-            <input type="checkbox" :checked="ungroupedSelectedIds.includes(tab.id)" title="勾选以分组" @click.stop @change.stop="toggleUngroupedSelect(tab.id)" class="cursor-pointer shrink-0" />
+            <input type="checkbox" :checked="ungroupedSelectedIds.includes(tab.id)" :title="t('group.checkbox.title')" @click.stop @change.stop="toggleUngroupedSelect(tab.id)" class="cursor-pointer shrink-0" />
             <FavIcon :src="tab.favIconUrl" :domain="tab.domain" size="sm" />
             <div class="flex-1 min-w-0" @click.stop="activateTab(tab.id)">
               <p class="text-sm truncate" :class="tab.active ? 'font-semibold text-blue-900' : 'text-gray-900'">{{ tab.title }}</p>
               <p class="text-xs text-gray-500 truncate">{{ tab.domain.toLowerCase() }}</p>
             </div>
-            <button class="p-1 text-gray-500 hover:text-red-500 rounded opacity-0 group-hover:opacity-100 shrink-0" title="关闭标签" @click.stop="closeTab(tab.id)">
+            <button class="p-1 text-gray-500 hover:text-red-500 rounded opacity-0 group-hover:opacity-100 shrink-0" :title="t('group.closeTab.title')" @click.stop="closeTab(tab.id)">
               <X :size="14" />
             </button>
           </div>
           <div v-if="!filteredUngrouped.length" class="text-center text-[11px] text-gray-400 py-4">
-            {{ searchQuery ? '没匹配到标签' : '暂无未分组标签' }}
+            {{ searchQuery ? t('group.empty.search') : t('group.empty.list') }}
           </div>
         </div>
       </div>
 
       <div v-if="groups.length === 0 && ungroupedTabs.length === 0" class="text-center text-gray-500 text-xs py-12">
-        <p class="mb-1 font-medium text-gray-500">还没有标签可分组 🗂️</p>
-        <p class="leading-relaxed">打开一些标签后，在「未分组」里勾选几个<br/>就能创建分组，给它们起名、配色</p>
-        <p class="mt-1.5 text-[10px] text-gray-300">点右上角 ? 看怎么用</p>
+        <p class="mb-1 font-medium text-gray-500">{{ t('group.empty.title') }}</p>
+        <p class="leading-relaxed" v-html="t('group.empty.body')"></p>
+        <p class="mt-1.5 text-[10px] text-gray-300">{{ t('group.empty.hint') }}</p>
       </div>
     </div>
 
     <!-- 创建分组对话框 -->
-    <CreateGroupDialog :open="showCreateDialog" :title="`新建分组 · 包含 ${ungroupedSelectedIds.length} 个标签`" :create-text="'创建'" @close="showCreateDialog = false" @create="handleCreateGroup" />
+    <CreateGroupDialog :open="showCreateDialog" :title="tWithParams('group.dialog.title', { count: ungroupedSelectedIds.length })" :create-text="t('common.create')" @close="showCreateDialog = false" @create="handleCreateGroup" />
   </div>
 </template>
 
@@ -118,6 +118,7 @@ import GroupItem from "./GroupItem.vue"
 import CreateGroupDialog from "./CreateGroupDialog.vue"
 import FavIcon from "./FavIcon.vue"
 import type { TabItem } from "~types/tab"
+import { t, tWithParams } from "~lib/i18n"
 
 const props = withDefaults(defineProps<{
   groups: chrome.tabGroups.TabGroup[]

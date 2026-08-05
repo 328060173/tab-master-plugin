@@ -9,7 +9,7 @@
           ? 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100'
           : 'hover:bg-gray-100 text-gray-500 dark:hover:bg-gray-700 dark:text-gray-400'
       ]"
-      title="设置菜单"
+      :title="t('header.menu.title')"
       @click.stop="onTriggerClick"
     >
       <Settings :size="14" />
@@ -83,7 +83,7 @@
           @click="onShowPositionTip"
         >
           <span class="flex items-center gap-2"><Layout :size="13" />{{ t('menu.displayPosition') }}</span>
-          <span v-if="sidePanelSide !== 'unknown'" class="text-[10px] text-gray-400">{{ sidePanelSide === 'left' ? '左侧' : '右侧' }}</span>
+          <span v-if="sidePanelSide !== 'unknown'" class="text-[10px] text-gray-400">{{ sidePanelSide === 'left' ? t('header.side.left') : t('header.side.right') }}</span>
         </button>
 
         <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
@@ -183,7 +183,7 @@
           @click="onOpenSkinOptions"
         >
           <Sparkles :size="12" />
-          <span class="flex-1 text-left">装扮主题…</span>
+          <span class="flex-1 text-left">{{ t('header.skinOptions') }}</span>
         </button>
       </div>
 
@@ -217,25 +217,25 @@
         <div
           class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-[360px] p-5"
           role="dialog"
-          aria-label="侧边栏显示位置"
+          :aria-label="t('header.positionDialog.aria')"
           @click.stop
         >
-          <h3 class="text-sm font-bold mb-3 text-gray-900 dark:text-gray-100">侧边栏显示位置</h3>
+          <h3 class="text-sm font-bold mb-3 text-gray-900 dark:text-gray-100">{{ t('header.positionDialog.title') }}</h3>
           <div class="text-[13px] text-gray-700 dark:text-gray-300 leading-relaxed space-y-2">
-            <p>这是浏览器行为，插件控制不了。</p>
+            <p>{{ t('header.positionDialog.browserBehavior') }}</p>
             <p>
-              Chrome 浏览器：在地址栏输入
+              {{ t('header.positionDialog.chrome') }}
               <span class="font-mono text-[12px] px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">chrome://settings/appearance</span>
-              回车，或进入 设置 → 外观，找到「侧边栏位置」→ Chrome 面板，选择「向左」或「向右」。
+              {{ t('header.positionDialog.chromePath') }}
             </p>
-            <p>Edge 浏览器：目前请查看最新浏览器版本是否支持侧边栏位置切换。</p>
-            <p v-if="sidePanelSide !== 'unknown'" class="text-gray-400">当前：{{ sidePanelSide === 'left' ? '左侧' : '右侧' }}</p>
+            <p>{{ t('header.positionDialog.edge') }}</p>
+            <p v-if="sidePanelSide !== 'unknown'" class="text-gray-400">{{ t('header.positionDialog.current') }}{{ sidePanelSide === 'left' ? t('header.side.left') : t('header.side.right') }}</p>
           </div>
           <div class="flex gap-2 mt-4 justify-end">
             <button
               class="px-4 py-1.5 text-sm rounded-lg text-white bg-blue-600 hover:bg-blue-700"
               @click="positionTipOpen = false"
-            >知道了</button>
+            >{{ t('notice.gotIt') }}</button>
           </div>
         </div>
       </div>

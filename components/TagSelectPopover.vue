@@ -14,7 +14,7 @@
           ref="newTagInputRef"
           v-model="newTag"
           maxlength="15"
-          placeholder="新增标记（最多15字）"
+          :placeholder="t('tagSelect.placeholder')"
           class="flex-1 text-[11px] focus:outline-none bg-transparent text-gray-900 dark:text-gray-100"
           @keyup.enter="handleCreate"
         />
@@ -22,11 +22,11 @@
           :disabled="!newTag.trim() || allTags.includes(newTag.trim())"
           class="text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-700 disabled:text-gray-400 disabled:hover:text-gray-400 shrink-0"
           @click="handleCreate">
-          添加
+          {{ t('common.add') }}
         </button>
       </div>
       <div v-else class="px-3 py-2 border-b border-gray-100 dark:border-gray-700 text-[11px] text-gray-400">
-        已达15个标记上限
+        {{ t('common.tagLimit') }}
       </div>
 
       <!-- 标记选择区域 -->
@@ -40,7 +40,7 @@
           {{ tag }}
         </button>
         <p v-if="!allTags.length" class="col-span-full text-[11px] text-gray-400 text-center py-4">
-          暂无标记
+          {{ t('common.noTags') }}
         </p>
       </div>
     </div>
@@ -54,6 +54,7 @@ import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 import { validateTag, TAG_INVALID_MSG } from "~lib/tagValidate"
 import { showToast } from "~composables/useToast"
+import { t } from "~lib/i18n"
 
 const props = withDefaults(defineProps<{
   /** 浮层唯一 ID，用于 PopoverManager */

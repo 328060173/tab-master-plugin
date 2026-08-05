@@ -2,18 +2,18 @@
   <div class="flex flex-col h-full">
     <!-- 标题行：当前模式标题 + 功能说明问号 + 计数 -->
     <div class="flex items-center gap-1.5 px-3 pt-2 pb-1">
-      <h2 class="text-xs font-bold text-gray-700 dark:text-gray-200">{{ mode === 'closed' ? '关闭历史' : '浏览历史' }}</h2>
+      <h2 class="text-xs font-bold text-gray-700 dark:text-gray-200">{{ mode === 'closed' ? t('history.closed.title') : t('history.browse.title') }}</h2>
       <button
         ref="helpTriggerRef"
         :class="['p-0.5 rounded transition-colors',
           popover.isOpen('history-help') ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/30' : 'text-gray-400 hover:text-gray-600']"
-        title="这是什么？"
+        :title="t('common.whatIsThis')"
         @click.stop="onHelpTriggerClick"
       >
         <HelpCircle :size="13" />
       </button>
       <span class="ml-auto text-[10px] text-gray-400">
-        {{ mode === 'closed' ? `${props.items.length}/50 条` : `${props.historyItems.length} 条` }}
+        {{ mode === 'closed' ? tWithParams('history.count.closed', { count: props.items.length }) : tWithParams('history.count.browse', { count: props.historyItems.length }) }}
       </span>
     </div>
 
@@ -24,22 +24,22 @@
           :class="['px-2.5 py-1 rounded transition-colors', mode === 'closed' ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 font-medium shadow-sm' : 'text-gray-500 dark:text-gray-300']"
           @click="mode = 'closed'"
         >
-          最近关闭
+          {{ t('history.tab.closed') }}
         </button>
         <button
           :class="['px-2.5 py-1 rounded transition-colors', mode === 'history' ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 font-medium shadow-sm' : 'text-gray-500 dark:text-gray-300']"
           @click="mode = 'history'"
         >
-          浏览历史
+          {{ t('history.tab.browse') }}
         </button>
       </div>
       <button
         v-if="mode === 'history'"
         class="ml-auto text-[10px] text-gray-400 hover:text-red-500 underline decoration-dotted"
-        title="撤销「完整浏览历史」权限，回到仅显示最近关闭"
+        :title="t('history.revoke.tooltip')"
         @click.stop="emit('revokePermission')"
       >
-        关闭完整历史
+        {{ t('history.revoke') }}
       </button>
     </div>
 
@@ -49,7 +49,7 @@
         <input
           v-model="searchQuery"
           type="text"
-          :placeholder="mode === 'closed' ? '搜索已关闭的标签...' : '搜索浏览历史...'"
+          :placeholder="mode === 'closed' ? t('history.search.closed') : t('history.search.browse')"
           class="w-full text-xs border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 pr-6 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
         />
         <button v-if="searchQuery" class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 p-0.5 rounded" @click.stop="searchQuery = ''">
@@ -75,39 +75,38 @@
       >
         <div class="flex items-center gap-1.5 mb-1">
           <Unlock :size="14" class="text-blue-600 dark:text-blue-400 shrink-0" />
-          <p class="text-xs font-semibold text-blue-800 dark:text-blue-200">想找回更早看过的网页？</p>
+          <p class="text-xs font-semibold text-blue-800 dark:text-blue-200">{{ t('history.guide.title') }}</p>
         </div>
-        <p class="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed mb-1">
-          「关闭历史」只记你<b>关掉的标签</b>。开启<b>完整浏览历史</b>后，还能翻查最近几天<b>访问过的所有网页</b>。
+        <p class="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed mb-1" v-html="t('history.guide.body')">
         </p>
         <p class="text-[10px] text-blue-500 dark:text-blue-400 leading-relaxed mb-2">
-          🔒 仅在本机只读展示，绝不上传；可随时一键关闭。
+          {{ t('history.guide.privacy') }}
         </p>
         <button
           class="w-full text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded px-3 py-1.5 transition-colors"
           @click.stop="emit('requestPermission')"
         >
-          开启完整浏览历史
+          {{ t('history.guide.cta') }}
         </button>
-        <p class="text-[10px] text-blue-400 text-center mt-1">点击后浏览器会弹出授权确认</p>
+        <p class="text-[10px] text-blue-400 text-center mt-1">{{ t('history.guide.ctaHint') }}</p>
       </div>
 
       <!-- 空态 / 无结果 / 加载中 -->
       <div v-if="props.historyLoading && mode === 'history'" class="text-center text-gray-400 text-xs py-12">
-        正在读取浏览历史…
+        {{ t('history.loading') }}
       </div>
       <div v-else-if="!filteredRows.length" class="text-center text-gray-400 text-xs py-12">
         <template v-if="searchQuery">
-          <p class="mb-1 font-medium">没有找到匹配的记录</p>
+          <p class="mb-1 font-medium">{{ t('history.empty.search') }}</p>
         </template>
         <template v-else-if="mode === 'history'">
-          <p class="mb-1 font-medium text-gray-500 dark:text-gray-300">暂无浏览历史</p>
-          <p class="leading-relaxed">浏览网页后会出现在这里<br/>默认显示最近 7 天、最多 100 条</p>
+          <p class="mb-1 font-medium text-gray-500 dark:text-gray-300">{{ t('history.empty.browse.title') }}</p>
+          <p class="leading-relaxed" v-html="t('history.empty.browse.body')"></p>
         </template>
         <template v-else>
-          <p class="mb-1 font-medium text-gray-500 dark:text-gray-300">还没有关闭记录 🌱</p>
-          <p class="leading-relaxed">关掉的标签会自动收进这里<br/>误关后随时一键找回</p>
-          <p class="mt-1.5 text-[10px] text-gray-300 leading-relaxed">从安装插件后开始记录，最多 50 条<br/>🔒 仅保存在本机，不上传</p>
+          <p class="mb-1 font-medium text-gray-500 dark:text-gray-300">{{ t('history.empty.closed.title') }}</p>
+          <p class="leading-relaxed" v-html="t('history.empty.closed.body')"></p>
+          <p class="mt-1.5 text-[10px] text-gray-300 leading-relaxed" v-html="t('history.empty.closed.foot')"></p>
         </template>
       </div>
 
@@ -119,14 +118,14 @@
             <div
               v-for="row in group.items" :key="row.key"
               class="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors group/hist"
-              :title="`点击恢复：${row.url}`"
+              :title="tWithParams('history.row.restore.title', { url: row.url })"
               @click="emit('restore', row.url)"
             >
               <FavIcon :src="row.favIconUrl" :domain="row.domain" size="sm" />
               <div class="flex-1 min-w-0">
-                <p class="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">{{ row.title || '(无标题)' }}</p>
+                <p class="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">{{ row.title || t('history.row.noTitle') }}</p>
                 <p class="text-[10px] text-gray-400 truncate">
-                  {{ row.domain }}<span v-if="row.visitCount > 1"> · 访问 {{ row.visitCount }} 次</span>
+                  {{ row.domain }}<span v-if="row.visitCount > 1">{{ tWithParams('history.row.visits', { count: row.visitCount }) }}</span>
                 </p>
               </div>
               <span class="text-[10px] text-gray-400 shrink-0">{{ formatRelativeTime(row.time) }}</span>
@@ -134,7 +133,7 @@
               <button
                 v-if="mode === 'closed'"
                 class="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 text-gray-400 shrink-0"
-                title="从列表移除"
+                :title="t('history.row.removeClosed.title')"
                 @click.stop="removeClosed(row)"
               >
                 <X :size="12" />
@@ -142,15 +141,15 @@
               <button
                 v-else-if="pendingDeleteUrl === row.url"
                 class="px-1.5 py-0.5 rounded bg-red-600 text-white text-[10px] shrink-0"
-                title="确认从浏览器历史删除（不可恢复）"
+                :title="t('history.row.delete.confirmTitle')"
                 @click.stop="confirmDelete(row.url)"
               >
-                确认删除
+                {{ t('history.row.delete.confirm') }}
               </button>
               <button
                 v-else
                 class="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 text-gray-400 shrink-0"
-                title="从浏览器历史删除（不可恢复）"
+                :title="t('history.row.delete.title')"
                 @click.stop="pendingDeleteUrl = row.url"
               >
                 <Trash2 :size="12" />
@@ -170,26 +169,26 @@
         @click.stop
       >
         <template v-if="mode === 'history'">
-          <p class="font-semibold text-gray-800 dark:text-gray-100 mb-1.5">关于「浏览历史」</p>
-          <p class="mb-1.5">这里来自<b>浏览器的访问记录</b>，帮你翻回几天前看过的网页。</p>
+          <p class="font-semibold text-gray-800 dark:text-gray-100 mb-1.5">{{ t('history.help.browse.title') }}</p>
+          <p class="mb-1.5" v-html="t('history.help.browse.intro')"></p>
           <ul class="list-disc pl-4 space-y-1">
-            <li>需要你<b>授权</b>「完整浏览历史」权限才能读取</li>
-            <li>默认显示<b>最近 7 天、最多 100 条</b>，同网址合并并标注访问次数</li>
-            <li>点一下<b>重新打开</b>；🗑 会<b>从浏览器历史真正删除</b>（不可恢复）</li>
-            <li>🔒 只在本机只读展示，绝不上传；可随时点「关闭完整历史」撤销</li>
+            <li v-html="t('history.help.browse.step1')"></li>
+            <li v-html="t('history.help.browse.step2')"></li>
+            <li v-html="t('history.help.browse.step3')"></li>
+            <li v-html="t('history.help.browse.step4')"></li>
           </ul>
         </template>
         <template v-else>
-          <p class="font-semibold text-gray-800 dark:text-gray-100 mb-1.5">关于「关闭历史」</p>
-          <p class="mb-1.5">不小心关错标签？这里帮你<b>把它找回来</b> 👇</p>
+          <p class="font-semibold text-gray-800 dark:text-gray-100 mb-1.5">{{ t('history.help.closed.title') }}</p>
+          <p class="mb-1.5" v-html="t('history.help.closed.intro')"></p>
           <ul class="list-disc pl-4 space-y-1">
-            <li>记录<b>你关闭过的标签</b>，点一下就能重新打开</li>
-            <li>从安装插件后开始记录，安装前关掉的看不到</li>
-            <li>最多保留最近 <b>50</b> 条，旧的会自动顶出</li>
-            <li>chrome:// / edge:// 等系统页不会被记录</li>
-            <li>🔒 全部<b>只存在你本机</b>，不上传、不联网，卸载插件即清空</li>
+            <li v-html="t('history.help.closed.step1')"></li>
+            <li v-html="t('history.help.closed.step2')"></li>
+            <li v-html="t('history.help.closed.step3')"></li>
+            <li v-html="t('history.help.closed.step4')"></li>
+            <li v-html="t('history.help.closed.step5')"></li>
           </ul>
-          <p class="mt-1.5 text-[10px] text-gray-400">想翻更早的网页？开启「完整浏览历史」即可。</p>
+          <p class="mt-1.5 text-[10px] text-gray-400">{{ t('history.help.closed.foot') }}</p>
         </template>
       </div>
     </Teleport>
@@ -230,6 +229,7 @@ import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 import { getRegistrableDomain } from "~lib/registrableDomain"
 import { getDomainLabel } from "~lib/domainNames"
+import { t, tWithParams } from "~lib/i18n"
 import type { ClosedTabItem, HistoryItem } from "~types/tab"
 
 const props = defineProps<{
@@ -277,12 +277,12 @@ watch(() => props.hasPermission, (granted) => {
 // 切换模式 / 搜索时重置删除确认态，避免误删
 watch([mode, searchQuery], () => { pendingDeleteUrl.value = null })
 
-const SORT_OPTIONS: { value: SortMode; label: string }[] = [
-  { value: "timeDesc", label: "时间（新→旧）" },
-  { value: "timeAsc", label: "时间（旧→新）" },
-  { value: "domain", label: "按域名" },
-]
-const currentSortLabel = computed(() => SORT_OPTIONS.find(o => o.value === sortMode.value)?.label ?? "")
+const SORT_OPTIONS = computed<{ value: SortMode; label: string }[]>(() => [
+  { value: "timeDesc", label: t("history.sort.timeDesc") },
+  { value: "timeAsc", label: t("history.sort.timeAsc") },
+  { value: "domain", label: t("sort.domain") },
+])
+const currentSortLabel = computed(() => SORT_OPTIONS.value.find(o => o.value === sortMode.value)?.label ?? "")
 
 // 当前模式的原始行
 const sourceRows = computed<Row[]>(() => {
@@ -329,7 +329,14 @@ const getTimeGroupKey = (time: number): string => {
   if (diffHours < 48) return "yesterday"
   return "earlier"
 }
-const TIME_GROUP_LABELS: Record<string, string> = { today: "今天", yesterday: "昨天", earlier: "更早" }
+const getTimeGroupLabel = (key: string): string => {
+  switch (key) {
+    case "today": return t("history.group.today")
+    case "yesterday": return t("history.group.yesterday")
+    case "earlier": return t("history.group.earlier")
+    default: return key
+  }
+}
 
 // 统一的分组结构：时间排序按时间分组，域名排序按域名分组
 const groups = computed(() => {
@@ -344,7 +351,7 @@ const groups = computed(() => {
       label = name ? `${name} · ${key}` : key
     } else {
       key = getTimeGroupKey(row.time)
-      label = TIME_GROUP_LABELS[key] ?? key
+      label = getTimeGroupLabel(key)
     }
     if (!map.has(key)) map.set(key, { key, label, items: [] })
     map.get(key)!.items.push(row)
@@ -367,17 +374,17 @@ const formatRelativeTime = (time: number): string => {
   const diffMin = Math.floor(diffMs / (1000 * 60))
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
   const sameDay = now.getDate() === date.getDate() && now.getMonth() === date.getMonth() && now.getFullYear() === date.getFullYear()
-  if (diffMin < 1) return "刚刚"
-  if (diffMin < 60) return `${diffMin}分钟前`
-  if (sameDay) return `${diffHours}小时前`
+  if (diffMin < 1) return t("history.relative.justNow")
+  if (diffMin < 60) return tWithParams("history.relative.minutesAgo", { count: diffMin })
+  if (sameDay) return tWithParams("history.relative.hoursAgo", { count: diffHours })
   const yd = new Date(now); yd.setDate(now.getDate() - 1)
   const isYesterday = yd.getDate() === date.getDate() && yd.getMonth() === date.getMonth() && yd.getFullYear() === date.getFullYear()
   const hh = String(date.getHours()).padStart(2, "0")
   const mi = String(date.getMinutes()).padStart(2, "0")
-  if (isYesterday) return `昨天 ${hh}:${mi}`
+  if (isYesterday) return tWithParams("history.relative.yesterdayAt", { hh, mi })
   const mm = String(date.getMonth() + 1).padStart(2, "0")
   const dd = String(date.getDate()).padStart(2, "0")
-  return `${mm}-${dd} ${hh}:${mi}`
+  return tWithParams("history.relative.mdhm", { mm, dd, hh, mi })
 }
 
 const confirmDelete = (url: string) => {

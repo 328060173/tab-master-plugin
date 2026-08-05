@@ -3,13 +3,13 @@
     <template v-if="!isLaterPage">
       <button
         class="p-0.5 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900"
-        title="新建标签"
+        :title="t('toolbar.newTab')"
         @click="emit('newTab')">
         <Plus :size="13" :stroke-width="2.5" />
       </button>
       <button
         class="p-0.5 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900"
-        title="刷新当前标签"
+        :title="t('toolbar.refresh')"
         @click="emit('refreshCurrent')">
         <RotateCw :size="12" :stroke-width="2.25" />
       </button>
@@ -17,14 +17,14 @@
         class="p-0.5 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900 disabled:opacity-30"
         :disabled="!canGoBack"
         @click="emit('goBack')"
-        title="上一个标签">
+        :title="t('toolbar.prev')">
         <ChevronLeft :size="13" :stroke-width="2.5" />
       </button>
       <button
         class="p-0.5 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900 disabled:opacity-30"
         :disabled="!canGoForward"
         @click="emit('goForward')"
-        title="下一个标签">
+        :title="t('toolbar.next')">
         <ChevronRight :size="13" :stroke-width="2.5" />
       </button>
 
@@ -54,8 +54,8 @@
         ]"
         :title="
           viewMode === 'tree'
-            ? '树形视图下排序不可用'
-            : SORT_OPTIONS.find((o) => o.value === sortMode)?.hint || '排序方式'
+            ? t('toolbar.sortDisabled')
+            : SORT_OPTIONS.find((o) => o.value === sortMode)?.hint || t('toolbar.sortHint')
         "
         @click.stop="onSortTriggerClick">
         <ArrowUpDown :size="10" />{{
@@ -72,7 +72,7 @@
             : 'border-gray-200 hover:bg-gray-50'
         ]"
         @click.stop="onCleanTriggerClick">
-        <ListChecks :size="11" />整理<ChevronDown
+        <ListChecks :size="11" />{{ t('toolbar.clean') }}<ChevronDown
           :size="9"
           class="text-gray-400" />
       </button>
@@ -130,37 +130,37 @@
       @click.stop>
       <p
         class="px-3 pt-1.5 pb-0.5 text-[10px] font-medium tracking-wide text-red-500">
-        直接关闭 · 点了会先弹确认
+        {{ t('toolbar.clean.directTitle') }}
       </p>
       <button
         class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
         @click="onCleanOptionClick('closeUnpinned')">
-        <X :size="12" />关闭非固定标签
+        <X :size="12" />{{ t('toolbar.closeUnpinned') }}
       </button>
       <button
         class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
         @click="onCleanOptionClick('closeOthers')">
-        <X :size="12" />关闭其他标签（除当前页）
+        <X :size="12" />{{ t('toolbar.closeOthers') }}
       </button>
       <button
         class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
         @click="onCleanOptionClick('closeFrozenDiscarded')">
-        <Snowflake :size="12" />关闭已冻结/已舍弃标签
+        <Snowflake :size="12" />{{ t('toolbar.closeFrozenDiscarded') }}
       </button>
       <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
       <p
         class="px-3 pt-1.5 pb-0.5 text-[10px] font-medium tracking-wide text-gray-400">
-        检测后选择 · 先预览，不会立即关
+        {{ t('toolbar.clean.detectTitle') }}
       </p>
       <button
         class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
         @click="onCleanOptionClick('detectDuplicates')">
-        <Search :size="12" />检测重复标签
+        <Search :size="12" />{{ t('toolbar.detectDuplicates') }}
       </button>
       <button
         class="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
         @click="onCleanOptionClick('detectUnused')">
-        <Clock :size="12" />检测长期未使用标签
+        <Clock :size="12" />{{ t('toolbar.detectUnused') }}
       </button>
     </div>
   </Teleport>
@@ -204,6 +204,7 @@ import { computed, watch } from "vue"
 
 import { usePopoverManager } from "~composables/usePopoverManager"
 import { computePopoverPos } from "~lib/popoverPosition"
+import { t } from "~lib/i18n"
 
 const props = defineProps<{
   isLaterPage: boolean
@@ -321,23 +322,23 @@ watch(
   }
 )
 
-const VIEW_OPTIONS = [
-  { value: "tile", label: "平铺", icon: LayoutGrid },
-  { value: "list", label: "列表", icon: List },
-  { value: "icon", label: "图标", icon: Grid2X2 },
-  { value: "tree", label: "树形", icon: GitFork }
-]
-const SORT_OPTIONS = [
-  { value: "domain", label: "按域名", hint: "相同网站的标签排在一起" },
+const VIEW_OPTIONS = computed(() => [
+  { value: "tile", label: t("view.tile"), icon: LayoutGrid },
+  { value: "list", label: t("view.list"), icon: List },
+  { value: "icon", label: t("view.icon"), icon: Grid2X2 },
+  { value: "tree", label: t("view.tree"), icon: GitFork }
+])
+const SORT_OPTIONS = computed(() => [
+  { value: "domain", label: t("sort.domain"), hint: t("sort.hint.domain") },
   {
     value: "lastAccessed",
-    label: "最近访问",
-    hint: "最后访问的标签排在最前面"
+    label: t("sort.recentAccessed"),
+    hint: t("sort.hint.recentAccessed")
   },
-  { value: "timeAsc", label: "按时间正序", hint: "按标签打开时间从早到晚排" },
-  { value: "timeDesc", label: "按时间倒序", hint: "按标签打开时间从晚到早排" }
-]
+  { value: "timeAsc", label: t("sort.openedTimeAsc"), hint: t("sort.hint.openedTimeAsc") },
+  { value: "timeDesc", label: t("sort.openedTimeDesc"), hint: t("sort.hint.openedTimeDesc") }
+])
 const currentView = computed(
-  () => VIEW_OPTIONS.find((o) => o.value === props.viewMode) || VIEW_OPTIONS[1]
+  () => VIEW_OPTIONS.value.find((o) => o.value === props.viewMode) || VIEW_OPTIONS.value[1]
 )
 </script>

@@ -13,9 +13,9 @@
         ]"
         :disabled="!canAddMore"
         @click="showAdd = true"
-        :title="canAddMore ? '添加标记' : '已达15个标记上限'">
+        :title="canAddMore ? t('tagbar.empty.addTitle') : t('common.tagLimit')">
         <Plus :size="12" />
-        添加标记来分类标签
+        {{ t('tagbar.empty.addCta') }}
       </button>
       <button
         :class="[
@@ -25,7 +25,7 @@
             : 'text-gray-400 hover:text-gray-600'
         ]"
         @click="showHelp = !showHelp"
-        title="这是什么？">
+        :title="t('common.whatIsThis')">
         <HelpCircle :size="14" />
       </button>
     </div>
@@ -34,15 +34,15 @@
     <div v-else class="flex items-start gap-2">
       <!-- 行首 label + 筛选模式切换 -->
       <span class="shrink-0 text-[11px] text-gray-400 dark:text-gray-500 pt-0.5"
-        >标记:</span
+        >{{ t('tagbar.label') }}</span
       >
       <select
         :value="tagSelectMode"
         class="shrink-0 text-[11px] text-gray-500 dark:text-gray-400 bg-transparent border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5 focus:outline-none cursor-pointer hover:border-blue-400 transition-colors"
-        title="筛选模式：多选=可同时选多个标记取交集；单选=只能选一个，再点取消"
+        :title="t('tagbar.mode.hint')"
         @change="onModeChange">
-        <option value="multi">多选</option>
-        <option value="single">单选</option>
+        <option value="multi">{{ t('tagbar.mode.multi') }}</option>
+        <option value="single">{{ t('tagbar.mode.single') }}</option>
       </select>
 
       <!-- 隐藏测量层：绝对定位、不可见，用于计算换行和可见数量 -->
@@ -51,7 +51,7 @@
         class="absolute -z-50 invisible flex flex-wrap gap-1.5 pointer-events-none"
         :style="{ width: `${containerWidth}px`, left: '-9999px', top: 0 }">
         <span data-all class="shrink-0 px-2 py-0.5 text-xs rounded-full border flex items-center gap-1">
-          <span>全部</span>
+          <span>{{ t('common.all') }}</span>
           <span class="opacity-60">{{ totalCount }}</span>
         </span>
         <span
@@ -63,7 +63,7 @@
           <span class="opacity-60">{{ tabCountByTag[tag] ?? 0 }}</span>
         </span>
         <span data-more class="shrink-0 px-2 py-0.5 text-xs rounded-full border flex items-center gap-1">
-          更多 ▾
+          {{ t('tagbar.more') }}
         </span>
       </div>
 
@@ -81,7 +81,7 @@
               : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
           ]"
           @click="emit('apply', [])">
-          <span>全部</span>
+          <span>{{ t('common.all') }}</span>
           <span class="opacity-60">{{ totalCount }}</span>
         </button>
         <button
@@ -105,7 +105,7 @@
           ref="moreTriggerRef"
           class="shrink-0 px-2 py-0.5 text-xs rounded-full border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           @click.stop="toggleMorePopover">
-          更多 ▾
+          {{ t('tagbar.more') }}
         </button>
       </div>
 
@@ -119,7 +119,7 @@
             : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'
         ]"
         @click.stop="togglePanel"
-        title="管理标记（排序 / 编辑 / 删除）">
+        :title="t('tagbar.manage.tooltip')">
         <ChevronDown
           :size="13"
           :class="
@@ -135,15 +135,15 @@
       v-if="tags.length === 0 && showHelp"
       class="mt-2 px-3 py-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg text-[11px] leading-relaxed text-blue-800 dark:text-blue-200">
       <p class="mb-1">
-        <b>标记是什么？</b>给标签分类的自定义标签，方便快速筛选。
+        <b>{{ t('tagbar.help.what') }}</b>{{ t('tagbar.help.desc') }}
       </p>
-      <p class="mb-1"><b>怎么用：</b></p>
+      <p class="mb-1"><b>{{ t('tagbar.help.howTo') }}</b></p>
       <ul class="list-disc list-inside mb-1 ml-1">
-        <li>点「添加标记来分类标签」创建第一个标记</li>
-        <li>有标记后：点标记筛选（选多个 = 交集），点 ▾ 下拉排序/编辑/删除</li>
+        <li>{{ t('tagbar.help.emptyStep1') }}</li>
+        <li>{{ t('tagbar.help.emptyStep2') }}</li>
       </ul>
-      <p>🔒 仅本地保存，不上传。最多15个，每个最多15字。</p>
-      <p>⚠️ {{ TAG_BIND_NOTICE }}</p>
+      <p>{{ t('tagbar.help.storage') }}</p>
+      <p>⚠️ {{ t('tagbar.bindNotice') }}</p>
     </div>
 
     <!-- 添加标记输入框（空状态触发） -->
@@ -153,7 +153,7 @@
           ref="addInputRef"
           v-model="newTag"
           maxlength="15"
-          placeholder="标记名称（最多15字）"
+          :placeholder="t('common.tagNamePlaceholder')"
           :class="[
             'w-full text-xs rounded px-2 py-1 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1',
             isDuplicate
@@ -174,7 +174,7 @@
         class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 shrink-0 disabled:bg-gray-300 disabled:cursor-not-allowed"
         @click="doAdd"
         :disabled="!canSubmitAdd">
-        确认
+        {{ t('common.confirm') }}
       </button>
       <button
         class="text-xs text-gray-400 hover:text-gray-600 shrink-0"
@@ -183,7 +183,7 @@
       </button>
     </div>
     <div v-if="showAdd && isDuplicate" class="mt-1 text-[10px] text-red-500">
-      该标记已存在
+      {{ t('common.tagExists') }}
     </div>
 
     <!-- 下拉管理 panel（Teleport to body，不被遮挡） -->
@@ -198,7 +198,7 @@
         <div
           class="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-700">
           <span class="text-xs font-medium text-gray-700 dark:text-gray-200"
-            >管理标记</span
+            >{{ t('tagbar.manage.title') }}</span
           >
           <div class="flex items-center gap-1">
             <button
@@ -209,13 +209,13 @@
                   : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
               ]"
               @click="showHelp = !showHelp"
-              title="这是什么？">
+              :title="t('common.whatIsThis')">
               <HelpCircle :size="14" />
             </button>
             <button
               class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               @click="closePanel"
-              title="收起">
+              :title="t('tagbar.manage.collapse')">
               <X :size="14" />
             </button>
           </div>
@@ -226,17 +226,17 @@
           v-if="showHelp"
           class="mx-3 mt-2 px-3 py-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg text-[11px] leading-relaxed text-blue-800 dark:text-blue-200">
           <p class="mb-1">
-            <b>标记是什么？</b>给标签分类的自定义标签，方便快速筛选。
+            <b>{{ t('tagbar.help.what') }}</b>{{ t('tagbar.help.desc') }}
           </p>
-          <p class="mb-1"><b>怎么用：</b></p>
+          <p class="mb-1"><b>{{ t('tagbar.help.howTo') }}</b></p>
           <ul class="list-disc list-inside mb-1 ml-1">
-            <li>点标记筛选标签（选多个 = 交集筛选）</li>
-            <li>拖标记左侧的「⠿」调整顺序</li>
-            <li>✏ 编辑、🗑 删除（删除会从所有标签移除）</li>
-            <li>点「全部」清除所有筛选</li>
+            <li>{{ t('tagbar.help.panelStep1') }}</li>
+            <li>{{ t('tagbar.help.panelStep2') }}</li>
+            <li>{{ t('tagbar.help.panelStep3') }}</li>
+            <li>{{ t('tagbar.help.panelStep4') }}</li>
           </ul>
-          <p>🔒 仅本地保存，不上传。最多15个，每个最多15字。</p>
-          <p>⚠️ {{ TAG_BIND_NOTICE }}</p>
+          <p>{{ t('tagbar.help.storage') }}</p>
+          <p>⚠️ {{ t('tagbar.bindNotice') }}</p>
         </div>
 
         <!-- 标记列表（可滚动） -->
@@ -261,7 +261,7 @@
               draggable="true"
               @dragstart="onDragStart($event, index)"
               @dragend="onDragEnd"
-              title="拖动排序">
+              :title="t('tagbar.drag.tooltip')">
               <GripVertical :size="12" />
             </div>
             <!-- 标记名：点击筛选 -->
@@ -285,26 +285,26 @@
             <span
               v-if="activeTags.includes(tag)"
               class="shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500"
-              title="筛选中" />
+              :title="t('tagbar.active.tooltip')" />
             <!-- 编辑 -->
             <button
               class="shrink-0 p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30"
               @click="openEditDialog(tag)"
-              title="编辑">
+              :title="t('common.edit')">
               <Pencil :size="11" />
             </button>
             <!-- 删除 -->
             <button
               class="shrink-0 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/30"
               @click="openDeleteConfirm(tag)"
-              title="删除">
+              :title="t('common.delete')">
               <Trash2 :size="11" />
             </button>
           </div>
           <p
             v-if="!tags.length"
             class="text-[11px] text-gray-400 text-center py-3">
-            暂无标记
+            {{ t('common.noTags') }}
           </p>
         </div>
 
@@ -319,8 +319,8 @@
             ]"
             :disabled="!canAddMore"
             @click="openPanelAdd"
-            :title="canAddMore ? '添加标记' : '已达15个标记上限'">
-            <Plus :size="12" />{{ canAddMore ? "添加标记" : "已达15个上限" }}
+            :title="canAddMore ? t('tagbar.panelAdd') : t('common.tagLimit')">
+            <Plus :size="12" />{{ canAddMore ? t('tagbar.panelAdd') : t('tagbar.panelLimit') }}
           </button>
           <!-- panel 内添加输入框 -->
           <div v-if="showPanelAdd" class="flex items-center gap-1.5 mt-2">
@@ -329,7 +329,7 @@
                 ref="panelAddInputRef"
                 v-model="panelNewTag"
                 maxlength="15"
-                placeholder="标记名称（最多15字）"
+                :placeholder="t('common.tagNamePlaceholder')"
                 :class="[
                   'w-full text-xs rounded px-2 py-1 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1',
                   isPanelDuplicate
@@ -350,13 +350,13 @@
               class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 shrink-0 disabled:bg-gray-300 disabled:cursor-not-allowed"
               @click="doPanelAdd"
               :disabled="!canSubmitPanelAdd">
-              确认
+              {{ t('common.confirm') }}
             </button>
           </div>
           <div
             v-if="showPanelAdd && isPanelDuplicate"
             class="mt-1 text-[10px] text-red-500">
-            该标记已存在
+            {{ t('common.tagExists') }}
           </div>
         </div>
       </div>
@@ -371,13 +371,13 @@
         <div
           class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-[320px] p-5">
           <h3 class="text-sm font-bold mb-3 text-gray-900 dark:text-gray-100">
-            编辑标记
+            {{ t('tagbar.edit.title') }}
           </h3>
           <div class="relative">
             <input
               v-model="editDraft"
               maxlength="15"
-              placeholder="标记名称（最多15字）"
+              :placeholder="t('common.tagNamePlaceholder')"
               :class="[
                 'w-full text-xs rounded px-2 py-1.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1',
                 isEditDuplicate
@@ -395,19 +395,19 @@
             >
           </div>
           <div v-if="isEditDuplicate" class="mt-1 text-[10px] text-red-500">
-            该标记已存在
+            {{ t('common.tagExists') }}
           </div>
           <div class="flex gap-2 mt-4 justify-end">
             <button
               class="px-4 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
               @click="closeEditDialog">
-              取消
+              {{ t('common.cancel') }}
             </button>
             <button
               class="px-4 py-1.5 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-300 disabled:cursor-not-allowed"
               @click="doRename"
               :disabled="!canSubmitEdit">
-              确认
+              {{ t('common.confirm') }}
             </button>
           </div>
         </div>
@@ -423,7 +423,7 @@
         class="fixed z-[80] w-[200px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl"
         @click.stop>
         <div class="p-2">
-          <div class="text-[11px] text-gray-400 dark:text-gray-500 px-2 py-1">更多标记</div>
+          <div class="text-[11px] text-gray-400 dark:text-gray-500 px-2 py-1">{{ t('tagbar.morePopover.title') }}</div>
           <div class="mt-1 flex flex-wrap gap-1.5">
             <button
               v-for="tag in hiddenTags"
@@ -447,10 +447,10 @@
     <!-- 删除确认对话框 -->
     <ConfirmDialog
       :open="deleteConfirm.open"
-      :title="`删除标记「${deleteConfirm.tag}」？`"
-      :message="`该标记将从 ${deleteConfirm.count} 个标签上移除。`"
-      hint="删除操作不可撤销，但标签不会被删除。"
-      confirm-text="确认删除"
+      :title="tWithParams('tagbar.delete.title', { tag: deleteConfirm.tag })"
+      :message="tWithParams('tagbar.delete.message', { count: deleteConfirm.count })"
+      :hint="t('tagbar.delete.hint')"
+      :confirm-text="t('tagbar.delete.confirmText')"
       danger
       @confirm="doDelete"
       @cancel="deleteConfirm.open = false" />
@@ -488,15 +488,12 @@ import { usePopoverManager } from "~composables/usePopoverManager"
 import { useTabManager } from "~composables/useTabManager"
 import { computePopoverPos } from "~lib/popoverPosition"
 import { validateTag } from "~lib/tagValidate"
+import { t, tWithParams } from "~lib/i18n"
 
 import ConfirmDialog from "./ConfirmDialog.vue"
 
 const MAX_ROWS = 3
 const GAP = 6 // gap-1.5 = 6px
-
-// 标记按 tabId 绑定的局限提示（空状态帮助块 + panel 帮助块共用，避免文案重复）
-const TAG_BIND_NOTICE =
-  "由于浏览器 API 规则，标记按标签页 ID 绑定。关闭标签页或重启浏览器后，新标签页 ID 会变，标记对应不到新标签（数据仍在本地，只是显示不出来）。"
 
 const props = defineProps<{
   tags: string[]
