@@ -5,6 +5,7 @@ import { ref, watch } from "vue"
 import { useSettings } from "~composables/useSettings"
 import type { TabItem, LaterItem, ClosedTabItem } from "~types/tab"
 import { validateTag } from "~lib/tagValidate"
+import { t as t18n } from "~lib/i18n"
 
 function getDomain(url: string) {
   try { return new URL(url).hostname } catch { return url }
@@ -61,7 +62,7 @@ function chromeTabToItem(t: chrome.tabs.Tab, savedTags: Record<string, string[]>
   // Chrome 121+ 原生提供 tab.lastAccessed（毫秒）；老版本是 undefined，由 useTabManager 用 SW 采集的 map 兜底
   const nativeLastAccessed = (t as any).lastAccessed as number | undefined
   return {
-    id: t.id!, title: t.title || "(无标题)", url, domain: getDomain(url), favIconUrl: t.favIconUrl || "",
+    id: t.id!, title: t.title || t18n("history.row.noTitle"), url, domain: getDomain(url), favIconUrl: t.favIconUrl || "",
     pinned: t.pinned, active: t.active, audible: t.audible || false, muted: t.mutedInfo?.muted || false,
     discarded: t.discarded || false, frozen: (t as any).frozen || false, loading: t.status === "loading",
     recording: false, sharing: false, attention: false, hasUnsavedForm: false, hasConnectedDevice: false,

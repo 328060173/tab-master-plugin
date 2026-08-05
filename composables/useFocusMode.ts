@@ -1,6 +1,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from "vue"
 import type { ComputedRef } from "vue"
 import type { TabItem } from "~types/tab"
+import { t } from "~lib/i18n"
 
 // 检查浏览器是否支持聚焦模式所需的 API
 export const SUPPORTS_FOCUS_MODE = typeof chrome?.storage?.session?.set === 'function'
@@ -160,7 +161,7 @@ export function useFocusMode(tabs: ComputedRef<readonly TabItem[]>) {
         await chrome.tabGroups.update(groupId, {
           collapsed: true,
           color: 'grey',
-          title: '🌙 已隐藏'
+          title: t('focus.hiddenGroupTitle')
         })
       } catch (e) {
         console.error('Failed to group tabs:', e)

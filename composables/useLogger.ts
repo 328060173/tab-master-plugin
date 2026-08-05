@@ -1,5 +1,6 @@
 import { ref, onMounted, onUnmounted } from "vue"
 import { NetworkError, ApiError } from "~lib/api"
+import { tWithParams } from "~lib/i18n"
 
 /**
  * 运行日志（错误 + 关键操作）—— 轻量环形缓冲，存 chrome.storage.local。
@@ -154,7 +155,7 @@ export function installGlobalCapture() {
       const err = e.error
       if (err instanceof NetworkError || err instanceof ApiError) {
         e.preventDefault()
-        log("warn", "api", `业务请求错误（${err.kind}）`, err.message)
+        log("warn", "api", tWithParams("logger.apiError", { kind: err.kind }), err.message)
         return
       }
       log("error", "window", e.message || "error", e.error)
@@ -165,7 +166,7 @@ export function installGlobalCapture() {
       const reason = (e as PromiseRejectionEvent).reason
       if (reason instanceof NetworkError || reason instanceof ApiError) {
         e.preventDefault()
-        log("warn", "api", `业务请求失败（${reason.kind}，已吞）`, reason.message)
+        log("warn", "api", tWithParams("logger.apiFailure", { kind: reason.kind }), reason.message)
         return
       }
       log("error", "window", "unhandledrejection", reason)

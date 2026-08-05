@@ -11,6 +11,7 @@
 import { ref } from "vue"
 import { useBackupService } from "./useBackupService"
 import { showToast } from "./useToast"
+import { t, tWithParams } from "~lib/i18n"
 import {
   collectCurrentTabs,
   previewRestore as computeRestorePreview,
@@ -120,12 +121,12 @@ function useBackupRestoreImpl() {
     // P0-4 协调锁：恢复也是写操作（开/关 tab + 写元数据），防并发
     const traceId = uuidV4()
     if (!(await tryAcquireCoord(traceId))) {
-      return { ok: false, openedCount: 0, closedCount: 0, error: "备份进行中，请稍后再试", canUndo: false }
+      return { ok: false, openedCount: 0, closedCount: 0, error: t("backup.error.inProgress"), canUndo: false }
     }
     isRestoring.value = true
     try {
       const file = await svc.getSnapshotFile(snapshotId)
-      if (!file) return { ok: false, openedCount: 0, closedCount: 0, error: "快照不存在", canUndo: false }
+      if (!file) return { ok: false, openedCount: 0, closedCount: 0, error: t("backup.error.snapshotNotFound"), canUndo: false }
       const allTabs = await chrome.tabs.query({})
       const currentTabs = await collectCurrentTabs(
         allTabs,
@@ -163,7 +164,7 @@ function useBackupRestoreImpl() {
         const tagCount = Object.keys(snapMeta.tabTagsMap).length
         const laterCount = snapMeta.laterTabs.length
         const groupCount = snapMeta.tabGroups.length
-        showToast(`正在恢复 ${tagCount} 个标记 / ${laterCount} 个稍后处理 / ${groupCount} 个分组…`)
+        showToast(tWithParams("backup.toast.restoring", { tagCount, laterCount, groupCount }))
       }
       const r = await executeRestore(tabsToOpen, closeCurrentTabIds, {
         restoreMeta: restoreMetaOn,
@@ -185,7 +186,7 @@ function useBackupRestoreImpl() {
   /** 撤销恢复（仅整体替换方式有效） */
   async function undoRestore(): Promise<{ ok: boolean; openedCount: number; closedCount: number; error?: string }> {
     const u = svc.undo.value
-    if (!u.preRestoreSnapshot) return { ok: false, openedCount: 0, closedCount: 0, error: "无可撤销的恢复" }
+    if (!u.preRestoreSnapshot) return { ok: false, openedCount: 0, closedCount: 0, error: t("backup.error.noUndoRestore") }
     const file = u.preRestoreSnapshot
     await svc.clearUndo()
     // 用恢复前快照执行一次 replace（同时写回元数据以完全还原）
@@ -218,12 +219,12 @@ function useBackupRestoreImpl() {
   ): Promise<{ ok: boolean; openedCount: number; closedCount: number; error?: string; metaResult?: MetaRestoreResult }> {
     const traceId = uuidV4()
     if (!(await tryAcquireCoord(traceId))) {
-      return { ok: false, openedCount: 0, closedCount: 0, error: '备份进行中，请稍后再试' }
+      return { ok: false, openedCount: 0, closedCount: 0, error: t("backup.error.inProgress") }
     }
     isRestoring.value = true
     try {
       const file = await svc.getSnapshotFile(snapshotId)
-      if (!file) return { ok: false, openedCount: 0, closedCount: 0, error: '快照不存在' }
+      if (!file) return { ok: false, openedCount: 0, closedCount: 0, error: t("backup.error.snapshotNotFound") }
       const allTabs = await chrome.tabs.query({})
       const currentUrls = new Set<string>()
       for (const t of allTabs) {
@@ -285,7 +286,7 @@ function useBackupRestoreImpl() {
   ): Promise<{ ok: boolean; total: number; duplicate: number; toOpen: number; error?: string }> {
     try {
       const file = await svc.getSnapshotFile(snapshotId)
-      if (!file) return { ok: false, total: 0, duplicate: 0, toOpen: 0, error: '快照不存在' }
+      if (!file) return { ok: false, total: 0, duplicate: 0, toOpen: 0, error: t("backup.error.snapshotNotFound") }
       // 收集非隐身窗口标签（与 openSnapshot 一致）
       const tabs: TabSnapshot[] = []
       for (const w of file.snapshot.windows) {
@@ -364,7 +365,7 @@ function useBackupRestoreImpl() {
     const laterCount = file.snapshot.meta.laterTabs.length
     const groupCount = file.snapshot.meta.tabGroups.length
     if (tagCount || laterCount || groupCount) {
-      showToast(`正在恢复 ${tagCount} 个标记 / ${laterCount} 个稍后处理 / ${groupCount} 个分组…`)
+      showToast(tWithParams("backup.toast.restoring", { tagCount, laterCount, groupCount }))
     }
     // 2026-07-28 重构：导入/还原统一走 mergeMeta（删 mode 分支），
     // 分组重建由 restoreTabGroups 独立完成（chrome.* 调用与 storage 合并分离）

@@ -1,4 +1,5 @@
 import { useTabManager } from "./useTabManager"
+import { t, tWithParams } from "~lib/i18n"
 
 export function useTabActions(options: {
   showToast: (msg: string) => void
@@ -30,7 +31,7 @@ export function useTabActions(options: {
 
   const copyUrl = (url: string) => {
     navigator.clipboard.writeText(url)
-    showToast("已复制URL")
+    showToast(t("toast.copied"))
   }
 
   const togglePin = (id: number) => {
@@ -61,18 +62,18 @@ export function useTabActions(options: {
 
   const addToGroupSingle = (tabId: number, groupId: number) => {
     addToGroup([tabId], groupId)
-    showToast("已加入分组")
+    showToast(t("toast.addedToGroup"))
   }
 
   const removeFromGroupSingle = (tabId: number) => {
     removeFromGroup([tabId])
-    showToast("已移出分组")
+    showToast(t("toast.removedFromGroup"))
   }
 
-  const newGroupSingle = async (tabId: number, name: string = "新分组", color: string = "blue") => {
+  const newGroupSingle = async (tabId: number, name: string = t("sidepanel.batch.newGroupSingle"), color: string = "blue") => {
     const id = await createGroup([tabId], name, color)
     if (id !== null) {
-      showToast("已创建分组")
+      showToast(t("toast.groupCreated"))
     }
   }
 
@@ -83,7 +84,7 @@ export function useTabActions(options: {
       await closeTab(id)
     }
     if (n) {
-      showToast(`已关闭 ${n} 个标签`)
+      showToast(tWithParams("toast.closedTabs", { count: n }))
     }
   }
 
@@ -93,7 +94,7 @@ export function useTabActions(options: {
       await moveToLater(id, "")
     }
     if (n) {
-      showToast(`已加入稍后处理（${n}）`)
+      showToast(tWithParams("toast.addedToLater", { count: n }))
     }
   }
 
@@ -101,7 +102,7 @@ export function useTabActions(options: {
     const n = ids.length
     await addToGroup(ids, groupId)
     if (n) {
-      showToast(`已加入分组（${n}）`)
+      showToast(tWithParams("toast.addedToGroupCount", { count: n }))
     }
   }
 
@@ -109,7 +110,7 @@ export function useTabActions(options: {
     const n = ids.length
     const id = await createGroup(ids, name, color)
     if (id !== null) {
-      showToast(`已新建分组「${name}」（${n}）`)
+      showToast(tWithParams("toast.newGroupCreated", { name, count: n }))
     }
   }
 

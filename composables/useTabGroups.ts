@@ -1,5 +1,6 @@
 import { ref, computed, onMounted, onUnmounted, type Ref } from "vue"
 import type { TabItem } from "~types/tab"
+import { t } from "~lib/i18n"
 
 // chrome.tabGroups 需 Chrome/Edge 89+；不支持时分组相关功能降级（SUPPORTS_TAB_GROUPS 守卫）
 // 支持的分组颜色
@@ -35,7 +36,7 @@ export const TAB_GROUP_ID_NONE = chrome?.tabGroups?.TAB_GROUP_ID_NONE ?? -1
 
 // 过滤掉聚焦模式的隐藏分组
 export function isNotFocusGroup(group: chrome.tabGroups.TabGroup): boolean {
-  return group.title !== "🌙 已隐藏"
+  return group.title !== t("focus.hiddenGroupTitle")
 }
 
 export function useTabGroups(tabsRef: Ref<readonly TabItem[]>) {

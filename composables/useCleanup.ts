@@ -1,5 +1,6 @@
 import type { TabItem } from "~types/tab"
 import { parseTime, getEffectiveAccessTime } from "~lib/sortUtils"
+import { t, tWithParams } from "~lib/i18n"
 
 /**
  * 清理菜单业务逻辑：重复检测、长期未用检测、阈值常量。
@@ -103,9 +104,11 @@ export function formatUnusedDuration(ms: number): string {
   const day = Math.floor(hr / 24)
   if (day >= 1) {
     const remHr = hr % 24
-    return remHr > 0 ? `${day} 天 ${remHr} 小时` : `${day} 天`
+    return remHr > 0
+      ? tWithParams("cleanup.duration.dayHour", { day, hr: remHr })
+      : tWithParams("cleanup.duration.day", { count: day })
   }
-  if (hr >= 1) return `${hr} 小时`
-  if (min >= 1) return `${min} 分钟`
-  return "刚刚"
+  if (hr >= 1) return tWithParams("cleanup.duration.hour", { count: hr })
+  if (min >= 1) return tWithParams("cleanup.duration.minute", { count: min })
+  return t("cleanup.duration.justNow")
 }

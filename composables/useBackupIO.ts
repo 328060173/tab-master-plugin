@@ -11,6 +11,7 @@ import { ref } from "vue"
 import { useBackupService } from "./useBackupService"
 import { exportByFormat, downloadExport, type ExportOutput } from "~lib/backup/exporters"
 import { parseImport, parseAsOneTab, readFileText } from "~lib/backup/importers"
+import { t, tWithParams } from "~lib/i18n"
 import type { BackupFile, ExportFormat, ImportResult } from "~types/backup"
 
 export function useBackupIO() {
@@ -27,10 +28,10 @@ export function useBackupIO() {
     isExporting.value = true
     try {
       const file = await svc.getSnapshotFile(snapshotId)
-      if (!file) return { ok: false, error: "快照不存在" }
+      if (!file) return { ok: false, error: t("backup.error.snapshotNotFound") }
       const out: ExportOutput = exportByFormat(file, format)
       const ok = downloadExport(out)
-      return { ok, error: ok ? undefined : "下载失败" }
+      return { ok, error: ok ? undefined : t("backup.toast.downloadFailed") }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     } finally {
@@ -41,7 +42,7 @@ export function useBackupIO() {
   /** 导出最新快照（无快照时返回错误） */
   async function exportLatest(format: ExportFormat): Promise<{ ok: boolean; error?: string }> {
     const list = svc.snapshots.value
-    if (!list.length) return { ok: false, error: "尚无快照可导出" }
+    if (!list.length) return { ok: false, error: t("backup.error.noSnapshotToExport") }
     return exportSnapshot(list[0].id, format)
   }
 
@@ -71,7 +72,7 @@ export function useBackupIO() {
       const r: ImportResult = {
         ok: false,
         file: null,
-        error: `读取文件失败：${e instanceof Error ? e.message : String(e)}`,
+        error: tWithParams("backup.error.readFileFailed", { detail: e instanceof Error ? e.message : String(e) }),
         warnings: [],
         skipped: 0,
         format: "unknown",
