@@ -4,8 +4,8 @@
     "description": "Extension name"
   },
   "extensionDescription": {
-    "message": "Too many tabs? Find any in 3s. Auto-backup prevents tab loss on crash. Cross-browser import/export. Chrome/Edge tab manager.",
-    "description": "Extension description (store listing + search weight, pain keywords included, ≤132 chars)"
+    "message": "Backup, restore & organize browser tabs. Save sessions, recover closed tabs, protect work from crashes. Chrome/Edge tab manager.",
+    "description": "Extension description (store listing + ASO, covers tab manager/backup/restore/session/closed tabs/crashes, ≤132 chars)"
   },
   "shortName": {
     "message": "Tab Master",

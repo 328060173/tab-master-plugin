@@ -41,19 +41,20 @@
 ## 2. Short Description（≤132 字符，扩展管理页 `chrome://extensions` 里扩展名下方那行小字）
 
 ```
-标签太多找不到？3 秒搜索找回任何标签。四视图、状态感知、稍后处理、误关拦截，自动定时备份不怕浏览器崩溃丢标签，跨浏览器导入导出迁移。Chrome/Edge 标签管理插件。
+标签太多找不到？3 秒搜索找回任何标签。备份恢复标签、整理标签、会话管理，浏览器崩溃也不怕丢。四视图、状态感知、稍后处理、误关拦截，跨浏览器导入导出迁移。Chrome/Edge 标签管理插件。
 ```
 
-> 同步写入 `package.json` 的 `description` 字段 + `public/_locales/*/messages.json` 的 `extensionDescription`（单一来源，改这里再同步过去）。含痛点词 + 搜索关键词（标签太多/找回标签/浏览器崩溃/标签管理插件），≤132 字符合规。
+> 同步写入 `package.json` 的 `description` 字段 + `public/_locales/*/messages.json` 的 `extensionDescription`（单一来源，改这里再同步过去）。
+> ASO 策略（2026-08-05）：自然覆盖长尾搜索词，不堆砌。中文覆盖：标签太多/找回标签/备份恢复标签/整理标签/会话管理/浏览器崩溃/导入导出/迁移/标签管理插件。英文覆盖：tab manager/backup/restore/organize/sessions/closed tabs/crashes/Chrome/Edge。≤132 字符合规。
 
 ---
 
 ## 3. Detailed Description（商店详情页，约 1800 字）
 
 ```
-开了几十个标签找不到刚才那个？关了又怕找不回？标签栏挤成一排越用越乱？
+开了几十个标签找不到刚才那个？浏览器崩溃标签全没了？关了又怕找不回？标签栏挤成一排越用越乱？
 
-3 秒找到任何标签，标签再多也不乱——浏览器标签大师是一款专为浏览器重度用户设计的侧边栏标签管理插件。它常驻在浏览器侧边，不占用标签栏位置，让你用最顺手的方式管理所有标签页，告别标签混乱。
+3 秒找到任何标签，标签再多也不乱——浏览器标签大师是一款专为浏览器重度用户设计的侧边栏标签管理与会话备份插件。它常驻在浏览器侧边，不占用标签栏位置，让你用最顺手的方式管理所有标签页，自动备份你的浏览工作状态，浏览器崩溃、误关、换电脑都能一键恢复，告别标签混乱与丢失。
 
 【为什么选择浏览器标签大师】
 
@@ -113,13 +114,21 @@ Windows / macOS × Chrome / Edge 四端通用。
 
 ---
 
-## 4. Keywords（搜索关键词，尽量覆盖用户搜索习惯）
+## 4. Keywords（搜索关键词，按 ASO 长尾词布局，不堆砌品牌词）
 
+**英文核心 10 词（抢长尾，避开 tab manager 红海）**：
 ```
-浏览器标签管理,标签页插件,chrome标签管理,edge标签管理,标签整理,标签分组,标签搜索,标签树,侧边栏标签,标签太多,稍后阅读,标签大师,tab管理,标签页太多,垂直标签页
+tab manager,session manager,tab backup,restore tabs,save tabs,browser session,tab organizer,closed tabs recovery,Chrome tabs,workspace manager
 ```
 
-> Chrome Web Store 关键词字段单条最多 22 字符，多条用逗号分隔。上方已按此控制长度。
+**中文长尾词（覆盖用户搜索习惯，自然语言不机械堆砌）**：
+```
+浏览器标签管理,标签备份,标签恢复,浏览器崩溃恢复标签,标签整理,多标签管理,浏览器工作空间,会话管理,标签太多找不到,找回标签
+```
+
+> ASO 策略（2026-08-05）：不走"tab manager"红海正面对抗 OneTab，抢长尾（save tabs / restore closed tabs / session manager / tab backup / browser session backup 蓝海）。
+> Chrome Web Store 关键词字段单条最多 22 字符，多条用逗号分隔。中文市场同理覆盖长尾。
+> 差异化定位：**备份与恢复浏览器工作状态**（protect your browsing workspace），非单纯"管理标签"。
 
 ---
 
