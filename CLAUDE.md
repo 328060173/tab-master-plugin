@@ -140,7 +140,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - 分组页交互实测（搜索/排序/放入/新建）确认顺
 - **4 格矩阵实测**（Chrome+Edge × macOS+Windows）这几天积累的全部改动
 - **暗色模式精修**：少数品牌色类深色对比度不足，碰到一处改一处
-- **i18n 扩展**（优先级低）
+- **i18n 扩展**：中英文已落地（2026-08-05，1351 key，zh/en 1:1），架构 `lib/i18n.ts` 响应式 + chrome.i18n 管 manifest + 后端 Accept-Language 头已铺路。后续加日/德/法等语言：加 `lib/locales/<locale>.ts` + `locales` map 一行 + `LocaleKey/LocalePref` 类型 + `normalizeBrowserLocale` 分支。**新功能开发必须同步加 i18n key（见红线）**
 - **审计未覆盖**（2026-07-04 配额超限 429，7-06 重置）：搜索防抖、历史授权状态机、分组事件防抖等中低风险项未深入
 - 功能性（等拍板）：客服消息提醒 / 智能标签冬眠 / 快照（需后端）/ AI 总结归类 / 树形视图精修
 - 后端相关（登录 / 云同步）→ 等后端就绪，见 [[project-defer-backend-features]]
@@ -192,6 +192,16 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
   10. **service worker 状态持久化**：MV3 SW 30s 空闲会重启，所有 SW 内存态（lastAccessedMap/treeParentMap/缓存）必须 storage 持久化 + install/startup 时 load，重启后能恢复，否则 SW 重启=状态丢失。
   - **扩展崩溃通用成因（改前对照）**：主线程长任务 >50ms / 内存泄漏（闭包持有大对象、监听器未移除、DOM 引用）/ storage 超 10MB 配额 / 消息端口断开（SW 已死时 sendMessage）/ v-for 无 key 或 key 冲突 / 响应式大数组深追踪开销 / chrome.* API 在不支持版本调用抛错（须版本守卫，见 [[cross-platform-compat]]）。详见 [[rule-extension-stability]]
 - **🔴 单文件行数红线（2026-07-19 立案，后续禁止巨型文件）**：新写/重构文件行数上限——`.vue` ≤ 800 行、`.ts` ≤ 500 行。超出必须拆分（模板抽子组件、setup 逻辑抽 composable、background 按职责拆模块），且拆分需经审查 + 跑防白屏校验确认无回归。**现存超限文件**（历史遗留，待分步拆，不强制本轮一次性拆完，但每次改动应顺手减负）：`sidepanel.vue`（~1760 行）、`options.vue`（~978 行）、`background.ts`（~632 行）、`useSkin.ts`（~590 行）、`TagBar.vue`（~870 行）。新代码禁止再往这几个文件里堆逻辑——新功能优先新开组件/composable/模块文件。详见 [[rule-single-file-size-limit]]
+- **🔴 国际化红线（2026-08-05 立案，零容忍中文硬编码回退）**——i18n 已全量落地（`lib/i18n.ts` 响应式 + `lib/locales/zh-CN.ts`/`en-US.ts` 1351 key 1:1，chrome.i18n 管 manifest，后端 Accept-Language 头已铺路）。**后续所有功能开发必须同步 i18n，不许新增用户可见的中文硬编码**：
+  - **用户可见文案**（模板 `>中文<` / `title="中文"` / `placeholder="中文"` / `showToast('中文')` / `confirm('中文')` / `new Error('中文')` 抛给 UI 的 / 数据表 label/desc / toast / tooltip / 按钮文字 / 空状态 / 引导文案）→ **必须**走 `t()`/`tWithParams()`，zh-CN.ts + en-US.ts 同步加 key（1:1 对齐，缺英文 fallback 到中文但不许只加中文）
+  - **key 命名**：按模块前缀分组（`sidepanel.*`/`options.*`/`backup.*`/`dialog.*`/`status.*` 等），复用既有 `common.*`（取消/确认/关闭/更多等），禁止重复造同义 key（grep 现有 key 再决定新建还是复用）
+  - **响应式**：const 数组里的 label（如 `VIEW_OPTIONS`/`SORT_OPTIONS`）要改 `computed` 让 locale 切换时跟随重渲染；数据表（statusConfig/feature-tiers）用 `labelKey/descKey` 字符串 + 消费侧 `t()` 翻译
+  - **带参数文案**：用 `tWithParams(key, {name})` 命名占位，英文语序与中文不同时翻译时调语序（如 "已关闭 N 个" → "Closed N tabs"）
+  - **导出文件内容例外**：`lib/backup/exporters.ts` 导出的 Markdown/JSON 内容固定中文（D1 决策，备份文件是数据可能跨语言共享），不算违规；但 toast/错误消息要 i18n
+  - **console.warn/注释例外**：开发者诊断日志、代码注释保留中文，不算违规
+  - **校验**：提交前 grep 确认无新增用户可见中文硬编码：`grep -rnE "title=\"[一-鿿]|placeholder=\"[一-鿿]|showToast\(['\"][一-鿿]" components/ tabs/ sidepanel.vue options.vue composables/`；zh/en key 1:1 对齐：`grep -cE "^\s+'[a-zA-Z]" lib/locales/zh-CN.ts` 和 en-US.ts 数量一致
+  - **加新语言扩展口**：加 `lib/locales/<locale>.ts` + `locales` map 一行 + `LocaleKey`/`LocalePref` 类型加成员 + `normalizeBrowserLocale` 加分支，3-4 处改动
+  - 详见 [[rule-i18n-no-hardcoded-chinese]]
 - 所有改动基于 `test` 分支开发/commit/push（2026-07-08 起）。⚠️ 未经用户允许不准 merge test->master，不准直接改/commit/push master 分支
 
 ### 参考原型
