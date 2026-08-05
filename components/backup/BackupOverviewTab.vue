@@ -191,10 +191,6 @@
           <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">备份数量</dt>
           <dd class="text-gray-800 dark:text-gray-100">{{ snapshots.length }} 个</dd>
         </div>
-        <div class="flex items-center gap-2">
-          <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0">备份占用</dt>
-          <dd class="text-gray-800 dark:text-gray-100">本地 {{ fmtBytes(state.cacheBytes) }}</dd>
-        </div>
         <div class="flex items-start gap-2 sm:col-span-2">
           <dt class="text-gray-500 dark:text-gray-400 w-24 shrink-0 pt-0.5">备份存储</dt>
           <dd class="text-gray-800 dark:text-gray-100 flex-1">
@@ -368,10 +364,4 @@ const lastAutoTruncated = computed(() => {
   const total = latest.stats.totalTabCount ?? latest.stats.tabCount
   return { backed, total }
 })
-
-function fmtBytes(b: number): string {
-  if (!b || b < 1024) return `${b || 0} B`
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
-  return `${(b / 1024 / 1024).toFixed(2)} MB`
-}
 </script>

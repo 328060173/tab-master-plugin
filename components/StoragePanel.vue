@@ -30,9 +30,12 @@
         <button class="text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-2 py-1 rounded transition-colors shrink-0" @click="confirmClear(item)">清理</button>
       </div>
 
-      <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-blue-50 border border-blue-100">
-        <span class="text-xs font-medium text-blue-700">合计使用</span>
-        <span class="text-xs font-bold text-blue-700">{{ totalSize }}</span>
+      <div class="px-3 py-2 rounded-lg bg-blue-50 border border-blue-100 space-y-0.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-blue-700">合计使用</span>
+          <span class="text-xs font-bold text-blue-700">{{ totalSize }}</span>
+        </div>
+        <p class="text-[10px] text-blue-500/80 leading-tight">含备份快照等所有本地数据，由浏览器统一统计</p>
       </div>
     </div>
 
@@ -56,7 +59,7 @@
     <!-- 清空所有确认 -->
     <div v-if="confirmClearAll" class="absolute inset-x-4 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 z-[100]">
       <p class="text-sm font-semibold text-gray-800 mb-2">⚠️ 清空所有缓存？</p>
-      <p class="text-xs text-red-600 bg-red-50 rounded p-2 mb-4 leading-relaxed">将清除全部本地数据（稍后列表、标记、编号、打开时间、搜索历史等），操作不可恢复，清空后自动重新打开插件。</p>
+      <p class="text-xs text-red-600 bg-red-50 rounded p-2 mb-4 leading-relaxed">将清除全部本地数据（稍后列表、标记、编号、打开时间、搜索历史等），并清除所有备份快照（手动 / 自动 / 监听），操作不可恢复。如有需要的备份，请先在「备份」页导出保存到电脑。清空后自动重新打开插件。</p>
       <div class="flex gap-2 justify-end">
         <button class="px-3 py-1.5 text-xs border border-gray-200 rounded hover:bg-gray-50" @click="confirmClearAll = false">取消</button>
         <button class="px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600" @click="doClearAll">清空并重新打开</button>
@@ -68,6 +71,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
 import { X, Trash2 } from "@lucide/vue"
+import { clearAllSnapshots } from "~lib/backup/snapshotStore"
 
 const emit = defineEmits(["close", "cleared"])
 
@@ -182,7 +186,19 @@ const loadData = async () => {
 
   userItems.value = build(USER_DEFS)
   sysItems.value = build(SYS_DEFS)
-  totalSize.value = fmtBytes(total)
+  // 「合计使用」用浏览器原生 estimate()（O(1，不遍历），它是整个扩展源（origin）的已用字节，
+  // 天然包含 IndexedDB 备份快照（手动/自动/封存档）+ storage.local + localStorage + cache API 等，
+  // 是浏览器自己的账，最准、不漂移。替代上面手动累加（手动累加漏了 IndexedDB 主体）。
+  // 注：estimate() 返回的是全源总量，不等于上面各项 sizeOf 之和（多了 IndexedDB + cache），
+  // 因此「合计使用」不等于分项相加——这是预期行为，UI 文案已标明含 IndexedDB。
+  // estimate() 可能不可用（旧浏览器/隐私模式），失败则降级回上面的手动累加 total。
+  try {
+    const est = await navigator.storage.estimate()
+    totalSize.value = est.usage != null ? fmtBytes(est.usage) : fmtBytes(total)
+  } catch {
+    // estimate 不可用，降级手动累加（不含 IndexedDB）
+    totalSize.value = fmtBytes(total)
+  }
 }
 
 const confirmClear = (item: StorageItem) => { confirming.value = item }
@@ -209,6 +225,13 @@ const doClear = async () => {
 }
 
 const doClearAll = async () => {
+  // 一并清除 IndexedDB 备份快照（手动/自动/封存档）——storage.local.clear 不影响 IndexedDB，
+  // 不主动清会残留历史快照，与「清空所有缓存」语义不符（用户决策：一并清除）。
+  try {
+    await clearAllSnapshots()
+  } catch (e) {
+    console.warn("[tab-master] 清空 IndexedDB 备份快照失败", e)
+  }
   await chrome.storage.local.clear()
   localStorage.clear()
   window.location.reload()
