@@ -1,9 +1,9 @@
 {
   "name": "tab-master-plugin",
-  "displayName": "TM-浏览器标签整理大师",
-  "version": "1.3.0",
+  "displayName": "浏览器标签大师",
+  "version": "1.3.1",
   "description": "高效管理浏览器标签，一键备份防丢失",
-  "short_name": "TM-标签整理大师",
+  "short_name": "浏览器标签大师",
   "author": "xpd",
   "scripts": {
     "dev": "node scripts/sync-locales.js --watch & plasmo dev",
@@ -36,7 +36,7 @@
     "name": "__MSG_extensionName__",
     "description": "__MSG_extensionDescription__",
     "default_locale": "zh_CN",
-    "short_name": "TM-标签整理大师",
+    "short_name": "浏览器标签大师",
     "minimum_chrome_version": "114",
     "host_permissions": [
       "https://api.ouu365.com/*",

@@ -7,7 +7,7 @@
       class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
       <div class="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
         <Sliders :size="18" class="text-blue-600 dark:text-blue-400" />
-        <h1 class="text-base font-semibold">TM-标签整理大师 · 设置</h1>
+        <h1 class="text-base font-semibold">浏览器标签大师 · 设置</h1>
         <span class="text-xs text-gray-400 ml-auto">v{{ version }}</span>
       </div>
       <!-- Tab 栏：风格对齐 sidepanel NavTabs（border-b-2 选中态） -->
@@ -601,7 +601,7 @@
 
 <script setup lang="ts">
 /**
- * 标签大师完整设置页 —— Plasmo 自动注册为 options_page
+ * 浏览器标签大师完整设置页 —— Plasmo 自动注册为 options_page
  *
  * 设计取舍：
  * - 主题/字号在 sidepanel 顶部菜单内嵌可调；本页放账号个人中心、自动数据校正、刷新菜单内容、关于
