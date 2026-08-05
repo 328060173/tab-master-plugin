@@ -38,12 +38,14 @@ export default {
   'menu.loggedOut': 'Logged out',
 
   // 帮助/支持
-  'menu.contact': 'Contact Us',
+  'menu.contact': 'Contact',
   'menu.feedback': 'Feedback',
   'menu.feedback.comingSoon': 'Feedback coming soon',
   'menu.feedback.loginRequired': 'Login required',
   'menu.guide': 'Guide',
   'menu.donate': 'Buy Me a Coffee',
+  'menu.doc': 'Docs',
+  'menu.faq': 'FAQ',
 
   // 分组标题
   'menu.group.account': 'Account',
@@ -1373,6 +1375,15 @@ export default {
   'backup.lib.snapshotWriteFailed': 'Snapshot write failed, auto-rolled back. Please retry.',
   'backup.lib.userCancelled': 'User cancelled',
   'backup.lib.downloadFailed': 'Download failed',
+  'backup.lib.invalidUrlSkipped': 'Invalid URL skipped: {url}',
+  'backup.lib.unnamedGroup': 'Unnamed',
+  'backup.lib.nicetabGroupMissingTabList': 'Group "{name}" missing tabList, skipped',
+  'backup.lib.nicetabLabel': 'NiceTab import',
+  'backup.lib.tobyLabel': 'Toby import',
+  'backup.lib.vertitabLabel': 'VertiTab import',
+  'backup.lib.kindMismatch': 'kind field mismatch ({kind}), parsed as our format',
+  'backup.lib.newerSchemaVersion': 'Backup created by newer version (schemaVersion={sv}), upgrade plugin recommended',
+  'backup.lib.noChecksumSkipped': 'Snapshot has no checksum (old version export), integrity check skipped',
 
   // ===== Task 10: data tables + cleanup (statusConfig/feature-tiers/popup/logs/tools) =====
   // popup entry
@@ -1579,4 +1590,64 @@ export default {
   'search.noMatch': 'No matching tabs found',
   // Notice detail dialog title
   'notice.title': 'Notice',
+
+  // ===== Task 13 second batch of misses =====
+  // useCleanup threshold labels
+  'cleanup.threshold.days1': '1 day',
+  'cleanup.threshold.days3': '3 days',
+  'cleanup.threshold.days7': '7 days',
+  'cleanup.threshold.days30': '30 days',
+
+  // lib/api.ts error messages (NetworkError/ApiError bubble up to UI toast)
+  // Note: 'Session expired' reuses existing 'login.expired' key, not duplicated here
+  'error.requestFailed': 'Request failed',
+  'error.timeout': 'Request timeout, please try again later',
+  'error.networkFailed': 'Network request failed, please check your connection',
+  'error.networkFailedShort': 'Network request failed',
+
+  // lib/backup error messages (error field surfaces in UI)
+  'error.backup.dirNotBound': 'No directory bound, please choose one',
+  'error.backup.authDenied': 'Authorization denied',
+  'error.backup.fsNotSupported': 'Not supported',
+  'error.backup.dirNotBoundShort': 'No directory bound',
+  'error.backup.dirPermInvalid': 'Directory permission invalid',
+  'error.backup.dirUnsupported': 'Current browser does not support directory backup (requires Chrome/Edge 86+)',
+  'error.backup.dirPickCancelled': 'Directory selection cancelled',
+  'error.backup.dirQuotaOrWrite': 'Disk full or directory not writable ({name})',
+  'error.backup.notEnabled': 'Backup not enabled',
+  'error.backup.dirDeferredToUi': 'Directory backup pending UI side',
+  'error.backup.backupFailed': 'Backup failed',
+  'error.backup.opNotImplemented': 'Operation {op} not yet routed to SW queue (P0-4-7+ in progress)',
+  'error.backup.unknownMsgType': 'Unknown message type',
+  'error.backup.verifyFailed': 'Verification failed after write (snapshot corrupted)',
+
+  // urlFilter NO_TABS_HINT (toast, shared by multiple components)
+  'backup.lib.noTabsHint': 'Backup/Export: no tabs to process',
+
+  // backupRules retention policy text (tWithParams; no current consumer, pre-i18n'd)
+  'backup.rules.retention': 'Keeps the latest {max} backups, each with up to {tabs} tabs. When full, the oldest are auto-cleaned to make room. Estimated {estimate} MB, up to {quota} MB.',
+  'backup.rules.manual': 'Up to {max} manual backups; never auto-deleted.',
+  'backup.rules.overflow': 'When exceeding {max}, the oldest auto backups are auto-cleaned to make room; manual backups are unaffected.',
+
+  // restore.ts conflict/unmatched labels
+  'restore.conflict.sameUrlMulti': '{label} (same URL open multiple times)',
+  'restore.conflict.emptyCurrent': '(none in current)',
+  'restore.conflict.emptySnapshot': '(none in snapshot)',
+  'restore.unmatched.tagBound': 'Tag "{tags}" was bound to: {url}',
+
+  // ErrorBoundary render error log (options.vue / sidepanel.vue logError)
+  'error.render': 'Render error: {msg}',
+
+  // lib/tools/constants default field names (key strings, consumer maps with t())
+  'tools.field.name': 'Name',
+  'tools.field.phone': 'Phone',
+  'tools.field.homeAddr': 'Home address',
+  'tools.field.companyAddr': 'Company address',
+
+  'error.backup.inProgress': 'Backup in progress, please try again later',
+  'error.backup.execFailed': 'Execution failed',
+  'error.backup.corruptRolledback': 'Snapshot write corrupted, rolled back',
+  'error.backup.corruptRetry': 'Snapshot write corrupted, auto-rolled back, please retry',
+  'tools.field.idNumber': 'ID number',
+  'tools.field.birthday': 'Birthday',
 }

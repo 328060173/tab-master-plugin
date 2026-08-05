@@ -66,7 +66,7 @@ export function parseVertiTab(text: string): Promise<ImportResult> {
           new URL(url)
         } catch {
           skipped++
-          warnings.push(`无效 URL 已跳过：${url.slice(0, 60)}`)
+          warnings.push(tWithParams('backup.lib.invalidUrlSkipped', { url: url.slice(0, 60) }))
           continue
         }
         const title = typeof t.title === "string" ? t.title : ""
@@ -128,7 +128,7 @@ export function parseVertiTab(text: string): Promise<ImportResult> {
         createdAtISO: new Date(now).toISOString(),
         source: "import",
         trigger: "import",
-        label: "VertiTab 导入",
+        label: t("backup.lib.vertitabLabel"),
         status: 'success',
         errorMessage: null,
         windows,

@@ -24,6 +24,7 @@ import {
 } from "./db"
 import { withChecksum, verifySnapshot } from "./integrity"
 import { toSummary } from "./sanitize"
+import { t } from "~lib/i18n"
 import type {
   BackupFile,
   BackupSettings,
@@ -45,7 +46,7 @@ export async function persistSnapshot(
   const reRead = await getSnapshot(withCs.snapshot.id)
   if (!reRead || !(await verifySnapshot(reRead))) {
     await deleteSnapshotFromDb(withCs.snapshot.id)
-    return { ok: false, error: "写入后校验失败（快照损坏）" }
+    return { ok: false, error: t("error.backup.verifyFailed") }
   }
   return { ok: true }
 }

@@ -27,10 +27,10 @@ function fillDefaults(raw: Record<string, unknown>, warnings: string[]): BackupF
   const sv = typeof raw.schemaVersion === "number" ? raw.schemaVersion : BACKUP_SCHEMA_VERSION
   const kind = typeof raw.kind === "string" ? raw.kind : BACKUP_KIND
   if (kind !== BACKUP_KIND) {
-    warnings.push(`kind 字段不匹配（${kind}），仍按本插件格式解析`)
+    warnings.push(tWithParams('backup.lib.kindMismatch', { kind }))
   }
   if (sv > BACKUP_SCHEMA_VERSION) {
-    warnings.push(`此备份由更新版本创建（schemaVersion=${sv}），建议升级插件后导入`)
+    warnings.push(tWithParams('backup.lib.newerSchemaVersion', { sv }))
   }
   const snapRaw = (raw.snapshot && typeof raw.snapshot === "object" ? raw.snapshot : {}) as Record<string, unknown>
   const windowsRaw = Array.isArray(snapRaw.windows) ? snapRaw.windows : []
@@ -151,7 +151,7 @@ export async function parseOurs(text: string): Promise<ImportResult> {
     }
   } else {
     // 旧快照无 checksum：跳过校验只警告（向后兼容）
-    warnings.push("此快照无校验和（旧版本导出），已跳过完整性校验")
+    warnings.push(t("backup.lib.noChecksumSkipped"))
   }
   const file = fillDefaults(migrated, warnings)
   // 校验通过后，把原始 checksum 带回（导入写 IDB 时 withChecksum 会重算，此处仅保留供下游参考）

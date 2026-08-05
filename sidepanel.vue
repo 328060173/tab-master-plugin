@@ -1620,7 +1620,7 @@ const onManualRefreshMyMsg = (msg: unknown) => {
 // + onErrorCaptured 兜底 Vue 渲染错误。不装=线上问题全看不到日志 + 顶层异常直接白屏。
 installGlobalCapture()
 onErrorCaptured((err, _instance, info) => {
-  logError("vue", `渲染错误：${err instanceof Error ? err.message : String(err)}`, { info, err })
+  logError("vue", tWithParams('error.render', { msg: err instanceof Error ? err.message : String(err) }), { info, err })
   return false // 阻止冒泡到 app 级默认 handler（已入库，避免控制台重复报）
 })
 

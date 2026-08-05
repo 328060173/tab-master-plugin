@@ -51,10 +51,10 @@ const SETTING_MENU_UPDATED_MSG = 'settingMenuCacheUpdated'
 // defaultIcon：settingLogo 为空时前端用内置 lucide 图标（后端 setting_logo 未配时用）
 // id 用负数（-1~-4），与后端下发的正数 id 不冲突，v-for :key 天然唯一
 const FIXED_MENUS: SettingMenuItem[] = [
-  { id: -1, settingLogo: '', settingName: '文档', settingUrl: `${MENU_SITE_URL}/contents/docs?app-code=app_1001`, settingSort: 1, defaultIcon: 'book' },
-  { id: -2, settingLogo: '', settingName: 'FAQ', settingUrl: `${MENU_SITE_URL}/contents/faq?app-code=app_1001`, settingSort: 2, defaultIcon: 'help-circle' },
-  { id: -3, settingLogo: '', settingName: '意见和需求反馈', settingUrl: `${MENU_SITE_URL}/contents/feedback?app-code=app_1001`, settingSort: 3, defaultIcon: 'message-square' },
-  { id: -4, settingLogo: '', settingName: '联系我们', settingUrl: `${MENU_SITE_URL}/contents/contact?app-code=app_1001`, settingSort: 4, defaultIcon: 'mail' }
+  { id: -1, settingLogo: '', settingName: '', settingNameKey: 'menu.doc', settingUrl: `${MENU_SITE_URL}/contents/docs?app-code=app_1001`, settingSort: 1, defaultIcon: 'book' },
+  { id: -2, settingLogo: '', settingName: '', settingNameKey: 'menu.faq', settingUrl: `${MENU_SITE_URL}/contents/faq?app-code=app_1001`, settingSort: 2, defaultIcon: 'help-circle' },
+  { id: -3, settingLogo: '', settingName: '', settingNameKey: 'menu.feedback', settingUrl: `${MENU_SITE_URL}/contents/feedback?app-code=app_1001`, settingSort: 3, defaultIcon: 'message-square' },
+  { id: -4, settingLogo: '', settingName: '', settingNameKey: 'menu.contact', settingUrl: `${MENU_SITE_URL}/contents/contact?app-code=app_1001`, settingSort: 4, defaultIcon: 'mail' }
 ]
 
 // 清洗单条菜单项（SW 写入，UI 读时校验）

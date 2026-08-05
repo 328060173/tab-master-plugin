@@ -16,8 +16,10 @@ export interface SettingMenuItem {
   id: number
   /** 菜单项图标图片 URL（后端配置下发，可能为空，为空时前端用内置默认图标） */
   settingLogo: string
-  /** 菜单项名称 */
+  /** 菜单项名称（后端下发；前端固定菜单留空，改用 settingNameKey 走 i18n） */
   settingName: string
+  /** 前端固定菜单的 i18n key（后端下发项无此字段）。有值时消费侧 t(settingNameKey) 优先于 settingName */
+  settingNameKey?: string
   /** 点击跳转 URL（http(s)） */
   settingUrl: string
   /** 排序值（升序） */

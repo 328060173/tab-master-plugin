@@ -11,6 +11,7 @@
  * Chrome 86+ / Edge 86+ 可用；老版本降级仅本地缓存（PRD §7.3）。
  */
 
+import { t, tWithParams } from "~lib/i18n"
 import type { BackupDirMeta } from "~types/backup"
 
 const DB_NAME = "tabmaster_backup_fs"
@@ -88,7 +89,7 @@ export async function pickDirectory(): Promise<
   { handle: FileSystemDirectoryHandle; meta: BackupDirMeta } | { error: string }
 > {
   if (!isFsAccessSupported()) {
-    return { error: "当前浏览器不支持目录备份（需 Chrome/Edge 86+）" }
+    return { error: t("error.backup.dirUnsupported") }
   }
   try {
     const picker = (globalThis as unknown as {
@@ -105,7 +106,7 @@ export async function pickDirectory(): Promise<
     return { handle, meta }
   } catch (e) {
     const err = e as { name?: string }
-    if (err?.name === "AbortError") return { error: "已取消选择目录" }
+    if (err?.name === "AbortError") return { error: t("error.backup.dirPickCancelled") }
     return { error: e instanceof Error ? e.message : String(e) }
   }
 }
@@ -177,7 +178,7 @@ export async function writeSnapshotToDir(
   } catch (e) {
     const err = e as { name?: string }
     if (err?.name === "QuotaExceededError" || err?.name === "SecurityError") {
-      return { ok: false, error: `磁盘空间不足或目录不可写（${err.name}）` }
+      return { ok: false, error: tWithParams("error.backup.dirQuotaOrWrite", { name: err.name || "" }) }
     }
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }

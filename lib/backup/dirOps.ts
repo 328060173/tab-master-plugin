@@ -17,6 +17,7 @@ import {
   writeSnapshotToDir,
   scanDirSize,
 } from "./fsAccess"
+import { t } from "~lib/i18n"
 import type { BackupDirMeta, BackupFile } from "~types/backup"
 
 export interface DirOpsResult {
@@ -64,11 +65,11 @@ export async function reauthorizeDir(
   saveDirMeta: () => Promise<void>
 ): Promise<DirOpsResult> {
   const handle = await loadDirHandle()
-  if (!handle) return { ok: false, error: "未绑定目录，请重新选择" }
+  if (!handle) return { ok: false, error: t("error.backup.dirNotBound") }
   const p = await requestDirPermission(handle)
   dirMeta.value.permission = p === "granted" ? "granted" : p === "denied" ? "denied" : "prompt"
   await saveDirMeta()
-  return { ok: p === "granted", error: p === "granted" ? undefined : "授权未通过" }
+  return { ok: p === "granted", error: p === "granted" ? undefined : t("error.backup.authDenied") }
 }
 
 /** 解绑目录 */
@@ -112,14 +113,14 @@ export async function writeSnapshotToDirSafe(
   saveDirMeta: () => Promise<void>,
   file: BackupFile
 ): Promise<DirOpsResult> {
-  if (!isFsAccessSupported()) return { ok: false, error: "不支持" }
+  if (!isFsAccessSupported()) return { ok: false, error: t("error.backup.fsNotSupported") }
   const handle = await loadDirHandle()
-  if (!handle) return { ok: false, error: "未绑定目录" }
+  if (!handle) return { ok: false, error: t("error.backup.dirNotBoundShort") }
   const perm = await queryDirPermission(handle)
   if (perm !== "granted") {
     dirMeta.value.permission = perm === "denied" ? "denied" : "prompt"
     await saveDirMeta()
-    return { ok: false, error: "目录权限失效" }
+    return { ok: false, error: t("error.backup.dirPermInvalid") }
   }
   const deviceIdShort = (file.deviceId || "").replace(/-/g, "").slice(0, 8)
   const content = JSON.stringify(file, null, 2)

@@ -163,12 +163,12 @@
           <img
             v-if="canRenderSettingLogoWithFallback(item)"
             :src="item.settingLogo"
-            :alt="item.settingName"
+            :alt="settingMenuLabel(item)"
             class="w-[13px] h-[13px] object-contain shrink-0"
             @error="onLogoError($event)"
           />
           <component :is="getSettingIcon(item)" v-else :size="13" class="shrink-0" />
-          <span class="truncate">{{ item.settingName }}</span>
+          <span class="truncate">{{ settingMenuLabel(item) }}</span>
         </button>
       </div>
 
@@ -404,11 +404,12 @@ const languageSubmenuPos = computed(() => {
 })
 
 // 浏览器类型检测（参考 lib/device-info.ts 的正则）：Edge UA 同时含 Chrome，先判 Edg
-const currentBrowser = computed<'Chrome' | 'Edge' | '其他'>(() => {
+// 当前未在模板使用（dead code 兜底）；保留 i18n 防回归
+const currentBrowser = computed<'Chrome' | 'Edge' | 'Other'>(() => {
   const ua = navigator.userAgent
   if (/Edg\//.test(ua)) return 'Edge'
   if (/Chrome\//.test(ua)) return 'Chrome'
-  return '其他'
+  return 'Other'
 })
 
 const onEnterSubmenuRow = (type: "theme" | "font" | "language", rowEl: HTMLElement | null) => {
@@ -533,4 +534,7 @@ const onSettingMenuClick = (item: { settingUrl: string }) => {
   popover.close("header-menu")
   onSettingMenuClickImpl(item as Parameters<typeof onSettingMenuClickImpl>[0])
 }
+// 菜单显示名：固定项优先用 settingNameKey 走 i18n，后端项用 settingName（后端下发的中文）
+const settingMenuLabel = (item: { settingName: string; settingNameKey?: string }): string =>
+  item.settingNameKey ? t(item.settingNameKey) : item.settingName
 </script>

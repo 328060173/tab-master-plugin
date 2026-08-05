@@ -14,6 +14,7 @@
  */
 
 import { currentLimits } from "~types/backup"
+import { tWithParams } from "~lib/i18n"
 
 /**
  * 备份规则派生常量（getter 读 currentLimits()，会员档切换自动生效）。
@@ -54,18 +55,23 @@ export const BACKUP_RULES = {
 
 /**
  * 保留策略摘要文案（自动备份设置弹框 / 帮助文档共用）。
- * "自动保留近 X 条备份，每条最多 Y 个标签。满 X 条后自动清理最早的，为新的腾出位置。大约占用 Z MB，最高不超过 W MB。"
+ * i18n：模板 + tWithParams 占位（当前无消费者，预 i18n 备用）。
  */
 export function getRetentionPolicyText(): string {
-  return `自动保留近 ${BACKUP_RULES.maxSnapshots} 条备份，每条最多 ${BACKUP_RULES.maxTabsPerSnapshot} 个标签。满 ${BACKUP_RULES.maxSnapshots} 条后自动清理最早的，为新的腾出位置。大约占用 ${BACKUP_RULES.estimateMb} MB，最高不超过 ${BACKUP_RULES.cacheQuotaMb} MB。`
+  return tWithParams('backup.rules.retention', {
+    max: BACKUP_RULES.maxSnapshots,
+    tabs: BACKUP_RULES.maxTabsPerSnapshot,
+    estimate: BACKUP_RULES.estimateMb,
+    quota: BACKUP_RULES.cacheQuotaMb,
+  })
 }
 
-/** 手动备份策略文案："手动备份最多 N 条，永不自动删除。" */
+/** 手动备份策略文案 */
 export function getManualPolicyText(): string {
-  return `手动备份最多 ${BACKUP_RULES.manualMaxSnapshots} 条，永不自动删除。`
+  return tWithParams('backup.rules.manual', { max: BACKUP_RULES.manualMaxSnapshots })
 }
 
-/** 超限清理文案："超过 X 条时，最早的自动备份会被自动清理给新备份腾位置；手动备份不受影响，不会被删。" */
+/** 超限清理文案 */
 export function getOverflowText(): string {
-  return `超过 ${BACKUP_RULES.maxSnapshots} 条时，最早的自动备份会被自动清理给新备份腾位置；手动备份不受影响，不会被删。`
+  return tWithParams('backup.rules.overflow', { max: BACKUP_RULES.maxSnapshots })
 }

@@ -275,8 +275,8 @@ onMounted(async () => {
         .map((x) => ({ id: x.id, key: x.key, value: x.value }))
         .slice(0, NOTES_MAX_FIELDS)
     } else {
-      // storage 无任何记录 → 首次进入种子 6 个默认字段
-      fields.value = DEFAULT_NOTE_FIELDS.map((k) => ({ id: uuidV4(), key: k, value: '' }))
+      // storage 无任何记录 → 首次进入种子 6 个默认字段（i18n key 翻译为当前语言字段名）
+      fields.value = DEFAULT_NOTE_FIELDS.map((k) => ({ id: uuidV4(), key: t(k), value: '' }))
       save()
     }
   } catch {

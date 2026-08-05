@@ -777,7 +777,7 @@ installGlobalCapture()
 onErrorCaptured((err, _instance, info) => {
   logError(
     "vue",
-    `渲染错误：${err instanceof Error ? err.message : String(err)}`,
+    tWithParams('error.render', { msg: err instanceof Error ? err.message : String(err) }),
     { info, err }
   )
   return false

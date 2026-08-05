@@ -22,6 +22,7 @@
 
 import { safeSet } from "~lib/safeStorage"
 import { toPure } from "~lib/toPure"
+import { t } from "~lib/i18n"
 import {
   BACKUP_KEYS,
   currentLimits,
@@ -140,7 +141,7 @@ export async function runSwBareBackup(
   // 「自动监听备份」(listenBackupEnabled) 独立于本路径，在 liveSnapshot.ts 自行校验。
   if (!settings.enabled) {
     console.warn('[backup] 跳过：自动备份未开启（settings.enabled=false）')
-    return { ok: false, error: '备份未开启' }
+    return { ok: false, error: t('error.backup.notEnabled') }
   }
 
   // 标签采集：定时/启动/手动路径走 chrome.tabs.query（实时全量，无需镜像）。
@@ -148,13 +149,13 @@ export async function runSwBareBackup(
   // 0 标签短路（2026-07-28 立）：定时/启动后台备份，无标签不落空快照。
   if (filterBackupableTabs(allTabs).length === 0) {
     console.warn('[backup] 跳过：无标签')
-    return { ok: false, error: '无标签，跳过' }
+    return { ok: false, error: t('backup.lib.noTabs') }
   }
 
   // P0-4: 锁由外层 runBackupWithCoordination（tryAcquireCoord）统一管理，此处不再单独加锁
   try {
     const file = await buildSwSnapshotFile(source, allTabs)
-    const dirError = settings.dirEnabled ? "目录备份待UI侧补" : null
+    const dirError = settings.dirEnabled ? t('error.backup.dirDeferredToUi') : null
     await updateSwState(file.snapshot, file.snapshot.source, dirError, source)
     console.warn(
       `[backup] 备份结果 ok=true source=${source} tabsCount=${allTabs.length}`

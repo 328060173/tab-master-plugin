@@ -345,7 +345,7 @@ function onCopyJson() {
   // 0 标签阻断（2026-07-28 立）：空快照不复制空串
   const tabCount = file.value?.snapshot.stats?.tabCount ?? 0
   if (tabCount === 0) {
-    showToast(NO_TABS_HINT)
+    showToast(t(NO_TABS_HINT))
     return
   }
   const ta = jsonTextareaRef.value
@@ -377,7 +377,7 @@ function onDownloadJson() {
   // 0 标签阻断（2026-07-28 立）：空快照不下载空文件
   const tabCount = f.snapshot.stats?.tabCount ?? 0
   if (tabCount === 0) {
-    showToast(NO_TABS_HINT)
+    showToast(t(NO_TABS_HINT))
     return
   }
   const out = exportByFormat(f, 'json')

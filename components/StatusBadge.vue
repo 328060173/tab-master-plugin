@@ -6,17 +6,18 @@
 
 <script setup lang="ts">
 import { computed } from "vue"
+import { t } from "~lib/i18n"
 import type { TabItem } from "~types/tab"
 
 const props = defineProps<{ item: TabItem; mini?: boolean }>()
 
-// 只展示5种用户明显感知到的状态
+// 只展示5种用户明显感知到的状态（labelKey 复用 statusConfig 的 status.*.label）
 const label = computed(() => {
-  if (props.item.audible && !props.item.muted) return "播放中"
-  if (props.item.muted) return "已静音"
-  if (props.item.recording) return "录制中"
-  if (props.item.sharing) return "共享中"
-  if (props.item.hasConnectedDevice) return "连接设备"
+  if (props.item.audible && !props.item.muted) return t("status.playing.label")
+  if (props.item.muted) return t("status.muted.label")
+  if (props.item.recording) return t("status.recording.label")
+  if (props.item.sharing) return t("status.sharing.label")
+  if (props.item.hasConnectedDevice) return t("status.hasConnectedDevice.label")
   return ""
 })
 const icon = computed(() => {

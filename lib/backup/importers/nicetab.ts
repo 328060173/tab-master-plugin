@@ -59,7 +59,7 @@ export function parseNiceTab(text: string): Promise<ImportResult> {
         const groupFingerprints: string[] = []
         const tabList = Array.isArray(g.tabList) ? g.tabList : []
         if (!tabList.length) {
-          warnings.push(`分组「${groupName || "未命名"}」缺少 tabList，已跳过`)
+          warnings.push(tWithParams('backup.lib.nicetabGroupMissingTabList', { name: groupName || t('backup.lib.unnamedGroup') }))
         }
         for (const t of tabList) {
           const url = typeof t.url === "string" ? t.url : ""
@@ -69,7 +69,7 @@ export function parseNiceTab(text: string): Promise<ImportResult> {
             new URL(url)
           } catch {
             skipped++
-            warnings.push(`无效 URL 已跳过：${url.slice(0, 60)}`)
+            warnings.push(tWithParams('backup.lib.invalidUrlSkipped', { url: url.slice(0, 60) }))
             continue
           }
           const title = typeof t.title === "string" ? t.title : ""
@@ -124,7 +124,7 @@ export function parseNiceTab(text: string): Promise<ImportResult> {
         createdAtISO: new Date(now).toISOString(),
         source: "import",
         trigger: "import",
-        label: "NiceTab 导入",
+        label: t("backup.lib.nicetabLabel"),
         status: 'success',
         errorMessage: null,
         windows: [{

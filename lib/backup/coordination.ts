@@ -106,7 +106,7 @@ export async function runBackupWithCoordination(
     const result = await execute(op, payload, traceId)
     if (!result.ok) {
       await writeWalAborted(traceId, result.error)
-      await auditFailed(traceId, op, "syncing", curCoord.version + 1, result.error || "执行失败", Date.now() - startTs)
+      await auditFailed(traceId, op, "syncing", curCoord.version + 1, result.error || t("error.backup.execFailed"), Date.now() - startTs)
       return result
     }
 

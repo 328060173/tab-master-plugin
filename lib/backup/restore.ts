@@ -29,6 +29,7 @@ import {
   type GroupRestoreResult,
 } from "./metaRestore"
 import { openTabs, type OpenWindowGroup } from "./openTabs"
+import { t, tWithParams } from "~lib/i18n"
 
 /** 当前浏览器标签（用于冲突检测/匹配） */
 export interface CurrentTab {
@@ -124,7 +125,7 @@ export function previewRestore(
       // 列为未匹配让用户手动指派
       unmatched.push({
         id: `um-${tab.fingerprint.slice(0, 8)}`,
-        label: `${tab.title || tab.url}（同 URL 多开）`,
+        label: tWithParams('restore.conflict.sameUrlMulti', { label: tab.title || tab.url }),
         fingerprint: tab.fingerprint,
         strongHitTabId: null,
         candidates: weakHits.map((c) => ({ tabId: c.tabId, title: c.title, url: c.url })),
@@ -140,7 +141,7 @@ export function previewRestore(
         choice: "snapshot",
         label: tab.title || tab.url,
         snapshotSide: `${tab.url}`,
-        currentSide: "（当前无）",
+        currentSide: t('restore.conflict.emptyCurrent'),
       })
     }
   }
@@ -154,7 +155,7 @@ export function previewRestore(
         recommended: "current",
         choice: "current",
         label: ct.title || ct.url,
-        snapshotSide: "（快照无）",
+        snapshotSide: t('restore.conflict.emptySnapshot'),
         currentSide: `${ct.url}`,
       })
     }
@@ -174,7 +175,7 @@ export function previewRestore(
       weakCandidates.push(...cands)
       unmatched.push({
         id: `um-tag-${fp.slice(0, 8)}`,
-        label: `标记「${tags.join("/")}」原绑定：${snapTab.tab.url}`,
+        label: tWithParams('restore.unmatched.tagBound', { tags: tags.join('/'), url: snapTab.tab.url }),
         fingerprint: fp,
         strongHitTabId: null,
         candidates: weakCandidates.map((c) => ({ tabId: c.tabId, title: c.title, url: c.url })),
@@ -305,7 +306,7 @@ export function resolveConflicts(
           if (curMatch && c.choice !== "both") closeCurrentTabIds.push(curMatch.tabId)
         }
       }
-      if (c.snapshotSide && c.snapshotSide !== "（当前无）") {
+      if (c.snapshotSide && c.snapshotSide !== t('restore.conflict.emptyCurrent')) {
         const snap = snapTabByUrl.get(c.snapshotSide)
         tabsToOpen.push({
           url: c.snapshotSide,

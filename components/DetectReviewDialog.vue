@@ -31,7 +31,7 @@
                   : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-blue-400'
               ]"
               @click="emit('changeThreshold', opt.ms)"
-            >{{ opt.label }}</button>
+            >{{ t(opt.labelKey) }}</button>
             <input
               :value="customDays"
               type="number"

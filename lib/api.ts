@@ -18,7 +18,7 @@
 
 import { API_BASE_URL, APP_HEADERS, AUTH_STORAGE_KEY } from './api-config'
 import { isDev } from './env'
-import { getLocale } from './i18n'
+import { getLocale, t } from './i18n'
 
 // ============ 错误类型（L1 归一，导出供 L3 useLogger instanceof 判别）============
 /**
@@ -276,10 +276,10 @@ async function request<T extends BaseResponse = BaseResponse>({
           console.warn(`[api] ← ${method} ${uri} HTTP 401 (${elapsed}ms) 登录过期`)
           authExpiredHandler?.()
         }
-        throw new ApiError('登录已过期，请重新登录', {
+        throw new ApiError(t('login.expired'), {
           code: 401,
           httpStatus: 401,
-          msg: '登录已过期，请重新登录'
+          msg: t('login.expired')
         })
       }
 
@@ -295,10 +295,10 @@ async function request<T extends BaseResponse = BaseResponse>({
           console.warn(`[api] ← ${method} ${uri} code=401 (${elapsed}ms) 触发登出`)
           authExpiredHandler?.()
         }
-        throw new ApiError('登录已过期，请重新登录', {
+        throw new ApiError(t('login.expired'), {
           code: 401,
           httpStatus: response.status,
-          msg: '登录已过期，请重新登录'
+          msg: t('login.expired')
         })
       }
 
@@ -311,7 +311,7 @@ async function request<T extends BaseResponse = BaseResponse>({
       // 业务码非 200：归一为 ApiError（不重试）
       const elapsed = Date.now() - startedAt
       if (isDev) console.log(`[api] ← ${method} ${uri} code=${result.code} (${elapsed}ms) ${result.msg}`)
-      throw new ApiError(result.msg || '请求失败', {
+      throw new ApiError(result.msg || t('error.requestFailed'), {
         code: result.code,
         httpStatus: response.status,
         msg: result.msg
@@ -322,13 +322,13 @@ async function request<T extends BaseResponse = BaseResponse>({
       // 网络层：AbortError（超时）/ TypeError（Failed to fetch）/ 其他传输异常 → NetworkError
       const elapsed = Date.now() - startedAt
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new NetworkError('请求超时，请稍后再试', url, elapsed)
+        throw new NetworkError(t('error.timeout'), url, elapsed)
       }
       if (error instanceof Error && error.name === 'TypeError') {
-        throw new NetworkError('网络请求失败，请检查网络连接', url, elapsed)
+        throw new NetworkError(t('error.networkFailed'), url, elapsed)
       }
       // 其他传输层异常（如 response.json 解析失败）也归一为 NetworkError（可重试）
-      const msg = error instanceof Error ? error.message : '网络请求失败'
+      const msg = error instanceof Error ? error.message : t('error.networkFailedShort')
       throw new NetworkError(msg, url, elapsed)
     } finally {
       clearTimeout(timeoutId)
@@ -380,7 +380,7 @@ async function request<T extends BaseResponse = BaseResponse>({
     }
     // 兜底（理论不可达）：归一为 NetworkError
     throw new NetworkError(
-      error instanceof Error ? error.message : '网络请求失败',
+      error instanceof Error ? error.message : t('error.networkFailedShort'),
       url,
       elapsed
     )

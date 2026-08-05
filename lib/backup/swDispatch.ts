@@ -24,6 +24,7 @@ import { recoverFromWal, purgeOldWal } from '~lib/backup/wal'
 import { purgeExpiredAudit, getRecentAuditLogs } from '~lib/backup/auditLog'
 import { migrateStorageLocalToIndexedDb } from '~lib/backup/migration'
 import { readBackupSettings } from '~lib/backup/settingsAccess'
+import { t, tWithParams } from '~lib/i18n'
 import type { BackupMessage, BackupResponse, BackupOp, BackupOpPayload } from '~lib/backup/types'
 import type { CoordinationResult } from '~lib/backup/coordination'
 
@@ -75,13 +76,13 @@ async function executeBackupOp(
     }
     const source = payload.kind === 'auto-backup' ? payload.source : 'manual'
     const r = await runSwBareBackup(source as Parameters<typeof runSwBareBackup>[0])
-    if (!r.ok) return { ok: false, error: r.error || '备份失败' }
+    if (!r.ok) return { ok: false, error: r.error || t('error.backup.backupFailed') }
     // 把 file 透传给 coordination，由其 persistSnapshot + 校验 + 保留策略清理 + 广播
     return { ok: true, snapshot: r.file }
   }
   // restore/delete/import/clear/lock：这些目前由 UI 侧 useBackupService 直接处理（走消息后改造）
   // P0-4-7/8/9/10 将逐步把这些操作也收口到这里。本轮先返回 not-implemented。
-  return { ok: false, error: `操作 ${op} 暂未收口到 SW 队列（P0-4-7+改造中）` }
+  return { ok: false, error: tWithParams('error.backup.opNotImplemented', { op }) }
 }
 
 /**
@@ -162,7 +163,7 @@ export async function handleBackupMessage(msg: BackupMessage): Promise<BackupRes
       await initBackupRecovery()
       return { ok: true, traceId }
     }
-    return { ok: false, error: '未知消息类型', traceId }
+    return { ok: false, error: t('error.backup.unknownMsgType'), traceId }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e), traceId }
   }

@@ -25,7 +25,7 @@
         <div
           class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-[360px] max-w-full p-5"
           role="dialog"
-          aria-label="通知详情"
+          :aria-label="t('notice.title')"
           @click.stop
         >
           <!-- 标题 -->

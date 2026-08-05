@@ -214,7 +214,7 @@ const textareaHeight = computed(() => {
 async function onGenerate() {
   // 0 标签阻断（2026-07-28 立）：toast 提示而非静默 return
   if (selectedCount.value === 0) {
-    showToast(NO_TABS_HINT)
+    showToast(t(NO_TABS_HINT))
     return
   }
   if (generating.value) return

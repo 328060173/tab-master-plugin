@@ -38,12 +38,14 @@ export default {
   'menu.loggedOut': '已退出登录',
 
   // 帮助/支持
-  'menu.contact': '加群 & 联系我们',
-  'menu.feedback': '意见 & 需求反馈',
+  'menu.contact': '联系我们',
+  'menu.feedback': '意见和需求反馈',
   'menu.feedback.comingSoon': '反馈功能即将开放',
   'menu.feedback.loginRequired': '需登录',
   'menu.guide': '操作说明',
   'menu.donate': '请作者喝杯咖啡',
+  'menu.doc': '文档',
+  'menu.faq': 'FAQ',
 
   // 分组标题
   'menu.group.account': '账号',
@@ -1377,6 +1379,15 @@ export default {
   'backup.lib.snapshotWriteFailed': '快照写入失败，已自动回滚，请重试',
   'backup.lib.userCancelled': '用户取消',
   'backup.lib.downloadFailed': '下载失败',
+  'backup.lib.invalidUrlSkipped': '无效 URL 已跳过：{url}',
+  'backup.lib.unnamedGroup': '未命名',
+  'backup.lib.nicetabGroupMissingTabList': '分组「{name}」缺少 tabList，已跳过',
+  'backup.lib.nicetabLabel': 'NiceTab 导入',
+  'backup.lib.tobyLabel': 'Toby 导入',
+  'backup.lib.vertitabLabel': 'VertiTab 导入',
+  'backup.lib.kindMismatch': 'kind 字段不匹配（{kind}），仍按本插件格式解析',
+  'backup.lib.newerSchemaVersion': '此备份由更新版本创建（schemaVersion={sv}），建议升级插件后导入',
+  'backup.lib.noChecksumSkipped': '此快照无校验和（旧版本导出），已跳过完整性校验',
 
   // ===== 任务10：数据表 + 收尾（statusConfig/feature-tiers/popup/logs/工具页）=====
   // popup 入口
@@ -1583,4 +1594,64 @@ export default {
   'search.noMatch': '未找到匹配的标签',
   // 通知详情弹框标题
   'notice.title': '通知',
+
+  // ===== 任务13 第二批遗漏补齐 =====
+  // useCleanup 阈值档位 label
+  'cleanup.threshold.days1': '1 天',
+  'cleanup.threshold.days3': '3 天',
+  'cleanup.threshold.days7': '7 天',
+  'cleanup.threshold.days30': '30 天',
+
+  // lib/api.ts 错误消息（NetworkError/ApiError 抛出后冒泡到 UI toast）
+  // 注：'登录已过期，请重新登录' 复用既有 'login.expired' key，不重复
+  'error.requestFailed': '请求失败',
+  'error.timeout': '请求超时，请稍后再试',
+  'error.networkFailed': '网络请求失败，请检查网络连接',
+  'error.networkFailedShort': '网络请求失败',
+
+  // lib/backup 错误消息（error 字段冒泡到 UI）
+  'error.backup.dirNotBound': '未绑定目录，请重新选择',
+  'error.backup.authDenied': '授权未通过',
+  'error.backup.fsNotSupported': '不支持',
+  'error.backup.dirNotBoundShort': '未绑定目录',
+  'error.backup.dirPermInvalid': '目录权限失效',
+  'error.backup.dirUnsupported': '当前浏览器不支持目录备份（需 Chrome/Edge 86+）',
+  'error.backup.dirPickCancelled': '已取消选择目录',
+  'error.backup.dirQuotaOrWrite': '磁盘空间不足或目录不可写（{name}）',
+  'error.backup.notEnabled': '备份未开启',
+  'error.backup.dirDeferredToUi': '目录备份待UI侧补',
+  'error.backup.backupFailed': '备份失败',
+  'error.backup.opNotImplemented': '操作 {op} 暂未收口到 SW 队列（P0-4-7+改造中）',
+  'error.backup.unknownMsgType': '未知消息类型',
+  'error.backup.verifyFailed': '写入后校验失败（快照损坏）',
+
+  // urlFilter NO_TABS_HINT（toast 提示，多组件共用）
+  'backup.lib.noTabsHint': '备份/导出:当前没有标签,无数据可处理',
+
+  // backupRules 保留策略文案（tWithParams，当前无消费者但预 i18n 备用）
+  'backup.rules.retention': '自动保留近 {max} 条备份，每条最多 {tabs} 个标签。满 {max} 条后自动清理最早的，为新的腾出位置。大约占用 {estimate} MB，最高不超过 {quota} MB。',
+  'backup.rules.manual': '手动备份最多 {max} 条，永不自动删除。',
+  'backup.rules.overflow': '超过 {max} 条时，最早的自动备份会被自动清理给新备份腾位置；手动备份不受影响，不会被删。',
+
+  // restore.ts 冲突/未匹配标签文案
+  'restore.conflict.sameUrlMulti': '{label}（同 URL 多开）',
+  'restore.conflict.emptyCurrent': '（当前无）',
+  'restore.conflict.emptySnapshot': '（快照无）',
+  'restore.unmatched.tagBound': '标记「{tags}」原绑定：{url}',
+
+  // ErrorBoundary 渲染错误日志（options.vue / sidepanel.vue logError 入参）
+  'error.render': '渲染错误：{msg}',
+
+  // lib/tools/constants 默认字段名（key 字符串，消费侧 t() 翻译）
+  'tools.field.name': '姓名',
+  'tools.field.phone': '手机号',
+  'tools.field.homeAddr': '家庭地址',
+  'tools.field.companyAddr': '公司地址',
+
+  'error.backup.inProgress': '备份进行中，请稍后再试',
+  'error.backup.execFailed': '执行失败',
+  'error.backup.corruptRolledback': '快照写入损坏已回滚',
+  'error.backup.corruptRetry': '快照写入损坏，已自动回滚，请重试',
+  'tools.field.idNumber': '身份证号码',
+  'tools.field.birthday': '生日',
 }

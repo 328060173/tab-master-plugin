@@ -345,7 +345,7 @@ async function doEnableAuto() {
     // 仍保留 enabled=true 设置（尊重用户意图），但不执行第一次备份，toast 提示。
     const allTabs = await chrome.tabs.query({})
     if (filterBackupableTabs(allTabs).length === 0) {
-      showToast(NO_TABS_HINT)
+      showToast(t(NO_TABS_HINT))
       return
     }
     // 立即触发第一次自动备份（source=auto.event.startup → 列表显示「自动备份」）
@@ -444,7 +444,7 @@ async function onOpenExport(snapshotId: string, label: string | null) {
     // 0 标签阻断（2026-07-28 立）：历史空快照（0 标签）导出也 toast 阻断，不写空文件。
     const tabCount = file.snapshot.stats?.tabCount ?? 0
     if (tabCount === 0) {
-      showToast(NO_TABS_HINT)
+      showToast(t(NO_TABS_HINT))
       return
     }
     const { serializeBackupJson } = await import('~lib/backup/exporters')
@@ -489,7 +489,7 @@ async function onDownloadJsonView() {
     const r = await downloadExportWithPicker(out)
     if (r.ok) {
       showToast(r.fallback ? t('backup.toast.downloadedDefault') : t('backup.toast.exportedToPicked'))
-    } else if (r.error && r.error !== '用户取消') {
+    } else if (r.error && r.error !== t('backup.lib.userCancelled')) {
       showToast(r.error || t('backup.toast.downloadFailed'))
     }
   } catch (e) {

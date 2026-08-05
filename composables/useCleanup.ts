@@ -23,13 +23,13 @@ export interface DuplicateGroup {
 
 /**
  * 阈值档位 —— 抄 Workona 的成熟档位。
- * label 用于下拉显示，ms 用于实际比较。
+ * labelKey 为 i18n key，消费侧 t(opt.labelKey) 翻译；ms 用于实际比较。
  */
 export const UNUSED_THRESHOLDS = [
-  { label: "1 天", ms: 24 * 60 * 60 * 1000 },
-  { label: "3 天", ms: 3 * 24 * 60 * 60 * 1000 },
-  { label: "7 天", ms: 7 * 24 * 60 * 60 * 1000 },
-  { label: "30 天", ms: 30 * 24 * 60 * 60 * 1000 },
+  { labelKey: "cleanup.threshold.days1", ms: 24 * 60 * 60 * 1000 },
+  { labelKey: "cleanup.threshold.days3", ms: 3 * 24 * 60 * 60 * 1000 },
+  { labelKey: "cleanup.threshold.days7", ms: 7 * 24 * 60 * 60 * 1000 },
+  { labelKey: "cleanup.threshold.days30", ms: 30 * 24 * 60 * 60 * 1000 },
 ] as const
 
 export type UnusedThresholdMs = typeof UNUSED_THRESHOLDS[number]["ms"]

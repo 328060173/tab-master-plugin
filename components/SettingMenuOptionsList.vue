@@ -19,11 +19,11 @@
         <img
           v-if="canRenderLogoWithFallback(item)"
           :src="item.settingLogo"
-          :alt="item.settingName"
+          :alt="settingMenuLabel(item)"
           class="w-4 h-4 object-contain shrink-0"
           @error="onLogoError($event)" />
         <LinkIcon v-else :size="16" class="shrink-0" />
-        <span class="truncate">{{ item.settingName }}</span>
+        <span class="truncate">{{ settingMenuLabel(item) }}</span>
       </button>
     </div>
   </div>
@@ -46,9 +46,14 @@ import { Link as LinkIcon } from "@lucide/vue"
 import { onMounted, ref } from "vue"
 
 import { useSettingMenuOptions } from "~composables/useSettingMenu"
+import { t } from "~lib/i18n"
 
 const { menus, canRenderLogo, onMenuClick, fetchOptionsMenus } =
   useSettingMenuOptions()
+
+// 菜单显示名：固定项优先用 settingNameKey 走 i18n，后端项用 settingName（后端下发的中文）
+const settingMenuLabel = (item: { settingName: string; settingNameKey?: string }): string =>
+  item.settingNameKey ? t(item.settingNameKey) : item.settingName
 
 // 组件挂载时直接请求后端拉取 settingType=2 菜单
 // 静默失败：失败时 menus 保持空，区块 v-if 隐藏
