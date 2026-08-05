@@ -6,16 +6,16 @@
         <button class="absolute top-3 right-3 text-gray-400 hover:text-gray-600" @click="emit('close')">
           <X :size="16" />
         </button>
-        <h3 class="text-sm font-semibold text-gray-900 mb-4">{{ title }}</h3>
+        <h3 class="text-sm font-semibold text-gray-900 mb-4">{{ title || t('dialog.createGroup.defaultTitle') }}</h3>
 
         <div class="space-y-4">
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">分组名称</label>
-            <input v-model="name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入分组名称" />
+            <label class="block text-xs font-medium text-gray-700 mb-1">{{ t('dialog.createGroup.nameLabel') }}</label>
+            <input v-model="name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" :placeholder="t('dialog.createGroup.namePlaceholder')" />
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">分组颜色</label>
+            <label class="block text-xs font-medium text-gray-700 mb-1">{{ t('dialog.createGroup.colorLabel') }}</label>
             <div class="flex flex-wrap gap-2">
               <button v-for="c in GROUP_COLORS" :key="c"
                       :class="[colorClass(c), 'w-8 h-8 rounded-full border-2 transition-transform hover:scale-110', selectedColor === c ? 'border-gray-800 ring-2 ring-offset-2 ring-gray-400' : 'border-transparent']"
@@ -26,9 +26,9 @@
         </div>
 
         <div class="flex justify-end gap-2 mt-6">
-          <button class="px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 rounded-md" @click="emit('close')">取消</button>
+          <button class="px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 rounded-md" @click="emit('close')">{{ t('common.cancel') }}</button>
           <button class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed" :disabled="!canCreate" @click="handleCreate">
-            {{ createText }}
+            {{ createText || t('dialog.createGroup.create') }}
           </button>
         </div>
       </div>
@@ -39,6 +39,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue"
 import { X } from "@lucide/vue"
+import { t } from "~lib/i18n"
 import { GROUP_COLORS, GROUP_COLOR_CLASSES, type GroupColor } from "~composables/useTabGroups"
 
 const props = withDefaults(defineProps<{
@@ -47,8 +48,8 @@ const props = withDefaults(defineProps<{
   createText?: string
   selectedTabIds?: number[]
 }>(), {
-  title: "新建分组",
-  createText: "创建",
+  title: "",
+  createText: "",
   selectedTabIds: () => [],
 })
 
@@ -71,6 +72,6 @@ const colorClass = (color: string) => {
 }
 
 const handleCreate = () => {
-  emit("create", name.value || "未命名分组", selectedColor.value)
+  emit("create", name.value || t('sidepanel.group.untitled'), selectedColor.value)
 }
 </script>

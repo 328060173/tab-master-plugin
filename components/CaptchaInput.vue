@@ -91,13 +91,13 @@ defineExpose({
       class="w-[120px] h-11 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded cursor-pointer overflow-hidden flex-shrink-0 flex items-center justify-center transition-all hover:border-blue-500"
       :class="{ 'opacity-50 cursor-not-allowed': isLoading, 'border-red-400': loadError }"
       @click="refreshCaptcha"
-      :title="loadError ? '加载失败，点击重试' : '点击刷新'"
+      :title="loadError ? t('captcha.loadErrorTitle') : t('captcha.refreshTitle')"
     >
-      <span v-if="loadError" class="text-[10px] text-red-500 px-1 text-center">加载失败<br/>点击重试</span>
+      <span v-if="loadError" class="text-[10px] text-red-500 px-1 text-center">{{ t('captcha.loadFailed') }}<br/>{{ t('captcha.clickRetry') }}</span>
       <img
         v-else-if="!isLoading && captchaImg"
         :src="`data:image/jpeg;base64,${captchaImg}`"
-        alt="验证码"
+        :alt="t('captcha.alt')"
         class="w-full h-full object-cover"
       />
       <RefreshCw
@@ -114,7 +114,7 @@ defineExpose({
       class="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
       v-model="captchaCode"
       @input="onCodeInput"
-      :placeholder="t('captcha.placeholder', '验证码')"
+      :placeholder="t('captcha.placeholder')"
       maxlength="4"
       autocomplete="off"
     />

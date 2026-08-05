@@ -48,7 +48,7 @@
           <button
             class="px-4 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
             @click="emit('cancel')"
-          >{{ cancelText || '取消' }}</button>
+          >{{ cancelText || t('common.cancel') }}</button>
           <button
             :class="[
               'px-4 py-1.5 text-sm rounded-lg text-white',
@@ -57,7 +57,7 @@
                 : 'bg-blue-600 hover:bg-blue-700'
             ]"
             @click="emit('confirm')"
-          >{{ confirmText || '确认' }}</button>
+          >{{ confirmText || t('common.confirm') }}</button>
         </div>
       </div>
     </div>
@@ -78,6 +78,7 @@
  */
 
 import { onMounted, onUnmounted, watch } from "vue"
+import { t } from "~lib/i18n"
 
 const props = defineProps<{
   open: boolean

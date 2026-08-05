@@ -2,67 +2,67 @@
   <div class="fixed inset-0 z-[100] bg-black/30" @click="emit('close')"></div>
   <div class="fixed inset-x-3 top-14 bottom-4 z-[100] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden">
     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
-      <h2 class="text-sm font-semibold">存储空间使用情况</h2>
+      <h2 class="text-sm font-semibold">{{ t('panel.storage.title') }}</h2>
       <button class="text-gray-400 hover:text-gray-700 p-1 rounded hover:bg-gray-100" @click="emit('close')"><X :size="16" /></button>
     </div>
     <div class="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-      <div class="text-xs text-gray-400 mb-3">数据存储在本机（chrome.storage.local 与浏览器 localStorage），不上传云端。会话级数据（标签切换历史、聚焦状态）关闭浏览器自动清除，不在此列出。</div>
+      <div class="text-xs text-gray-400 mb-3">{{ t('panel.storage.intro') }}</div>
 
       <!-- 用户数据 -->
-      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1">用户数据</p>
+      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1">{{ t('panel.storage.userData') }}</p>
       <div v-for="item in userItems" :key="item.key" class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-100 bg-gray-50">
         <span class="text-base shrink-0">{{ item.icon }}</span>
         <div class="flex-1 min-w-0">
-          <p class="text-xs font-medium text-gray-800">{{ item.label }}</p>
-          <p class="text-[11px] text-gray-400">{{ item.count }} 条  ·  {{ item.size }}</p>
+          <p class="text-xs font-medium text-gray-800">{{ storageLabel(item) }}</p>
+          <p class="text-[11px] text-gray-400">{{ tWithParams('panel.storage.countSize', { count: item.count, size: item.size }) }}</p>
         </div>
-        <button class="text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-2 py-1 rounded transition-colors shrink-0" @click="confirmClear(item)">清理</button>
+        <button class="text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-2 py-1 rounded transition-colors shrink-0" @click="confirmClear(item)">{{ t('panel.storage.clearItem') }}</button>
       </div>
 
       <!-- 系统数据 -->
-      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 pt-1">系统数据</p>
+      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 pt-1">{{ t('panel.storage.systemData') }}</p>
       <div v-for="item in sysItems" :key="item.key" class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-100 bg-gray-50">
         <span class="text-base shrink-0">{{ item.icon }}</span>
         <div class="flex-1 min-w-0">
-          <p class="text-xs font-medium text-gray-800">{{ item.label }}</p>
-          <p class="text-[11px] text-gray-400">{{ item.count }} 条  ·  {{ item.size }}</p>
+          <p class="text-xs font-medium text-gray-800">{{ storageLabel(item) }}</p>
+          <p class="text-[11px] text-gray-400">{{ tWithParams('panel.storage.countSize', { count: item.count, size: item.size }) }}</p>
         </div>
-        <button class="text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-2 py-1 rounded transition-colors shrink-0" @click="confirmClear(item)">清理</button>
+        <button class="text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-2 py-1 rounded transition-colors shrink-0" @click="confirmClear(item)">{{ t('panel.storage.clearItem') }}</button>
       </div>
 
       <div class="px-3 py-2 rounded-lg bg-blue-50 border border-blue-100 space-y-0.5">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-blue-700">合计使用</span>
+          <span class="text-xs font-medium text-blue-700">{{ t('panel.storage.totalUsed') }}</span>
           <span class="text-xs font-bold text-blue-700">{{ totalSize }}</span>
         </div>
-        <p class="text-[10px] text-blue-500/80 leading-tight">含备份快照等所有本地数据，由浏览器统一统计</p>
+        <p class="text-[10px] text-blue-500/80 leading-tight">{{ t('panel.storage.totalHint') }}</p>
       </div>
     </div>
 
     <!-- 底部：清空所有缓存 -->
     <div class="px-4 py-3 border-t border-gray-100 shrink-0">
       <button class="w-full py-2 text-xs text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5" @click="confirmClearAll = true">
-        <Trash2 :size="12" />清空所有缓存，重新打开
+        <Trash2 :size="12" />{{ t('panel.storage.clearAllButton') }}
       </button>
     </div>
 
     <!-- 单项清理确认 -->
     <div v-if="confirming" class="absolute inset-x-4 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 z-[100]">
-      <p class="text-sm font-semibold text-gray-800 mb-2">⚠️ 确认清理「{{ confirming.label }}」</p>
-      <p class="text-xs text-red-600 bg-red-50 rounded p-2 mb-4 leading-relaxed">{{ confirming.warning }}</p>
+      <p class="text-sm font-semibold text-gray-800 mb-2">{{ tWithParams('panel.storage.confirmClearTitle', { name: storageLabel(confirming) }) }}</p>
+      <p class="text-xs text-red-600 bg-red-50 rounded p-2 mb-4 leading-relaxed">{{ storageWarning(confirming) }}</p>
       <div class="flex gap-2 justify-end">
-        <button class="px-3 py-1.5 text-xs border border-gray-200 rounded hover:bg-gray-50" @click="confirming = null">取消</button>
-        <button class="px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600" @click="doClear">确认清理</button>
+        <button class="px-3 py-1.5 text-xs border border-gray-200 rounded hover:bg-gray-50" @click="confirming = null">{{ t('common.cancel') }}</button>
+        <button class="px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600" @click="doClear">{{ t('panel.storage.confirmClearButton') }}</button>
       </div>
     </div>
 
     <!-- 清空所有确认 -->
     <div v-if="confirmClearAll" class="absolute inset-x-4 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 z-[100]">
-      <p class="text-sm font-semibold text-gray-800 mb-2">⚠️ 清空所有缓存？</p>
-      <p class="text-xs text-red-600 bg-red-50 rounded p-2 mb-4 leading-relaxed">将清除全部本地数据（稍后列表、标记、编号、打开时间、搜索历史等），并清除所有备份快照（手动 / 自动 / 监听），操作不可恢复。如有需要的备份，请先在「备份」页导出保存到电脑。清空后自动重新打开插件。</p>
+      <p class="text-sm font-semibold text-gray-800 mb-2">{{ t('panel.storage.clearAllTitle') }}</p>
+      <p class="text-xs text-red-600 bg-red-50 rounded p-2 mb-4 leading-relaxed">{{ t('panel.storage.clearAllMessage') }}</p>
       <div class="flex gap-2 justify-end">
-        <button class="px-3 py-1.5 text-xs border border-gray-200 rounded hover:bg-gray-50" @click="confirmClearAll = false">取消</button>
-        <button class="px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600" @click="doClearAll">清空并重新打开</button>
+        <button class="px-3 py-1.5 text-xs border border-gray-200 rounded hover:bg-gray-50" @click="confirmClearAll = false">{{ t('common.cancel') }}</button>
+        <button class="px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600" @click="doClearAll">{{ t('panel.storage.clearAllConfirm') }}</button>
       </div>
     </div>
   </div>
@@ -71,6 +71,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
 import { X, Trash2 } from "@lucide/vue"
+import { t, tWithParams } from "~lib/i18n"
 import { clearAllSnapshots } from "~lib/backup/snapshotStore"
 
 const emit = defineEmits(["close", "cleared"])
@@ -83,15 +84,24 @@ const emit = defineEmits(["close", "cleared"])
  * 会话存储 chrome.storage.session（tabSwitchHistory/tabSwitchIndex/focusState）关浏览器即清，不计入。
  */
 interface StorageDef {
-  key: string                 // 唯一 id（多 key 项用合成 id，如 __guides__）
-  label: string
+  key: string                 // 唯一 id（多 key 项用合成 id，如 __guides__）；同时用作 i18n key 后缀
   icon: string
-  warning: string
   storage: "local" | "ls"     // chrome.storage.local 或 window.localStorage
   keys?: string[]             // 多 key 项的真实 key 列表（默认 [key]）
   empty?: "array" | "object"  // local 单 key 清空后重置成的空值
 }
 type StorageItem = StorageDef & { count: number; size: string }
+
+// i18n key 命名规则：panel.storage.item.<defKey>.label / .warning
+// defKey 含点号或冒号会破坏 key 结构，故用 sanitized 形式（去特殊字符）
+const storageLabel = (d: StorageDef) => t(`panel.storage.item.${sanitizeItemKey(d.key)}.label`)
+const storageWarning = (d: StorageDef) => t(`panel.storage.item.${sanitizeItemKey(d.key)}.warning`)
+function sanitizeItemKey(k: string): string {
+  // tabmaster_search_history → tabmaster_search_history（下划线保留）
+  // tabMasterBackupLivePendingArchive → tabMasterBackupLivePendingArchive（驼峰保留）
+  // 仅排除 i18n key 分隔符 '.'，本项目现有 key 均不含点号，原样返回
+  return k.replace(/\./g, '_')
+}
 
 const userItems = ref<StorageItem[]>([])
 const sysItems = ref<StorageItem[]>([])
@@ -108,41 +118,41 @@ function sizeOf(val: unknown) { return new Blob([JSON.stringify(val ?? null)]).s
 
 // 用户数据：用户主动产生、清理有明确语义
 const USER_DEFS: StorageDef[] = [
-  { key: "laterTabs",      label: "稍后处理列表",   icon: "🕐", storage: "local", empty: "array",  warning: "会清空所有稍后处理的标签记录，操作不可恢复。" },
-  { key: "customTags",     label: "自定义标记",     icon: "🏷️", storage: "local", empty: "array",  warning: "会清空所有自定义标记，同时清除所有标签页上绑定的标记，操作不可恢复。" },
-  { key: "tabTagsMap",     label: "标签标记映射",   icon: "🗂️", storage: "local", empty: "object", warning: "会清空标签页与标记的绑定关系，但不删除标记名称本身。" },
-  { key: "recentlyClosed", label: "关闭历史",       icon: "📋", storage: "local", empty: "array",  warning: "会清空所有最近关闭的标签页记录。" },
-  { key: "tabmaster_search_history", label: "搜索历史", icon: "🔍", storage: "ls", warning: "会清空所有搜索历史记录。" },
-  { key: "tabMasterBackupCache", label: "标签备份缓存", icon: "🛡️", storage: "local", empty: "array", warning: "会清空所有本地备份快照（含标记/分组等元数据快照），不可恢复。" },
+  { key: "laterTabs",      icon: "🕐", storage: "local", empty: "array" },
+  { key: "customTags",     icon: "🏷️", storage: "local", empty: "array" },
+  { key: "tabTagsMap",     icon: "🗂️", storage: "local", empty: "object" },
+  { key: "recentlyClosed", icon: "📋", storage: "local", empty: "array" },
+  { key: "tabmaster_search_history", icon: "🔍", storage: "ls" },
+  { key: "tabMasterBackupCache", icon: "🛡️", storage: "local", empty: "array" },
 ]
 // 系统数据：插件自动生成、清理会重置相关行为
 const SYS_DEFS: StorageDef[] = [
-  { key: "tabNumberMap",      label: "快捷键编号",       icon: "🔢", storage: "local", empty: "object", warning: "会清空所有自定义编号，Alt+数字 快捷键将全部失效。" },
-  { key: "tabOpenedAtMap",    label: "标签打开时间",     icon: "🕒", storage: "local", empty: "object", warning: "会清空记录的标签打开时间，时间排序将以重置后的加载时间为准。" },
-  { key: "tabLastAccessedMap",label: "标签最近访问时间", icon: "⏱️", storage: "local", empty: "object", warning: "会清空记录的最近访问时间，「检测长期未使用」会以重置后的时间为准。" },
-  { key: "treeParentMap",     label: "树形父子关系",     icon: "🌲", storage: "local", empty: "object", warning: "会清空树形视图中的父子层级关系。" },
-  { key: "tabMasterSettings", label: "界面设置",         icon: "⚙️", storage: "local", empty: "object", warning: "会把主题/字号/密度/默认视图等设置重置为默认值。" },
-  { key: "tabMasterLogs",     label: "运行日志",         icon: "📜", storage: "local", empty: "array",  warning: "会清空所有运行日志（也可在「运行日志」页清空）。" },
-  { key: "__guides__",        label: "功能引导记录",     icon: "💡", storage: "local", keys: ["tabGroupsGuideShown", "treeGuideShown", "focusModeShown"], warning: "清空后，分组 / 树形 / 聚焦模式的首次引导会再次出现。" },
-  { key: "tagSelectMode",     label: "标记筛选模式",     icon: "🔘", storage: "local", warning: "会把标记筛选模式重置为默认「单选」。" },
-  { key: "viewMode",          label: "视图模式",         icon: "🖼️", storage: "ls", warning: "会清空记住的视图模式，下次打开恢复默认列表视图。" },
-  { key: "tabMasterBannerState", label: "登录引导记录",  icon: "🔔", storage: "local", warning: "清空后，登录引导 Banner 会重新显示。" },
-  { key: "tabMasterVersionCheck", label: "版本检查记录",  icon: "🔄", storage: "local", warning: "清空后，版本横幅的关闭记录会丢失，已关闭的非强制更新横幅可能再次出现。" },
-  { key: "tabMasterVersionCache", label: "版本信息缓存",  icon: "📦", storage: "local", empty: "object", warning: "清空后，版本更新横幅会暂时消失，下次后台同步后恢复。" },
-  { key: "tabMasterAdState", label: "广告展示记录",  icon: "📢", storage: "local", warning: "清空后，广告展示计数会重置。" },
-  { key: "tabMasterAdCache", label: "广告素材缓存",  icon: "🖼️", storage: "local", empty: "object", warning: "清空后，广告会暂时显示内置占位内容，下次后台同步后恢复。" },
-  { key: "tabMasterNoticeCache", label: "通知列表缓存",  icon: "📋", storage: "local", empty: "object", warning: "清空后，通知条会暂时消失，下次后台同步后恢复。" },
-  { key: "tabMasterNoticeRead", label: "通知已读记录",  icon: "📨", storage: "local", warning: "清空后，已读记录会丢失，已读过的通知会重新展示。" },
-  { key: "tabMasterSettingMenuCache", label: "更多菜单缓存",  icon: "📑", storage: "local", empty: "object", warning: "清空后，设置菜单「更多」组会暂时显示内置默认项，下次后台同步后恢复。" },
-  { key: "tabMasterSkinTryon", label: "道具试穿态", icon: "⏳", storage: "local", empty: "object", warning: "会立即结束当前试穿（如有），并清除试穿临时数据。不影响已购道具的使用中态。" },
-  { key: "tabMasterBackupState", label: "备份运行状态", icon: "📊", storage: "local", empty: "object", warning: "会清空备份服务的运行状态（上次备份时间/快照数/缓存大小），不影响快照本身。" },
-  { key: "tabMasterBackupSettings", label: "备份设置", icon: "🛡️", storage: "local", empty: "object", warning: "会把备份设置重置为默认（总开关关闭、定时 5 分钟、保留 7 天等）。" },
-  { key: "tabMasterDeviceId", label: "设备标识", icon: "🆔", storage: "local", warning: "会清除本机设备标识，下次备份时自动重新生成。不影响已有快照。" },
-  { key: "tabMasterBackupNoticeAcked", label: "备份告知确认", icon: "📌", storage: "local", empty: "boolean", warning: "会清除首次开启备份的知悉确认状态，下次开启时再次弹窗。" },
-  { key: "tabMasterBackupDirMeta", label: "备份目录元信息", icon: "📁", storage: "local", empty: "object", warning: "会清除用户目录备份的元信息（目录名/大小缓存/权限状态）。下次打开管理页会重新读取。" },
-  { key: "tabMasterBackupUndo", label: "备份撤销窗口", icon: "↩️", storage: "local", empty: "object", warning: "会清除恢复前快照（30s 撤销窗口），无法再撤销上次恢复。" },
-  { key: "tabMasterBackupLive", label: "自动监听活档", icon: "🔴", storage: "local", empty: "object", warning: "会清空当前会话的实时活档（不影响已封存的历史备份）。" },
-  { key: "tabMasterBackupLivePendingArchive", label: "待封存活档", icon: "📦", storage: "local", empty: "object", warning: "会清空上次启动封存失败遗留的待封存活档（昨晚标签数据，清后无法恢复）。仅在封存失败时存在。" },
+  { key: "tabNumberMap",      icon: "🔢", storage: "local", empty: "object" },
+  { key: "tabOpenedAtMap",    icon: "🕒", storage: "local", empty: "object" },
+  { key: "tabLastAccessedMap",icon: "⏱️", storage: "local", empty: "object" },
+  { key: "treeParentMap",     icon: "🌲", storage: "local", empty: "object" },
+  { key: "tabMasterSettings", icon: "⚙️", storage: "local", empty: "object" },
+  { key: "tabMasterLogs",     icon: "📜", storage: "local", empty: "array" },
+  { key: "__guides__",        icon: "💡", storage: "local", keys: ["tabGroupsGuideShown", "treeGuideShown", "focusModeShown"] },
+  { key: "tagSelectMode",     icon: "🔘", storage: "local" },
+  { key: "viewMode",          icon: "🖼️", storage: "ls" },
+  { key: "tabMasterBannerState", icon: "🔔", storage: "local" },
+  { key: "tabMasterVersionCheck", icon: "🔄", storage: "local" },
+  { key: "tabMasterVersionCache", icon: "📦", storage: "local", empty: "object" },
+  { key: "tabMasterAdState", icon: "📢", storage: "local" },
+  { key: "tabMasterAdCache", icon: "🖼️", storage: "local", empty: "object" },
+  { key: "tabMasterNoticeCache", icon: "📋", storage: "local", empty: "object" },
+  { key: "tabMasterNoticeRead", icon: "📨", storage: "local" },
+  { key: "tabMasterSettingMenuCache", icon: "📑", storage: "local", empty: "object" },
+  { key: "tabMasterSkinTryon", icon: "⏳", storage: "local", empty: "object" },
+  { key: "tabMasterBackupState", icon: "📊", storage: "local", empty: "object" },
+  { key: "tabMasterBackupSettings", icon: "🛡️", storage: "local", empty: "object" },
+  { key: "tabMasterDeviceId", icon: "🆔", storage: "local" },
+  { key: "tabMasterBackupNoticeAcked", icon: "📌", storage: "local", empty: "boolean" },
+  { key: "tabMasterBackupDirMeta", icon: "📁", storage: "local", empty: "object" },
+  { key: "tabMasterBackupUndo", icon: "↩️", storage: "local", empty: "object" },
+  { key: "tabMasterBackupLive", icon: "🔴", storage: "local", empty: "object" },
+  { key: "tabMasterBackupLivePendingArchive", icon: "📦", storage: "local", empty: "object" },
   // 注：装扮相关动态 key（按账号隔离，不在此静态表展示）：
   //   - `tabMasterSkinActive:{customerId}` 已购道具「使用中」态（头像框 + 背景图/纯色 + bgType）
   //   - `tabMasterSkinOpacity:{customerId}` 背景透明度（用户手动调，按 id 隔离）

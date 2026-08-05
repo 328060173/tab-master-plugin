@@ -255,11 +255,12 @@ async function confirmSendCode() {
     nextTick(() => emailCodeRef.value?.focus())
   } catch (e) {
     // 失败 - 验证码错误则刷新图形码，弹框保持
-    const errMsg = e instanceof Error ? e.message : '发送失败'
+    const errMsg = e instanceof Error ? e.message : t('login.sendFailed')
     modalError.value = errMsg
     codeSentTip.value = errMsg
     showToast(errMsg)   // 额外弹 toast 醒目提示（保留小字 modalError/codeSentTip）
-    if (errMsg.includes('验证码') && captchaRef.value) {
+    // 后端可能返回中/英文验证码错误信息，两种都匹配
+    if (/验证码|captcha|code/i.test(errMsg) && captchaRef.value) {
       captchaRef.value.refresh()
     }
   } finally {
@@ -317,7 +318,7 @@ async function handleLogin() {
     emit('close')
   } catch (e) {
     // 失败 - 提示错误信息（登录不再涉及图形验证码）
-    const errMsg = e instanceof Error ? e.message : '登录失败'
+    const errMsg = e instanceof Error ? e.message : t('login.loginFailed')
     codeSentTip.value = errMsg
     showToast(errMsg)   // 额外弹 toast 醒目提示（保留小字 codeSentTip）
   } finally {
