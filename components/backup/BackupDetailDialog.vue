@@ -83,17 +83,17 @@
         <!-- 视图切换 -->
         <div class="px-5 py-2 border-y border-gray-100 dark:border-gray-700 shrink-0 flex items-center gap-1">
           <button
-            v-for="t in VIEW_TABS"
-            :key="t.key"
+            v-for="tab in VIEW_TABS"
+            :key="tab.key"
             :class="[
               'px-3 py-1 text-xs transition-colors border-b-2 -mb-px focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-t',
-              view === t.key
+              view === tab.key
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-medium'
                 : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200',
             ]"
-            @click="view = t.key"
+            @click="view = tab.key"
           >
-            {{ t.label }}
+            {{ tab.label }}
           </button>
         </div>
 

@@ -217,17 +217,17 @@
           <!-- 二级 tab：头像框(propType=1) / 背景图(propType=2)，样式对齐顶部 Tab 栏（border-b-2 选中态） -->
           <div class="flex gap-1 border-b border-gray-100 dark:border-gray-700">
             <button
-              v-for="t in propSubTabs"
-              :key="t.value"
+              v-for="sub in propSubTabs"
+              :key="sub.value"
               type="button"
               :class="[
                 'px-3 py-2 text-xs transition-colors border-b-2 -mb-px',
-                activePropTab === t.value
+                activePropTab === sub.value
                   ? 'border-blue-600 text-blue-600 font-medium'
                   : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
               ]"
-              @click="onPropTabChange(t.value)">
-              {{ t.label }}
+              @click="onPropTabChange(sub.value)">
+              {{ sub.label }}
             </button>
           </div>
 

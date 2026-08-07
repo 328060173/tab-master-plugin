@@ -4,15 +4,15 @@
       <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
         <Pin :size="10" />固定标签 ({{ pinned.length }})
       </p>
-      <div v-for="t in pinned" :key="t.id" :class="['flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-transparent hover:border-gray-200 hover:bg-gray-50 mb-0.5 cursor-pointer', t.active ? 'border-l-2 border-l-blue-700 bg-blue-200' : '']" @click="emit('activate', t.id)">
-        <FavIcon :src="t.favIconUrl" :domain="t.domain" size="sm" />
+      <div v-for="tab in pinned" :key="tab.id" :class="['flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-transparent hover:border-gray-200 hover:bg-gray-50 mb-0.5 cursor-pointer', tab.active ? 'border-l-2 border-l-blue-700 bg-blue-200' : '']" @click="emit('activate', tab.id)">
+        <FavIcon :src="tab.favIconUrl" :domain="tab.domain" size="sm" />
         <div class="flex-1 min-w-0">
-          <p class="text-xs font-medium text-gray-900 truncate" v-html="hl(t.title)"></p>
-          <p class="text-[10px] text-gray-400 truncate" v-html="hl(t.url)"></p>
+          <p class="text-xs font-medium text-gray-900 truncate" v-html="hl(tab.title)"></p>
+          <p class="text-[10px] text-gray-400 truncate" v-html="hl(tab.url)"></p>
         </div>
-        <StatusBadge :item="t" />
-        <TagPicker :tabId="t.id" :currentTags="t.tags" :allTags="customTags" @toggleTag="emit('toggleTag', t.id, $event)" @addTag="emit('addTag', $event)" />
-        <ActionButtons @later="emit('later', t.id)" @copy="emit('copy', t.url)" @close="emit('close', t.id)" />
+        <StatusBadge :item="tab" />
+        <TagPicker :tabId="tab.id" :currentTags="tab.tags" :allTags="customTags" @toggleTag="emit('toggleTag', tab.id, $event)" @addTag="emit('addTag', $event)" />
+        <ActionButtons @later="emit('later', tab.id)" @copy="emit('copy', tab.url)" @close="emit('close', tab.id)" />
       </div>
     </template>
 
@@ -20,15 +20,15 @@
       <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 mt-3 flex items-center gap-1">
         <Globe :size="10" />已打开 ({{ open.length }})
       </p>
-      <div v-for="t in open" :key="t.id" :class="['flex items-center gap-2 px-2.5 py-1.5 rounded-lg border mb-0.5 cursor-pointer transition-colors', t.active ? 'border-l-2 border-l-blue-700 border-y-blue-300 border-r-blue-300 bg-blue-200' : 'border-transparent hover:border-gray-200 hover:bg-gray-50']" @click="emit('activate', t.id)">
-        <FavIcon :src="t.favIconUrl" :domain="t.domain" size="sm" />
+      <div v-for="tab in open" :key="tab.id" :class="['flex items-center gap-2 px-2.5 py-1.5 rounded-lg border mb-0.5 cursor-pointer transition-colors', tab.active ? 'border-l-2 border-l-blue-700 border-y-blue-300 border-r-blue-300 bg-blue-200' : 'border-transparent hover:border-gray-200 hover:bg-gray-50']" @click="emit('activate', tab.id)">
+        <FavIcon :src="tab.favIconUrl" :domain="tab.domain" size="sm" />
         <div class="flex-1 min-w-0">
-          <p :class="['text-xs font-medium truncate', t.active ? 'text-blue-900' : 'text-gray-900']" v-html="hl(t.title)"></p>
-          <p class="text-[10px] text-gray-400 truncate" v-html="hl(t.url)"></p>
+          <p :class="['text-xs font-medium truncate', tab.active ? 'text-blue-900' : 'text-gray-900']" v-html="hl(tab.title)"></p>
+          <p class="text-[10px] text-gray-400 truncate" v-html="hl(tab.url)"></p>
         </div>
-        <StatusBadge :item="t" />
-        <TagPicker :tabId="t.id" :currentTags="t.tags" :allTags="customTags" @toggleTag="emit('toggleTag', t.id, $event)" @addTag="emit('addTag', $event)" />
-        <ActionButtons @later="emit('later', t.id)" @copy="emit('copy', t.url)" @close="emit('close', t.id)" />
+        <StatusBadge :item="tab" />
+        <TagPicker :tabId="tab.id" :currentTags="tab.tags" :allTags="customTags" @toggleTag="emit('toggleTag', tab.id, $event)" @addTag="emit('addTag', $event)" />
+        <ActionButtons @later="emit('later', tab.id)" @copy="emit('copy', tab.url)" @close="emit('close', tab.id)" />
       </div>
     </template>
 
@@ -36,11 +36,11 @@
       <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 mt-3 flex items-center gap-1">
         <History :size="10" />最近关闭 ({{ closed.length }})
       </p>
-      <button v-for="t in closed" :key="t.id + t.closedAt" class="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg hover:bg-gray-50 text-left mb-0.5 border border-transparent hover:border-gray-200 group" @click="emit('restore', t.url)">
-        <FavIcon :src="t.favIconUrl" :domain="t.domain" size="sm" />
+      <button v-for="tab in closed" :key="tab.id + tab.closedAt" class="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg hover:bg-gray-50 text-left mb-0.5 border border-transparent hover:border-gray-200 group" @click="emit('restore', tab.url)">
+        <FavIcon :src="tab.favIconUrl" :domain="tab.domain" size="sm" />
         <div class="flex-1 min-w-0">
-          <p class="text-xs font-medium text-gray-600 truncate" v-html="hl(t.title)"></p>
-          <p class="text-[10px] text-gray-400 truncate" v-html="hl(t.url)"></p>
+          <p class="text-xs font-medium text-gray-600 truncate" v-html="hl(tab.title)"></p>
+          <p class="text-[10px] text-gray-400 truncate" v-html="hl(tab.url)"></p>
         </div>
         <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0 opacity-0 group-hover:opacity-100">{{ t('search.restore') }}</span>
       </button>

@@ -87,13 +87,15 @@ export const APP_CODES = {
 export const APP_CODE_QUERY_KEY = "app-code"
 
 // 当前插件版本码（int）。发生产前与后端 ouu_apps_version 表 version_code 对齐；
-// 每次发生产版本必须 +1（用户硬规矩）。versionCode=14 未真实发版（1.3.x 仅 test 分支迭代），下次发生产保持 14。
-export const APP_VERSION_CODE = 14
+// 每次发生产版本必须 +1（用户硬规矩）。
+// 2026-08-07：14→15（1.4.0 i18n 英文支持 + 1.4.1 搜索性能优化合并发版上线）。
+export const APP_VERSION_CODE = 15
 
 // 版本名（string，用户可见）。单一来源红线：全项目取此变量，禁止多处写死。
 // 备份快照元数据 appVersionName、manifest、下载页等统一引用此处。
 // 2026-08-05：1.3.1→1.4.0（i18n 英文支持全量落地是大功能升 minor + 痛点词 AEO/SEO 优化 + manifest description 加搜索关键词 + 红线补齐）。
-export const APP_VERSION_NAME = "1.4.0"
+// 2026-08-07：1.4.0→1.4.1（优化搜索性能：搜索结果渲染链路优化，关闭标签后再搜索新开标签的命中更稳定）。
+export const APP_VERSION_NAME = "1.4.1"
 
 // 登录态 storage key（chrome.storage.local 中的字段名）
 // 单一来源红线：api.ts（缓存层读 storage）与 useAuth.ts（读写 storage）共用以避免散落硬编码
