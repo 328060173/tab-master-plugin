@@ -84,6 +84,8 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - 历史修复细节 → `git log`（不在此复述）
 
 ## 近期已完成（摘要，细节看 docs/dev-log.md + git log）
+- **Bilibili 官方教程脚本**（2026-08-15）：`docs/video-script.md`（1080 行，13 集教程系列）。教程主线+场景演示，独立开发者本人讲课口吻；按学习曲线排序（备份提前到 E02 建立安全感）；每集统一结构（固定开场→第一人称痛点→操作→示例→固定结尾→片尾 0X/13）。**关键文案以 v1.4.1 代码实测为准**：E10 状态徽章 6 种（`lib/statusConfig.ts`：播放中/已静音/录制中/共享中/连接设备/引起注意）、E11 快捷键分平台（Win=Alt+Shift+1~4，Mac=Option+Shift+1~4，`lib/platform.ts`）、E02 换电脑不暗示云同步、E05 树形按打开关系显示父子层级、E08 稍后处理 vs 最近关闭分两个心智。13 集是教程基础设施，原始素材剪短视频多渠道分发。待用户实机验证后开录（建议先录 E01+E02+E03 看回放）。详见 [[project-video-tutorial-script]]
+- **发版 1.4.1/15**（2026-08-07，`5401adf`）：修复搜索结果渲染崩溃 + v-for 内禁遮蔽 i18n `t` + manifest description/keywords 按 ASO 策略重写（差异化定位「不怕浏览器崩溃丢失标签」，不写 sync/sidebar）。当前线上版本 1.4.1 / versionCode 15
 - 聚焦模式（`chrome.tabGroups` 折叠）/ 分组 / 设置面板 / 清理菜单 / 域名 eTLD+1 分组归并
 - 浮层统一 PopoverManager / 批量功能（4 视图全支持）/ 标记体系重设计（TagBar）
 - 历史页：最近关闭（50 条，零权限）+ **完整浏览历史 P1 已落地**（`chrome.history` 走 `optional_permissions`，引导式运行时授权）
@@ -120,8 +122,8 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 - **TagBar 标记栏**：① 删除标记确认后保持「管理标记」panel 不关（ConfirmDialog stopPropagation 修根因，0a66a49）② chips 最多 3 行 + 超出截断「更多」按钮（11cbe06）+ 修测量层 shrink-0（a9ff771）③ 全部按钮移进 chips 行，折行对齐下拉框右侧（a595da9）
 - **过程教训**：agent 多次超范围引入 bug（about:// / reorderCustomTag 重命名 / 循环依赖 / 漏 shrink-0）+ 没 commit 却报告完成 → 已更新 memory `feedback-multiagent-and-no-regression` 审查三步。HMR 缓存不一致致 Vue warn → pnpm fresh 解决
 
-### 🔥 明天第一件事（用户验证 2026-07-06 改动）
-`git pull` + `pnpm fresh` + chrome://extensions **刷新扩展**（不要移除）→ 验证：
+### ✅ 已完成验证（2026-07-06 改动，已验证通过，保留备查）
+原 7-06 改动验证清单（排序/TagBar/整理菜单等），均已验证通过：
 1. 排序「最新访问优先」→ 切标签自动升顶 + 刷新扩展保持选择
 2. 排序下拉新文案：最新访问优先 / 按打开时间正序 / 按打开时间倒序
 3. 标记栏 >3 行 → 前 3 行 + 末尾「更多 ▾」→ 拖 sidepanel 宽度自适应
@@ -132,6 +134,7 @@ Vue components use `<script setup lang="ts">` SFC style. The popup entry (`popup
 8. 清理菜单危险项确认后 → 整理 popover 保持
 
 ### 待办（未完成）
+- **🔥 Bilibili 教程视频录制（2026-08-15 脚本就绪）**：`docs/video-script.md` 13 集脚本已定稿，待用户实机验证后开录。策略：先录 E01+E02+E03 看回放（问三个问题：像不像真人讲 / 新手能不能照做 / 有没有 PM 自嗨用户听不懂的话），再批量录 E04–E13。**开录前必须用 prod build 实机核对**：①E10 六个状态徽章是否都能真实场景亮起 ②E11 两套快捷键（Win Alt+Shift+1~4 / Mac Option+Shift+1~4）是否真能全局触发 ③E02 备份导入导出全链路。录制素材后续剪短视频多渠道分发（B站/小红书/抖音/朋友圈/公众号）
 - **🔥 TagBar 管理按钮内联方案（用户搁置，待确认需求方向）**：用户提出把 ▾管理按钮放最后一个可见 chip 后面（参与 flex-wrap，最多 2 行，3 行不展示），但和已实现的方案 A（3 行 + 行外按钮）冲突，且需求有歧义（占满时按钮放哪、超 2 行是否展示前 2 行+按钮）。用户说"先不动了"。明天确认：① 最多 2 行还是 3 行 ② 占满时按钮位置 ③ 超 2 行是否显示前 2 行 + 按钮
 - **🔥 打包给别人测试（待执行）**：用户要打包发别人。正确做法 `pnpm build`（生产构建 `build/chrome-mv3-prod/`，JS 压缩）+ `pnpm package`（打 zip）。⚠️ `build/chrome-mv3-dev` 是 dev 构建未压缩不能发。对方拿到 zip 解压 → chrome://extensions 开开发者模式 → 加载已解压的扩展程序 → 选文件夹（不是 zip）
 - **默认排序是否改「最新访问优先」**：PM 建议不改（保持按域名），用户未明确，待定
