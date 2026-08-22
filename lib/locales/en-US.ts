@@ -1272,7 +1272,7 @@ export default {
   // --- RestoreConfirmDialog ---
   'backup.comp.restoreConfirm.title': 'Restore confirmation',
   'backup.comp.restoreConfirm.close': 'Close',
-  'backup.comp.restoreConfirm.dupMsg': 'This backup has {total} tabs, of which {dup} are already open (target: {target}). Skip the already-open tabs?',
+  'backup.comp.restoreConfirm.dupMsg': 'This backup has {total} tabs, of which {duplicate} are already open (target: {target}). Skip the already-open tabs?',
   'backup.comp.restoreConfirm.noDupMsg': 'This backup has {total} tabs, none currently open. Click below to start.',
   'backup.comp.restoreConfirm.metaHint': '⚠️ Tag names and later items will be added back. Tags link to the tabs you restore (matched by URL); existing tag names are skipped.',
   'backup.comp.restoreConfirm.targetCurrent': 'current window',

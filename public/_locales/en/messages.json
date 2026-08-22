@@ -1,11 +1,11 @@
 {
   "extensionName": {
-    "message": "Tab Master - Tab Manager & Backup",
-    "description": "Extension name (store name + ASO keywords: Tab Manager / Backup)"
+    "message": "Tab Master - Tab Manager, Backup & Restore",
+    "description": "Extension name (store name + ASO keywords: Tab Manager / Backup / Restore)"
   },
   "extensionDescription": {
-    "message": "Tab manager to save, backup and restore tabs. Organize sessions with search, tags, and multiple views.",
-    "description": "Extension description (store search weight, covers tab manager/save/backup/restore/session/search/tags)"
+    "message": "Manage, search, organize and back up browser tabs. Close your browser after work and restore your workspace with one click.",
+    "description": "Extension description (chrome://extensions tagline, <=132 chars; pain-point hook: close after work + one-click restore)"
   },
   "shortName": {
     "message": "Tab Master",

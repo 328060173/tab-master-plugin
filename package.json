@@ -1,8 +1,8 @@
 {
   "name": "tab-master-plugin",
-  "displayName": "浏览器标签大师 - 标签管理与备份恢复",
-  "version": "1.4.1",
-  "description": "标签管理工具，支持标签保存、备份恢复、搜索、分类和多视图整理，轻松管理大量浏览器标签。",
+  "displayName": "浏览器标签大师 - 标签管理、备份与恢复",
+  "version": "1.4.2",
+  "description": "管理、搜索、整理和备份浏览器标签页，下班直接关浏览器，明天一键恢复工作状态。",
   "short_name": "标签大师",
   "author": "xpd",
   "scripts": {

@@ -1276,7 +1276,7 @@ export default {
   // --- RestoreConfirmDialog ---
   'backup.comp.restoreConfirm.title': '还原确认',
   'backup.comp.restoreConfirm.close': '关闭',
-  'backup.comp.restoreConfirm.dupMsg': '这次备份共 {total} 个标签，其中 {dup} 个当前已打开（目标：{target}）。是否跳过已打开的标签？',
+  'backup.comp.restoreConfirm.dupMsg': '这次备份共 {total} 个标签，其中 {duplicate} 个当前已打开（目标：{target}）。是否跳过已打开的标签？',
   'backup.comp.restoreConfirm.noDupMsg': '这次备份共 {total} 个标签，均未打开。点击下方按钮开始打开。',
   'backup.comp.restoreConfirm.metaHint': '⚠️ 还原后标记名和稍后项会追加回来。标记会关联到你选择恢复的标签（按网址匹配），若标记名已存在则跳过。',
   'backup.comp.restoreConfirm.targetCurrent': '本窗口',
