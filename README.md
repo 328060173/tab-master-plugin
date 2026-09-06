@@ -144,4 +144,4 @@ pkill -f plasmo && rm -rf .plasmo build && pnpm dev:safe
 
 ## 📄 License
 
-Private. © xpd
+[Apache License 2.0](./LICENSE) © xpd
